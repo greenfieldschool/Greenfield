@@ -1,3 +1,5 @@
+import { school } from "@/lib/school";
+
 export function SiteFooter() {
   const year = new Date().getFullYear();
 
@@ -13,22 +15,21 @@ export function SiteFooter() {
           </div>
           <div className="text-sm text-slate-600">
             <div className="font-semibold text-slate-900">Contact</div>
-            <div className="mt-2">admissions@greenfield.school</div>
-            <div>+000 000 000 000</div>
+            <div className="mt-2">{school.email}</div>
+            <div>{school.phone}</div>
           </div>
           <div className="text-sm text-slate-600">
             <div className="font-semibold text-slate-900">Location</div>
-            <div className="mt-2">Greenfield Campus</div>
-            <div>City, Country</div>
+            <div className="mt-2">{school.address}</div>
           </div>
         </div>
         <div className="mt-10 flex flex-col gap-2 border-t border-slate-200 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <div>© {year} Greenfield School. All rights reserved.</div>
           <div className="flex gap-4">
-            <a className="hover:text-slate-700" href="#">
+            <a className="hover:text-slate-700" href="/privacy">
               Privacy
             </a>
-            <a className="hover:text-slate-700" href="#">
+            <a className="hover:text-slate-700" href="/terms">
               Terms
             </a>
           </div>

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { InquiryForm } from "@/components/inquiry-form";
+import { school } from "@/lib/school";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -31,13 +33,13 @@ export default function HomePage() {
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
-                  href="#contact"
+                  href="/contact"
                   className="inline-flex items-center justify-center rounded-xl bg-brand-gold px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-brand-gold focus:ring-offset-2"
                 >
                   Book a Visit
                 </Link>
                 <Link
-                  href="#admissions"
+                  href="/admissions"
                   className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2"
                 >
                   Admissions
@@ -74,7 +76,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="admissions" className="mx-auto max-w-6xl px-6 py-14">
+      <section className="mx-auto max-w-6xl px-6 py-14">
         <div className="grid gap-8 lg:grid-cols-2">
           <div>
             <h2 className="text-2xl font-semibold text-slate-900">Admissions made simple</h2>
@@ -82,6 +84,14 @@ export default function HomePage() {
               Request information, book a visit, and explore how Greenfield can support your child’s
               growth.
             </p>
+            <div className="mt-5">
+              <Link
+                href="/admissions"
+                className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+              >
+                View admissions
+              </Link>
+            </div>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-6">
             <ol className="space-y-4 text-sm text-slate-700">
@@ -102,7 +112,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="contact" className="mx-auto max-w-6xl px-6 pb-16">
+      <section className="mx-auto max-w-6xl px-6 pb-16">
         <div className="rounded-3xl border border-slate-200 bg-white p-8">
           <div className="grid gap-8 lg:grid-cols-2">
             <div>
@@ -112,49 +122,19 @@ export default function HomePage() {
               </p>
               <div className="mt-6 space-y-2 text-sm text-slate-700">
                 <div>
-                  <span className="font-semibold text-slate-900">Email:</span> admissions@greenfield.school
+                  <span className="font-semibold text-slate-900">Email:</span> {school.email}
                 </div>
                 <div>
-                  <span className="font-semibold text-slate-900">Phone:</span> +000 000 000 000
+                  <span className="font-semibold text-slate-900">Phone:</span> {school.phone}
                 </div>
               </div>
+              <div className="mt-6">
+                <Link href="/contact" className="text-sm font-semibold text-slate-900 hover:text-slate-700">
+                  Prefer a full contact page? Go to Contact
+                </Link>
+              </div>
             </div>
-            <form className="space-y-4" action="#" method="post">
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Full name</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="name"
-                  placeholder="Your name"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Email</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="email"
-                  type="email"
-                  placeholder="you@example.com"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Message</label>
-                <textarea
-                  className="mt-1 min-h-[120px] w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="message"
-                  placeholder="How can we help?"
-                />
-              </div>
-              <button
-                type="button"
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2"
-              >
-                Submit Inquiry
-              </button>
-              <p className="text-xs text-slate-500">
-                This is a UI placeholder. We’ll connect it to Supabase once your project keys are ready.
-              </p>
-            </form>
+            <InquiryForm />
           </div>
         </div>
       </section>
