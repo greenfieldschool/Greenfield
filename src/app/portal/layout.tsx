@@ -1,13 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 
 export default async function PortalLayout({ children }: { children: ReactNode }) {
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
-    redirect("/portal/login");
+    return <>{children}</>;
   }
 
   const {
@@ -15,7 +14,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/portal/login");
+    return <>{children}</>;
   }
 
   const { data: profile } = await supabase
@@ -28,7 +27,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
   const isPortalRole = role === "parent" || role === "student";
 
   if (!isPortalRole) {
-    redirect("/portal/unauthorized");
+    return <>{children}</>;
   }
 
   return (

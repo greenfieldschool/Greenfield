@@ -1,13 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
-    redirect("/admin/login");
+    return <>{children}</>;
   }
 
   const {
@@ -15,7 +14,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/admin/login");
+    return <>{children}</>;
   }
 
   const { data: profile } = await supabase
@@ -33,7 +32,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     role === "nurse";
 
   if (!isStaff) {
-    redirect("/admin/unauthorized");
+    return <>{children}</>;
   }
 
   return (
