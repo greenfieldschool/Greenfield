@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { InquiryForm } from "@/components/inquiry-form";
+import { HeroRotator } from "@/components/hero-rotator";
 import { school } from "@/lib/school";
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -15,19 +16,39 @@ export default function HomePage() {
   return (
     <div>
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_20%_10%,rgba(11,61,46,0.18),transparent_60%),radial-gradient(800px_circle_at_80%_30%,rgba(212,160,23,0.18),transparent_55%)]" />
+        <HeroRotator
+          className="absolute inset-0"
+          images={[
+            {
+              src: "https://sxujllqkkrwkqslmbgpc.supabase.co/storage/v1/object/public/media/20230524-FulaniCulture-2.jpg",
+              alt: "Students celebrating culture at Greenfield School"
+            },
+            {
+              src: "https://sxujllqkkrwkqslmbgpc.supabase.co/storage/v1/object/public/media/Entrace%20International%20Anti-Corruption%20Day%202017-2.JPG",
+              alt: "School entrance during an event"
+            },
+            {
+              src: "https://sxujllqkkrwkqslmbgpc.supabase.co/storage/v1/object/public/media/IMG_20211127_114635_936-2.jpg",
+              alt: "Students and staff on campus"
+            },
+            {
+              src: "https://sxujllqkkrwkqslmbgpc.supabase.co/storage/v1/object/public/media/Mr%20Teslim%20Explaining%20the%20wall%20Paintings1-2.JPG",
+              alt: "Teacher explaining student artwork"
+            }
+          ]}
+        />
         <div className="relative mx-auto max-w-6xl px-6 py-16 sm:py-20">
           <div className="grid items-center gap-10 lg:grid-cols-2">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs text-slate-700 backdrop-blur">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs text-white backdrop-blur">
                 <span className="h-2 w-2 rounded-full bg-brand-green" />
                 A modern learning community
               </div>
-              <h1 className="mt-5 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
+              <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
                 Greenfield School
-                <span className="block text-slate-700">Where excellence grows.</span>
+                <span className="block text-white/85">Where excellence grows.</span>
               </h1>
-              <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-600">
+              <p className="mt-4 max-w-xl text-base leading-relaxed text-white/80">
                 A clean, world-class academic experience with a focus on character, creativity, and
                 real-world readiness.
               </p>
@@ -40,7 +61,7 @@ export default function HomePage() {
                 </Link>
                 <Link
                   href="/admissions"
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2"
+                  className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/60 focus:ring-offset-2 focus:ring-offset-black/0"
                 >
                   Admissions
                 </Link>
