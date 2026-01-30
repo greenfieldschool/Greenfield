@@ -1,0 +1,249 @@
+import Link from "next/link";
+import { revalidatePath } from "next/cache";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
+
+type StudentRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  level: string;
+  status: string;
+  date_of_birth: string | null;
+};
+
+type GuardianRow = {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+};
+
+type StudentGuardianRow = {
+  student_id: string;
+  guardian_id: string;
+  relationship: string | null;
+  is_primary: boolean;
+};
+
+export default async function AdminStudentDetailPage({
+  params
+}: {
+  params: { id: string };
+}) {
+  const supabase = getSupabaseServerClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const studentId = params.id;
+
+  const { data: studentData } = await supabase
+    .from("students")
+    .select("id, first_name, last_name, level, status, date_of_birth")
+    .eq("id", studentId)
+    .maybeSingle();
+
+  const student = studentData as StudentRow | null;
+
+  const { data: guardiansData } = await supabase
+    .from("guardians")
+    .select("id, full_name, email, phone")
+    .order("full_name", { ascending: true });
+
+  const allGuardians = (guardiansData ?? []) as GuardianRow[];
+
+  const { data: linksData } = await supabase
+    .from("student_guardians")
+    .select("student_id, guardian_id, relationship, is_primary")
+    .eq("student_id", studentId);
+
+  const links = (linksData ?? []) as StudentGuardianRow[];
+
+  const linkedGuardianIds = new Set(links.map((l) => l.guardian_id));
+
+  const linked = allGuardians
+    .filter((g) => linkedGuardianIds.has(g.id))
+    .map((g) => {
+      const link = links.find((l) => l.guardian_id === g.id);
+      return {
+        ...g,
+        relationship: link?.relationship ?? null,
+        is_primary: link?.is_primary ?? false
+      };
+    });
+
+  const availableGuardians = allGuardians.filter((g) => !linkedGuardianIds.has(g.id));
+
+  async function addGuardian(formData: FormData) {
+    "use server";
+
+    const guardianId = String(formData.get("guardian_id") ?? "").trim();
+    const relationship = String(formData.get("relationship") ?? "").trim();
+    const isPrimary = formData.get("is_primary") === "on";
+
+    if (!guardianId) return;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase.from("student_guardians").insert({
+      student_id: studentId,
+      guardian_id: guardianId,
+      relationship: relationship.length ? relationship : null,
+      is_primary: isPrimary
+    });
+
+    revalidatePath(`/admin/students/${studentId}`);
+  }
+
+  async function removeGuardian(formData: FormData) {
+    "use server";
+
+    const guardianId = String(formData.get("guardian_id") ?? "").trim();
+    if (!guardianId) return;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase
+      .from("student_guardians")
+      .delete()
+      .eq("student_id", studentId)
+      .eq("guardian_id", guardianId);
+
+    revalidatePath(`/admin/students/${studentId}`);
+  }
+
+  if (!student) {
+    return (
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <h1 className="text-2xl font-semibold text-slate-900">Student not found</h1>
+        <div className="mt-4">
+          <Link className="text-sm font-semibold text-slate-900 hover:text-slate-700" href="/admin/students">
+            Back to students
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="text-sm font-semibold text-slate-500">Student</div>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-900">
+          {student.first_name} {student.last_name}
+        </h1>
+        <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+          <div>
+            <div className="text-xs font-semibold text-slate-500">Level</div>
+            <div className="mt-1 font-semibold text-slate-900">{student.level}</div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-500">Status</div>
+            <div className="mt-1 font-semibold text-slate-900">{student.status}</div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-500">Date of birth</div>
+            <div className="mt-1 font-semibold text-slate-900">{student.date_of_birth ?? "—"}</div>
+          </div>
+        </div>
+        <div className="mt-6">
+          <Link className="text-sm font-semibold text-slate-900 hover:text-slate-700" href="/admin/students">
+            Back to students
+          </Link>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">Linked guardians</h2>
+        <div className="mt-4 space-y-3">
+          {linked.length ? (
+            linked.map((g) => (
+              <div
+                key={g.id}
+                className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-slate-900">{g.full_name}</div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    {g.relationship ? `Relationship: ${g.relationship}` : "Relationship: —"}
+                    {g.is_primary ? " • Primary" : ""}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {g.email ?? "—"} {g.phone ? ` • ${g.phone}` : ""}
+                  </div>
+                </div>
+                <form action={removeGuardian}>
+                  <input type="hidden" name="guardian_id" value={g.id} />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                  >
+                    Remove
+                  </button>
+                </form>
+              </div>
+            ))
+          ) : (
+            <div className="text-sm text-slate-600">No guardians linked yet.</div>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">Link a guardian</h2>
+        <form action={addGuardian} className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="text-sm font-semibold text-slate-900">Guardian</label>
+            <select
+              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              name="guardian_id"
+              required
+              defaultValue=""
+              disabled={!availableGuardians.length}
+            >
+              <option value="" disabled>
+                {availableGuardians.length ? "Select a guardian" : "No available guardians"}
+              </option>
+              {availableGuardians.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.full_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-slate-900">Relationship</label>
+            <input
+              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              name="relationship"
+              placeholder="e.g. Mother, Father, Guardian"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              className="h-4 w-4 rounded border-slate-300"
+              name="is_primary"
+              type="checkbox"
+              id="is_primary"
+            />
+            <label htmlFor="is_primary" className="text-sm font-semibold text-slate-900">
+              Primary guardian
+            </label>
+          </div>
+          <div className="flex items-end">
+            <button
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              type="submit"
+              disabled={!availableGuardians.length}
+            >
+              Link guardian
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

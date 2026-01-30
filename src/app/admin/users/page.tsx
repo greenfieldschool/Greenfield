@@ -1,0 +1,349 @@
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
+
+type ProfileRow = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  role: string;
+};
+
+type GuardianRow = {
+  id: string;
+  full_name: string;
+};
+
+type StudentRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  level: string;
+};
+
+type GuardianUserLinkRow = {
+  user_id: string;
+  guardian_id: string;
+};
+
+type StudentUserLinkRow = {
+  user_id: string;
+  student_id: string;
+};
+
+export default async function AdminUsersPage({
+  searchParams
+}: {
+  searchParams: { q?: string };
+}) {
+  const supabase = getSupabaseServerClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const query = (searchParams.q ?? "").trim();
+
+  const profilesQuery = supabase
+    .from("profiles")
+    .select("id, email, full_name, role")
+    .order("updated_at", { ascending: false })
+    .limit(25);
+
+  const { data: profilesData } = query.length
+    ? await profilesQuery.or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)
+    : await profilesQuery;
+
+  const profiles = (profilesData ?? []) as ProfileRow[];
+
+  const { data: guardiansData } = await supabase
+    .from("guardians")
+    .select("id, full_name")
+    .order("full_name", { ascending: true });
+
+  const guardians = (guardiansData ?? []) as GuardianRow[];
+
+  const { data: studentsData } = await supabase
+    .from("students")
+    .select("id, first_name, last_name, level")
+    .order("last_name", { ascending: true })
+    .order("first_name", { ascending: true });
+
+  const students = (studentsData ?? []) as StudentRow[];
+
+  const userIds = profiles.map((p) => p.id);
+
+  const { data: guardianLinksData } = userIds.length
+    ? await supabase
+        .from("guardian_user_links")
+        .select("user_id, guardian_id")
+        .in("user_id", userIds)
+    : { data: [] as unknown[] };
+
+  const guardianLinks = (guardianLinksData ?? []) as GuardianUserLinkRow[];
+
+  const { data: studentLinksData } = userIds.length
+    ? await supabase
+        .from("student_user_links")
+        .select("user_id, student_id")
+        .in("user_id", userIds)
+    : { data: [] as unknown[] };
+
+  const studentLinks = (studentLinksData ?? []) as StudentUserLinkRow[];
+
+  const guardianById = new Map(guardians.map((g) => [g.id, g] as const));
+  const studentById = new Map(students.map((s) => [s.id, s] as const));
+
+  async function setQuery(formData: FormData) {
+    "use server";
+
+    const q = String(formData.get("q") ?? "").trim();
+    redirect(q.length ? `/admin/users?q=${encodeURIComponent(q)}` : "/admin/users");
+  }
+
+  async function updateRole(formData: FormData) {
+    "use server";
+
+    const userId = String(formData.get("user_id") ?? "").trim();
+    const role = String(formData.get("role") ?? "").trim();
+
+    if (!userId || !role) return;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase.from("profiles").update({ role }).eq("id", userId);
+
+    revalidatePath("/admin/users");
+  }
+
+  async function linkGuardian(formData: FormData) {
+    "use server";
+
+    const userId = String(formData.get("user_id") ?? "").trim();
+    const guardianId = String(formData.get("guardian_id") ?? "").trim();
+
+    if (!userId || !guardianId) return;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase
+      .from("guardian_user_links")
+      .upsert({ user_id: userId, guardian_id: guardianId }, { onConflict: "user_id" });
+
+    revalidatePath("/admin/users");
+  }
+
+  async function linkStudent(formData: FormData) {
+    "use server";
+
+    const userId = String(formData.get("user_id") ?? "").trim();
+    const studentId = String(formData.get("student_id") ?? "").trim();
+
+    if (!userId || !studentId) return;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase
+      .from("student_user_links")
+      .upsert({ user_id: userId, student_id: studentId }, { onConflict: "user_id" });
+
+    revalidatePath("/admin/users");
+  }
+
+  async function unlinkGuardian(formData: FormData) {
+    "use server";
+
+    const userId = String(formData.get("user_id") ?? "").trim();
+    if (!userId) return;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase.from("guardian_user_links").delete().eq("user_id", userId);
+
+    revalidatePath("/admin/users");
+  }
+
+  async function unlinkStudent(formData: FormData) {
+    "use server";
+
+    const userId = String(formData.get("user_id") ?? "").trim();
+    if (!userId) return;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase.from("student_user_links").delete().eq("user_id", userId);
+
+    revalidatePath("/admin/users");
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="text-sm font-semibold text-slate-500">Admin</div>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Users</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Search users by email/name, set roles, and link accounts to guardians/students.
+        </p>
+
+        <form action={setQuery} className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <input
+            className="w-full flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+            name="q"
+            placeholder="Search by email or name"
+            defaultValue={query}
+          />
+          <button
+            className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+            type="submit"
+          >
+            Search
+          </button>
+        </form>
+      </div>
+
+      <div className="space-y-4">
+        {profiles.length ? (
+          profiles.map((p) => {
+            const guardianLink = guardianLinks.find((l) => l.user_id === p.id) ?? null;
+            const studentLink = studentLinks.find((l) => l.user_id === p.id) ?? null;
+
+            const linkedGuardian = guardianLink ? guardianById.get(guardianLink.guardian_id) ?? null : null;
+            const linkedStudent = studentLink ? studentById.get(studentLink.student_id) ?? null : null;
+
+            return (
+              <div key={p.id} className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-slate-500">User</div>
+                    <div className="mt-1 truncate text-base font-semibold text-slate-900">{p.email ?? "—"}</div>
+                    <div className="mt-1 text-sm text-slate-600">{p.full_name ?? "—"}</div>
+                    <div className="mt-2 font-mono text-xs text-slate-500">{p.id}</div>
+                  </div>
+
+                  <div className="grid w-full gap-4 lg:w-[420px]">
+                    <form action={updateRole} className="grid gap-2">
+                      <input type="hidden" name="user_id" value={p.id} />
+                      <label className="text-sm font-semibold text-slate-900">Role</label>
+                      <div className="flex gap-3">
+                        <select
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                          name="role"
+                          defaultValue={p.role}
+                        >
+                          <option value="super_admin">super_admin</option>
+                          <option value="admin">admin</option>
+                          <option value="teacher">teacher</option>
+                          <option value="front_desk">front_desk</option>
+                          <option value="nurse">nurse</option>
+                          <option value="parent">parent</option>
+                          <option value="student">student</option>
+                        </select>
+                        <button
+                          className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                          type="submit"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </form>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="text-xs font-semibold text-slate-500">Linked guardian</div>
+                        <div className="mt-1 text-sm font-semibold text-slate-900">
+                          {linkedGuardian ? linkedGuardian.full_name : "—"}
+                        </div>
+                        <div className="mt-3 grid gap-2">
+                          <form action={linkGuardian} className="grid gap-2">
+                            <input type="hidden" name="user_id" value={p.id} />
+                            <select
+                              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                              name="guardian_id"
+                              defaultValue={guardianLink?.guardian_id ?? ""}
+                            >
+                              <option value="">Select guardian</option>
+                              {guardians.map((g) => (
+                                <option key={g.id} value={g.id}>
+                                  {g.full_name}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+                              type="submit"
+                            >
+                              Link
+                            </button>
+                          </form>
+                          <form action={unlinkGuardian}>
+                            <input type="hidden" name="user_id" value={p.id} />
+                            <button
+                              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                              type="submit"
+                            >
+                              Unlink
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="text-xs font-semibold text-slate-500">Linked student</div>
+                        <div className="mt-1 text-sm font-semibold text-slate-900">
+                          {linkedStudent
+                            ? `${linkedStudent.first_name} ${linkedStudent.last_name}`
+                            : "—"}
+                        </div>
+                        <div className="mt-3 grid gap-2">
+                          <form action={linkStudent} className="grid gap-2">
+                            <input type="hidden" name="user_id" value={p.id} />
+                            <select
+                              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                              name="student_id"
+                              defaultValue={studentLink?.student_id ?? ""}
+                            >
+                              <option value="">Select student</option>
+                              {students.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.first_name} {s.last_name} ({s.level})
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+                              type="submit"
+                            >
+                              Link
+                            </button>
+                          </form>
+                          <form action={unlinkStudent}>
+                            <input type="hidden" name="user_id" value={p.id} />
+                            <button
+                              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                              type="submit"
+                            >
+                              Unlink
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm">
+            No users found.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
