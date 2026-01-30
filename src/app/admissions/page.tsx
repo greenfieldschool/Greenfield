@@ -15,7 +15,8 @@ export default function AdmissionsPage() {
       <div className="max-w-3xl">
         <h1 className="text-3xl font-semibold text-slate-900">Admissions</h1>
         <p className="mt-4 text-slate-600">
-          A clear, supportive process designed to help families make confident decisions.
+          A clear, supportive process for Creche (0–4), Primary (5–11), and Secondary (12–16) — helping
+          families make confident decisions.
         </p>
       </div>
 
@@ -38,7 +39,8 @@ export default function AdmissionsPage() {
           <div>
             <div className="text-sm font-semibold text-slate-900">Next step</div>
             <p className="mt-3 text-sm text-slate-600">
-              Start by requesting information or booking a visit.
+              Start by requesting information or booking a visit. We’ll guide you to the right entry point
+              for Creche, Primary, or Secondary.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link

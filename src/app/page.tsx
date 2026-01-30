@@ -42,15 +42,15 @@ export default function HomePage() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs text-white backdrop-blur">
                 <span className="h-2 w-2 rounded-full bg-brand-green" />
-                A modern learning community
+                Creche • Primary • Secondary
               </div>
               <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
                 Greenfield School
-                <span className="block text-white/85">Where excellence grows.</span>
+                <span className="block text-white/85">Creche to Secondary — where excellence grows.</span>
               </h1>
               <p className="mt-4 max-w-xl text-base leading-relaxed text-white/80">
-                A clean, world-class academic experience with a focus on character, creativity, and
-                real-world readiness.
+                A Nigerian + British blended curriculum that supports every learner from early years to
+                secondary school with strong foundations, high standards, and outstanding care.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
@@ -73,16 +73,24 @@ export default function HomePage() {
                 <div className="text-sm/6 opacity-90">Featured</div>
                 <div className="mt-2 text-2xl font-semibold">Discover our programs</div>
                 <p className="mt-2 text-sm/6 opacity-90">
-                  Strong academics, vibrant student life, and a supportive community.
+                  Three stages. One standard of excellence.
                 </p>
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <div className="rounded-xl bg-white/10 p-4">
-                    <div className="text-xs opacity-80">Focus</div>
-                    <div className="mt-1 font-semibold">STEM + Arts</div>
+                    <div className="text-xs opacity-80">Creche (0–4)</div>
+                    <div className="mt-1 font-semibold">Care + early learning</div>
                   </div>
                   <div className="rounded-xl bg-white/10 p-4">
-                    <div className="text-xs opacity-80">Values</div>
-                    <div className="mt-1 font-semibold">Character</div>
+                    <div className="text-xs opacity-80">Primary (5–11)</div>
+                    <div className="mt-1 font-semibold">Strong foundations</div>
+                  </div>
+                  <div className="rounded-xl bg-white/10 p-4">
+                    <div className="text-xs opacity-80">Secondary (12–16)</div>
+                    <div className="mt-1 font-semibold">Excellence + readiness</div>
+                  </div>
+                  <div className="rounded-xl bg-white/10 p-4">
+                    <div className="text-xs opacity-80">Curriculum</div>
+                    <div className="mt-1 font-semibold">Nigerian + British blend</div>
                   </div>
                 </div>
               </div>

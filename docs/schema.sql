@@ -1,3 +1,5 @@
+create extension if not exists pgcrypto;
+
 do $$
 begin
   create type public.app_role as enum (
@@ -456,3 +458,28 @@ drop trigger if exists activities_set_updated_at on public.activities;
 create trigger activities_set_updated_at
   before update on public.activities
   for each row execute procedure public.set_updated_at();
+
+create table if not exists public.inquiries (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  email text not null,
+  message text not null,
+  source text not null default 'web',
+  created_at timestamptz not null default now()
+);
+
+alter table public.inquiries enable row level security;
+
+drop policy if exists inquiries_insert_public on public.inquiries;
+create policy inquiries_insert_public
+  on public.inquiries
+  for insert
+  to public
+  with check (true);
+
+drop policy if exists inquiries_select_staff on public.inquiries;
+create policy inquiries_select_staff
+  on public.inquiries
+  for select
+  to authenticated
+  using (public.is_staff());

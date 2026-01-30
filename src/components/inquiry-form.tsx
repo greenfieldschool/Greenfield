@@ -108,8 +108,7 @@ export function InquiryForm() {
       </button>
 
       <p className="text-xs text-slate-500">
-        If Supabase is configured, your inquiry will be saved. Otherwise it will still submit
-        successfully.
+        Your enquiry will be saved and our team will contact you.
       </p>
     </form>
   );

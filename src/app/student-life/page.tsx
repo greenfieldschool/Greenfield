@@ -6,22 +6,29 @@ export default function StudentLifePage() {
       <div className="max-w-3xl">
         <h1 className="text-3xl font-semibold text-slate-900">Student Life</h1>
         <p className="mt-4 text-slate-600">
-          Clubs, sports, arts, leadership, and a strong sense of belonging.
+          A caring environment for Creche, a vibrant experience for Primary, and a purposeful community
+          for Secondary — with clubs, sports, arts, and leadership.
         </p>
       </div>
 
       <div className="mt-10 grid gap-6 md:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="text-sm font-semibold text-slate-900">Clubs & Societies</div>
-          <p className="mt-2 text-sm text-slate-600">Student-led communities that build confidence.</p>
+          <div className="text-sm font-semibold text-slate-900">Creche care & routines</div>
+          <p className="mt-2 text-sm text-slate-600">
+            Warm supervision, play, and early learning routines that support healthy development.
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="text-sm font-semibold text-slate-900">Sports & Athletics</div>
-          <p className="mt-2 text-sm text-slate-600">Teamwork, discipline, and healthy competition.</p>
+          <div className="text-sm font-semibold text-slate-900">Primary clubs & enrichment</div>
+          <p className="mt-2 text-sm text-slate-600">
+            Confidence-building clubs, creativity, sports, and a strong reading culture.
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="text-sm font-semibold text-slate-900">Arts & Culture</div>
-          <p className="mt-2 text-sm text-slate-600">Creativity through music, drama, and visual arts.</p>
+          <div className="text-sm font-semibold text-slate-900">Secondary leadership</div>
+          <p className="mt-2 text-sm text-slate-600">
+            Societies, mentoring, responsibility, and healthy competition that builds character.
+          </p>
         </div>
       </div>
 
