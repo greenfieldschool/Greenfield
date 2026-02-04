@@ -59,6 +59,15 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const steps = useMemo(() => {
+    return ["overview", "quick", "student", "parents", "previous", "review"] as StepKey[];
+  }, []);
+
+  const stepIndex = useMemo(() => {
+    const idx = steps.indexOf(step);
+    return idx < 0 ? 0 : idx;
+  }, [step, steps]);
+
   const [quick, setQuick] = useState({
     parent_name: "",
     phone: "",
@@ -372,7 +381,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
   }
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-8 shadow-sm">
       {loading ? <div className="text-sm text-slate-600">Loading…</div> : null}
 
       {error ? (
@@ -405,28 +414,24 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-slate-900">Admissions Application</div>
-        <div className="text-xs text-slate-500">Autosave: on step completion</div>
-      </div>
+      <div className="sticky top-0 -mx-5 mb-6 border-b border-slate-200 bg-white/95 px-5 pb-4 pt-3 backdrop-blur sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold text-slate-900">Admissions Application</div>
+          <div className="text-xs text-slate-500">Step {stepIndex + 1} of {steps.length}</div>
+        </div>
 
-      <div className="mt-3 grid grid-cols-6 gap-2">
-        {(["overview", "quick", "student", "parents", "previous", "review"] as StepKey[]).map((k) => {
-          const active = k === step;
-          return (
-            <button
-              key={k}
-              type="button"
-              className={
-                "rounded-lg px-2 py-2 text-xs font-semibold transition " +
-                (active
-                  ? "bg-brand-green text-white"
-                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
-              }
-              onClick={() => setStep(k)}
-              disabled={saving}
-            >
-              {k === "overview"
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-brand-green transition-all"
+            style={{ width: `${Math.round(((stepIndex + 1) / steps.length) * 100)}%` }}
+          />
+        </div>
+
+        <div className="mt-3 -mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 [-webkit-overflow-scrolling:touch]">
+          {steps.map((k) => {
+            const active = k === step;
+            const label =
+              k === "overview"
                 ? "Overview"
                 : k === "quick"
                   ? "Quick"
@@ -436,10 +441,26 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
                       ? "Parents"
                       : k === "previous"
                         ? "History"
-                        : "Review"}
-            </button>
-          );
-        })}
+                        : "Review";
+
+            return (
+              <button
+                key={k}
+                type="button"
+                className={
+                  "snap-start whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition " +
+                  (active
+                    ? "bg-brand-green text-white"
+                    : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                }
+                onClick={() => setStep(k)}
+                disabled={saving}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {step === "overview" ? (
@@ -460,14 +481,14 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 sm:w-auto"
               onClick={() => setStep("quick")}
             >
               Start
             </button>
             <a
               href="/admissions"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 sm:w-auto"
             >
               Back to admissions info
             </a>
@@ -566,7 +587,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
               <button
                 type="button"
                 disabled={!canContinueQuick || saving}
-                className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                 onClick={startApplication}
               >
                 {saving ? "Starting…" : "Continue"}
@@ -575,7 +596,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
               <button
                 type="button"
                 disabled={!canContinueQuick || saving}
-                className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                 onClick={async () => {
                   const ok = await savePatch(
                     { note: quick.note },
@@ -597,7 +618,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
 
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 sm:w-auto"
               onClick={() => setStep("overview")}
               disabled={saving}
             >
@@ -700,7 +721,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               disabled={saving}
               onClick={saveStudentAndNext}
             >
@@ -708,7 +729,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
             </button>
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 sm:w-auto"
               onClick={() => setStep("quick")}
               disabled={saving}
             >
@@ -805,7 +826,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               disabled={saving}
               onClick={saveParentsAndNext}
             >
@@ -813,7 +834,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
             </button>
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 sm:w-auto"
               onClick={() => setStep("student")}
               disabled={saving}
             >
@@ -901,7 +922,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               disabled={saving}
               onClick={savePreviousAndNext}
             >
@@ -909,7 +930,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
             </button>
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 sm:w-auto"
               onClick={() => setStep("parents")}
               disabled={saving}
             >
@@ -954,7 +975,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-xl bg-brand-gold px-5 py-3 text-sm font-semibold text-slate-900 hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-gold px-5 py-3 text-sm font-semibold text-slate-900 hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               disabled={saving}
               onClick={submitApplication}
             >
@@ -962,7 +983,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
             </button>
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 sm:w-auto"
               onClick={() => setStep("previous")}
               disabled={saving}
             >
