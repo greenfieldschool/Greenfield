@@ -483,3 +483,47 @@ create policy inquiries_select_staff
   for select
   to authenticated
   using (public.is_staff());
+
+create table if not exists public.admissions_applications (
+  id uuid primary key default gen_random_uuid(),
+  resume_token uuid not null unique default gen_random_uuid(),
+  status text not null default 'lead',
+  section public.school_level,
+  parent_name text,
+  phone text,
+  email text,
+  desired_start text,
+  preferred_contact text,
+  data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.admissions_applications enable row level security;
+
+drop policy if exists admissions_applications_insert_public on public.admissions_applications;
+create policy admissions_applications_insert_public
+  on public.admissions_applications
+  for insert
+  to public
+  with check (true);
+
+drop policy if exists admissions_applications_select_staff on public.admissions_applications;
+create policy admissions_applications_select_staff
+  on public.admissions_applications
+  for select
+  to authenticated
+  using (public.is_staff());
+
+drop policy if exists admissions_applications_update_staff on public.admissions_applications;
+create policy admissions_applications_update_staff
+  on public.admissions_applications
+  for update
+  to authenticated
+  using (public.is_staff())
+  with check (public.is_staff());
+
+drop trigger if exists admissions_applications_set_updated_at on public.admissions_applications;
+create trigger admissions_applications_set_updated_at
+  before update on public.admissions_applications
+  for each row execute procedure public.set_updated_at();

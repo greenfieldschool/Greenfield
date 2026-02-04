@@ -44,6 +44,12 @@ export default function AdmissionsPage() {
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link
+                href="/apply"
+                className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+              >
+                Start application
+              </Link>
+              <Link
                 href="/contact"
                 className="inline-flex items-center justify-center rounded-xl bg-brand-gold px-5 py-3 text-sm font-semibold text-slate-900 hover:brightness-95"
               >

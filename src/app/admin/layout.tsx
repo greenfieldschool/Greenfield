@@ -85,7 +85,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
               </Link>
               <Link
                 className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50"
-                href="/admin/admissions"
+                href="/admin/applications"
               >
                 Admissions
               </Link>
