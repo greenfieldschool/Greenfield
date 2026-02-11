@@ -527,3 +527,65 @@ drop trigger if exists admissions_applications_set_updated_at on public.admissio
 create trigger admissions_applications_set_updated_at
   before update on public.admissions_applications
   for each row execute procedure public.set_updated_at();
+
+create table if not exists public.career_jobs (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  title text not null,
+  location text not null,
+  employment_type text not null,
+  summary text not null,
+  responsibilities text[] not null default '{}'::text[],
+  requirements text[] not null default '{}'::text[],
+  reports_to text,
+  compensation text,
+  apply_email text,
+  apply_whatsapp text,
+  apply_link text,
+  published boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.career_jobs enable row level security;
+
+drop policy if exists career_jobs_select_public_published on public.career_jobs;
+create policy career_jobs_select_public_published
+  on public.career_jobs
+  for select
+  to public
+  using (published = true);
+
+drop policy if exists career_jobs_select_staff on public.career_jobs;
+create policy career_jobs_select_staff
+  on public.career_jobs
+  for select
+  to authenticated
+  using (public.is_staff());
+
+drop policy if exists career_jobs_insert_staff on public.career_jobs;
+create policy career_jobs_insert_staff
+  on public.career_jobs
+  for insert
+  to authenticated
+  with check (public.is_staff());
+
+drop policy if exists career_jobs_update_staff on public.career_jobs;
+create policy career_jobs_update_staff
+  on public.career_jobs
+  for update
+  to authenticated
+  using (public.is_staff())
+  with check (public.is_staff());
+
+drop policy if exists career_jobs_delete_staff on public.career_jobs;
+create policy career_jobs_delete_staff
+  on public.career_jobs
+  for delete
+  to authenticated
+  using (public.is_staff());
+
+drop trigger if exists career_jobs_set_updated_at on public.career_jobs;
+create trigger career_jobs_set_updated_at
+  before update on public.career_jobs
+  for each row execute procedure public.set_updated_at();

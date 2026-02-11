@@ -14,6 +14,24 @@ export type CareerJob = {
   updatedAt: string;
 };
 
+export type CareerJobDbRow = {
+  id: string;
+  slug: string;
+  title: string;
+  location: string;
+  employment_type: string;
+  summary: string;
+  responsibilities: string[] | null;
+  requirements: string[] | null;
+  reports_to: string | null;
+  compensation: string | null;
+  apply_email: string | null;
+  apply_whatsapp: string | null;
+  apply_link: string | null;
+  published: boolean;
+  updated_at: string;
+};
+
 export const careerJobs: CareerJob[] = [
   {
     slug: "early-years-teacher",
@@ -126,4 +144,64 @@ export function formatApplyCTA(job: CareerJob) {
   if (job.applyWhatsapp) return job.applyWhatsapp;
   if (job.applyEmail) return `mailto:${job.applyEmail}?subject=${encodeURIComponent(`Application: ${job.title}`)}`;
   return null;
+}
+
+function hasSupabaseEnv() {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
+async function getSupabasePublicClient() {
+  if (!hasSupabaseEnv()) return null;
+  const { createClient } = await import("@supabase/supabase-js");
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+
+export function mapDbJobToCareerJob(row: CareerJobDbRow): CareerJob {
+  return {
+    slug: row.slug,
+    title: row.title,
+    location: row.location,
+    employmentType: row.employment_type,
+    summary: row.summary,
+    responsibilities: Array.isArray(row.responsibilities) ? row.responsibilities : [],
+    requirements: Array.isArray(row.requirements) ? row.requirements : [],
+    reportsTo: row.reports_to ?? undefined,
+    compensation: row.compensation ?? undefined,
+    applyEmail: row.apply_email ?? undefined,
+    applyWhatsapp: row.apply_whatsapp ?? undefined,
+    applyLink: row.apply_link ?? undefined,
+    updatedAt: row.updated_at
+  };
+}
+
+export async function getPublishedCareerJobs(): Promise<CareerJob[]> {
+  try {
+    const supabase = await getSupabasePublicClient();
+    if (!supabase) return careerJobs;
+
+    const { data } = await supabase
+      .from("career_jobs")
+      .select(
+        "slug,title,location,employment_type,summary,responsibilities,requirements,reports_to,compensation,apply_email,apply_whatsapp,apply_link,published,updated_at"
+      )
+      .eq("published", true)
+      .order("updated_at", { ascending: false });
+
+    if (!data || data.length === 0) return careerJobs;
+    return (data as CareerJobDbRow[]).map(mapDbJobToCareerJob);
+  } catch {
+    return careerJobs;
+  }
+}
+
+export async function getPublishedCareerJobBySlug(slug: string): Promise<CareerJob | null> {
+  const jobs = await getPublishedCareerJobs();
+  return jobs.find((j) => j.slug === slug) ?? null;
+}
+
+export async function getPublishedCareerJobSlugs(): Promise<string[]> {
+  const jobs = await getPublishedCareerJobs();
+  return jobs.map((j) => j.slug);
 }

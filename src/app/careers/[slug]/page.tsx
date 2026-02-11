@@ -1,26 +1,34 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatApplyCTA, getCareerJobBySlug, getCareerJobSlugs } from "@/lib/careers";
+import {
+  formatApplyCTA,
+  getPublishedCareerJobBySlug,
+  getPublishedCareerJobSlugs,
+  getPublishedCareerJobs
+} from "@/lib/careers";
 
 type Props = {
   params: { slug: string };
 };
 
-export function generateStaticParams() {
-  return getCareerJobSlugs().map((slug) => ({ slug }));
+export async function generateStaticParams() {
+  const slugs = await getPublishedCareerJobSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 export function generateMetadata({ params }: Props) {
-  const job = getCareerJobBySlug(params.slug);
-  if (!job) return { title: "Role not found — Greenfield School" };
-  return {
-    title: `${job.title} — Careers — Greenfield School`,
-    description: job.summary
-  };
+  return getPublishedCareerJobs().then((jobs) => {
+    const job = jobs.find((j) => j.slug === params.slug);
+    if (!job) return { title: "Role not found — Greenfield School" };
+    return {
+      title: `${job.title} — Careers — Greenfield School`,
+      description: job.summary
+    };
+  });
 }
 
-export default function CareerJobPage({ params }: Props) {
-  const job = getCareerJobBySlug(params.slug);
+export default async function CareerJobPage({ params }: Props) {
+  const job = await getPublishedCareerJobBySlug(params.slug);
   if (!job) notFound();
 
   const applyHref = formatApplyCTA(job);

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { careerJobs } from "@/lib/careers";
+import { getPublishedCareerJobs } from "@/lib/careers";
 
 export const metadata = {
   title: "Careers — Greenfield School",
@@ -7,7 +7,8 @@ export const metadata = {
     "Join Greenfield School. View open roles and apply to help us build excellence in learning, character, and community."
 };
 
-export default function CareersPage() {
+export default async function CareersPage() {
+  const careerJobs = await getPublishedCareerJobs();
   return (
     <div className="mx-auto max-w-6xl px-6 py-10 sm:py-14">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">

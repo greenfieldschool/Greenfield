@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next";
-import { getCareerJobSlugs } from "@/lib/careers";
+import { getPublishedCareerJobSlugs } from "@/lib/careers";
 
 const baseUrl = "https://greenfieldschool.ng";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const routes = [
     "",
     "/about",
@@ -19,7 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/terms"
   ];
 
-  const careerRoutes = getCareerJobSlugs().map((slug) => `/careers/${slug}`);
+  const careerRoutes = (await getPublishedCareerJobSlugs()).map((slug) => `/careers/${slug}`);
 
   const lastModified = new Date();
 
