@@ -6,6 +6,7 @@ import {
   getPublishedCareerJobSlugs,
   getPublishedCareerJobs
 } from "@/lib/careers";
+import { CareerApplyForm } from "./apply-form";
 
 type Props = {
   params: { slug: string };
@@ -96,6 +97,10 @@ export default async function CareerJobPage({ params }: Props) {
               ))}
             </ul>
           </div>
+        </div>
+
+        <div className="mt-10">
+          <CareerApplyForm jobSlug={job.slug} jobTitle={job.title} />
         </div>
 
         <div className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-5">

@@ -589,3 +589,49 @@ drop trigger if exists career_jobs_set_updated_at on public.career_jobs;
 create trigger career_jobs_set_updated_at
   before update on public.career_jobs
   for each row execute procedure public.set_updated_at();
+
+create table if not exists public.career_applications (
+  id uuid primary key default gen_random_uuid(),
+  job_id uuid references public.career_jobs(id) on delete set null,
+  job_slug text,
+  job_title text,
+  applicant_name text not null,
+  applicant_email text not null,
+  applicant_phone text,
+  message text,
+  cv_path text,
+  cv_filename text,
+  cv_content_type text,
+  status text not null default 'new',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.career_applications enable row level security;
+
+drop policy if exists career_applications_insert_public on public.career_applications;
+create policy career_applications_insert_public
+  on public.career_applications
+  for insert
+  to public
+  with check (true);
+
+drop policy if exists career_applications_select_staff on public.career_applications;
+create policy career_applications_select_staff
+  on public.career_applications
+  for select
+  to authenticated
+  using (public.is_staff());
+
+drop policy if exists career_applications_update_staff on public.career_applications;
+create policy career_applications_update_staff
+  on public.career_applications
+  for update
+  to authenticated
+  using (public.is_staff())
+  with check (public.is_staff());
+
+drop trigger if exists career_applications_set_updated_at on public.career_applications;
+create trigger career_applications_set_updated_at
+  before update on public.career_applications
+  for each row execute procedure public.set_updated_at();
