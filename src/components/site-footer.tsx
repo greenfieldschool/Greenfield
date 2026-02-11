@@ -26,6 +26,9 @@ export function SiteFooter() {
         <div className="mt-10 flex flex-col gap-2 border-t border-slate-200 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <div>© {year} Greenfield School. All rights reserved.</div>
           <div className="flex gap-4">
+            <a className="hover:text-slate-700" href="/careers">
+              Careers
+            </a>
             <a className="hover:text-slate-700" href="/privacy">
               Privacy
             </a>

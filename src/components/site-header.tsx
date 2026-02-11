@@ -5,6 +5,7 @@ const nav = [
   { href: "/academics", label: "Academics" },
   { href: "/admissions", label: "Admissions" },
   { href: "/student-life", label: "Student Life" },
+  { href: "/careers", label: "Careers" },
   { href: "/news", label: "News" },
   { href: "/events", label: "Events" },
   { href: "/gallery", label: "Gallery" },
