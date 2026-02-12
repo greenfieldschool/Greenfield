@@ -66,6 +66,12 @@ export default async function PortalLayout({ children }: { children: ReactNode }
               >
                 Incidents / Health
               </Link>
+              <Link
+                className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50"
+                href="/portal/billing"
+              >
+                Billing
+              </Link>
             </nav>
 
             <form className="mt-5" action="/portal/logout" method="post">

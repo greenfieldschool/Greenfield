@@ -7,8 +7,17 @@ type StudentRow = {
   first_name: string;
   last_name: string;
   level: string;
+  class_id: string | null;
+  classes: Array<{ id: string; level: string; name: string }>;
   status: string;
   date_of_birth: string | null;
+};
+
+type ClassRow = {
+  id: string;
+  level: string;
+  name: string;
+  active: boolean;
 };
 
 type GuardianRow = {
@@ -38,13 +47,17 @@ export default async function AdminStudentDetailPage({
 
   const studentId = params.id;
 
-  const { data: studentData } = await supabase
-    .from("students")
-    .select("id, first_name, last_name, level, status, date_of_birth")
-    .eq("id", studentId)
-    .maybeSingle();
+  const [{ data: studentData }, { data: classesData }] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id, first_name, last_name, level, class_id, status, date_of_birth, classes(id, level, name)")
+      .eq("id", studentId)
+      .maybeSingle(),
+    supabase.from("classes").select("id, level, name, active").eq("active", true).order("level").order("name")
+  ]);
 
-  const student = studentData as StudentRow | null;
+  const student = (studentData ?? null) as unknown as StudentRow | null;
+  const classOptions = (classesData ?? []) as ClassRow[];
 
   const { data: guardiansData } = await supabase
     .from("guardians")
@@ -74,6 +87,26 @@ export default async function AdminStudentDetailPage({
     });
 
   const availableGuardians = allGuardians.filter((g) => !linkedGuardianIds.has(g.id));
+
+  async function updateStudent(formData: FormData) {
+    "use server";
+
+    const level = String(formData.get("level") ?? "").trim();
+    const classIdRaw = String(formData.get("class_id") ?? "").trim();
+    const status = String(formData.get("status") ?? "").trim();
+
+    if (!level || !status) return;
+
+    const classId = classIdRaw.length ? classIdRaw : null;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase.from("students").update({ level, class_id: classId, status }).eq("id", studentId);
+
+    revalidatePath(`/admin/students/${studentId}`);
+    revalidatePath("/admin/students");
+  }
 
   async function addGuardian(formData: FormData) {
     "use server";
@@ -135,6 +168,66 @@ export default async function AdminStudentDetailPage({
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">
           {student.first_name} {student.last_name}
         </h1>
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+          <h2 className="text-base font-semibold text-slate-900">Edit student</h2>
+          <form action={updateStudent} className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Level</label>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                name="level"
+                required
+                defaultValue={student.level}
+              >
+                <option value="creche">creche</option>
+                <option value="primary">primary</option>
+                <option value="secondary">secondary</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Class</label>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                name="class_id"
+                defaultValue={student.class_id ?? ""}
+              >
+                <option value="">(none)</option>
+                {classOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.level} - {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Status</label>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                name="status"
+                required
+                defaultValue={student.status}
+              >
+                <option value="applied">applied</option>
+                <option value="enrolled">enrolled</option>
+                <option value="active">active</option>
+                <option value="graduated">graduated</option>
+                <option value="withdrawn">withdrawn</option>
+                <option value="transferred">transferred</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+                type="submit"
+              >
+                Save changes
+              </button>
+            </div>
+          </form>
+          <div className="mt-3 text-xs text-slate-600">
+            Current class: {(student.classes ?? [])[0]?.name ?? "—"}
+          </div>
+        </div>
         <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
           <div>
             <div className="text-xs font-semibold text-slate-500">Level</div>

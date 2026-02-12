@@ -7,6 +7,7 @@ type StudentRow = {
   first_name: string;
   last_name: string;
   level: string;
+  classes: Array<{ id: string; level: string; name: string }>;
   status: string;
   date_of_birth: string | null;
 };
@@ -18,13 +19,17 @@ export default async function AdminStudentsPage() {
     return null;
   }
 
-  const { data } = await supabase
-    .from("students")
-    .select("id, first_name, last_name, level, status, date_of_birth")
-    .order("last_name", { ascending: true })
-    .order("first_name", { ascending: true });
+  const [{ data }, { data: classesData }] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id, first_name, last_name, level, class_id, status, date_of_birth, classes(id, level, name)")
+      .order("last_name", { ascending: true })
+      .order("first_name", { ascending: true }),
+    supabase.from("classes").select("id, level, name, active").eq("active", true).order("level").order("name")
+  ]);
 
-  const students = (data ?? []) as StudentRow[];
+  const students = (data ?? []) as unknown as StudentRow[];
+  const classOptions = (classesData ?? []) as Array<{ id: string; level: string; name: string }>;
 
   async function createStudent(formData: FormData) {
     "use server";
@@ -32,6 +37,7 @@ export default async function AdminStudentsPage() {
     const firstName = String(formData.get("first_name") ?? "").trim();
     const lastName = String(formData.get("last_name") ?? "").trim();
     const level = String(formData.get("level") ?? "").trim();
+    const classIdRaw = String(formData.get("class_id") ?? "").trim();
     const status = String(formData.get("status") ?? "applied").trim();
     const dobRaw = String(formData.get("date_of_birth") ?? "").trim();
 
@@ -43,11 +49,13 @@ export default async function AdminStudentsPage() {
     if (!supabase) return;
 
     const dateOfBirth = dobRaw.length ? dobRaw : null;
+    const classId = classIdRaw.length ? classIdRaw : null;
 
     await supabase.from("students").insert({
       first_name: firstName,
       last_name: lastName,
       level,
+      class_id: classId,
       status,
       date_of_birth: dateOfBirth
     });
@@ -96,6 +104,21 @@ export default async function AdminStudentsPage() {
             </select>
           </div>
           <div>
+            <label className="text-sm font-semibold text-slate-900">Class (optional)</label>
+            <select
+              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              name="class_id"
+              defaultValue=""
+            >
+              <option value="">(none)</option>
+              {classOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.level} - {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="text-sm font-semibold text-slate-900">Status</label>
             <select
               className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
@@ -134,8 +157,9 @@ export default async function AdminStudentsPage() {
         <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
           <div className="col-span-5">Name</div>
           <div className="col-span-2">Level</div>
-          <div className="col-span-2">Status</div>
-          <div className="col-span-3">DOB</div>
+          <div className="col-span-2">Class</div>
+          <div className="col-span-1">Status</div>
+          <div className="col-span-2">DOB</div>
         </div>
         <div>
           {students.length ? (
@@ -149,8 +173,9 @@ export default async function AdminStudentsPage() {
                   {s.first_name} {s.last_name}
                 </div>
                 <div className="col-span-2">{s.level}</div>
-                <div className="col-span-2">{s.status}</div>
-                <div className="col-span-3">{s.date_of_birth ?? "—"}</div>
+                <div className="col-span-2">{(s.classes ?? [])[0]?.name ?? "—"}</div>
+                <div className="col-span-1">{s.status}</div>
+                <div className="col-span-2">{s.date_of_birth ?? "—"}</div>
               </Link>
             ))
           ) : (
