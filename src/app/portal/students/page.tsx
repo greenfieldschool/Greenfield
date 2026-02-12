@@ -83,7 +83,9 @@ export default async function PortalStudentsPage() {
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
       <div className="text-sm font-semibold text-slate-500">Portal</div>
-      <h1 className="mt-2 text-2xl font-semibold text-slate-900">My students</h1>
+      <h1 className="mt-2 text-2xl font-semibold text-slate-900">
+        {role === "student" ? "My profile" : "My students"}
+      </h1>
       <p className="mt-2 text-sm text-slate-600">
         {role === "student" ? "Your student profile." : "Students linked to your parent account."}
       </p>

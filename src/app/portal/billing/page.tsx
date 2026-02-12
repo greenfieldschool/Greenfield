@@ -63,6 +63,10 @@ export default async function PortalBillingPage({
 
   const role = profile?.role as string | null | undefined;
 
+  if (role === "student") {
+    redirect("/portal");
+  }
+
   if (role !== "parent") {
     return (
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">

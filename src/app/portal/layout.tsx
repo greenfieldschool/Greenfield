@@ -46,8 +46,24 @@ export default async function PortalLayout({ children }: { children: ReactNode }
                 className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50"
                 href="/portal/students"
               >
-                My students
+                {role === "student" ? "My profile" : "My students"}
               </Link>
+              {role === "student" ? (
+                <>
+                  <Link
+                    className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50"
+                    href="/portal/academics"
+                  >
+                    Academics
+                  </Link>
+                  <Link
+                    className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50"
+                    href="/portal/discipline"
+                  >
+                    Discipline
+                  </Link>
+                </>
+              ) : null}
               <Link
                 className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50"
                 href="/portal/activities"
@@ -66,12 +82,14 @@ export default async function PortalLayout({ children }: { children: ReactNode }
               >
                 Incidents / Health
               </Link>
-              <Link
-                className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50"
-                href="/portal/billing"
-              >
-                Billing
-              </Link>
+              {role === "parent" ? (
+                <Link
+                  className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50"
+                  href="/portal/billing"
+                >
+                  Billing
+                </Link>
+              ) : null}
             </nav>
 
             <form className="mt-5" action="/portal/logout" method="post">
