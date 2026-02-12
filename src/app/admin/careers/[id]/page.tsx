@@ -1,19 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-
-function asText(v: FormDataEntryValue | null) {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function asLines(v: FormDataEntryValue | null) {
-  const text = asText(v);
-  if (!text) return [] as string[];
-  return text
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
+import { AdminCareerJobEditor } from "./ui";
 
 type Props = {
   params: { id: string };
@@ -37,50 +24,23 @@ export default async function AdminCareerJobEditPage({ params }: Props) {
     ? ({ data: null } as const)
     : await supabase.from("career_jobs").select("*").eq("id", params.id).maybeSingle();
 
-  async function save(formData: FormData) {
-    "use server";
-
-    const supabaseAction = getSupabaseServerClient();
-    if (!supabaseAction) return;
-
-    const payload = {
-      slug: asText(formData.get("slug")),
-      title: asText(formData.get("title")),
-      location: asText(formData.get("location")),
-      employment_type: asText(formData.get("employment_type")),
-      summary: asText(formData.get("summary")),
-      responsibilities: asLines(formData.get("responsibilities")),
-      requirements: asLines(formData.get("requirements")),
-      reports_to: asText(formData.get("reports_to")) || null,
-      compensation: asText(formData.get("compensation")) || null,
-      apply_email: asText(formData.get("apply_email")) || null,
-      apply_whatsapp: asText(formData.get("apply_whatsapp")) || null,
-      apply_link: asText(formData.get("apply_link")) || null,
-      published: formData.get("published") === "on"
-    };
-
-    if (!payload.slug || !payload.title || !payload.location || !payload.employment_type || !payload.summary) {
-      redirect(`/admin/careers/${params.id}?error=missing_fields`);
-    }
-
-    if (params.id === "new") {
-      const { data, error } = await supabaseAction
-        .from("career_jobs")
-        .insert([payload])
-        .select("id")
-        .maybeSingle();
-
-      if (error || !data?.id) {
-        redirect(`/admin/careers/new?error=save_failed`);
-      }
-
-      redirect(`/admin/careers/${data.id}`);
-    }
-
-    await supabaseAction.from("career_jobs").update(payload).eq("id", params.id);
-
-    redirect(`/admin/careers/${params.id}`);
-  }
+  const initialJob = {
+    slug: String(job?.slug ?? ""),
+    title: String(job?.title ?? ""),
+    location: String(job?.location ?? ""),
+    employment_type: String(job?.employment_type ?? ""),
+    summary: String(job?.summary ?? ""),
+    responsibilities: Array.isArray(job?.responsibilities)
+      ? (job?.responsibilities as string[])
+      : ([] as string[]),
+    requirements: Array.isArray(job?.requirements) ? (job?.requirements as string[]) : ([] as string[]),
+    reports_to: (job?.reports_to as string | null | undefined) ?? null,
+    compensation: (job?.compensation as string | null | undefined) ?? null,
+    apply_email: (job?.apply_email as string | null | undefined) ?? null,
+    apply_whatsapp: (job?.apply_whatsapp as string | null | undefined) ?? null,
+    apply_link: (job?.apply_link as string | null | undefined) ?? null,
+    published: Boolean(job?.published)
+  };
 
   return (
     <div className="space-y-6">
@@ -114,145 +74,7 @@ export default async function AdminCareerJobEditPage({ params }: Props) {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <form action={save} className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Title</label>
-              <input
-                name="title"
-                defaultValue={String(job?.title ?? "")}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                placeholder="e.g. Primary Class Teacher"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Slug</label>
-              <input
-                name="slug"
-                defaultValue={String(job?.slug ?? "")}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                placeholder="e.g. primary-class-teacher"
-              />
-              <div className="mt-1 text-xs text-slate-500">Used in the URL: /careers/slug</div>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Location</label>
-              <input
-                name="location"
-                defaultValue={String(job?.location ?? "")}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                placeholder="e.g. Aba, Abia State"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Employment type</label>
-              <input
-                name="employment_type"
-                defaultValue={String(job?.employment_type ?? "")}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                placeholder="e.g. Full-time"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Summary</label>
-            <textarea
-              name="summary"
-              defaultValue={String(job?.summary ?? "")}
-              className="mt-1 min-h-[120px] w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              placeholder="1–3 sentences. What is this role and why should a great candidate apply?"
-            />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Responsibilities (one per line)</label>
-              <textarea
-                name="responsibilities"
-                defaultValue={Array.isArray(job?.responsibilities) ? (job?.responsibilities as string[]).join("\n") : ""}
-                className="mt-1 min-h-[160px] w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Requirements (one per line)</label>
-              <textarea
-                name="requirements"
-                defaultValue={Array.isArray(job?.requirements) ? (job?.requirements as string[]).join("\n") : ""}
-                className="mt-1 min-h-[160px] w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Reports to (optional)</label>
-              <input
-                name="reports_to"
-                defaultValue={String(job?.reports_to ?? "")}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Compensation (optional)</label>
-              <input
-                name="compensation"
-                defaultValue={String(job?.compensation ?? "")}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Apply email (optional)</label>
-              <input
-                name="apply_email"
-                defaultValue={String(job?.apply_email ?? "")}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                placeholder="e.g. hr@greenfieldschool.ng"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Apply WhatsApp (optional)</label>
-              <input
-                name="apply_whatsapp"
-                defaultValue={String(job?.apply_whatsapp ?? "")}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                placeholder="e.g. https://wa.me/234..."
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Apply link (optional)</label>
-              <input
-                name="apply_link"
-                defaultValue={String(job?.apply_link ?? "")}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                placeholder="e.g. Google Form URL"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <label className="flex items-center gap-3 text-sm font-semibold text-slate-900">
-              <input
-                type="checkbox"
-                name="published"
-                defaultChecked={Boolean(job?.published)}
-                className="h-4 w-4 rounded border-slate-300"
-              />
-              Published
-            </label>
-            <button
-              type="submit"
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 sm:w-auto"
-            >
-              Save
-            </button>
-          </div>
-        </form>
-      </div>
+      <AdminCareerJobEditor id={params.id} initialJob={initialJob} />
     </div>
   );
 }
