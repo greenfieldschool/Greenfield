@@ -722,6 +722,16 @@ create trigger career_applications_set_updated_at
    unique (academic_year_id, name)
  );
 
+ create table if not exists public.classes (
+   id uuid primary key default gen_random_uuid(),
+   level public.school_level not null,
+   name text not null,
+   active boolean not null default true,
+   created_at timestamptz not null default now(),
+   updated_at timestamptz not null default now(),
+   unique (level, name)
+ );
+
  create table if not exists public.revenue_categories (
    id uuid primary key default gen_random_uuid(),
    name text not null,
