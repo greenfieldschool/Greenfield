@@ -48,6 +48,16 @@ export default async function PortalLayout({ children }: { children: ReactNode }
               >
                 {role === "student" ? "My profile" : "My students"}
               </Link>
+              {role === "parent" ? (
+                <Link className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50" href="/portal/academics">
+                  Academics
+                </Link>
+              ) : null}
+              {role === "parent" ? (
+                <Link className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50" href="/portal/discipline">
+                  Discipline
+                </Link>
+              ) : null}
               {role === "student" ? (
                 <>
                   <Link
@@ -56,11 +66,14 @@ export default async function PortalLayout({ children }: { children: ReactNode }
                   >
                     Academics
                   </Link>
+                  <Link className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50" href="/portal/exams">
+                    Exams
+                  </Link>
                   <Link
                     className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50"
-                    href="/portal/discipline"
+                    href="/portal/exams/results"
                   >
-                    Discipline
+                    Exam results
                   </Link>
                 </>
               ) : null}

@@ -6,6 +6,7 @@ type StudentRow = {
   id: string;
   first_name: string;
   last_name: string;
+  admission_number: string | null;
   level: string;
   classes: Array<{ id: string; level: string; name: string }>;
   status: string;
@@ -22,7 +23,9 @@ export default async function AdminStudentsPage() {
   const [{ data }, { data: classesData }] = await Promise.all([
     supabase
       .from("students")
-      .select("id, first_name, last_name, level, class_id, status, date_of_birth, classes(id, level, name)")
+      .select(
+        "id, first_name, last_name, admission_number, level, class_id, status, date_of_birth, classes(id, level, name)"
+      )
       .order("last_name", { ascending: true })
       .order("first_name", { ascending: true }),
     supabase.from("classes").select("id, level, name, active").eq("active", true).order("level").order("name")
@@ -36,6 +39,7 @@ export default async function AdminStudentsPage() {
 
     const firstName = String(formData.get("first_name") ?? "").trim();
     const lastName = String(formData.get("last_name") ?? "").trim();
+    const admissionNumber = String(formData.get("admission_number") ?? "").trim();
     const level = String(formData.get("level") ?? "").trim();
     const classIdRaw = String(formData.get("class_id") ?? "").trim();
     const status = String(formData.get("status") ?? "applied").trim();
@@ -54,6 +58,7 @@ export default async function AdminStudentsPage() {
     await supabase.from("students").insert({
       first_name: firstName,
       last_name: lastName,
+      admission_number: admissionNumber.length ? admissionNumber : null,
       level,
       class_id: classId,
       status,
@@ -88,6 +93,14 @@ export default async function AdminStudentsPage() {
               className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
               name="last_name"
               required
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-slate-900">Admission number</label>
+            <input
+              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              name="admission_number"
+              placeholder="(optional)"
             />
           </div>
           <div>
@@ -156,10 +169,11 @@ export default async function AdminStudentsPage() {
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
           <div className="col-span-5">Name</div>
+          <div className="col-span-2">Adm no</div>
           <div className="col-span-2">Level</div>
           <div className="col-span-2">Class</div>
           <div className="col-span-1">Status</div>
-          <div className="col-span-2">DOB</div>
+          <div className="col-span-0">DOB</div>
         </div>
         <div>
           {students.length ? (
@@ -172,10 +186,11 @@ export default async function AdminStudentsPage() {
                 <div className="col-span-5 font-semibold text-slate-900">
                   {s.first_name} {s.last_name}
                 </div>
+                <div className="col-span-2">{s.admission_number ?? "—"}</div>
                 <div className="col-span-2">{s.level}</div>
                 <div className="col-span-2">{(s.classes ?? [])[0]?.name ?? "—"}</div>
                 <div className="col-span-1">{s.status}</div>
-                <div className="col-span-2">{s.date_of_birth ?? "—"}</div>
+                <div className="col-span-0">{s.date_of_birth ?? "—"}</div>
               </Link>
             ))
           ) : (

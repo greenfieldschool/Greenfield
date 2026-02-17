@@ -6,6 +6,7 @@ type StudentRow = {
   id: string;
   first_name: string;
   last_name: string;
+  admission_number: string | null;
   level: string;
   class_id: string | null;
   classes: Array<{ id: string; level: string; name: string }>;
@@ -50,7 +51,9 @@ export default async function AdminStudentDetailPage({
   const [{ data: studentData }, { data: classesData }] = await Promise.all([
     supabase
       .from("students")
-      .select("id, first_name, last_name, level, class_id, status, date_of_birth, classes(id, level, name)")
+      .select(
+        "id, first_name, last_name, admission_number, level, class_id, status, date_of_birth, classes(id, level, name)"
+      )
       .eq("id", studentId)
       .maybeSingle(),
     supabase.from("classes").select("id, level, name, active").eq("active", true).order("level").order("name")
@@ -91,6 +94,7 @@ export default async function AdminStudentDetailPage({
   async function updateStudent(formData: FormData) {
     "use server";
 
+    const admissionNumber = String(formData.get("admission_number") ?? "").trim();
     const level = String(formData.get("level") ?? "").trim();
     const classIdRaw = String(formData.get("class_id") ?? "").trim();
     const status = String(formData.get("status") ?? "").trim();
@@ -102,7 +106,15 @@ export default async function AdminStudentDetailPage({
     const supabase = getSupabaseServerClient();
     if (!supabase) return;
 
-    await supabase.from("students").update({ level, class_id: classId, status }).eq("id", studentId);
+    await supabase
+      .from("students")
+      .update({
+        admission_number: admissionNumber.length ? admissionNumber : null,
+        level,
+        class_id: classId,
+        status
+      })
+      .eq("id", studentId);
 
     revalidatePath(`/admin/students/${studentId}`);
     revalidatePath("/admin/students");
@@ -172,6 +184,15 @@ export default async function AdminStudentDetailPage({
           <h2 className="text-base font-semibold text-slate-900">Edit student</h2>
           <form action={updateStudent} className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
+              <label className="text-sm font-semibold text-slate-900">Admission number</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                name="admission_number"
+                defaultValue={student.admission_number ?? ""}
+                placeholder="(optional)"
+              />
+            </div>
+            <div>
               <label className="text-sm font-semibold text-slate-900">Level</label>
               <select
                 className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
@@ -232,6 +253,10 @@ export default async function AdminStudentDetailPage({
           <div>
             <div className="text-xs font-semibold text-slate-500">Level</div>
             <div className="mt-1 font-semibold text-slate-900">{student.level}</div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-500">Admission number</div>
+            <div className="mt-1 font-semibold text-slate-900">{student.admission_number ?? "—"}</div>
           </div>
           <div>
             <div className="text-xs font-semibold text-slate-500">Status</div>

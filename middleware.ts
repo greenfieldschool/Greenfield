@@ -6,8 +6,9 @@ export async function middleware(request: NextRequest) {
 
   const isAdmin = pathname.startsWith("/admin");
   const isPortal = pathname.startsWith("/portal");
+  const isConductor = pathname.startsWith("/conductor");
 
-  if (!isAdmin && !isPortal) {
+  if (!isAdmin && !isPortal && !isConductor) {
     return NextResponse.next();
   }
 
@@ -26,6 +27,16 @@ export async function middleware(request: NextRequest) {
       pathname === "/portal/login" ||
       pathname === "/portal/unauthorized" ||
       pathname.startsWith("/portal/logout")
+    ) {
+      return NextResponse.next();
+    }
+  }
+
+  if (isConductor) {
+    if (
+      pathname === "/conductor/login" ||
+      pathname === "/conductor/unauthorized" ||
+      pathname.startsWith("/conductor/logout")
     ) {
       return NextResponse.next();
     }
@@ -58,7 +69,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    const loginPath = isAdmin ? "/admin/login" : "/portal/login";
+    const loginPath = isAdmin ? "/admin/login" : isConductor ? "/conductor/login" : "/portal/login";
     const redirectUrl = new URL(loginPath, request.url);
     redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
@@ -79,16 +90,28 @@ export async function middleware(request: NextRequest) {
     role === "nurse";
   const isPortalRole = role === "parent" || role === "student";
 
+  const { data: conductorLink } = isConductor
+    ? await supabase
+        .from("exam_conductor_user_links")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle()
+    : { data: null as unknown as { user_id: string } | null };
+  const isConductorUser = !!conductorLink;
+
   if (isAdmin && !isStaffRole) {
     return NextResponse.redirect(new URL("/admin/unauthorized", request.url));
   }
   if (isPortal && !isPortalRole) {
     return NextResponse.redirect(new URL("/portal/unauthorized", request.url));
   }
+  if (isConductor && !isStaffRole && !isConductorUser) {
+    return NextResponse.redirect(new URL("/conductor/unauthorized", request.url));
+  }
 
   return response;
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/portal/:path*"]
+  matcher: ["/admin/:path*", "/portal/:path*", "/conductor/:path*"]
 };
