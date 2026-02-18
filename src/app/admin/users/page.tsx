@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseServiceClient } from "@/lib/supabase/service";
 
 type ProfileRow = {
   id: string;
@@ -71,6 +72,17 @@ export default async function AdminUsersPage({
 
   const students = (studentsData ?? []) as StudentRow[];
 
+  const {
+    data: { user: currentUser }
+  } = await supabase.auth.getUser();
+
+  const { data: currentUserProfile } = currentUser
+    ? await supabase.from("profiles").select("role").eq("id", currentUser.id).maybeSingle()
+    : { data: null as { role?: string | null } | null };
+
+  const currentRole = (currentUserProfile?.role ?? null) as string | null;
+  const canInviteStaff = currentRole === "super_admin" || currentRole === "admin";
+
   const userIds = profiles.map((p) => p.id);
 
   const { data: guardianLinksData } = userIds.length
@@ -115,6 +127,51 @@ export default async function AdminUsersPage({
     await supabase.from("profiles").update({ role }).eq("id", userId);
 
     revalidatePath("/admin/users");
+  }
+
+  async function inviteStaff(formData: FormData) {
+    "use server";
+
+    const email = String(formData.get("email") ?? "").trim().toLowerCase();
+    const fullName = String(formData.get("full_name") ?? "").trim();
+    const role = String(formData.get("role") ?? "").trim();
+
+    if (!email || !role) return;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { data: inviterProfile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const inviterRole = (inviterProfile?.role ?? null) as string | null;
+    const isAllowed = inviterRole === "super_admin" || inviterRole === "admin";
+    if (!isAllowed) return;
+
+    const service = getSupabaseServiceClient();
+    if (!service) return;
+
+    const { data: inviteResult, error: inviteError } = await service.auth.admin.inviteUserByEmail(email, {
+      data: fullName.length ? { full_name: fullName } : undefined
+    });
+
+    if (inviteError || !inviteResult?.user) return;
+
+    await service
+      .from("profiles")
+      .update({
+        role,
+        full_name: fullName.length ? fullName : null,
+        email
+      })
+      .eq("id", inviteResult.user.id);
+
+    revalidatePath("/admin/users");
+    redirect(`/admin/users?q=${encodeURIComponent(email)}`);
   }
 
   async function linkGuardian(formData: FormData) {
@@ -204,6 +261,54 @@ export default async function AdminUsersPage({
             Search
           </button>
         </form>
+
+        {canInviteStaff ? (
+          <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+            <div className="text-sm font-semibold text-slate-900">Invite staff</div>
+            <div className="mt-1 text-sm text-slate-600">Send an email invite and set their initial role.</div>
+            <form action={inviteStaff} className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div className="sm:col-span-2">
+                <label className="text-sm font-semibold text-slate-900">Email</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="email"
+                  placeholder="staff@school.com"
+                  required
+                  type="email"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-slate-900">Role</label>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="role"
+                  defaultValue="teacher"
+                >
+                  <option value="admin">admin</option>
+                  <option value="teacher">teacher</option>
+                  <option value="front_desk">front_desk</option>
+                  <option value="nurse">nurse</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-sm font-semibold text-slate-900">Full name</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="full_name"
+                  placeholder="(optional)"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+                  type="submit"
+                >
+                  Send invite
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-4">
