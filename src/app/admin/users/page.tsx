@@ -36,7 +36,7 @@ type StudentUserLinkRow = {
 export default async function AdminUsersPage({
   searchParams
 }: {
-  searchParams: { q?: string };
+  searchParams: { q?: string; invited?: string; invite_error?: string };
 }) {
   const supabase = getSupabaseServerClient();
 
@@ -45,6 +45,8 @@ export default async function AdminUsersPage({
   }
 
   const query = (searchParams.q ?? "").trim();
+  const inviteSuccess = String(searchParams.invited ?? "").trim() === "1";
+  const inviteError = String(searchParams.invite_error ?? "").trim() === "1";
 
   const profilesQuery = supabase
     .from("profiles")
@@ -123,7 +125,9 @@ export default async function AdminUsersPage({
     if (!userId || !role) return;
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) {
+      redirect("/admin/users?invite_error=1");
+    }
 
     await supabase.from("profiles").update({ role }).eq("id", userId);
 
@@ -137,7 +141,9 @@ export default async function AdminUsersPage({
     const fullName = String(formData.get("full_name") ?? "").trim();
     const role = String(formData.get("role") ?? "").trim();
 
-    if (!email || !role) return;
+    if (!email || !role) {
+      redirect("/admin/users?invite_error=1");
+    }
 
     const supabase = getSupabaseServerClient();
     if (!supabase) return;
@@ -146,15 +152,21 @@ export default async function AdminUsersPage({
       data: { user }
     } = await supabase.auth.getUser();
 
-    if (!user) return;
+    if (!user) {
+      redirect("/admin/users?invite_error=1");
+    }
 
     const { data: inviterProfile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
     const inviterRole = (inviterProfile?.role ?? null) as string | null;
     const isAllowed = inviterRole === "super_admin" || inviterRole === "admin";
-    if (!isAllowed) return;
+    if (!isAllowed) {
+      redirect("/admin/users?invite_error=1");
+    }
 
     const service = getSupabaseServiceClient();
-    if (!service) return;
+    if (!service) {
+      redirect("/admin/users?invite_error=1");
+    }
 
     const h = headers();
     const forwardedHost = h.get("x-forwarded-host");
@@ -170,7 +182,9 @@ export default async function AdminUsersPage({
       data: fullName.length ? { full_name: fullName } : undefined
     });
 
-    if (inviteError || !inviteResult?.user) return;
+    if (inviteError || !inviteResult?.user) {
+      redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=1`);
+    }
 
     await service
       .from("profiles")
@@ -182,7 +196,7 @@ export default async function AdminUsersPage({
       .eq("id", inviteResult.user.id);
 
     revalidatePath("/admin/users");
-    redirect(`/admin/users?q=${encodeURIComponent(email)}`);
+    redirect(`/admin/users?q=${encodeURIComponent(email)}&invited=1`);
   }
 
   async function linkGuardian(formData: FormData) {
@@ -257,6 +271,18 @@ export default async function AdminUsersPage({
         <p className="mt-2 text-sm text-slate-600">
           Search users by email/name, set roles, and link accounts to guardians/students.
         </p>
+
+        {inviteSuccess ? (
+          <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            Invite sent{query.length ? ` to ${query}` : ""}. The staff member should check their email and set a password.
+          </div>
+        ) : null}
+
+        {inviteError ? (
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+            Could not send invite. Please confirm your Supabase email settings and that the email address is valid.
+          </div>
+        ) : null}
 
         <form action={setQuery} className="mt-6 flex flex-col gap-3 sm:flex-row">
           <input
