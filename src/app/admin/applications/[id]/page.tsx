@@ -143,12 +143,15 @@ export default async function AdminApplicationDetailPage({
         <p className="mt-2 text-sm text-slate-600">These fields are saved from the /apply wizard.</p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {field("Student surname", data.surname)}
-          {field("Other names", data.other_names)}
+          {field("First name", data.first_name ?? data.other_names)}
+          {field("Middle name", data.middle_name)}
+          {field("Last name", data.last_name ?? data.surname)}
           {field("Date of birth", data.dob)}
           {field("Sex", data.sex)}
           {field("Religion", data.religion)}
+          {field("Passport photo URL", data.passport_photo_url)}
           {field("Seeking admission into", data.seeking_class)}
+          {field("Favorite sports", data.favorite_sports)}
           {field("Hobbies", data.hobbies)}
           {field("Future aspiration", data.future_aspiration)}
           {field("Child is with", data.child_with)}
@@ -160,11 +163,14 @@ export default async function AdminApplicationDetailPage({
           {field("Parent 1 phone", data.parent1_phone)}
           {field("Parent 1 email", data.parent1_email)}
           {field("Parent 1 occupation", data.parent1_occupation)}
+          {field("Parent 1 business address", data.parent1_business_address)}
           {field("Home address", data.home_address)}
           {field("Parent 2 name", data.parent2_name)}
           {field("Parent 2 phone", data.parent2_phone)}
           {field("Parent 2 email", data.parent2_email)}
           {field("Parent 2 occupation", data.parent2_occupation)}
+          {field("Parent 2 business address", data.parent2_business_address)}
+          {field("Preferred contact methods", data.preferred_contact_methods)}
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -175,6 +181,17 @@ export default async function AdminApplicationDetailPage({
           {field("Date of entry", data.date_of_entry)}
           {field("Date of exit", data.date_of_exit)}
           {field("Class of exit", data.class_of_exit)}
+          {field("Discovery source", data.discovery_source)}
+          {field("Referred", data.referred)}
+          {field("Referrer name", data.referrer_name)}
+          {field("Referrer number", data.referrer_ref)}
+          {field("Other child in school", data.other_child_in_school)}
+          {field("Other child name(s)", data.other_child_names)}
+          {field("Pickup details", data.pickup_details)}
+          {field("Student signature", data.student_signature_name)}
+          {field("Student signature date", data.student_signature_date)}
+          {field("Parent signature", data.parent_signature_name)}
+          {field("Parent signature date", data.parent_signature_date)}
         </div>
       </div>
     </div>

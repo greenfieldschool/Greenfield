@@ -79,12 +79,15 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
   });
 
   const [student, setStudent] = useState({
-    surname: "",
-    other_names: "",
+    first_name: "",
+    middle_name: "",
+    last_name: "",
     sex: "",
     religion: "",
     dob: "",
+    passport_photo_url: "",
     seeking_class: "",
+    favorite_sports: "",
     hobbies: "",
     future_aspiration: "",
     child_with: ""
@@ -95,11 +98,14 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
     parent1_phone: "",
     parent1_email: "",
     parent1_occupation: "",
+    parent1_business_address: "",
     home_address: "",
     parent2_name: "",
     parent2_phone: "",
     parent2_email: "",
-    parent2_occupation: ""
+    parent2_occupation: "",
+    parent2_business_address: "",
+    preferred_contact_methods: ""
   });
 
   const [previous, setPrevious] = useState({
@@ -109,7 +115,18 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
     qualification_testimonial: "",
     date_of_entry: "",
     date_of_exit: "",
-    class_of_exit: ""
+    class_of_exit: "",
+    discovery_source: "",
+    referred: "",
+    referrer_name: "",
+    referrer_ref: "",
+    other_child_in_school: "",
+    other_child_names: "",
+    pickup_details: "",
+    student_signature_name: "",
+    student_signature_date: "",
+    parent_signature_name: "",
+    parent_signature_date: ""
   });
 
   const resumeUrl = useMemo(() => {
@@ -152,12 +169,15 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
         const data = safeObject(app.data);
 
         setStudent({
-          surname: asString(data.surname),
-          other_names: asString(data.other_names),
+          first_name: asString(data.first_name),
+          middle_name: asString(data.middle_name),
+          last_name: asString(data.last_name),
           sex: asString(data.sex),
           religion: asString(data.religion),
           dob: asString(data.dob),
+          passport_photo_url: asString(data.passport_photo_url),
           seeking_class: asString(data.seeking_class),
+          favorite_sports: asString(data.favorite_sports),
           hobbies: asString(data.hobbies),
           future_aspiration: asString(data.future_aspiration),
           child_with: asString(data.child_with)
@@ -168,11 +188,14 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
           parent1_phone: asString(data.parent1_phone),
           parent1_email: asString(data.parent1_email),
           parent1_occupation: asString(data.parent1_occupation),
+          parent1_business_address: asString(data.parent1_business_address),
           home_address: asString(data.home_address),
           parent2_name: asString(data.parent2_name),
           parent2_phone: asString(data.parent2_phone),
           parent2_email: asString(data.parent2_email),
-          parent2_occupation: asString(data.parent2_occupation)
+          parent2_occupation: asString(data.parent2_occupation),
+          parent2_business_address: asString(data.parent2_business_address),
+          preferred_contact_methods: asString(data.preferred_contact_methods)
         });
 
         setPrevious({
@@ -182,7 +205,18 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
           qualification_testimonial: asString(data.qualification_testimonial),
           date_of_entry: asString(data.date_of_entry),
           date_of_exit: asString(data.date_of_exit),
-          class_of_exit: asString(data.class_of_exit)
+          class_of_exit: asString(data.class_of_exit),
+          discovery_source: asString(data.discovery_source),
+          referred: asString(data.referred),
+          referrer_name: asString(data.referrer_name),
+          referrer_ref: asString(data.referrer_ref),
+          other_child_in_school: asString(data.other_child_in_school),
+          other_child_names: asString(data.other_child_names),
+          pickup_details: asString(data.pickup_details),
+          student_signature_name: asString(data.student_signature_name),
+          student_signature_date: asString(data.student_signature_date),
+          parent_signature_name: asString(data.parent_signature_name),
+          parent_signature_date: asString(data.parent_signature_date)
         });
       })
       .catch((e: unknown) => {
@@ -268,10 +302,17 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
   const canContinueQuick = quick.parent_name.trim().length >= 2 && quick.phone.trim().length >= 7;
 
   async function saveStudentAndNext() {
+    const legacySurname = student.last_name;
+    const legacyOtherNames = `${student.first_name} ${student.middle_name}`.trim();
     const ok = await savePatch(
       {
-        surname: student.surname,
-        other_names: student.other_names,
+        first_name: student.first_name,
+        middle_name: student.middle_name,
+        last_name: student.last_name,
+        passport_photo_url: student.passport_photo_url,
+        favorite_sports: student.favorite_sports,
+        surname: legacySurname,
+        other_names: legacyOtherNames,
         sex: student.sex,
         religion: student.religion,
         dob: student.dob,
@@ -299,11 +340,14 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
       parent1_phone: parents.parent1_phone,
       parent1_email: parents.parent1_email,
       parent1_occupation: parents.parent1_occupation,
+      parent1_business_address: parents.parent1_business_address,
       home_address: parents.home_address,
       parent2_name: parents.parent2_name,
       parent2_phone: parents.parent2_phone,
       parent2_email: parents.parent2_email,
-      parent2_occupation: parents.parent2_occupation
+      parent2_occupation: parents.parent2_occupation,
+      parent2_business_address: parents.parent2_business_address,
+      preferred_contact_methods: parents.preferred_contact_methods
     });
 
     if (ok) setStep("previous");
@@ -317,7 +361,18 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
       qualification_testimonial: previous.qualification_testimonial,
       date_of_entry: previous.date_of_entry,
       date_of_exit: previous.date_of_exit,
-      class_of_exit: previous.class_of_exit
+      class_of_exit: previous.class_of_exit,
+      discovery_source: previous.discovery_source,
+      referred: previous.referred,
+      referrer_name: previous.referrer_name,
+      referrer_ref: previous.referrer_ref,
+      other_child_in_school: previous.other_child_in_school,
+      other_child_names: previous.other_child_names,
+      pickup_details: previous.pickup_details,
+      student_signature_name: previous.student_signature_name,
+      student_signature_date: previous.student_signature_date,
+      parent_signature_name: previous.parent_signature_name,
+      parent_signature_date: previous.parent_signature_date
     });
 
     if (ok) setStep("review");
@@ -330,8 +385,13 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
       },
       mergeData(
         {
-          surname: student.surname,
-          other_names: student.other_names,
+          first_name: student.first_name,
+          middle_name: student.middle_name,
+          last_name: student.last_name,
+          passport_photo_url: student.passport_photo_url,
+          favorite_sports: student.favorite_sports,
+          surname: student.last_name,
+          other_names: `${student.first_name} ${student.middle_name}`.trim(),
           sex: student.sex,
           religion: student.religion,
           dob: student.dob,
@@ -346,11 +406,14 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
             parent1_phone: parents.parent1_phone,
             parent1_email: parents.parent1_email,
             parent1_occupation: parents.parent1_occupation,
+            parent1_business_address: parents.parent1_business_address,
             home_address: parents.home_address,
             parent2_name: parents.parent2_name,
             parent2_phone: parents.parent2_phone,
             parent2_email: parents.parent2_email,
-            parent2_occupation: parents.parent2_occupation
+            parent2_occupation: parents.parent2_occupation,
+            parent2_business_address: parents.parent2_business_address,
+            preferred_contact_methods: parents.preferred_contact_methods
           },
           {
             has_been_in_school: previous.has_been_in_school,
@@ -359,7 +422,18 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
             qualification_testimonial: previous.qualification_testimonial,
             date_of_entry: previous.date_of_entry,
             date_of_exit: previous.date_of_exit,
-            class_of_exit: previous.class_of_exit
+            class_of_exit: previous.class_of_exit,
+            discovery_source: previous.discovery_source,
+            referred: previous.referred,
+            referrer_name: previous.referrer_name,
+            referrer_ref: previous.referrer_ref,
+            other_child_in_school: previous.other_child_in_school,
+            other_child_names: previous.other_child_names,
+            pickup_details: previous.pickup_details,
+            student_signature_name: previous.student_signature_name,
+            student_signature_date: previous.student_signature_date,
+            parent_signature_name: previous.parent_signature_name,
+            parent_signature_date: previous.parent_signature_date
           }
         )
       )
@@ -633,19 +707,27 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
           <div className="text-sm font-semibold text-slate-900">Student details</div>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <div>
-              <label className="text-sm font-semibold text-slate-900">Surname</label>
+              <label className="text-sm font-semibold text-slate-900">Last name (surname)</label>
               <input
                 className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                value={student.surname}
-                onChange={(e) => setStudent((s) => ({ ...s, surname: e.target.value }))}
+                value={student.last_name}
+                onChange={(e) => setStudent((s) => ({ ...s, last_name: e.target.value }))}
               />
             </div>
             <div>
-              <label className="text-sm font-semibold text-slate-900">Other names</label>
+              <label className="text-sm font-semibold text-slate-900">First name</label>
               <input
                 className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                value={student.other_names}
-                onChange={(e) => setStudent((s) => ({ ...s, other_names: e.target.value }))}
+                value={student.first_name}
+                onChange={(e) => setStudent((s) => ({ ...s, first_name: e.target.value }))}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-sm font-semibold text-slate-900">Middle name (optional)</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={student.middle_name}
+                onChange={(e) => setStudent((s) => ({ ...s, middle_name: e.target.value }))}
               />
             </div>
             <div>
@@ -684,6 +766,24 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
                 value={student.seeking_class}
                 onChange={(e) => setStudent((s) => ({ ...s, seeking_class: e.target.value }))}
                 placeholder="e.g. Nursery 2, Primary 1, JSS1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Student passport photo URL (optional)</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={student.passport_photo_url}
+                onChange={(e) => setStudent((s) => ({ ...s, passport_photo_url: e.target.value }))}
+                placeholder="https://..."
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Favorite sports (optional)</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={student.favorite_sports}
+                onChange={(e) => setStudent((s) => ({ ...s, favorite_sports: e.target.value }))}
+                placeholder="e.g. Football, Swimming"
               />
             </div>
             <div className="md:col-span-2">
@@ -777,6 +877,14 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
               />
             </div>
             <div className="md:col-span-2">
+              <label className="text-sm font-semibold text-slate-900">Business address (optional)</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={parents.parent1_business_address}
+                onChange={(e) => setParents((s) => ({ ...s, parent1_business_address: e.target.value }))}
+              />
+            </div>
+            <div className="md:col-span-2">
               <label className="text-sm font-semibold text-slate-900">Home address (optional)</label>
               <input
                 className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
@@ -819,6 +927,25 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
                 className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
                 value={parents.parent2_occupation}
                 onChange={(e) => setParents((s) => ({ ...s, parent2_occupation: e.target.value }))}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-sm font-semibold text-slate-900">Business address (optional)</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={parents.parent2_business_address}
+                onChange={(e) => setParents((s) => ({ ...s, parent2_business_address: e.target.value }))}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-sm font-semibold text-slate-900">
+                Best means of communication (comma separated)
+              </label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={parents.preferred_contact_methods}
+                onChange={(e) => setParents((s) => ({ ...s, preferred_contact_methods: e.target.value }))}
+                placeholder="e.g. text, email, call, telegram, whatsapp"
               />
             </div>
           </div>
@@ -917,6 +1044,121 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
                 </div>
               </>
             ) : null}
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">How did you discover Greenfield?</label>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={previous.discovery_source}
+                onChange={(e) => setPrevious((s) => ({ ...s, discovery_source: e.target.value }))}
+              >
+                <option value="">Select…</option>
+                <option value="passing_by">Passing by</option>
+                <option value="friend">Friend</option>
+                <option value="staff">Staff</option>
+                <option value="communication_media">Communication media</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Were you referred?</label>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={previous.referred}
+                onChange={(e) => setPrevious((s) => ({ ...s, referred: e.target.value }))}
+              >
+                <option value="">Select…</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Referrer name (optional)</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={previous.referrer_name}
+                onChange={(e) => setPrevious((s) => ({ ...s, referrer_name: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Referrer number (optional)</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={previous.referrer_ref}
+                onChange={(e) => setPrevious((s) => ({ ...s, referrer_ref: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Any other child in Greenfield?</label>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={previous.other_child_in_school}
+                onChange={(e) => setPrevious((s) => ({ ...s, other_child_in_school: e.target.value }))}
+              >
+                <option value="">Select…</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Other child name(s) (optional)</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={previous.other_child_names}
+                onChange={(e) => setPrevious((s) => ({ ...s, other_child_names: e.target.value }))}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-sm font-semibold text-slate-900">Pickup details (who picks up the child)</label>
+              <textarea
+                className="mt-1 min-h-[90px] w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={previous.pickup_details}
+                onChange={(e) => setPrevious((s) => ({ ...s, pickup_details: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Student signature (type name)</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={previous.student_signature_name}
+                onChange={(e) => setPrevious((s) => ({ ...s, student_signature_name: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Student signature date</label>
+              <input
+                type="date"
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={previous.student_signature_date}
+                onChange={(e) => setPrevious((s) => ({ ...s, student_signature_date: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Parent signature (type name)</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={previous.parent_signature_name}
+                onChange={(e) => setPrevious((s) => ({ ...s, parent_signature_name: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Parent signature date</label>
+              <input
+                type="date"
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                value={previous.parent_signature_date}
+                onChange={(e) => setPrevious((s) => ({ ...s, parent_signature_date: e.target.value }))}
+              />
+            </div>
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -954,7 +1196,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
             />
             <SectionCard
               title="Student"
-              description={`${student.surname || ""} ${student.other_names || ""} • ${student.seeking_class || "—"}`}
+              description={`${student.last_name || ""} ${student.first_name || ""} ${student.middle_name || ""} • ${student.seeking_class || "—"}`}
             />
             <SectionCard
               title="Parent/guardian"
