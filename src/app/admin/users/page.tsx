@@ -60,6 +60,7 @@ export default async function AdminUsersPage({
   const canInviteStaff = currentRole === "super_admin" || currentRole === "admin";
 
   const profilesClient = canInviteStaff ? getSupabaseServiceClient() : null;
+  const usingServiceClient = canInviteStaff && !!profilesClient;
 
   const profilesQueryBase = (profilesClient ?? supabase)
     .from("profiles")
@@ -67,7 +68,7 @@ export default async function AdminUsersPage({
     .order("updated_at", { ascending: false })
     .limit(25);
 
-  const { data: profilesData } = query.length
+  const { data: profilesData, error: profilesError } = query.length
     ? await profilesQueryBase.or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)
     : await profilesQueryBase;
 
@@ -268,13 +269,14 @@ export default async function AdminUsersPage({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Admin</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Users</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Search users by email/name, set roles, and link accounts to guardians/students.
-        </p>
+    <div className="space-y-10">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Users</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Invite staff, link users to guardians/students, and manage roles.
+          </p>
+        </div>
 
         {inviteSuccess ? (
           <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
@@ -294,6 +296,32 @@ export default async function AdminUsersPage({
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
             You are signed in as <span className="font-semibold">{currentRole ?? "unknown"}</span>. Due to permissions, you may only see your own user
             record here. Ask an admin to grant you <span className="font-semibold">admin</span> access if you need to manage users.
+          </div>
+        ) : null}
+
+        {canInviteStaff && profiles.length === 0 ? (
+          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <div className="font-semibold">User list is empty — diagnostics</div>
+            <div className="mt-2 space-y-1 text-amber-900">
+              <div>
+                Role: <span className="font-semibold">{currentRole ?? "unknown"}</span>
+              </div>
+              <div>
+                Service client: <span className="font-semibold">{usingServiceClient ? "enabled" : "not enabled"}</span>
+              </div>
+              {!usingServiceClient ? (
+                <div>
+                  Check deployment env var <span className="font-semibold">SUPABASE_SERVICE_ROLE_KEY</span>.
+                </div>
+              ) : null}
+              {profilesError ? (
+                <div>
+                  Supabase error: <span className="font-semibold">{profilesError.message}</span>
+                </div>
+              ) : (
+                <div>No Supabase error returned. This usually points to RLS/policies or querying the wrong Supabase project.</div>
+              )}
+            </div>
           </div>
         ) : null}
 

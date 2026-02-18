@@ -88,6 +88,7 @@ export async function middleware(request: NextRequest) {
     role === "teacher" ||
     role === "front_desk" ||
     role === "nurse";
+  const isAdminRole = role === "super_admin" || role === "admin";
   const isPortalRole = role === "parent" || role === "student";
 
   const { data: conductorLink } = isConductor
@@ -99,8 +100,19 @@ export async function middleware(request: NextRequest) {
     : { data: null as unknown as { user_id: string } | null };
   const isConductorUser = !!conductorLink;
 
+  if (isAdmin && isStaffRole && !isAdminRole) {
+    const adminOnlyPrefixes = ["/admin/users", "/admin/finance", "/admin/audit", "/admin/settings"];
+    const isAdminOnly = adminOnlyPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
+    if (isAdminOnly) {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
+  }
+
   if (isAdmin && !isStaffRole) {
     return NextResponse.redirect(new URL("/admin/unauthorized", request.url));
+  }
+  if (isPortal && isStaffRole) {
+    return NextResponse.redirect(new URL("/admin", request.url));
   }
   if (isPortal && !isPortalRole) {
     return NextResponse.redirect(new URL("/portal/unauthorized", request.url));

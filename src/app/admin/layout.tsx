@@ -35,5 +35,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     return <>{children}</>;
   }
 
-  return <AdminShell userEmail={user.email ?? ""}>{children}</AdminShell>;
+  return (
+    <AdminShell userEmail={user.email ?? ""} role={(role ?? null) as string | null}>
+      {children}
+    </AdminShell>
+  );
 }

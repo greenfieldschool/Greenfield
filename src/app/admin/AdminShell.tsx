@@ -18,6 +18,7 @@ type NavGroup = {
 
 type AdminShellProps = {
   userEmail: string;
+  role: string | null;
   children: ReactNode;
 };
 
@@ -28,7 +29,7 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-export default function AdminShell({ userEmail, children }: AdminShellProps) {
+export default function AdminShell({ userEmail, role, children }: AdminShellProps) {
   const pathname = usePathname() ?? "/admin";
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -36,14 +37,16 @@ export default function AdminShell({ userEmail, children }: AdminShellProps) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
+  const isAdmin = role === "super_admin" || role === "admin";
+
   const navGroups: NavGroup[] = useMemo(
-    () => [
+    () => {
+      const groups: NavGroup[] = [
       {
         key: "core",
         label: "Core",
         items: [
           { href: "/admin", label: "Dashboard" },
-          { href: "/admin/users", label: "Users" },
           { href: "/admin/students", label: "Students" },
           { href: "/admin/guardians", label: "Guardians" }
         ]
@@ -89,8 +92,30 @@ export default function AdminShell({ userEmail, children }: AdminShellProps) {
           { href: "/admin/audit", label: "Audit log", shortLabel: "Audit" }
         ]
       }
-    ],
-    []
+    ];
+
+      if (isAdmin) {
+        const core = groups.find((g) => g.key === "core");
+        if (core) {
+          core.items.splice(1, 0, { href: "/admin/users", label: "Users" });
+        }
+        return groups;
+      }
+
+      return groups
+        .map((group) => {
+          if (group.key === "operations") {
+            return {
+              ...group,
+              items: group.items.filter((item) => item.href !== "/admin/finance" && item.href !== "/admin/audit")
+            };
+          }
+
+          return group;
+        })
+        .filter((group) => group.items.length > 0);
+    },
+    [isAdmin]
   );
 
   function findActiveGroupKey() {
@@ -285,13 +310,15 @@ export default function AdminShell({ userEmail, children }: AdminShellProps) {
                   >
                     Profile
                   </Link>
-                  <Link
-                    role="menuitem"
-                    className="block px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-                    href="/admin/settings"
-                  >
-                    Settings
-                  </Link>
+                  {isAdmin ? (
+                    <Link
+                      role="menuitem"
+                      className="block px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                      href="/admin/settings"
+                    >
+                      Settings
+                    </Link>
+                  ) : null}
                   <div className="border-t border-slate-200" />
                   <form action="/admin/logout" method="post">
                     <button
