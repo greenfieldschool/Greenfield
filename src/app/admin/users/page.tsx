@@ -175,7 +175,7 @@ export default async function AdminUsersPage({
     const inferredProto = host?.includes("localhost") || host?.includes("127.0.0.1") ? "http" : "https";
     const proto = forwardedProto ?? inferredProto;
     const origin = host ? `${proto}://${host}` : "";
-    const redirectTo = origin ? `${origin}/auth/callback?next=${encodeURIComponent("/auth/set-password")}` : undefined;
+    const redirectTo = origin ? `${origin}/auth/finish?next=${encodeURIComponent("/auth/set-password")}` : undefined;
 
     const { data: inviteResult, error: inviteError } = await service.auth.admin.inviteUserByEmail(email, {
       redirectTo,
@@ -183,7 +183,9 @@ export default async function AdminUsersPage({
     });
 
     if (inviteError || !inviteResult?.user) {
-      redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=1`);
+      const message = (inviteError?.message ?? "").toLowerCase();
+      const isAlready = message.includes("already") || message.includes("exists") || message.includes("registered");
+      redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=${isAlready ? "exists" : "1"}`);
     }
 
     await service
@@ -280,7 +282,9 @@ export default async function AdminUsersPage({
 
         {inviteError ? (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-            Could not send invite. Please confirm your Supabase email settings and that the email address is valid.
+            {String(searchParams.invite_error ?? "").trim() === "exists"
+              ? "That email already has an account or already has a pending invite. Ask them to use the first invite email to set a password."
+              : "Could not send invite. Please confirm your Supabase email settings and that the email address is valid."}
           </div>
         ) : null}
 
