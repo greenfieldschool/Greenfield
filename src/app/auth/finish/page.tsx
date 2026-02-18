@@ -14,8 +14,19 @@ export default function AuthFinishPage() {
       const supabase = getSupabaseBrowserClient();
 
       const url = new URL(window.location.href);
-      const next = url.searchParams.get("next") ?? "/admin";
+      const next = url.searchParams.get("next") ?? "/auth/set-password";
       const code = url.searchParams.get("code");
+
+      const rawHash = window.location.hash?.length
+        ? window.location.hash.startsWith("#")
+          ? window.location.hash.slice(1)
+          : window.location.hash
+        : "";
+      const hashParams = rawHash.length ? new URLSearchParams(rawHash) : null;
+      const accessToken = hashParams?.get("access_token") ?? null;
+      const refreshToken = hashParams?.get("refresh_token") ?? null;
+
+      const hasAuthParams = !!code || (!!accessToken && !!refreshToken);
 
       if (!supabase) {
         router.replace(next);
@@ -23,21 +34,16 @@ export default function AuthFinishPage() {
       }
 
       try {
-        if (code) {
+        if (hasAuthParams) {
           await supabase.auth.signOut();
-          await supabase.auth.exchangeCodeForSession(code);
-        } else {
-          const { data } = await supabase.auth.getSession();
-          if (!data.session && window.location.hash?.length) {
-            const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
-            const params = new URLSearchParams(hash);
-            const accessToken = params.get("access_token");
-            const refreshToken = params.get("refresh_token");
 
-            if (accessToken && refreshToken) {
-              await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-            }
+          if (code) {
+            await supabase.auth.exchangeCodeForSession(code);
+          } else if (accessToken && refreshToken) {
+            await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
           }
+        } else {
+          await supabase.auth.getSession();
         }
       } catch {
         // ignore
