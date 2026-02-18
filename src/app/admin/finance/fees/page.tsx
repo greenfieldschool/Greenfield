@@ -34,6 +34,30 @@ export default function AdminFinanceFeesHomePage() {
           Fee schedules
           <div className="mt-1 text-xs font-normal text-slate-600">Define per-class fees per term or annual.</div>
         </Link>
+
+        <Link
+          className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          href="/admin/finance/fees/revenue-categories"
+        >
+          Revenue categories
+          <div className="mt-1 text-xs font-normal text-slate-600">Buckets used for fee component mapping & reporting.</div>
+        </Link>
+
+        <Link
+          className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          href="/admin/finance/fees/budget-sectors"
+        >
+          Budget sectors
+          <div className="mt-1 text-xs font-normal text-slate-600">Expense categories for budgets and spending.</div>
+        </Link>
+
+        <Link
+          className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          href="/admin/finance/fees/academic-years"
+        >
+          Academic years
+          <div className="mt-1 text-xs font-normal text-slate-600">Manage academic years and terms.</div>
+        </Link>
       </div>
 
       <div>
