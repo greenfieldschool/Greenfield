@@ -7,6 +7,8 @@ type StudentRow = {
   first_name: string;
   last_name: string;
   admission_number: string | null;
+  profile_photo_url: string | null;
+  hobbies: string[];
   level: string;
   class_id: string | null;
   classes: Array<{ id: string; level: string; name: string }>;
@@ -52,7 +54,7 @@ export default async function AdminStudentDetailPage({
     supabase
       .from("students")
       .select(
-        "id, first_name, last_name, admission_number, level, class_id, status, date_of_birth, classes(id, level, name)"
+        "id, first_name, last_name, admission_number, profile_photo_url, hobbies, level, class_id, status, date_of_birth, classes(id, level, name)"
       )
       .eq("id", studentId)
       .maybeSingle(),
@@ -91,6 +93,17 @@ export default async function AdminStudentDetailPage({
 
   const availableGuardians = allGuardians.filter((g) => !linkedGuardianIds.has(g.id));
 
+  const {
+    data: { user: currentUser }
+  } = await supabase.auth.getUser();
+
+  const { data: currentUserProfile } = currentUser
+    ? await supabase.from("profiles").select("role").eq("id", currentUser.id).maybeSingle()
+    : { data: null as { role?: string | null } | null };
+
+  const currentRole = (currentUserProfile?.role ?? null) as string | null;
+  const isAdmin = currentRole === "super_admin" || currentRole === "admin";
+
   async function updateStudent(formData: FormData) {
     "use server";
 
@@ -114,6 +127,34 @@ export default async function AdminStudentDetailPage({
         class_id: classId,
         status
       })
+      .eq("id", studentId);
+
+    revalidatePath(`/admin/students/${studentId}`);
+    revalidatePath("/admin/students");
+  }
+
+  async function updateStudentProfile(formData: FormData) {
+    "use server";
+
+    if (!isAdmin) return;
+
+    const photoUrlRaw = String(formData.get("profile_photo_url") ?? "").trim();
+    const hobbiesRaw = String(formData.get("hobbies") ?? "").trim();
+
+    const profilePhotoUrl = photoUrlRaw.length ? photoUrlRaw : null;
+    const hobbies = hobbiesRaw.length
+      ? hobbiesRaw
+          .split(",")
+          .map((v) => v.trim())
+          .filter((v) => v.length)
+      : [];
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase
+      .from("students")
+      .update({ profile_photo_url: profilePhotoUrl, hobbies })
       .eq("id", studentId);
 
     revalidatePath(`/admin/students/${studentId}`);
@@ -180,6 +221,40 @@ export default async function AdminStudentDetailPage({
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">
           {student.first_name} {student.last_name}
         </h1>
+        {isAdmin ? (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+            <h2 className="text-base font-semibold text-slate-900">Profile</h2>
+            <p className="mt-1 text-sm text-slate-600">Profile enrichment fields (admin-managed).</p>
+            <form action={updateStudentProfile} className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="text-sm font-semibold text-slate-900">Profile photo URL (optional)</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="profile_photo_url"
+                  defaultValue={student.profile_photo_url ?? ""}
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-sm font-semibold text-slate-900">Hobbies (comma separated)</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="hobbies"
+                  defaultValue={(student.hobbies ?? []).join(", ")}
+                  placeholder="e.g. Chess, Reading, Football"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+                  type="submit"
+                >
+                  Save profile
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
         <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
           <h2 className="text-base font-semibold text-slate-900">Edit student</h2>
           <form action={updateStudent} className="mt-4 grid gap-4 sm:grid-cols-2">

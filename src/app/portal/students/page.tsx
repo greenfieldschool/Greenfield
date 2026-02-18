@@ -4,9 +4,17 @@ type StudentRow = {
   id: string;
   first_name: string;
   last_name: string;
+  profile_photo_url: string | null;
+  hobbies: string[];
   level: string;
   status: string;
   date_of_birth: string | null;
+};
+
+type EnrollmentRow = {
+  student_id: string;
+  status: string;
+  activities: Array<{ name: string; description: string | null }>;
 };
 
 export default async function PortalStudentsPage() {
@@ -44,7 +52,7 @@ export default async function PortalStudentsPage() {
     if (link?.student_id) {
       const { data } = await supabase
         .from("students")
-        .select("id, first_name, last_name, level, status, date_of_birth")
+        .select("id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth")
         .eq("id", link.student_id);
 
       students = (data ?? []) as StudentRow[];
@@ -71,12 +79,48 @@ export default async function PortalStudentsPage() {
       if (studentIds.length) {
         const { data } = await supabase
           .from("students")
-          .select("id, first_name, last_name, level, status, date_of_birth")
+          .select("id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth")
           .in("id", studentIds)
           .order("last_name", { ascending: true });
 
         students = (data ?? []) as StudentRow[];
       }
+    }
+  }
+
+  const studentIds = students.map((s) => s.id);
+
+  const enrollmentsByStudentId = new Map<string, EnrollmentRow[]>();
+  if (studentIds.length) {
+    const { data } = await supabase
+      .from("activity_enrollments")
+      .select("student_id, status, activities(name, description)")
+      .in("student_id", studentIds);
+
+    const rows = (data ?? []) as unknown[];
+    for (const raw of rows) {
+      const r = raw as {
+        student_id?: unknown;
+        status?: unknown;
+        activities?: unknown;
+      };
+
+      const studentId = typeof r.student_id === "string" ? r.student_id : "";
+      if (!studentId) continue;
+
+      const status = typeof r.status === "string" ? r.status : "active";
+      const activities = Array.isArray(r.activities)
+        ? (r.activities as Array<{ name?: unknown; description?: unknown }>).map((a) => ({
+            name: typeof a?.name === "string" ? a.name : "Activity",
+            description: typeof a?.description === "string" ? a.description : null
+          }))
+        : [];
+
+      const normalized: EnrollmentRow = { student_id: studentId, status, activities };
+
+      const list = enrollmentsByStudentId.get(studentId) ?? [];
+      list.push(normalized);
+      enrollmentsByStudentId.set(studentId, list);
     }
   }
 
@@ -90,35 +134,74 @@ export default async function PortalStudentsPage() {
         {role === "student" ? "Your student profile." : "Students linked to your parent account."}
       </p>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-5">Name</div>
-          <div className="col-span-3">Level</div>
-          <div className="col-span-2">Status</div>
-          <div className="col-span-2">DOB</div>
-        </div>
-        <div>
-          {students.length ? (
-            students.map((s) => (
-              <div
-                key={s.id}
-                className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm text-slate-700"
-              >
-                <div className="col-span-5 font-semibold text-slate-900">
-                  {s.first_name} {s.last_name}
+      <div className="mt-6 space-y-4">
+        {students.map((s) => {
+          const enrollments = enrollmentsByStudentId.get(s.id) ?? [];
+          return (
+            <div key={s.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="h-14 w-14 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                    {s.profile_photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img className="h-full w-full object-cover" alt="" src={s.profile_photo_url} />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-base font-semibold text-slate-900">
+                      {s.first_name} {s.last_name}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-600">
+                      {s.level} • {s.status}
+                      {s.date_of_birth ? ` • DOB: ${s.date_of_birth}` : ""}
+                    </div>
+                  </div>
                 </div>
-                <div className="col-span-3">{s.level}</div>
-                <div className="col-span-2">{s.status}</div>
-                <div className="col-span-2">{s.date_of_birth ?? "—"}</div>
               </div>
-            ))
-          ) : (
-            <div className="px-6 py-6 text-sm text-slate-600">
-              No students are linked to this account yet.
+
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div>
+                  <div className="text-xs font-semibold text-slate-500">Hobbies</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(s.hobbies ?? []).length ? (
+                      (s.hobbies ?? []).map((h) => (
+                        <span key={h} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
+                          {h}
+                        </span>
+                      ))
+                    ) : (
+                      <div className="text-sm text-slate-600">—</div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-500">Clubs / Activities</div>
+                  <div className="mt-2 space-y-2">
+                    {enrollments.length ? (
+                      enrollments.map((e, idx) => (
+                        <div key={`${e.student_id}-${idx}`} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                          <div className="text-sm font-semibold text-slate-900">
+                            {e.activities?.[0]?.name ?? "Activity"}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-600">Status: {e.status}</div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-slate-600">—</div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          );
+        })}
       </div>
+
+      {!students.length ? (
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-6 text-sm text-slate-600">
+          No students are linked to this account yet.
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -42,10 +42,12 @@ export default async function PortalLayout({ children }: { children: ReactNode }
               <Link className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50" href="/portal">
                 Dashboard
               </Link>
-              <Link
-                className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50"
-                href="/portal/students"
-              >
+              {role === "parent" ? (
+                <Link className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50" href="/portal/profile">
+                  My profile
+                </Link>
+              ) : null}
+              <Link className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50" href="/portal/students">
                 {role === "student" ? "My profile" : "My students"}
               </Link>
               {role === "parent" ? (

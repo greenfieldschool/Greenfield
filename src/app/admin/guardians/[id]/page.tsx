@@ -9,6 +9,8 @@ type GuardianRow = {
   full_name: string;
   email: string | null;
   phone: string | null;
+  profile_photo_url: string | null;
+  interests: string[];
 };
 
 type StudentRow = {
@@ -41,7 +43,7 @@ export default async function AdminGuardianDetailPage({
 
   const { data: guardianData } = await supabase
     .from("guardians")
-    .select("id, full_name, email, phone")
+    .select("id, full_name, email, phone, profile_photo_url, interests")
     .eq("id", guardianId)
     .maybeSingle();
 
@@ -110,6 +112,34 @@ export default async function AdminGuardianDetailPage({
     .maybeSingle();
 
   const portalUserId = (portalLinkData as { user_id?: string } | null)?.user_id ?? null;
+
+  async function updateGuardianProfile(formData: FormData) {
+    "use server";
+
+    if (!isAdmin) return;
+
+    const photoUrlRaw = String(formData.get("profile_photo_url") ?? "").trim();
+    const interestsRaw = String(formData.get("interests") ?? "").trim();
+
+    const profilePhotoUrl = photoUrlRaw.length ? photoUrlRaw : null;
+    const interests = interestsRaw.length
+      ? interestsRaw
+          .split(",")
+          .map((v) => v.trim())
+          .filter((v) => v.length)
+      : [];
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase
+      .from("guardians")
+      .update({ profile_photo_url: profilePhotoUrl, interests })
+      .eq("id", guardianId);
+
+    revalidatePath(`/admin/guardians/${guardianId}`);
+    revalidatePath("/admin/guardians");
+  }
 
   async function linkStudent(formData: FormData) {
     "use server";
@@ -257,6 +287,40 @@ export default async function AdminGuardianDetailPage({
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Guardian</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">{guardianFullName}</h1>
+        {isAdmin ? (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+            <h2 className="text-base font-semibold text-slate-900">Profile</h2>
+            <p className="mt-1 text-sm text-slate-600">Profile enrichment fields (admin-managed).</p>
+            <form action={updateGuardianProfile} className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="text-sm font-semibold text-slate-900">Profile photo URL (optional)</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="profile_photo_url"
+                  defaultValue={guardian.profile_photo_url ?? ""}
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-sm font-semibold text-slate-900">Interests (comma separated)</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="interests"
+                  defaultValue={(guardian.interests ?? []).join(", ")}
+                  placeholder="e.g. PTA, Volunteering, Reading"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <button
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+                  type="submit"
+                >
+                  Save profile
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
         <div className="mt-4 text-sm text-slate-700">
           <div>{guardianEmail ?? "—"}</div>
           <div className="mt-1">{guardian.phone ?? "—"}</div>
