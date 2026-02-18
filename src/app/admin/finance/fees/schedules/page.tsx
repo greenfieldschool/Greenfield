@@ -75,6 +75,11 @@ export default async function AdminFeeSchedulesPage() {
         <p className="mt-2 text-sm text-slate-600">
           Create schedules for a specific class, either per-term (choose a term) or annual (leave term blank).
         </p>
+        <div className="mt-4">
+          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
+            Back to fee setup
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">

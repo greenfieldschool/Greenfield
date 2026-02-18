@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -125,9 +126,9 @@ export default async function AdminFeeClassesPage() {
       </div>
 
       <div>
-        <a className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
+        <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
           Back to fee setup
-        </a>
+        </Link>
       </div>
     </div>
   );

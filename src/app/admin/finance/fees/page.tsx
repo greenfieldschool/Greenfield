@@ -10,6 +10,11 @@ export default function AdminFinanceFeesHomePage() {
           Configure class names (Year 1… / JSS1… / SS3…), fee components (Tuition, Books, Transport…), and fee schedules
           per term or annual.
         </p>
+        <div className="mt-4">
+          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance">
+            Back to finance
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">

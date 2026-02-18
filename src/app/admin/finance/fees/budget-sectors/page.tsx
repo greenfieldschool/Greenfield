@@ -43,6 +43,11 @@ export default async function AdminBudgetSectorsPage() {
           Define budget sectors (expense categories) used to categorize expenses and optionally link fee components to a
           sector.
         </p>
+        <div className="mt-4">
+          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
+            Back to fee setup
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">

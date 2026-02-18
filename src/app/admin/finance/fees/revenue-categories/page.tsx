@@ -42,6 +42,11 @@ export default async function AdminRevenueCategoriesPage() {
         <p className="mt-2 text-sm text-slate-600">
           Define revenue buckets (e.g. School fees, Registration, Transport) used for reporting and fee component mapping.
         </p>
+        <div className="mt-4">
+          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
+            Back to fee setup
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">

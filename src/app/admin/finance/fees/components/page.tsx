@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -88,6 +89,11 @@ export default async function AdminFeeComponentsPage() {
           Define the breakdown items for school fees (Tuition, Books, Transport…) and map them to revenue categories.
           Optional: also map to an expense/budget category (sector).
         </p>
+        <div className="mt-4">
+          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
+            Back to fee setup
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">

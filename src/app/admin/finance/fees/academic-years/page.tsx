@@ -156,6 +156,11 @@ export default async function AdminAcademicYearsPage() {
         <div className="text-sm font-semibold text-slate-500">Finance</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">Academic years & terms</h1>
         <p className="mt-2 text-sm text-slate-600">Define academic calendars used across exams, attendance, invoices, and fees.</p>
+        <div className="mt-4">
+          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
+            Back to fee setup
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
