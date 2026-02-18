@@ -15,6 +15,7 @@ export default function AuthFinishPage() {
 
       const url = new URL(window.location.href);
       const next = url.searchParams.get("next") ?? "/admin";
+      const code = url.searchParams.get("code");
 
       if (!supabase) {
         router.replace(next);
@@ -22,13 +23,12 @@ export default function AuthFinishPage() {
       }
 
       try {
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
-          const code = url.searchParams.get("code");
-
-          if (code) {
-            await supabase.auth.exchangeCodeForSession(code);
-          } else if (window.location.hash?.length) {
+        if (code) {
+          await supabase.auth.signOut();
+          await supabase.auth.exchangeCodeForSession(code);
+        } else {
+          const { data } = await supabase.auth.getSession();
+          if (!data.session && window.location.hash?.length) {
             const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
             const params = new URLSearchParams(hash);
             const accessToken = params.get("access_token");
