@@ -10,6 +10,12 @@ type NavItem = {
   shortLabel?: string;
 };
 
+type NavGroup = {
+  key: string;
+  label: string;
+  items: NavItem[];
+};
+
 type AdminShellProps = {
   userEmail: string;
   children: ReactNode;
@@ -27,30 +33,74 @@ export default function AdminShell({ userEmail, children }: AdminShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const navItems: NavItem[] = useMemo(
+  const navGroups: NavGroup[] = useMemo(
     () => [
-      { href: "/admin", label: "Dashboard" },
-      { href: "/admin/users", label: "Users" },
-      { href: "/admin/students", label: "Students" },
-      { href: "/admin/guardians", label: "Guardians" },
-      { href: "/admin/academics/subjects", label: "Academics", shortLabel: "Acad" },
-      { href: "/admin/academics/config", label: "Academics - Config", shortLabel: "Config" },
-      { href: "/admin/academics/publications", label: "Academics - Publish", shortLabel: "Publish" },
-      { href: "/admin/welfare/attendance", label: "Welfare - Attendance", shortLabel: "Attend" },
-      { href: "/admin/welfare/incidents", label: "Welfare - Incidents", shortLabel: "Incid" },
-      { href: "/admin/welfare/discipline", label: "Welfare - Discipline", shortLabel: "Discip" },
-      { href: "/admin/welfare/uniform", label: "Welfare - Uniform", shortLabel: "Uniform" },
-      { href: "/admin/applications", label: "Admissions" },
-      { href: "/admin/careers", label: "Careers" },
-      { href: "/admin/careers/applications", label: "Career applications", shortLabel: "Career apps" },
-      { href: "/admin/exams", label: "Exams" },
-      { href: "/admin/finance", label: "Finance" },
-      { href: "/admin/audit", label: "Audit log" }
+      {
+        key: "core",
+        label: "Core",
+        items: [
+          { href: "/admin", label: "Dashboard" },
+          { href: "/admin/users", label: "Users" },
+          { href: "/admin/students", label: "Students" },
+          { href: "/admin/guardians", label: "Guardians" }
+        ]
+      },
+      {
+        key: "academics",
+        label: "Academics",
+        items: [
+          { href: "/admin/academics/subjects", label: "Subjects", shortLabel: "Subj" },
+          { href: "/admin/academics/config", label: "Config" },
+          { href: "/admin/academics/publications", label: "Publish", shortLabel: "Publish" }
+        ]
+      },
+      {
+        key: "welfare",
+        label: "Welfare",
+        items: [
+          { href: "/admin/welfare/attendance", label: "Attendance", shortLabel: "Attend" },
+          { href: "/admin/welfare/incidents", label: "Incidents", shortLabel: "Incid" },
+          { href: "/admin/welfare/discipline", label: "Discipline", shortLabel: "Discip" },
+          { href: "/admin/welfare/uniform", label: "Uniform", shortLabel: "Uniform" }
+        ]
+      },
+      {
+        key: "admissions",
+        label: "Admissions",
+        items: [{ href: "/admin/applications", label: "Applications", shortLabel: "Apps" }]
+      },
+      {
+        key: "careers",
+        label: "Careers",
+        items: [
+          { href: "/admin/careers", label: "Jobs", shortLabel: "Jobs" },
+          { href: "/admin/careers/applications", label: "Applications", shortLabel: "Apps" }
+        ]
+      },
+      {
+        key: "operations",
+        label: "Operations",
+        items: [
+          { href: "/admin/exams", label: "Exams" },
+          { href: "/admin/finance", label: "Finance" },
+          { href: "/admin/audit", label: "Audit log", shortLabel: "Audit" }
+        ]
+      }
     ],
     []
   );
+
+  function findActiveGroupKey() {
+    for (const group of navGroups) {
+      for (const item of group.items) {
+        if (isActivePath(pathname, item.href)) return group.key;
+      }
+    }
+    return "core";
+  }
 
   useEffect(() => {
     try {
@@ -73,6 +123,17 @@ export default function AdminShell({ userEmail, children }: AdminShellProps) {
     setMobileOpen(false);
     setProfileOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    setOpenGroups((prev) => {
+      const next: Record<string, boolean> = { ...prev };
+      for (const g of navGroups) {
+        if (typeof next[g.key] !== "boolean") next[g.key] = true;
+      }
+      next[findActiveGroupKey()] = true;
+      return next;
+    });
+  }, [pathname, navGroups]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -101,34 +162,62 @@ export default function AdminShell({ userEmail, children }: AdminShellProps) {
 
   function NavLinks({ variant }: { variant: "desktop" | "mobile" }) {
     return (
-      <nav className={variant === "desktop" ? "mt-4 space-y-1 text-sm" : "mt-6 space-y-1 text-sm"}>
-        {navItems.map((item) => {
-          const active = isActivePath(pathname, item.href);
-          const label = collapsed && variant === "desktop" ? item.shortLabel ?? item.label : item.label;
+      <nav className={variant === "desktop" ? "mt-4 space-y-4 text-sm" : "mt-6 space-y-4 text-sm"}>
+        {navGroups.map((group) => {
+          const isDesktop = variant === "desktop";
+          const showGroupHeader = !(collapsed && isDesktop);
+          const groupOpen = collapsed && isDesktop ? true : (openGroups[group.key] ?? true);
 
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={
-                "group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors " +
-                (active
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-700 hover:bg-slate-50 hover:text-slate-900")
-              }
-              title={collapsed && variant === "desktop" ? item.label : undefined}
-              aria-current={active ? "page" : undefined}
-            >
-              <span
-                className={
-                  "inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold " +
-                  (active ? "bg-white/15 text-white" : "bg-slate-100 text-slate-700 group-hover:bg-slate-200")
-                }
-              >
-                {item.label.slice(0, 1).toUpperCase()}
-              </span>
-              <span className={collapsed && variant === "desktop" ? "hidden" : "truncate"}>{label}</span>
-            </Link>
+            <div key={group.key}>
+              {showGroupHeader ? (
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hover:bg-slate-50"
+                  onClick={() => setOpenGroups((v) => ({ ...v, [group.key]: !(v[group.key] ?? true) }))}
+                  aria-expanded={groupOpen}
+                >
+                  <span className="truncate">{group.label}</span>
+                  <span className="ml-3 text-sm font-semibold text-slate-400">{groupOpen ? "−" : "+"}</span>
+                </button>
+              ) : null}
+
+              {groupOpen ? (
+                <div className="mt-1 space-y-1">
+                  {group.items.map((item) => {
+                    const active = isActivePath(pathname, item.href);
+                    const label = collapsed && isDesktop ? item.shortLabel ?? item.label : item.label;
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={
+                          "group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors " +
+                          (active
+                            ? "bg-slate-900 text-white"
+                            : "text-slate-700 hover:bg-slate-50 hover:text-slate-900")
+                        }
+                        title={collapsed && isDesktop ? item.label : undefined}
+                        aria-current={active ? "page" : undefined}
+                      >
+                        <span
+                          className={
+                            "inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold " +
+                            (active
+                              ? "bg-white/15 text-white"
+                              : "bg-slate-100 text-slate-700 group-hover:bg-slate-200")
+                          }
+                        >
+                          {item.label.slice(0, 1).toUpperCase()}
+                        </span>
+                        <span className={collapsed && isDesktop ? "hidden" : "truncate"}>{label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
           );
         })}
       </nav>
@@ -227,16 +316,17 @@ export default function AdminShell({ userEmail, children }: AdminShellProps) {
             sidebarWidthClass
           }
         >
-          <div className={"h-full px-3 py-6 " + (collapsed ? "" : "px-4")}>
+          <div className={"flex h-full flex-col px-3 py-6 " + (collapsed ? "" : "px-4")}>
             <div className="flex items-center justify-between">
-              <div className={"min-w-0 " + (collapsed ? "hidden" : "")}
-              >
+              <div className={"min-w-0 " + (collapsed ? "hidden" : "")}>
                 <div className="text-xs font-semibold text-slate-500">Signed in</div>
                 <div className="mt-1 truncate text-sm font-semibold text-slate-900">{userEmail}</div>
               </div>
             </div>
 
-            <NavLinks variant="desktop" />
+            <div className="flex-1 overflow-y-auto pr-1">
+              <NavLinks variant="desktop" />
+            </div>
           </div>
         </aside>
 
@@ -283,7 +373,9 @@ export default function AdminShell({ userEmail, children }: AdminShellProps) {
               </button>
             </div>
 
-            <NavLinks variant="mobile" />
+            <div className="flex-1 overflow-y-auto">
+              <NavLinks variant="mobile" />
+            </div>
 
             <div className="mt-auto pt-6">
               <form action="/admin/logout" method="post">

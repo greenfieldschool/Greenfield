@@ -171,11 +171,12 @@ export default async function AdminExamSessionAttemptsPage({
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
           <div className="col-span-3">Student</div>
-          <div className="col-span-2">Adm no</div>
+          <div className="col-span-1">Adm no</div>
           <div className="col-span-2">Obtained</div>
           <div className="col-span-2">Max</div>
           <div className="col-span-1">%</div>
           <div className="col-span-2">Status</div>
+          <div className="col-span-1">Action</div>
         </div>
         <div>
           {attempts.length ? (
@@ -184,8 +185,8 @@ export default async function AdminExamSessionAttemptsPage({
                 <div className="col-span-3 font-semibold text-slate-900">
                   {a.first_name} {a.last_name}
                 </div>
-                <div className="col-span-1 text-slate-700">{a.admission_number ?? "—"}</div>
-                <div className="col-span-8">
+                <div className="col-span-2 text-slate-700">{a.admission_number ?? "—"}</div>
+                <div className="col-span-7">
                   <form action={updateMarks} className="grid grid-cols-12 gap-3">
                     <input type="hidden" name="attempt_id" value={a.attempt_id} />
                     <div className="col-span-3">
@@ -222,16 +223,6 @@ export default async function AdminExamSessionAttemptsPage({
                       </button>
                     </div>
                   </form>
-                </div>
-                <div className="col-span-1 flex items-center">
-                  {a.submitted_at ? (
-                    <Link
-                      className="text-xs font-semibold text-brand-green hover:underline"
-                      href={`/admin/exams/sessions/${id}/attempts/${a.attempt_id}`}
-                    >
-                      Mark
-                    </Link>
-                  ) : null}
                 </div>
               </div>
             ))
