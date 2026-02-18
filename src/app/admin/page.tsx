@@ -1,10 +1,15 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 export default async function AdminHomePage() {
   const supabase = getSupabaseServerClient();
   const {
     data: { user }
   } = (await supabase?.auth.getUser()) ?? { data: { user: null } };
+
+  if (!user) {
+    redirect("/admin/login?redirectTo=/admin");
+  }
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
