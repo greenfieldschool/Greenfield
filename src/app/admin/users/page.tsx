@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 
@@ -155,7 +156,17 @@ export default async function AdminUsersPage({
     const service = getSupabaseServiceClient();
     if (!service) return;
 
+    const h = headers();
+    const forwardedHost = h.get("x-forwarded-host");
+    const host = forwardedHost ?? h.get("host");
+    const forwardedProto = h.get("x-forwarded-proto");
+    const inferredProto = host?.includes("localhost") || host?.includes("127.0.0.1") ? "http" : "https";
+    const proto = forwardedProto ?? inferredProto;
+    const origin = host ? `${proto}://${host}` : "";
+    const redirectTo = origin ? `${origin}/auth/callback?next=${encodeURIComponent("/auth/set-password")}` : undefined;
+
     const { data: inviteResult, error: inviteError } = await service.auth.admin.inviteUserByEmail(email, {
+      redirectTo,
       data: fullName.length ? { full_name: fullName } : undefined
     });
 
