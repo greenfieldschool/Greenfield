@@ -5,15 +5,35 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 type StudentRow = {
   id: string;
   first_name: string;
+  middle_name?: string | null;
   last_name: string;
   admission_number: string | null;
   profile_photo_url: string | null;
   hobbies: string[];
+  passport_photo_url?: string | null;
+  favorite_sports?: string | null;
+  future_aspiration?: string | null;
+  child_with?: string | null;
+  sex?: string | null;
+  religion?: string | null;
+  admissions_application_id?: string | null;
   level: string;
   class_id: string | null;
   classes: Array<{ id: string; level: string; name: string }>;
   status: string;
   date_of_birth: string | null;
+};
+
+type AdmissionsApplicationRow = {
+  id: string;
+  status: string;
+  section: string | null;
+  parent_name: string | null;
+  phone: string | null;
+  email: string | null;
+  desired_start: string | null;
+  preferred_contact: string | null;
+  data: Record<string, unknown>;
 };
 
 type ClassRow = {
@@ -53,9 +73,7 @@ export default async function AdminStudentDetailPage({
   const [{ data: studentData }, { data: classesData }] = await Promise.all([
     supabase
       .from("students")
-      .select(
-        "id, first_name, last_name, admission_number, profile_photo_url, hobbies, level, class_id, status, date_of_birth, classes(id, level, name)"
-      )
+      .select("*, classes(id, level, name)")
       .eq("id", studentId)
       .maybeSingle(),
     supabase.from("classes").select("id, level, name, active").eq("active", true).order("level").order("name")
@@ -92,6 +110,17 @@ export default async function AdminStudentDetailPage({
     });
 
   const availableGuardians = allGuardians.filter((g) => !linkedGuardianIds.has(g.id));
+
+  const admissionsApplicationId = (student?.admissions_application_id ?? null) as string | null;
+  const { data: admissionsApplicationData } = admissionsApplicationId
+    ? await supabase
+        .from("admissions_applications")
+        .select("id,status,section,parent_name,phone,email,desired_start,preferred_contact,data")
+        .eq("id", admissionsApplicationId)
+        .maybeSingle()
+    : { data: null as unknown };
+
+  const admissionsApplication = (admissionsApplicationData ?? null) as AdmissionsApplicationRow | null;
 
   const {
     data: { user: currentUser }
@@ -253,6 +282,118 @@ export default async function AdminStudentDetailPage({
                 </button>
               </div>
             </form>
+          </div>
+        ) : null}
+
+        {isAdmin && admissionsApplication ? (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">Admissions bio</h2>
+                <p className="mt-1 text-sm text-slate-600">Pulled from the original application.</p>
+              </div>
+              <Link
+                className="text-sm font-semibold text-brand-green hover:underline"
+                href={`/admin/applications/${admissionsApplication.id}`}
+              >
+                View application
+              </Link>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <div>
+                <div className="text-xs font-semibold text-slate-500">Student name</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  {String(admissionsApplication.data.first_name ?? student.first_name)} {String(admissionsApplication.data.middle_name ?? student.middle_name ?? "")} {String(admissionsApplication.data.last_name ?? student.last_name)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-500">DOB</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  {String(admissionsApplication.data.dob ?? student.date_of_birth ?? "—")}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-500">Sex</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  {String(admissionsApplication.data.sex ?? student.sex ?? "—")}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-500">Religion</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  {String(admissionsApplication.data.religion ?? student.religion ?? "—")}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-500">Seeking admission into</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  {String(admissionsApplication.data.seeking_class ?? "—")}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-500">Passport photo URL</div>
+                <div className="mt-1 break-words text-sm font-semibold text-slate-900">
+                  {String(admissionsApplication.data.passport_photo_url ?? "—")}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-500">Favorite sports</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  {String(admissionsApplication.data.favorite_sports ?? "—")}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-500">Future aspiration</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  {String(admissionsApplication.data.future_aspiration ?? "—")}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-500">Hobbies</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">{String(admissionsApplication.data.hobbies ?? "—")}</div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-500">Child is with</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">{String(admissionsApplication.data.child_with ?? "—")}</div>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Referral</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">{String(admissionsApplication.data.referred ?? "—")}</div>
+                <div className="mt-2 text-sm text-slate-700">
+                  {String(admissionsApplication.data.referrer_name ?? "—")} • {String(admissionsApplication.data.referrer_ref ?? "—")}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Discovery</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">
+                  {String(admissionsApplication.data.discovery_source ?? "—")}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 md:col-span-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pickup details</div>
+                <div className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                  {String(admissionsApplication.data.pickup_details ?? "—")}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Student signature</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">
+                  {String(admissionsApplication.data.student_signature_name ?? "—")}
+                </div>
+                <div className="mt-1 text-xs text-slate-600">{String(admissionsApplication.data.student_signature_date ?? "—")}</div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Parent signature</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">
+                  {String(admissionsApplication.data.parent_signature_name ?? "—")}
+                </div>
+                <div className="mt-1 text-xs text-slate-600">{String(admissionsApplication.data.parent_signature_date ?? "—")}</div>
+              </div>
+            </div>
           </div>
         ) : null}
         <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
