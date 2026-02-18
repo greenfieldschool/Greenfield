@@ -48,15 +48,28 @@ export default async function AdminUsersPage({
   const inviteSuccess = String(searchParams.invited ?? "").trim() === "1";
   const inviteError = String(searchParams.invite_error ?? "").trim() === "1";
 
-  const profilesQuery = supabase
+  const {
+    data: { user: currentUser }
+  } = await supabase.auth.getUser();
+
+  const { data: currentUserProfile } = currentUser
+    ? await supabase.from("profiles").select("role").eq("id", currentUser.id).maybeSingle()
+    : { data: null as { role?: string | null } | null };
+
+  const currentRole = (currentUserProfile?.role ?? null) as string | null;
+  const canInviteStaff = currentRole === "super_admin" || currentRole === "admin";
+
+  const profilesClient = canInviteStaff ? getSupabaseServiceClient() : null;
+
+  const profilesQueryBase = (profilesClient ?? supabase)
     .from("profiles")
     .select("id, email, full_name, role")
     .order("updated_at", { ascending: false })
     .limit(25);
 
   const { data: profilesData } = query.length
-    ? await profilesQuery.or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)
-    : await profilesQuery;
+    ? await profilesQueryBase.or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)
+    : await profilesQueryBase;
 
   const profiles = (profilesData ?? []) as ProfileRow[];
 
@@ -74,17 +87,6 @@ export default async function AdminUsersPage({
     .order("first_name", { ascending: true });
 
   const students = (studentsData ?? []) as StudentRow[];
-
-  const {
-    data: { user: currentUser }
-  } = await supabase.auth.getUser();
-
-  const { data: currentUserProfile } = currentUser
-    ? await supabase.from("profiles").select("role").eq("id", currentUser.id).maybeSingle()
-    : { data: null as { role?: string | null } | null };
-
-  const currentRole = (currentUserProfile?.role ?? null) as string | null;
-  const canInviteStaff = currentRole === "super_admin" || currentRole === "admin";
 
   const userIds = profiles.map((p) => p.id);
 
@@ -285,6 +287,13 @@ export default async function AdminUsersPage({
             {String(searchParams.invite_error ?? "").trim() === "exists"
               ? "That email already has an account or already has a pending invite. Ask them to use the first invite email to set a password."
               : "Could not send invite. Please confirm your Supabase email settings and that the email address is valid."}
+          </div>
+        ) : null}
+
+        {!canInviteStaff ? (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            You are signed in as <span className="font-semibold">{currentRole ?? "unknown"}</span>. Due to permissions, you may only see your own user
+            record here. Ask an admin to grant you <span className="font-semibold">admin</span> access if you need to manage users.
           </div>
         ) : null}
 

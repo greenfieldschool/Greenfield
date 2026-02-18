@@ -21,7 +21,7 @@ export function SiteFooter() {
           <div className="text-sm text-slate-600">
             <div className="font-semibold text-slate-900">Portals</div>
             <div className="mt-2 flex flex-col gap-2">
-              <a className="font-semibold text-slate-700 hover:text-slate-900" href="/admin/login">
+              <a className="font-semibold text-slate-700 hover:text-slate-900" href="/admin">
                 Staff dashboard
               </a>
               <a className="font-semibold text-slate-700 hover:text-slate-900" href="/portal/login">
