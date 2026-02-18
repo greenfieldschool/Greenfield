@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseServiceClient } from "@/lib/supabase/service";
 
 type GuardianRow = {
   id: string;
@@ -45,6 +47,22 @@ export default async function AdminGuardianDetailPage({
 
   const guardian = guardianData as GuardianRow | null;
 
+  if (!guardian) {
+    return (
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <h1 className="text-2xl font-semibold text-slate-900">Guardian not found</h1>
+        <div className="mt-4">
+          <Link className="text-sm font-semibold text-slate-900 hover:text-slate-700" href="/admin/guardians">
+            Back to guardians
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const guardianFullName = guardian.full_name;
+  const guardianEmail = guardian.email;
+
   const { data: studentsData } = await supabase
     .from("students")
     .select("id, first_name, last_name, level, status")
@@ -74,6 +92,25 @@ export default async function AdminGuardianDetailPage({
 
   const availableStudents = allStudents.filter((s) => !linkedStudentIds.has(s.id));
 
+  const {
+    data: { user: currentUser }
+  } = await supabase.auth.getUser();
+
+  const { data: currentUserProfile } = currentUser
+    ? await supabase.from("profiles").select("role").eq("id", currentUser.id).maybeSingle()
+    : { data: null as { role?: string | null } | null };
+
+  const currentRole = (currentUserProfile?.role ?? null) as string | null;
+  const isAdmin = currentRole === "super_admin" || currentRole === "admin";
+
+  const { data: portalLinkData } = await supabase
+    .from("guardian_user_links")
+    .select("user_id")
+    .eq("guardian_id", guardianId)
+    .maybeSingle();
+
+  const portalUserId = (portalLinkData as { user_id?: string } | null)?.user_id ?? null;
+
   async function linkStudent(formData: FormData) {
     "use server";
 
@@ -96,6 +133,117 @@ export default async function AdminGuardianDetailPage({
     revalidatePath(`/admin/guardians/${guardianId}`);
   }
 
+  async function createPortalAccount(formData: FormData) {
+    "use server";
+
+    const password = String(formData.get("password") ?? "").trim();
+    const email = String(formData.get("email") ?? "").trim().toLowerCase();
+
+    if (!email || password.length < 8) {
+      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+    }
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (!user) {
+      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+    }
+
+    const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const role = (me?.role ?? null) as string | null;
+    const isAdmin = role === "super_admin" || role === "admin";
+    if (!isAdmin) {
+      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+    }
+
+    const service = getSupabaseServiceClient();
+    if (!service) {
+      redirect(`/admin/guardians/${guardianId}?portal_error=service`);
+    }
+
+    const { data: existingProfile } = await service
+      .from("profiles")
+      .select("id")
+      .ilike("email", email)
+      .maybeSingle();
+
+    if (existingProfile?.id) {
+      redirect(`/admin/guardians/${guardianId}?portal_error=exists`);
+    }
+
+    const { data: created, error } = await service.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: guardianFullName }
+    });
+
+    if (error || !created.user) {
+      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+    }
+
+    await service
+      .from("profiles")
+      .update({ role: "parent", email, full_name: guardianFullName })
+      .eq("id", created.user.id);
+
+    await service.from("guardian_user_links").upsert(
+      {
+        user_id: created.user.id,
+        guardian_id: guardianId
+      },
+      { onConflict: "user_id" }
+    );
+
+    revalidatePath(`/admin/guardians/${guardianId}`);
+    redirect(`/admin/guardians/${guardianId}?portal_created=1`);
+  }
+
+  async function resetPortalPassword(formData: FormData) {
+    "use server";
+
+    const password = String(formData.get("password") ?? "").trim();
+    const userId = String(formData.get("user_id") ?? "").trim();
+
+    if (!userId || password.length < 8) {
+      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+    }
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (!user) {
+      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+    }
+
+    const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const role = (me?.role ?? null) as string | null;
+    const isAdmin = role === "super_admin" || role === "admin";
+    if (!isAdmin) {
+      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+    }
+
+    const service = getSupabaseServiceClient();
+    if (!service) {
+      redirect(`/admin/guardians/${guardianId}?portal_error=service`);
+    }
+
+    const { error } = await service.auth.admin.updateUserById(userId, { password });
+    if (error) {
+      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+    }
+
+    revalidatePath(`/admin/guardians/${guardianId}`);
+    redirect(`/admin/guardians/${guardianId}?portal_reset=1`);
+  }
+
   async function unlinkStudent(formData: FormData) {
     "use server";
 
@@ -114,26 +262,13 @@ export default async function AdminGuardianDetailPage({
     revalidatePath(`/admin/guardians/${guardianId}`);
   }
 
-  if (!guardian) {
-    return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Guardian not found</h1>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-slate-900 hover:text-slate-700" href="/admin/guardians">
-            Back to guardians
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Guardian</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">{guardian.full_name}</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-900">{guardianFullName}</h1>
         <div className="mt-4 text-sm text-slate-700">
-          <div>{guardian.email ?? "—"}</div>
+          <div>{guardianEmail ?? "—"}</div>
           <div className="mt-1">{guardian.phone ?? "—"}</div>
         </div>
         <div className="mt-6">
@@ -142,6 +277,82 @@ export default async function AdminGuardianDetailPage({
           </Link>
         </div>
       </div>
+
+      {isAdmin ? (
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Portal access</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Create a parent portal account and set/reset the password (for printing). Parents cannot reset passwords themselves.
+          </p>
+
+          {!guardianEmail ? (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              Add an email address for this guardian before creating portal access.
+            </div>
+          ) : null}
+
+          {portalUserId ? (
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="text-sm font-semibold text-slate-900">Account exists</div>
+              <div className="mt-1 text-sm text-slate-700">User ID: {portalUserId}</div>
+
+              <form action={resetPortalPassword} className="mt-4 grid gap-4 sm:grid-cols-2">
+                <input type="hidden" name="user_id" value={portalUserId} />
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-900">New password</label>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                    name="password"
+                    type="text"
+                    minLength={8}
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <button
+                    className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                    type="submit"
+                  >
+                    Reset password
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <form action={createPortalAccount} className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="text-sm font-semibold text-slate-900">Email</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="email"
+                  type="email"
+                  defaultValue={guardianEmail ?? ""}
+                  required
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-sm font-semibold text-slate-900">Initial password</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="password"
+                  type="text"
+                  minLength={8}
+                  required
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <button
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  type="submit"
+                  disabled={!guardianEmail}
+                >
+                  Create portal account
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      ) : null}
 
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Linked students</h2>
