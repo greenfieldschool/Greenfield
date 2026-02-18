@@ -165,16 +165,6 @@ export default async function AdminGuardianDetailPage({
       redirect(`/admin/guardians/${guardianId}?portal_error=service`);
     }
 
-    const { data: existingProfile } = await service
-      .from("profiles")
-      .select("id")
-      .ilike("email", email)
-      .maybeSingle();
-
-    if (existingProfile?.id) {
-      redirect(`/admin/guardians/${guardianId}?portal_error=exists`);
-    }
-
     const { data: created, error } = await service.auth.admin.createUser({
       email,
       password,
@@ -188,7 +178,7 @@ export default async function AdminGuardianDetailPage({
 
     await service
       .from("profiles")
-      .update({ role: "parent", email, full_name: guardianFullName })
+      .update({ role: "parent", full_name: guardianFullName })
       .eq("id", created.user.id);
 
     await service.from("guardian_user_links").upsert(

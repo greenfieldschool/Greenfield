@@ -6,7 +6,6 @@ import { getSupabaseServiceClient } from "@/lib/supabase/service";
 
 type ProfileRow = {
   id: string;
-  email: string | null;
   full_name: string | null;
   role: string;
 };
@@ -62,15 +61,52 @@ export default async function AdminUsersPage({
   const profilesClient = canInviteStaff ? getSupabaseServiceClient() : null;
   const usingServiceClient = canInviteStaff && !!profilesClient;
 
+  const emailByUserId = new Map<string, string>();
+  if (usingServiceClient && profilesClient) {
+    const { data } = await profilesClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    for (const u of data?.users ?? []) {
+      if (u.email) emailByUserId.set(u.id, u.email);
+    }
+  } else if (currentUser?.id && currentUser.email) {
+    emailByUserId.set(currentUser.id, currentUser.email);
+  }
+
   const profilesQueryBase = (profilesClient ?? supabase)
     .from("profiles")
-    .select("id, email, full_name, role")
+    .select("id, full_name, role")
     .order("updated_at", { ascending: false })
     .limit(25);
 
-  const { data: profilesData, error: profilesError } = query.length
-    ? await profilesQueryBase.or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)
-    : await profilesQueryBase;
+  let profilesData: unknown[] | null = null;
+  let profilesError: { message: string } | null = null;
+
+  if (query.length && usingServiceClient && profilesClient) {
+    const q = query.toLowerCase();
+    const matchingUserIds = Array.from(emailByUserId.entries())
+      .filter(([, email]) => email.toLowerCase().includes(q))
+      .map(([id]) => id);
+
+    if (matchingUserIds.length) {
+      const { data, error } = await (profilesClient ?? supabase)
+        .from("profiles")
+        .select("id, full_name, role")
+        .in("id", matchingUserIds.slice(0, 200));
+      profilesData = (data as unknown[]) ?? [];
+      profilesError = error ? { message: error.message } : null;
+    } else {
+      const { data, error } = await profilesQueryBase.ilike("full_name", `%${query}%`);
+      profilesData = (data as unknown[]) ?? [];
+      profilesError = error ? { message: error.message } : null;
+    }
+  } else if (query.length) {
+    const { data, error } = await profilesQueryBase.ilike("full_name", `%${query}%`);
+    profilesData = (data as unknown[]) ?? [];
+    profilesError = error ? { message: error.message } : null;
+  } else {
+    const { data, error } = await profilesQueryBase;
+    profilesData = (data as unknown[]) ?? [];
+    profilesError = error ? { message: error.message } : null;
+  }
 
   const profiles = (profilesData ?? []) as ProfileRow[];
 
@@ -195,8 +231,7 @@ export default async function AdminUsersPage({
       .from("profiles")
       .update({
         role,
-        full_name: fullName.length ? fullName : null,
-        email
+        full_name: fullName.length ? fullName : null
       })
       .eq("id", inviteResult.user.id);
 
@@ -403,7 +438,9 @@ export default async function AdminUsersPage({
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
                     <div className="text-xs font-semibold text-slate-500">User</div>
-                    <div className="mt-1 truncate text-base font-semibold text-slate-900">{p.email ?? "—"}</div>
+                    <div className="mt-1 truncate text-base font-semibold text-slate-900">
+                      {emailByUserId.get(p.id) ?? "—"}
+                    </div>
                     <div className="mt-1 text-sm text-slate-600">{p.full_name ?? "—"}</div>
                     <div className="mt-2 font-mono text-xs text-slate-500">{p.id}</div>
                   </div>
