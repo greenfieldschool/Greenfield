@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
@@ -15,7 +15,50 @@ export default function SetPasswordPage() {
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [state, setState] = useState<FormState>({ status: "idle" });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function ensureSessionFromUrl() {
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) return;
+
+      const { data } = await supabase.auth.getSession();
+      if (data.session) return;
+
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+
+      try {
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+        } else if (window.location.hash?.length) {
+          const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
+          const params = new URLSearchParams(hash);
+          const accessToken = params.get("access_token");
+          const refreshToken = params.get("refresh_token");
+
+          if (accessToken && refreshToken) {
+            await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          }
+        }
+      } catch {
+        // ignore and let the UI show an error when submitting
+      }
+
+      if (!cancelled) {
+        router.refresh();
+      }
+    }
+
+    ensureSessionFromUrl();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   const canSubmit = useMemo(() => {
     return password.length >= 8 && password === confirmPassword;
@@ -56,29 +99,47 @@ export default function SetPasswordPage() {
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div>
             <label className="text-sm font-semibold text-slate-900">New password</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              required
-            />
+            <div className="mt-1 flex overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:ring-2 focus-within:ring-brand-green">
+              <input
+                className="w-full bg-white px-4 py-3 text-sm outline-none"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
             <div className="mt-1 text-xs font-semibold text-slate-500">Minimum 8 characters.</div>
           </div>
 
           <div>
             <label className="text-sm font-semibold text-slate-900">Confirm password</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="confirm_password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              autoComplete="new-password"
-              required
-            />
+            <div className="mt-1 flex overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:ring-2 focus-within:ring-brand-green">
+              <input
+                className="w-full bg-white px-4 py-3 text-sm outline-none"
+                name="confirm_password"
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                className="px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                {showConfirmPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           {state.status === "error" ? (
