@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import AdminShell from "./AdminShell";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
@@ -32,7 +33,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     role === "nurse";
 
   if (!isStaff) {
-    return <>{children}</>;
+    redirect("/admin/unauthorized");
   }
 
   return (

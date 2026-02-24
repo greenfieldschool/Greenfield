@@ -38,6 +38,16 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   const isAdmin = role === "super_admin" || role === "admin";
+  const shellLabel =
+    role === "super_admin" || role === "admin"
+      ? "Admin"
+      : role === "teacher"
+        ? "Teacher"
+        : role === "front_desk"
+          ? "Front desk"
+          : role === "nurse"
+            ? "Nurse"
+            : "Staff";
 
   const navGroups: NavGroup[] = useMemo(
     () => {
@@ -76,14 +86,6 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
         items: [{ href: "/admin/applications", label: "Applications", shortLabel: "Apps" }]
       },
       {
-        key: "careers",
-        label: "Careers",
-        items: [
-          { href: "/admin/careers", label: "Jobs", shortLabel: "Jobs" },
-          { href: "/admin/careers/applications", label: "Applications", shortLabel: "Apps" }
-        ]
-      },
-      {
         key: "operations",
         label: "Operations",
         items: [
@@ -95,6 +97,15 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
     ];
 
       if (isAdmin) {
+        groups.splice(4, 0, {
+          key: "careers",
+          label: "Careers",
+          items: [
+            { href: "/admin/careers", label: "Jobs", shortLabel: "Jobs" },
+            { href: "/admin/careers/applications", label: "Applications", shortLabel: "Apps" }
+          ]
+        });
+
         const core = groups.find((g) => g.key === "core");
         if (core) {
           core.items.splice(1, 0, { href: "/admin/users", label: "Users" });
@@ -269,7 +280,7 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white">
                 GF
               </span>
-              <span className="hidden text-sm font-semibold text-slate-900 sm:block">Admin</span>
+              <span className="hidden text-sm font-semibold text-slate-900 sm:block">{shellLabel}</span>
             </Link>
           </div>
 
