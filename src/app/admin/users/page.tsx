@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { cookies } from "next/headers";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
+import { CopyButton } from "@/components/copy-button";
 
 type ProfileRow = {
   id: string;
@@ -214,6 +215,7 @@ export default async function AdminUsersPage({
     const service = getSupabaseServiceClient();
     if (!service) {
       redirect("/admin/users?invite_error=1");
+      return;
     }
 
     const h = headers();
@@ -284,6 +286,16 @@ export default async function AdminUsersPage({
     const service = getSupabaseServiceClient();
     if (!service) {
       redirect("/admin/users?invite_error=1");
+      return;
+    }
+
+    const serviceClient = service;
+
+    async function resolveUserIdByEmail(targetEmail: string) {
+      const { data, error } = await serviceClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (error) return null;
+      const match = (data?.users ?? []).find((u) => (u.email ?? "").toLowerCase() === targetEmail.toLowerCase());
+      return match?.id ?? null;
     }
 
     const h = headers();
@@ -295,45 +307,41 @@ export default async function AdminUsersPage({
     const origin = host ? `${proto}://${host}` : "";
     const redirectTo = origin ? `${origin}/auth/finish?next=${encodeURIComponent("/auth/set-password")}` : undefined;
 
-    let linkResult = await service.auth.admin.generateLink({
+    const created = await serviceClient.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: fullName.length ? { full_name: fullName } : undefined
+    });
+
+    if (created.error) {
+      const message = created.error.message.toLowerCase();
+      const already = message.includes("already") || message.includes("exists") || message.includes("registered");
+      if (!already) {
+        const errorDetail = created.error?.message ? encodeURIComponent(created.error.message.slice(0, 200)) : "";
+        redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=${errorDetail || "1"}`);
+      }
+    }
+
+    const userId = created.data?.user?.id ?? (await resolveUserIdByEmail(email));
+    if (!userId) {
+      redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=${encodeURIComponent("Could not resolve user id")}`);
+    }
+
+    await serviceClient
+      .from("profiles")
+      .update({ role, email, full_name: fullName.length ? fullName : null })
+      .eq("id", userId);
+
+    const linkResult = await serviceClient.auth.admin.generateLink({
       type: "magiclink",
       email,
       options: { redirectTo }
     });
 
-    const generateErrorMessage = (linkResult.error?.message ?? "").toLowerCase();
-    const userNotFound = generateErrorMessage.includes("not found") || generateErrorMessage.includes("user");
-
-    if ((linkResult.error || !linkResult.data?.properties?.action_link) && userNotFound) {
-      const created = await service.auth.admin.createUser({
-        email,
-        email_confirm: true,
-        user_metadata: fullName.length ? { full_name: fullName } : undefined
-      });
-
-      if (created.error || !created.data?.user) {
-        const errorDetail = created.error?.message ? encodeURIComponent(created.error.message.slice(0, 200)) : "";
-        redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=${errorDetail || "1"}`);
-      }
-
-      linkResult = await service.auth.admin.generateLink({
-        type: "magiclink",
-        email,
-        options: { redirectTo }
-      });
-    }
-
     const actionLink = linkResult.data?.properties?.action_link ?? null;
     if (linkResult.error || !actionLink) {
       const errorDetail = linkResult.error?.message ? encodeURIComponent(linkResult.error.message.slice(0, 200)) : "";
       redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=${errorDetail || "1"}`);
-    }
-
-    if (linkResult.data?.user?.id) {
-      await service
-        .from("profiles")
-        .update({ role, email, full_name: fullName.length ? fullName : null })
-        .eq("id", linkResult.data.user.id);
     }
 
     const cookieStore = cookies();
@@ -596,7 +604,12 @@ export default async function AdminUsersPage({
       {canInviteStaff && generatedMagicLink.length ? (
         <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-sm text-emerald-900 shadow-sm">
           <div className="font-semibold">Magic link generated</div>
-          <div className="mt-2 break-all font-mono text-xs">{generatedMagicLink}</div>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="break-all font-mono text-xs">{generatedMagicLink}</div>
+            <div className="shrink-0">
+              <CopyButton text={generatedMagicLink} />
+            </div>
+          </div>
           <div className="mt-2 text-xs text-emerald-900">
             This link is sensitive. Share it only with the intended recipient.
           </div>
