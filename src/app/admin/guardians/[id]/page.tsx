@@ -208,7 +208,7 @@ export default async function AdminGuardianDetailPage({
 
     await service
       .from("profiles")
-      .update({ role: "parent", full_name: guardianFullName })
+      .update({ role: "parent", email, full_name: guardianFullName })
       .eq("id", created.user.id);
 
     await service.from("guardian_user_links").upsert(

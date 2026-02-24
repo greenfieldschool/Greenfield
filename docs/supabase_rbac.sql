@@ -14,10 +14,17 @@ create type public.app_role as enum (
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   role public.app_role not null default 'parent',
+  email text,
   full_name text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles
+  add column if not exists email text;
+
+create unique index if not exists profiles_email_unique
+  on public.profiles (lower(email));
 
 alter table public.profiles enable row level security;
 
@@ -78,10 +85,11 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, role, full_name)
+  insert into public.profiles (id, role, email, full_name)
   values (
     new.id,
     'parent',
+    new.email,
     coalesce(new.raw_user_meta_data->>'full_name', new.email)
   )
   on conflict (id) do nothing;

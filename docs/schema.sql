@@ -146,9 +146,19 @@ create trigger profiles_set_updated_at
 create table if not exists public.students (
   id uuid primary key default gen_random_uuid(),
   first_name text not null,
+  middle_name text,
   last_name text not null,
   admission_number text,
   date_of_birth date,
+  sex text,
+  religion text,
+  passport_photo_url text,
+  profile_photo_url text,
+  hobbies text[] not null default '{}'::text[],
+  favorite_sports text,
+  future_aspiration text,
+  child_with text,
+  admissions_application_id uuid,
   level public.school_level not null,
   class_id uuid,
   status public.student_status not null default 'applied',
@@ -161,6 +171,36 @@ alter table public.students
 
 alter table public.students
   add column if not exists admission_number text;
+
+alter table public.students
+  add column if not exists middle_name text;
+
+alter table public.students
+  add column if not exists sex text;
+
+alter table public.students
+  add column if not exists religion text;
+
+alter table public.students
+  add column if not exists passport_photo_url text;
+
+alter table public.students
+  add column if not exists profile_photo_url text;
+
+alter table public.students
+  add column if not exists hobbies text[] not null default '{}'::text[];
+
+alter table public.students
+  add column if not exists favorite_sports text;
+
+alter table public.students
+  add column if not exists future_aspiration text;
+
+alter table public.students
+  add column if not exists child_with text;
+
+alter table public.students
+  add column if not exists admissions_application_id uuid;
 
 create unique index if not exists students_admission_number_key on public.students(admission_number);
 
@@ -181,11 +221,20 @@ alter table public.students
   add constraint students_class_id_fkey
   foreign key (class_id) references public.classes(id) on delete set null;
 
+alter table public.students
+  drop constraint if exists students_admissions_application_id_fkey;
+
+alter table public.students
+  add constraint students_admissions_application_id_fkey
+  foreign key (admissions_application_id) references public.admissions_applications(id) on delete set null;
+
 create table if not exists public.guardians (
   id uuid primary key default gen_random_uuid(),
   full_name text not null,
   email text,
   phone text,
+  profile_photo_url text,
+  interests text[] not null default '{}'::text[],
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

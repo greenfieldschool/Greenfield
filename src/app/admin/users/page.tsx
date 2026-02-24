@@ -45,7 +45,10 @@ export default async function AdminUsersPage({
 
   const query = (searchParams.q ?? "").trim();
   const inviteSuccess = String(searchParams.invited ?? "").trim() === "1";
-  const inviteError = String(searchParams.invite_error ?? "").trim() === "1";
+  const inviteErrorRaw = String(searchParams.invite_error ?? "").trim();
+  const inviteError = inviteErrorRaw.length > 0;
+  const inviteAlreadyExists = inviteErrorRaw === "exists";
+  const inviteHasDetail = inviteErrorRaw !== "1" && inviteErrorRaw !== "exists";
 
   const {
     data: { user: currentUser }
@@ -62,8 +65,10 @@ export default async function AdminUsersPage({
   const usingServiceClient = canInviteStaff && !!profilesClient;
 
   const emailByUserId = new Map<string, string>();
+  let listUsersErrorMessage: string | null = null;
   if (usingServiceClient && profilesClient) {
-    const { data } = await profilesClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const { data, error } = await profilesClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    listUsersErrorMessage = error?.message ?? null;
     for (const u of data?.users ?? []) {
       if (u.email) emailByUserId.set(u.id, u.email);
     }
@@ -224,13 +229,17 @@ export default async function AdminUsersPage({
     if (inviteError || !inviteResult?.user) {
       const message = (inviteError?.message ?? "").toLowerCase();
       const isAlready = message.includes("already") || message.includes("exists") || message.includes("registered");
-      redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=${isAlready ? "exists" : "1"}`);
+      const errorDetail = inviteError?.message ? encodeURIComponent(inviteError.message.slice(0, 200)) : "";
+      redirect(
+        `/admin/users?q=${encodeURIComponent(email)}&invite_error=${isAlready ? "exists" : errorDetail || "1"}`
+      );
     }
 
     await service
       .from("profiles")
       .update({
         role,
+        email,
         full_name: fullName.length ? fullName : null
       })
       .eq("id", inviteResult.user.id);
@@ -321,9 +330,15 @@ export default async function AdminUsersPage({
 
         {inviteError ? (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-            {String(searchParams.invite_error ?? "").trim() === "exists"
+            {inviteAlreadyExists
               ? "That email already has an account or already has a pending invite. Ask them to use the first invite email to set a password."
               : "Could not send invite. Please confirm your Supabase email settings and that the email address is valid."}
+          </div>
+        ) : null}
+
+        {canInviteStaff && inviteHasDetail ? (
+          <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+            Supabase invite error: <span className="font-semibold">{decodeURIComponent(inviteErrorRaw)}</span>
           </div>
         ) : null}
 
@@ -347,6 +362,11 @@ export default async function AdminUsersPage({
               {!usingServiceClient ? (
                 <div>
                   Check deployment env var <span className="font-semibold">SUPABASE_SERVICE_ROLE_KEY</span>.
+                </div>
+              ) : null}
+              {listUsersErrorMessage ? (
+                <div>
+                  listUsers error: <span className="font-semibold">{listUsersErrorMessage}</span>
                 </div>
               ) : null}
               {profilesError ? (
