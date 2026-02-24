@@ -20,13 +20,36 @@ export default async function AdminWelfareAttendancePage({
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
 
-  const [{ data: classes }, { data: years }, { data: terms }] = await Promise.all([
-    supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name"),
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
+    : { data: null as unknown };
+
+  const role = (profile as { role?: string } | null)?.role ?? null;
+  const isTeacher = role === "teacher";
+
+  const [{ data: teacherClasses }, { data: classes }, { data: years }, { data: terms }] = await Promise.all([
+    isTeacher && user
+      ? supabase
+          .from("teacher_class_assignments")
+          .select("class_id, classes(id, level, name)")
+          .eq("teacher_id", user.id)
+          .eq("active", true)
+      : Promise.resolve({ data: [] as unknown[] }),
+    !isTeacher
+      ? supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name")
+      : Promise.resolve({ data: [] as unknown[] }),
     supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
     supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false })
   ]);
 
-  const classRows = (classes ?? []) as ClassRow[];
+  const teacherClassRows = (teacherClasses ?? []) as Array<{ classes: ClassRow | null }>;
+  const classRows = isTeacher
+    ? teacherClassRows.map((r) => r.classes).filter((c): c is ClassRow => Boolean(c))
+    : ((classes ?? []) as ClassRow[]);
   const yearRows = (years ?? []) as YearRow[];
   const termRows = (terms ?? []) as TermRow[];
 
@@ -47,8 +70,10 @@ export default async function AdminWelfareAttendancePage({
 
   const effectiveClassId = selectedClassId.length ? selectedClassId : classRows[0]?.id ?? "";
 
+  const hasAnyClass = classRows.length > 0;
+
   const [{ data: studentsData }, { data: attendanceData }] = await Promise.all([
-    effectiveClassId
+    effectiveClassId && hasAnyClass
       ? supabase
           .from("students")
           .select("id, first_name, last_name, class_id")
@@ -56,7 +81,7 @@ export default async function AdminWelfareAttendancePage({
           .order("last_name", { ascending: true })
           .order("first_name", { ascending: true })
       : Promise.resolve({ data: [] as unknown[] }),
-    effectiveClassId && selectedDate.length
+    effectiveClassId && hasAnyClass && selectedDate.length
       ? supabase
           .from("student_attendance")
           .select("student_id, date, status")
@@ -116,6 +141,11 @@ export default async function AdminWelfareAttendancePage({
 
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Filters</h2>
+        {!hasAnyClass ? (
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            No classes are assigned to your account yet. Ask an admin to assign you to at least one class.
+          </div>
+        ) : null}
         <form method="get" className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="text-sm font-semibold text-slate-900">Class</label>
@@ -124,6 +154,7 @@ export default async function AdminWelfareAttendancePage({
               name="class_id"
               defaultValue={effectiveClassId}
               required
+              disabled={!hasAnyClass}
             >
               {classRows.map((c) => (
                 <option key={c.id} value={c.id}>

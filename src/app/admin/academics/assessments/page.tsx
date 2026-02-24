@@ -25,11 +25,31 @@ export default async function AdminAssessmentsPage() {
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
 
-  const [{ data: years }, { data: terms }, { data: classes }, { data: subjects }, { data: assessments }] =
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
+    : { data: null as unknown };
+
+  const role = (profile as { role?: string } | null)?.role ?? null;
+  const isTeacher = role === "teacher";
+
+  const [{ data: years }, { data: terms }, { data: teacherClasses }, { data: classes }, { data: subjects }, { data: assessments }] =
     await Promise.all([
       supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
       supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false }),
-      supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name"),
+      isTeacher && user
+        ? supabase
+            .from("teacher_class_assignments")
+            .select("class_id, classes(id, level, name)")
+            .eq("teacher_id", user.id)
+            .eq("active", true)
+        : Promise.resolve({ data: [] as unknown[] }),
+      !isTeacher
+        ? supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name")
+        : Promise.resolve({ data: [] as unknown[] }),
       supabase.from("subjects").select("id, name").eq("active", true).order("name"),
       supabase
         .from("academic_assessments")
@@ -42,9 +62,14 @@ export default async function AdminAssessmentsPage() {
 
   const yearRows = (years ?? []) as YearRow[];
   const termRows = (terms ?? []) as TermRow[];
-  const classRows = (classes ?? []) as ClassRow[];
+  const teacherClassRows = (teacherClasses ?? []) as Array<{ classes: ClassRow | null }>;
+  const classRows = isTeacher
+    ? teacherClassRows.map((r) => r.classes).filter((c): c is ClassRow => Boolean(c))
+    : ((classes ?? []) as ClassRow[]);
   const subjectRows = (subjects ?? []) as SubjectRow[];
   const assessmentRows = (assessments ?? []) as unknown as AssessmentRow[];
+
+  const hasAnyClass = classRows.length > 0;
 
   async function createAssessment(formData: FormData) {
     "use server";
@@ -88,6 +113,11 @@ export default async function AdminAssessmentsPage() {
 
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">New assessment</h2>
+        {!hasAnyClass ? (
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            No classes are assigned to your account yet. Ask an admin to assign you to at least one class.
+          </div>
+        ) : null}
         <form action={createAssessment} className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="text-sm font-semibold text-slate-900">Class</label>
@@ -96,6 +126,7 @@ export default async function AdminAssessmentsPage() {
               name="class_id"
               defaultValue=""
               required
+              disabled={!hasAnyClass}
             >
               <option value="">Select class</option>
               {classRows.map((c) => (

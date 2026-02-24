@@ -34,6 +34,21 @@ type StudentUserLinkRow = {
   student_id: string;
 };
 
+type ClassRow = {
+  id: string;
+  level: string;
+  name: string;
+};
+
+type TeacherClassAssignmentRow = {
+  teacher_id: string;
+  class_id: string;
+  active: boolean;
+  created_at: string;
+  classes: ClassRow | null;
+  profiles: { id: string; full_name: string | null } | null;
+};
+
 export default async function AdminUsersPage({
   searchParams
 }: {
@@ -135,6 +150,26 @@ export default async function AdminUsersPage({
 
   const students = (studentsData ?? []) as StudentRow[];
 
+  const [{ data: teachersData }, { data: classesData }, { data: teacherClassAssignmentsData }] = canInviteStaff
+    ? await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, full_name")
+          .eq("role", "teacher")
+          .order("full_name", { ascending: true }),
+        supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name"),
+        supabase
+          .from("teacher_class_assignments")
+          .select("teacher_id, class_id, active, created_at, classes(id, level, name), profiles(id, full_name)")
+          .eq("active", true)
+          .order("created_at", { ascending: false })
+      ])
+    : [{ data: [] as unknown[] }, { data: [] as unknown[] }, { data: [] as unknown[] }];
+
+  const teacherRows = (teachersData ?? []) as Array<{ id: string; full_name: string | null }>;
+  const classRows = (classesData ?? []) as ClassRow[];
+  const teacherClassAssignments = (teacherClassAssignmentsData ?? []) as unknown as TeacherClassAssignmentRow[];
+
   const userIds = profiles.map((p) => p.id);
 
   const { data: guardianLinksData } = userIds.length
@@ -157,6 +192,8 @@ export default async function AdminUsersPage({
 
   const guardianById = new Map(guardians.map((g) => [g.id, g] as const));
   const studentById = new Map(students.map((s) => [s.id, s] as const));
+  const classById = new Map(classRows.map((c) => [c.id, c] as const));
+  const teacherById = new Map(teacherRows.map((t) => [t.id, t] as const));
 
   async function setQuery(formData: FormData) {
     "use server";
@@ -355,6 +392,76 @@ export default async function AdminUsersPage({
 
     revalidatePath("/admin/users");
     redirect(`/admin/users?q=${encodeURIComponent(email)}`);
+  }
+
+  async function assignTeacherClass(formData: FormData) {
+    "use server";
+
+    const teacherId = String(formData.get("teacher_id") ?? "").trim();
+    const classId = String(formData.get("class_id") ?? "").trim();
+
+    if (!teacherId || !classId) return;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect("/admin/login");
+    }
+
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const role = (profile as { role?: string } | null)?.role ?? null;
+    const isAllowed = role === "super_admin" || role === "admin";
+    if (!isAllowed) {
+      redirect("/admin/users");
+    }
+
+    await supabase
+      .from("teacher_class_assignments")
+      .upsert({ teacher_id: teacherId, class_id: classId, active: true }, { onConflict: "teacher_id,class_id" });
+
+    revalidatePath("/admin/users");
+    redirect("/admin/users");
+  }
+
+  async function removeTeacherClass(formData: FormData) {
+    "use server";
+
+    const teacherId = String(formData.get("teacher_id") ?? "").trim();
+    const classId = String(formData.get("class_id") ?? "").trim();
+
+    if (!teacherId || !classId) return;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect("/admin/login");
+    }
+
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const role = (profile as { role?: string } | null)?.role ?? null;
+    const isAllowed = role === "super_admin" || role === "admin";
+    if (!isAllowed) {
+      redirect("/admin/users");
+    }
+
+    await supabase
+      .from("teacher_class_assignments")
+      .update({ active: false })
+      .eq("teacher_id", teacherId)
+      .eq("class_id", classId);
+
+    revalidatePath("/admin/users");
+    redirect("/admin/users");
   }
 
   async function linkGuardian(formData: FormData) {
@@ -596,6 +703,90 @@ export default async function AdminUsersPage({
                   </button>
                 </div>
               </form>
+            </div>
+
+            <div className="mt-6 border-t border-slate-200 pt-6">
+              <div className="text-sm font-semibold text-slate-900">Teacher class assignments</div>
+              <div className="mt-1 text-sm text-slate-600">Assign teachers to one or more classes (controls access).</div>
+
+              <form action={assignTeacherClass} className="mt-4 grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Teacher</label>
+                  <select
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                    name="teacher_id"
+                    defaultValue=""
+                    required
+                  >
+                    <option value="">Select teacher</option>
+                    {teacherRows.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.full_name ?? t.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Class</label>
+                  <select
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                    name="class_id"
+                    defaultValue=""
+                    required
+                  >
+                    <option value="">Select class</option>
+                    {classRows.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.level} - {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                    type="submit"
+                  >
+                    Assign
+                  </button>
+                </div>
+              </form>
+
+              <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="grid grid-cols-12 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600">
+                  <div className="col-span-5">Teacher</div>
+                  <div className="col-span-5">Class</div>
+                  <div className="col-span-2 text-right">Action</div>
+                </div>
+                {teacherClassAssignments.length ? (
+                  teacherClassAssignments.map((a) => {
+                    const teacher = a.profiles ?? teacherById.get(a.teacher_id) ?? null;
+                    const cls = a.classes ?? classById.get(a.class_id) ?? null;
+                    return (
+                      <div key={`${a.teacher_id}-${a.class_id}`} className="grid grid-cols-12 items-center border-t border-slate-200 px-4 py-3 text-sm">
+                        <div className="col-span-5 font-semibold text-slate-900">{teacher?.full_name ?? a.teacher_id}</div>
+                        <div className="col-span-5 text-slate-700">{cls ? `${cls.level} - ${cls.name}` : a.class_id}</div>
+                        <div className="col-span-2">
+                          <form action={removeTeacherClass} className="flex justify-end">
+                            <input type="hidden" name="teacher_id" value={a.teacher_id} />
+                            <input type="hidden" name="class_id" value={a.class_id} />
+                            <button
+                              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-50"
+                              type="submit"
+                            >
+                              Remove
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="px-4 py-4 text-sm text-slate-600">No active teacher assignments yet.</div>
+                )}
+              </div>
             </div>
           </div>
         ) : null}

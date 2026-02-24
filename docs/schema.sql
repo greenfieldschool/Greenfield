@@ -77,6 +77,16 @@ as $$
   select public.current_role() in ('super_admin','admin');
 $$;
 
+create or replace function public.is_teacher()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.current_role() = 'teacher';
+$$;
+
 create policy "profiles_select_own"
   on public.profiles
   for select
@@ -214,6 +224,34 @@ create table if not exists public.classes (
   unique (level, name)
 );
 
+create table if not exists public.teacher_class_assignments (
+  teacher_id uuid not null references auth.users(id) on delete cascade,
+  class_id uuid not null references public.classes(id) on delete cascade,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  primary key (teacher_id, class_id)
+);
+
+create index if not exists teacher_class_assignments_class_idx on public.teacher_class_assignments(class_id);
+
+alter table public.teacher_class_assignments enable row level security;
+
+create or replace function public.teacher_has_class(target_class_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists(
+    select 1
+    from public.teacher_class_assignments tca
+    where tca.teacher_id = auth.uid()
+      and tca.class_id = target_class_id
+      and tca.active = true
+  );
+$$;
+
 alter table public.students
   drop constraint if exists students_class_id_fkey;
 
@@ -296,6 +334,7 @@ create table if not exists public.incidents (
 
 alter table public.students enable row level security;
 alter table public.classes enable row level security;
+alter table public.teacher_class_assignments enable row level security;
 alter table public.guardians enable row level security;
 alter table public.student_guardians enable row level security;
 alter table public.guardian_user_links enable row level security;
@@ -1194,16 +1233,32 @@ create trigger career_applications_set_updated_at
    on public.classes
    for all
    to authenticated
-   using (public.is_staff())
-   with check (public.is_staff());
+   using (
+     public.is_admin()
+     or public.current_role() <> 'teacher'
+     or public.teacher_has_class(id)
+   )
+   with check (
+     public.is_admin()
+     or public.current_role() <> 'teacher'
+     or public.teacher_has_class(id)
+   );
 
  drop policy if exists students_staff_all on public.students;
  create policy students_staff_all
    on public.students
    for all
    to authenticated
-   using (public.is_staff())
-   with check (public.is_staff());
+   using (
+     public.is_admin()
+     or public.current_role() <> 'teacher'
+     or public.teacher_has_class(class_id)
+   )
+   with check (
+     public.is_admin()
+     or public.current_role() <> 'teacher'
+     or public.teacher_has_class(class_id)
+   );
 
  drop policy if exists revenue_categories_staff_all on public.revenue_categories;
  create policy revenue_categories_staff_all
@@ -1795,8 +1850,16 @@ create trigger career_applications_set_updated_at
    on public.academic_assessments
    for all
    to authenticated
-   using (public.is_staff())
-   with check (public.is_staff());
+   using (
+     public.is_admin()
+     or public.current_role() <> 'teacher'
+     or public.teacher_has_class(class_id)
+   )
+   with check (
+     public.is_admin()
+     or public.current_role() <> 'teacher'
+     or public.teacher_has_class(class_id)
+   );
 
  drop policy if exists academic_assessments_parent_student_select on public.academic_assessments;
  create policy academic_assessments_parent_student_select
@@ -1821,8 +1884,26 @@ create trigger career_applications_set_updated_at
    on public.academic_assessment_scores
    for all
    to authenticated
-   using (public.is_staff())
-   with check (public.is_staff());
+   using (
+     public.is_admin()
+     or public.current_role() <> 'teacher'
+     or exists (
+       select 1
+       from public.academic_assessments a
+       where a.id = academic_assessment_scores.assessment_id
+         and public.teacher_has_class(a.class_id)
+     )
+   )
+   with check (
+     public.is_admin()
+     or public.current_role() <> 'teacher'
+     or exists (
+       select 1
+       from public.academic_assessments a
+       where a.id = academic_assessment_scores.assessment_id
+         and public.teacher_has_class(a.class_id)
+     )
+   );
 
  drop policy if exists academic_assessment_scores_parent_select on public.academic_assessment_scores;
  create policy academic_assessment_scores_parent_select
@@ -1858,8 +1939,16 @@ create trigger career_applications_set_updated_at
    on public.student_attendance
    for all
    to authenticated
-   using (public.is_staff())
-   with check (public.is_staff());
+   using (
+     public.is_admin()
+     or public.current_role() <> 'teacher'
+     or public.teacher_has_class(class_id)
+   )
+   with check (
+     public.is_admin()
+     or public.current_role() <> 'teacher'
+     or public.teacher_has_class(class_id)
+   );
 
  drop policy if exists student_attendance_parent_select on public.student_attendance;
  create policy student_attendance_parent_select
@@ -2006,8 +2095,16 @@ create trigger career_applications_set_updated_at
    on public.result_publications
    for all
    to authenticated
-   using (public.is_staff())
-   with check (public.is_staff());
+   using (
+     public.is_admin()
+     or public.current_role() <> 'teacher'
+     or public.teacher_has_class(class_id)
+   )
+   with check (
+     public.is_admin()
+     or public.current_role() <> 'teacher'
+     or public.teacher_has_class(class_id)
+   );
 
  drop policy if exists result_publications_portal_select on public.result_publications;
  create policy result_publications_portal_select
