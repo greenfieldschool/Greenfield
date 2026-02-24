@@ -33,7 +33,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     role === "nurse";
 
   if (!isStaff) {
-    redirect("/admin/unauthorized");
+    redirect("/admin/logout?next=/admin/login?unauthorized=1");
   }
 
   return (
