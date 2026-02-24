@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export default function AuthFinishPage() {
   const router = useRouter();
+  const didNavigateRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,8 +51,10 @@ export default function AuthFinishPage() {
       }
 
       if (!cancelled) {
-        router.replace(next);
-        router.refresh();
+        if (!didNavigateRef.current) {
+          didNavigateRef.current = true;
+          router.replace(next);
+        }
       }
     }
 
