@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { cookies } from "next/headers";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 
@@ -49,6 +50,9 @@ export default async function AdminUsersPage({
   const inviteError = inviteErrorRaw.length > 0;
   const inviteAlreadyExists = inviteErrorRaw === "exists";
   const inviteHasDetail = inviteErrorRaw !== "1" && inviteErrorRaw !== "exists";
+
+  const cookieStore = cookies();
+  const generatedMagicLink = cookieStore.get("admin_generated_magic_link")?.value ?? "";
 
   const {
     data: { user: currentUser }
@@ -248,6 +252,103 @@ export default async function AdminUsersPage({
     redirect(`/admin/users?q=${encodeURIComponent(email)}&invited=1`);
   }
 
+  async function generateMagicLink(formData: FormData) {
+    "use server";
+
+    const email = String(formData.get("email") ?? "").trim().toLowerCase();
+    const fullName = String(formData.get("full_name") ?? "").trim();
+    const role = String(formData.get("role") ?? "").trim();
+
+    if (!email || !role) {
+      redirect("/admin/users?invite_error=1");
+    }
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect("/admin/users?invite_error=1");
+    }
+
+    const { data: inviterProfile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const inviterRole = (inviterProfile?.role ?? null) as string | null;
+    const isAllowed = inviterRole === "super_admin" || inviterRole === "admin";
+    if (!isAllowed) {
+      redirect("/admin/users?invite_error=1");
+    }
+
+    const service = getSupabaseServiceClient();
+    if (!service) {
+      redirect("/admin/users?invite_error=1");
+    }
+
+    const h = headers();
+    const forwardedHost = h.get("x-forwarded-host");
+    const host = forwardedHost ?? h.get("host");
+    const forwardedProto = h.get("x-forwarded-proto");
+    const inferredProto = host?.includes("localhost") || host?.includes("127.0.0.1") ? "http" : "https";
+    const proto = forwardedProto ?? inferredProto;
+    const origin = host ? `${proto}://${host}` : "";
+    const redirectTo = origin ? `${origin}/auth/finish?next=${encodeURIComponent("/auth/set-password")}` : undefined;
+
+    let linkResult = await service.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+      options: { redirectTo }
+    });
+
+    const generateErrorMessage = (linkResult.error?.message ?? "").toLowerCase();
+    const userNotFound = generateErrorMessage.includes("not found") || generateErrorMessage.includes("user");
+
+    if ((linkResult.error || !linkResult.data?.properties?.action_link) && userNotFound) {
+      const created = await service.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: fullName.length ? { full_name: fullName } : undefined
+      });
+
+      if (created.error || !created.data?.user) {
+        const errorDetail = created.error?.message ? encodeURIComponent(created.error.message.slice(0, 200)) : "";
+        redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=${errorDetail || "1"}`);
+      }
+
+      linkResult = await service.auth.admin.generateLink({
+        type: "magiclink",
+        email,
+        options: { redirectTo }
+      });
+    }
+
+    const actionLink = linkResult.data?.properties?.action_link ?? null;
+    if (linkResult.error || !actionLink) {
+      const errorDetail = linkResult.error?.message ? encodeURIComponent(linkResult.error.message.slice(0, 200)) : "";
+      redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=${errorDetail || "1"}`);
+    }
+
+    if (linkResult.data?.user?.id) {
+      await service
+        .from("profiles")
+        .update({ role, email, full_name: fullName.length ? fullName : null })
+        .eq("id", linkResult.data.user.id);
+    }
+
+    const cookieStore = cookies();
+    cookieStore.set("admin_generated_magic_link", actionLink, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: proto === "https",
+      maxAge: 60 * 5,
+      path: "/admin/users"
+    });
+
+    revalidatePath("/admin/users");
+    redirect(`/admin/users?q=${encodeURIComponent(email)}`);
+  }
+
   async function linkGuardian(formData: FormData) {
     "use server";
 
@@ -440,9 +541,67 @@ export default async function AdminUsersPage({
                 </button>
               </div>
             </form>
+
+            <div className="mt-6 border-t border-slate-200 pt-6">
+              <div className="text-sm font-semibold text-slate-900">Generate login link (no email)</div>
+              <div className="mt-1 text-sm text-slate-600">
+                Creates a magic link for you to copy and share manually (useful when email rate limits are hit).
+              </div>
+              <form action={generateMagicLink} className="mt-4 grid gap-4 sm:grid-cols-3">
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-900">Email</label>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                    name="email"
+                    placeholder="staff@school.com"
+                    required
+                    type="email"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Role</label>
+                  <select
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                    name="role"
+                    defaultValue="teacher"
+                  >
+                    <option value="admin">admin</option>
+                    <option value="teacher">teacher</option>
+                    <option value="front_desk">front_desk</option>
+                    <option value="nurse">nurse</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-900">Full name</label>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                    name="full_name"
+                    placeholder="(optional)"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                    type="submit"
+                  >
+                    Generate link
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         ) : null}
       </div>
+
+      {canInviteStaff && generatedMagicLink.length ? (
+        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-sm text-emerald-900 shadow-sm">
+          <div className="font-semibold">Magic link generated</div>
+          <div className="mt-2 break-all font-mono text-xs">{generatedMagicLink}</div>
+          <div className="mt-2 text-xs text-emerald-900">
+            This link is sensitive. Share it only with the intended recipient.
+          </div>
+        </div>
+      ) : null}
 
       <div className="space-y-4">
         {profiles.length ? (
