@@ -321,6 +321,13 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
                   >
                     Profile
                   </Link>
+                  <Link
+                    role="menuitem"
+                    className="block px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                    href="/admin/change-password"
+                  >
+                    Change password
+                  </Link>
                   {isAdmin ? (
                     <Link
                       role="menuitem"
