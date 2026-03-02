@@ -40,7 +40,7 @@ export default async function AdminApplicationDetailPage({
         <div className="text-sm font-semibold text-slate-900">Application not found</div>
         <div className="mt-4">
           <Link
-            href="/admin/applications"
+            href="/admin/students/applications"
             className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
           >
             Back
@@ -68,6 +68,53 @@ export default async function AdminApplicationDetailPage({
   }
 
   const data = (row.data as Record<string, unknown>) ?? {};
+
+  async function updateApplication(formData: FormData) {
+    "use server";
+
+    const supabaseAction = getSupabaseServerClient();
+    if (!supabaseAction) return;
+
+    const {
+      data: { user }
+    } = await supabaseAction.auth.getUser();
+    if (!user) {
+      redirect(`/admin/login?redirectTo=${encodeURIComponent(`/admin/students/applications/${params.id}`)}`);
+    }
+
+    const { data: profile } = await supabaseAction.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const role = (profile?.role ?? null) as string | null;
+    const isStaff =
+      role === "super_admin" ||
+      role === "admin" ||
+      role === "teacher" ||
+      role === "front_desk" ||
+      role === "nurse";
+    if (!isStaff) {
+      redirect("/admin");
+    }
+
+    const parent_name = String(formData.get("parent_name") ?? "").trim() || null;
+    const phone = String(formData.get("phone") ?? "").trim() || null;
+    const email = String(formData.get("email") ?? "").trim() || null;
+    const desired_start = String(formData.get("desired_start") ?? "").trim() || null;
+    const preferred_contact = String(formData.get("preferred_contact") ?? "").trim() || null;
+    const sectionRaw = String(formData.get("section") ?? "").trim();
+    const section = sectionRaw.length ? sectionRaw : null;
+
+    const note = String(formData.get("note") ?? "").trim();
+    const nextData = {
+      ...data,
+      note: note.length ? note : undefined
+    };
+
+    await supabaseAction
+      .from("admissions_applications")
+      .update({ parent_name, phone, email, desired_start, preferred_contact, section, data: nextData })
+      .eq("id", params.id);
+
+    redirect(`/admin/students/applications/${params.id}`);
+  }
 
   const { data: existingStudent } = await supabase
     .from("students")
@@ -123,6 +170,7 @@ export default async function AdminApplicationDetailPage({
 
     const appStatus = (appRow.status as string | null) ?? null;
     const canApprove =
+      appStatus === "lead" ||
       appStatus === "submitted" ||
       appStatus === "contacted" ||
       appStatus === "visit_booked" ||
@@ -233,6 +281,92 @@ export default async function AdminApplicationDetailPage({
           {field("Phone", row.phone)}
           {field("Email", row.email)}
           {field("Desired start", row.desired_start)}
+        </div>
+
+        <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+          <div className="text-sm font-semibold text-slate-900">Edit application</div>
+          <p className="mt-1 text-sm text-slate-600">Update the admin-managed fields for this application.</p>
+
+          <form action={updateApplication} className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Section</label>
+              <select
+                name="section"
+                defaultValue={String(row.section ?? "")}
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              >
+                <option value="">(none)</option>
+                <option value="creche">creche</option>
+                <option value="primary">primary</option>
+                <option value="secondary">secondary</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Preferred contact</label>
+              <input
+                name="preferred_contact"
+                defaultValue={String(row.preferred_contact ?? "")}
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Parent name</label>
+              <input
+                name="parent_name"
+                defaultValue={String(row.parent_name ?? "")}
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Phone</label>
+              <input
+                name="phone"
+                defaultValue={String(row.phone ?? "")}
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Email</label>
+              <input
+                name="email"
+                type="email"
+                defaultValue={String(row.email ?? "")}
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Desired start</label>
+              <input
+                name="desired_start"
+                defaultValue={String(row.desired_start ?? "")}
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="text-sm font-semibold text-slate-900">Note</label>
+              <textarea
+                name="note"
+                defaultValue={typeof data.note === "string" ? data.note : ""}
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                rows={4}
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <button
+                type="submit"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+              >
+                Save application
+              </button>
+            </div>
+          </form>
         </div>
 
         <form action={updateStatus} className="mt-6 flex flex-wrap items-end gap-3">

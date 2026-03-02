@@ -38,7 +38,8 @@ create table if not exists public.profiles (
   email text,
   full_name text,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  profile_photo_url text
 );
 
 alter table public.profiles add column if not exists email text;
