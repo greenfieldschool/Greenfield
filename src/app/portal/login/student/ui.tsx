@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type FormState =
@@ -20,8 +19,6 @@ function admissionNumberToEmail(admissionNumberRaw: string) {
 }
 
 export function StudentLoginForm({ redirectTo }: { redirectTo: string }) {
-  const router = useRouter();
-
   const [admissionNumber, setAdmissionNumber] = useState("");
   const [password, setPassword] = useState("");
   const [state, setState] = useState<FormState>({ status: "idle" });
