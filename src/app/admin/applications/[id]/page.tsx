@@ -2,6 +2,10 @@ import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
+ function asString(v: unknown) {
+  return typeof v === "string" ? v.trim() : "";
+}
+
 function field(label: string, value: unknown) {
   const text = typeof value === "string" && value.trim() ? value.trim() : value ? String(value) : "—";
   return (
@@ -94,18 +98,64 @@ export default async function AdminApplicationDetailPage({
       redirect("/admin");
     }
 
-    const parent_name = String(formData.get("parent_name") ?? "").trim() || null;
-    const phone = String(formData.get("phone") ?? "").trim() || null;
-    const email = String(formData.get("email") ?? "").trim() || null;
-    const desired_start = String(formData.get("desired_start") ?? "").trim() || null;
-    const preferred_contact = String(formData.get("preferred_contact") ?? "").trim() || null;
-    const sectionRaw = String(formData.get("section") ?? "").trim();
+    const parent_name = asString(formData.get("parent_name")) || null;
+    const phone = asString(formData.get("phone")) || null;
+    const email = asString(formData.get("email")) || null;
+    const desired_start = asString(formData.get("desired_start")) || null;
+    const preferred_contact = asString(formData.get("preferred_contact")) || null;
+    const sectionRaw = asString(formData.get("section"));
     const section = sectionRaw.length ? sectionRaw : null;
 
-    const note = String(formData.get("note") ?? "").trim();
+    const note = asString(formData.get("note"));
+
     const nextData = {
       ...data,
-      note: note.length ? note : undefined
+      note: note.length ? note : undefined,
+
+      first_name: asString(formData.get("first_name")) || undefined,
+      middle_name: asString(formData.get("middle_name")) || undefined,
+      last_name: asString(formData.get("last_name")) || undefined,
+      sex: asString(formData.get("sex")) || undefined,
+      religion: asString(formData.get("religion")) || undefined,
+      dob: asString(formData.get("dob")) || undefined,
+      passport_photo_url: asString(formData.get("passport_photo_url")) || undefined,
+      seeking_class: asString(formData.get("seeking_class")) || undefined,
+      favorite_sports: asString(formData.get("favorite_sports")) || undefined,
+      hobbies: asString(formData.get("hobbies")) || undefined,
+      future_aspiration: asString(formData.get("future_aspiration")) || undefined,
+      child_with: asString(formData.get("child_with")) || undefined,
+
+      parent1_name: asString(formData.get("parent1_name")) || undefined,
+      parent1_phone: asString(formData.get("parent1_phone")) || undefined,
+      parent1_email: asString(formData.get("parent1_email")) || undefined,
+      parent1_occupation: asString(formData.get("parent1_occupation")) || undefined,
+      parent1_business_address: asString(formData.get("parent1_business_address")) || undefined,
+      home_address: asString(formData.get("home_address")) || undefined,
+      parent2_name: asString(formData.get("parent2_name")) || undefined,
+      parent2_phone: asString(formData.get("parent2_phone")) || undefined,
+      parent2_email: asString(formData.get("parent2_email")) || undefined,
+      parent2_occupation: asString(formData.get("parent2_occupation")) || undefined,
+      parent2_business_address: asString(formData.get("parent2_business_address")) || undefined,
+      preferred_contact_methods: asString(formData.get("preferred_contact_methods")) || undefined,
+
+      has_been_in_school: asString(formData.get("has_been_in_school")) || undefined,
+      previous_school_name: asString(formData.get("previous_school_name")) || undefined,
+      reason_for_leaving: asString(formData.get("reason_for_leaving")) || undefined,
+      qualification_testimonial: asString(formData.get("qualification_testimonial")) || undefined,
+      date_of_entry: asString(formData.get("date_of_entry")) || undefined,
+      date_of_exit: asString(formData.get("date_of_exit")) || undefined,
+      class_of_exit: asString(formData.get("class_of_exit")) || undefined,
+      discovery_source: asString(formData.get("discovery_source")) || undefined,
+      referred: asString(formData.get("referred")) || undefined,
+      referrer_name: asString(formData.get("referrer_name")) || undefined,
+      referrer_ref: asString(formData.get("referrer_ref")) || undefined,
+      other_child_in_school: asString(formData.get("other_child_in_school")) || undefined,
+      other_child_names: asString(formData.get("other_child_names")) || undefined,
+      pickup_details: asString(formData.get("pickup_details")) || undefined,
+      student_signature_name: asString(formData.get("student_signature_name")) || undefined,
+      student_signature_date: asString(formData.get("student_signature_date")) || undefined,
+      parent_signature_name: asString(formData.get("parent_signature_name")) || undefined,
+      parent_signature_date: asString(formData.get("parent_signature_date")) || undefined
     };
 
     await supabaseAction
@@ -364,6 +414,404 @@ export default async function AdminApplicationDetailPage({
                 className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
               >
                 Save application
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+          <div className="text-sm font-semibold text-slate-900">Edit application details</div>
+          <p className="mt-1 text-sm text-slate-600">Update the fields captured from /apply.</p>
+
+          <form action={updateApplication} className="mt-4 space-y-8">
+            <div>
+              <div className="text-sm font-semibold text-slate-900">Student</div>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">First name</label>
+                  <input
+                    name="first_name"
+                    defaultValue={typeof data.first_name === "string" ? data.first_name : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Middle name</label>
+                  <input
+                    name="middle_name"
+                    defaultValue={typeof data.middle_name === "string" ? data.middle_name : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Last name</label>
+                  <input
+                    name="last_name"
+                    defaultValue={typeof data.last_name === "string" ? data.last_name : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Date of birth</label>
+                  <input
+                    type="date"
+                    name="dob"
+                    defaultValue={typeof data.dob === "string" ? data.dob : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Sex</label>
+                  <select
+                    name="sex"
+                    defaultValue={typeof data.sex === "string" ? data.sex : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  >
+                    <option value="">—</option>
+                    <option value="male">male</option>
+                    <option value="female">female</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Religion</label>
+                  <input
+                    name="religion"
+                    defaultValue={typeof data.religion === "string" ? data.religion : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-900">Passport photo URL</label>
+                  <input
+                    name="passport_photo_url"
+                    defaultValue={typeof data.passport_photo_url === "string" ? data.passport_photo_url : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Seeking admission into</label>
+                  <input
+                    name="seeking_class"
+                    defaultValue={typeof data.seeking_class === "string" ? data.seeking_class : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Favorite sports</label>
+                  <input
+                    name="favorite_sports"
+                    defaultValue={typeof data.favorite_sports === "string" ? data.favorite_sports : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Hobbies (comma-separated)</label>
+                  <input
+                    name="hobbies"
+                    defaultValue={typeof data.hobbies === "string" ? data.hobbies : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Future aspiration</label>
+                  <input
+                    name="future_aspiration"
+                    defaultValue={typeof data.future_aspiration === "string" ? data.future_aspiration : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Child is with</label>
+                  <input
+                    name="child_with"
+                    defaultValue={typeof data.child_with === "string" ? data.child_with : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-sm font-semibold text-slate-900">Parents</div>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Parent 1 name</label>
+                  <input
+                    name="parent1_name"
+                    defaultValue={typeof data.parent1_name === "string" ? data.parent1_name : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Parent 1 phone</label>
+                  <input
+                    name="parent1_phone"
+                    defaultValue={typeof data.parent1_phone === "string" ? data.parent1_phone : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Parent 1 email</label>
+                  <input
+                    type="email"
+                    name="parent1_email"
+                    defaultValue={typeof data.parent1_email === "string" ? data.parent1_email : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Parent 1 occupation</label>
+                  <input
+                    name="parent1_occupation"
+                    defaultValue={typeof data.parent1_occupation === "string" ? data.parent1_occupation : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-900">Parent 1 business address</label>
+                  <input
+                    name="parent1_business_address"
+                    defaultValue={typeof data.parent1_business_address === "string" ? data.parent1_business_address : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-900">Home address</label>
+                  <input
+                    name="home_address"
+                    defaultValue={typeof data.home_address === "string" ? data.home_address : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Parent 2 name</label>
+                  <input
+                    name="parent2_name"
+                    defaultValue={typeof data.parent2_name === "string" ? data.parent2_name : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Parent 2 phone</label>
+                  <input
+                    name="parent2_phone"
+                    defaultValue={typeof data.parent2_phone === "string" ? data.parent2_phone : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Parent 2 email</label>
+                  <input
+                    type="email"
+                    name="parent2_email"
+                    defaultValue={typeof data.parent2_email === "string" ? data.parent2_email : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Parent 2 occupation</label>
+                  <input
+                    name="parent2_occupation"
+                    defaultValue={typeof data.parent2_occupation === "string" ? data.parent2_occupation : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-900">Parent 2 business address</label>
+                  <input
+                    name="parent2_business_address"
+                    defaultValue={typeof data.parent2_business_address === "string" ? data.parent2_business_address : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-900">Preferred contact methods</label>
+                  <input
+                    name="preferred_contact_methods"
+                    defaultValue={typeof data.preferred_contact_methods === "string" ? data.preferred_contact_methods : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-sm font-semibold text-slate-900">School history</div>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Has been in school</label>
+                  <select
+                    name="has_been_in_school"
+                    defaultValue={typeof data.has_been_in_school === "string" ? data.has_been_in_school : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  >
+                    <option value="">—</option>
+                    <option value="yes">yes</option>
+                    <option value="no">no</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Previous school</label>
+                  <input
+                    name="previous_school_name"
+                    defaultValue={typeof data.previous_school_name === "string" ? data.previous_school_name : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-900">Reason for leaving</label>
+                  <input
+                    name="reason_for_leaving"
+                    defaultValue={typeof data.reason_for_leaving === "string" ? data.reason_for_leaving : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-900">Qualification/Testimonial</label>
+                  <input
+                    name="qualification_testimonial"
+                    defaultValue={typeof data.qualification_testimonial === "string" ? data.qualification_testimonial : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Date of entry</label>
+                  <input
+                    type="date"
+                    name="date_of_entry"
+                    defaultValue={typeof data.date_of_entry === "string" ? data.date_of_entry : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Date of exit</label>
+                  <input
+                    type="date"
+                    name="date_of_exit"
+                    defaultValue={typeof data.date_of_exit === "string" ? data.date_of_exit : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Class of exit</label>
+                  <input
+                    name="class_of_exit"
+                    defaultValue={typeof data.class_of_exit === "string" ? data.class_of_exit : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-sm font-semibold text-slate-900">Discovery & pickup</div>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Discovery source</label>
+                  <input
+                    name="discovery_source"
+                    defaultValue={typeof data.discovery_source === "string" ? data.discovery_source : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Referred</label>
+                  <input
+                    name="referred"
+                    defaultValue={typeof data.referred === "string" ? data.referred : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Referrer name</label>
+                  <input
+                    name="referrer_name"
+                    defaultValue={typeof data.referrer_name === "string" ? data.referrer_name : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Referrer number</label>
+                  <input
+                    name="referrer_ref"
+                    defaultValue={typeof data.referrer_ref === "string" ? data.referrer_ref : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Other child in school</label>
+                  <input
+                    name="other_child_in_school"
+                    defaultValue={typeof data.other_child_in_school === "string" ? data.other_child_in_school : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Other child name(s)</label>
+                  <input
+                    name="other_child_names"
+                    defaultValue={typeof data.other_child_names === "string" ? data.other_child_names : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-900">Pickup details</label>
+                  <textarea
+                    name="pickup_details"
+                    defaultValue={typeof data.pickup_details === "string" ? data.pickup_details : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                    rows={4}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-sm font-semibold text-slate-900">Signatures</div>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Student signature</label>
+                  <input
+                    name="student_signature_name"
+                    defaultValue={typeof data.student_signature_name === "string" ? data.student_signature_name : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Student signature date</label>
+                  <input
+                    type="date"
+                    name="student_signature_date"
+                    defaultValue={typeof data.student_signature_date === "string" ? data.student_signature_date : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Parent signature</label>
+                  <input
+                    name="parent_signature_name"
+                    defaultValue={typeof data.parent_signature_name === "string" ? data.parent_signature_name : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Parent signature date</label>
+                  <input
+                    type="date"
+                    name="parent_signature_date"
+                    defaultValue={typeof data.parent_signature_date === "string" ? data.parent_signature_date : ""}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+              >
+                Save application details
               </button>
             </div>
           </form>
