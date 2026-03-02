@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
+import StudentPhotoUploader from "./StudentPhotoUploader";
 
 function admissionNumberToEmail(admissionNumberRaw: string) {
   const admissionNumber = admissionNumberRaw.trim().toLowerCase();
@@ -286,6 +287,23 @@ export default async function AdminStudentDetailPage({
     revalidatePath("/admin/students");
   }
 
+  async function saveStudentPhoto(formData: FormData) {
+    "use server";
+
+    if (!isAdmin) return;
+
+    const photoUrlRaw = String(formData.get("profile_photo_url") ?? "").trim();
+    const profilePhotoUrl = photoUrlRaw.length ? photoUrlRaw : null;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase.from("students").update({ profile_photo_url: profilePhotoUrl }).eq("id", studentId);
+
+    revalidatePath(`/admin/students/${studentId}`);
+    revalidatePath("/admin/students");
+  }
+
   async function updateStudentProfile(formData: FormData) {
     "use server";
 
@@ -440,6 +458,9 @@ export default async function AdminStudentDetailPage({
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
             <h2 className="text-base font-semibold text-slate-900">Profile</h2>
             <p className="mt-1 text-sm text-slate-600">Profile enrichment fields (admin-managed).</p>
+            <div className="mt-4">
+              <StudentPhotoUploader studentId={studentId} initialUrl={student.profile_photo_url ?? null} saveAction={saveStudentPhoto} />
+            </div>
             <form action={updateStudentProfile} className="mt-4 grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label className="text-sm font-semibold text-slate-900">Profile photo URL (optional)</label>
@@ -480,7 +501,7 @@ export default async function AdminStudentDetailPage({
               </div>
               <Link
                 className="text-sm font-semibold text-brand-green hover:underline"
-                href={`/admin/applications/${admissionsApplication.id}`}
+                href={`/admin/students/applications/${admissionsApplication.id}`}
               >
                 View application
               </Link>

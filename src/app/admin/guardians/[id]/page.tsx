@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
+import GuardianPhotoUploader from "./GuardianPhotoUploader";
 
 type GuardianRow = {
   id: string;
@@ -136,6 +137,23 @@ export default async function AdminGuardianDetailPage({
       .from("guardians")
       .update({ profile_photo_url: profilePhotoUrl, interests })
       .eq("id", guardianId);
+
+    revalidatePath(`/admin/guardians/${guardianId}`);
+    revalidatePath("/admin/guardians");
+  }
+
+  async function saveGuardianPhoto(formData: FormData) {
+    "use server";
+
+    if (!isAdmin) return;
+
+    const photoUrlRaw = String(formData.get("profile_photo_url") ?? "").trim();
+    const profilePhotoUrl = photoUrlRaw.length ? photoUrlRaw : null;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase.from("guardians").update({ profile_photo_url: profilePhotoUrl }).eq("id", guardianId);
 
     revalidatePath(`/admin/guardians/${guardianId}`);
     revalidatePath("/admin/guardians");
@@ -291,6 +309,13 @@ export default async function AdminGuardianDetailPage({
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
             <h2 className="text-base font-semibold text-slate-900">Profile</h2>
             <p className="mt-1 text-sm text-slate-600">Profile enrichment fields (admin-managed).</p>
+            <div className="mt-4">
+              <GuardianPhotoUploader
+                guardianId={guardianId}
+                initialUrl={guardian.profile_photo_url ?? null}
+                saveAction={saveGuardianPhoto}
+              />
+            </div>
             <form action={updateGuardianProfile} className="mt-4 grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label className="text-sm font-semibold text-slate-900">Profile photo URL (optional)</label>

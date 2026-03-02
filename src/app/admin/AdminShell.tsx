@@ -8,6 +8,7 @@ type NavItem = {
   href: string;
   label: string;
   shortLabel?: string;
+  indent?: boolean;
 };
 
 type NavGroup = {
@@ -58,7 +59,7 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
         items: [
           { href: "/admin", label: "Dashboard" },
           { href: "/admin/students", label: "Students" },
-          { href: "/admin/students/applications", label: "Student applications", shortLabel: "Apps" },
+          { href: "/admin/students/applications", label: "Student applications", shortLabel: "Apps", indent: true },
           { href: "/admin/guardians", label: "Guardians" }
         ]
       },
@@ -226,6 +227,7 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
                         href={item.href}
                         className={
                           "group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors " +
+                          (item.indent && !(collapsed && isDesktop) ? " ml-6 " : " ") +
                           (active
                             ? "bg-slate-900 text-white"
                             : "text-slate-700 hover:bg-slate-50 hover:text-slate-900")

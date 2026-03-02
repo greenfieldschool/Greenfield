@@ -101,13 +101,33 @@ export default async function AdminApplicationDetailPage({
       redirect("/admin");
     }
 
+    const { data: existingStudent } = await supabaseAction
+      .from("students")
+      .select("id")
+      .eq("admissions_application_id", params.id)
+      .maybeSingle();
+    const existingStudentId = (existingStudent as { id?: string } | null)?.id ?? null;
+    if (existingStudentId) {
+      redirect(`/admin/students/${existingStudentId}`);
+    }
+
     const { data: appRow } = await supabaseAction
       .from("admissions_applications")
-      .select("id, section, data")
+      .select("id, status, section, data")
       .eq("id", params.id)
       .maybeSingle();
 
     if (!appRow) {
+      redirect(`/admin/students/applications/${params.id}`);
+    }
+
+    const appStatus = (appRow.status as string | null) ?? null;
+    const canApprove =
+      appStatus === "submitted" ||
+      appStatus === "contacted" ||
+      appStatus === "visit_booked" ||
+      appStatus === "applied";
+    if (!canApprove) {
       redirect(`/admin/students/applications/${params.id}`);
     }
 

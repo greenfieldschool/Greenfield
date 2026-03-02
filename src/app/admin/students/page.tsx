@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 type StudentRow = {
@@ -35,136 +34,33 @@ export default async function AdminStudentsPage() {
   const classOptions = (classesData ?? []) as Array<{ id: string; level: string; name: string }>;
   const classById = new Map(classOptions.map((c) => [c.id, c] as const));
 
-  async function createStudent(formData: FormData) {
-    "use server";
-
-    const firstName = String(formData.get("first_name") ?? "").trim();
-    const lastName = String(formData.get("last_name") ?? "").trim();
-    const admissionNumber = String(formData.get("admission_number") ?? "").trim();
-    const level = String(formData.get("level") ?? "").trim();
-    const classIdRaw = String(formData.get("class_id") ?? "").trim();
-    const status = String(formData.get("status") ?? "applied").trim();
-    const dobRaw = String(formData.get("date_of_birth") ?? "").trim();
-
-    if (!firstName || !lastName || !level) {
-      return;
-    }
-
-    const supabase = getSupabaseServerClient();
-    if (!supabase) return;
-
-    const dateOfBirth = dobRaw.length ? dobRaw : null;
-    const classId = classIdRaw.length ? classIdRaw : null;
-
-    await supabase.from("students").insert({
-      first_name: firstName,
-      last_name: lastName,
-      admission_number: admissionNumber.length ? admissionNumber : null,
-      level,
-      class_id: classId,
-      status,
-      date_of_birth: dateOfBirth
-    });
-
-    revalidatePath("/admin/students");
-  }
-
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Admin</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Students</h1>
-        <p className="mt-2 text-sm text-slate-600">Manage student records and lifecycle.</p>
-      </div>
-
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Add student</h2>
-        <form action={createStudent} className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <label className="text-sm font-semibold text-slate-900">First name</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="first_name"
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Last name</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="last_name"
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Admission number</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="admission_number"
-              placeholder="(optional)"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Level</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="level"
-              required
-              defaultValue="creche"
-            >
-              <option value="creche">creche</option>
-              <option value="primary">primary</option>
-              <option value="secondary">secondary</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Class (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="class_id"
-              defaultValue=""
-            >
-              <option value="">(none)</option>
-              {classOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.level} - {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Status</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="status"
-              defaultValue="applied"
-            >
-              <option value="applied">applied</option>
-              <option value="enrolled">enrolled</option>
-              <option value="active">active</option>
-              <option value="graduated">graduated</option>
-              <option value="withdrawn">withdrawn</option>
-              <option value="transferred">transferred</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Date of birth</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="date_of_birth"
-              type="date"
-            />
+            <div className="text-sm font-semibold text-slate-500">Admin</div>
+            <h1 className="mt-2 text-2xl font-semibold text-slate-900">Students</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Manage approved/enrolled students. To add a new student, create and approve a student application.
+            </p>
           </div>
 
-          <div className="flex items-end">
-            <button
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-              type="submit"
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/admin/students/applications/new"
+              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
             >
-              Create student
-            </button>
+              New application
+            </Link>
+            <Link
+              href="/admin/students/applications"
+              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+            >
+              View applications
+            </Link>
           </div>
-        </form>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
