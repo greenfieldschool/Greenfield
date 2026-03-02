@@ -51,8 +51,16 @@ export function StudentLoginForm({ redirectTo }: { redirectTo: string }) {
       return;
     }
 
-    router.push(redirectTo);
-    router.refresh();
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData.session) {
+      setState({
+        status: "error",
+        message: sessionError?.message ?? "Signed in, but no session was created. Check cookies and Supabase config."
+      });
+      return;
+    }
+
+    window.location.assign(redirectTo);
   }
 
   return (
