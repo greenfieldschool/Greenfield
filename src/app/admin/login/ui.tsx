@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type FormState =
@@ -10,8 +9,6 @@ type FormState =
   | { status: "error"; message: string };
 
 export function AdminLoginForm({ redirectTo }: { redirectTo: string }) {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [state, setState] = useState<FormState>({ status: "idle" });

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 type NavItem = {
   href: string;
@@ -126,14 +126,14 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
     [isAdmin]
   );
 
-  function findActiveGroupKey() {
+  const findActiveGroupKey = useCallback(() => {
     for (const group of navGroups) {
       for (const item of group.items) {
         if (isActivePath(pathname, item.href)) return group.key;
       }
     }
     return "core";
-  }
+  }, [navGroups, pathname]);
 
   useEffect(() => {
     try {
@@ -166,7 +166,7 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
       next[findActiveGroupKey()] = true;
       return next;
     });
-  }, [pathname, navGroups]);
+  }, [pathname, navGroups, findActiveGroupKey]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
