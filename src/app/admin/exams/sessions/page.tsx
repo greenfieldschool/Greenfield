@@ -16,9 +16,20 @@ type SessionRow = {
   status: string;
   requires_secret_code: boolean;
   active: boolean;
-  exam_tests: Array<{ id: string; name: string }>;
-  classes: Array<{ id: string; level: string; name: string }>;
+  exam_tests:
+    | { id: string; name: string }
+    | Array<{ id: string; name: string }>
+    | null;
+  classes:
+    | { id: string; level: string; name: string }
+    | Array<{ id: string; level: string; name: string }>
+    | null;
 };
+
+function firstOrNull<T>(v: T | T[] | null | undefined) {
+  if (!v) return null;
+  return Array.isArray(v) ? (v[0] ?? null) : v;
+}
 
 export default async function AdminExamSessionsPage() {
   const supabase = getSupabaseServerClient();
@@ -216,8 +227,8 @@ export default async function AdminExamSessionsPage() {
         <div>
           {sessionRows.length ? (
             sessionRows.map((s) => {
-              const test = (s.exam_tests ?? [])[0] ?? null;
-              const cls = (s.classes ?? [])[0] ?? null;
+              const test = firstOrNull(s.exam_tests);
+              const cls = firstOrNull(s.classes);
               const windowLabel =
                 s.starts_at || s.ends_at
                   ? `${s.starts_at ? String(s.starts_at).slice(0, 16) : "—"} → ${s.ends_at ? String(s.ends_at).slice(0, 16) : "—"}`

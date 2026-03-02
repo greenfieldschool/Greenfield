@@ -7,9 +7,20 @@ type SessionRow = {
   starts_at: string | null;
   ends_at: string | null;
   status: string;
-  exam_tests: Array<{ id: string; name: string }>;
-  classes: Array<{ id: string; level: string; name: string }>;
+  exam_tests:
+    | { id: string; name: string }
+    | Array<{ id: string; name: string }>
+    | null;
+  classes:
+    | { id: string; level: string; name: string }
+    | Array<{ id: string; level: string; name: string }>
+    | null;
 };
+
+function firstOrNull<T>(v: T | T[] | null | undefined) {
+  if (!v) return null;
+  return Array.isArray(v) ? (v[0] ?? null) : v;
+}
 
 type ConductorLinkRow = { conductor_id: string };
 
@@ -74,8 +85,8 @@ export default async function ConductorSessionsPage() {
         <div>
           {sessions.length ? (
             sessions.map((s) => {
-              const test = (s.exam_tests ?? [])[0] ?? null;
-              const cls = (s.classes ?? [])[0] ?? null;
+              const test = firstOrNull(s.exam_tests);
+              const cls = firstOrNull(s.classes);
               return (
                 <Link
                   key={s.id}
