@@ -64,10 +64,96 @@ export default async function AdminApplicationDetailPage({
       .update({ status: nextStatus })
       .eq("id", params.id);
 
-    redirect(`/admin/applications/${params.id}`);
+    redirect(`/admin/students/applications/${params.id}`);
   }
 
   const data = (row.data as Record<string, unknown>) ?? {};
+
+  const { data: existingStudent } = await supabase
+    .from("students")
+    .select("id")
+    .eq("admissions_application_id", params.id)
+    .maybeSingle();
+  const existingStudentId = (existingStudent as { id?: string } | null)?.id ?? null;
+
+  async function approveApplication() {
+    "use server";
+
+    const supabaseAction = getSupabaseServerClient();
+    if (!supabaseAction) return;
+
+    const {
+      data: { user }
+    } = await supabaseAction.auth.getUser();
+    if (!user) {
+      redirect(`/admin/login?redirectTo=${encodeURIComponent(`/admin/students/applications/${params.id}`)}`);
+    }
+
+    const { data: profile } = await supabaseAction.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const role = (profile?.role ?? null) as string | null;
+    const isStaff =
+      role === "super_admin" ||
+      role === "admin" ||
+      role === "teacher" ||
+      role === "front_desk" ||
+      role === "nurse";
+    if (!isStaff) {
+      redirect("/admin");
+    }
+
+    const { data: appRow } = await supabaseAction
+      .from("admissions_applications")
+      .select("id, section, data")
+      .eq("id", params.id)
+      .maybeSingle();
+
+    if (!appRow) {
+      redirect(`/admin/students/applications/${params.id}`);
+    }
+
+    const payload = (appRow.data as Record<string, unknown>) ?? {};
+    const section = (appRow.section as string | null) ?? null;
+    const level = section === "creche" || section === "primary" || section === "secondary" ? section : null;
+
+    const hobbiesRaw = typeof payload.hobbies === "string" ? payload.hobbies : "";
+    const hobbies = hobbiesRaw
+      .split(",")
+      .map((v) => v.trim())
+      .filter((v) => v.length);
+
+    const { data: createdStudent, error: createError } = await supabaseAction
+      .from("students")
+      .insert({
+        first_name: typeof payload.first_name === "string" ? payload.first_name : "",
+        middle_name: typeof payload.middle_name === "string" ? payload.middle_name : null,
+        last_name: typeof payload.last_name === "string" ? payload.last_name : "",
+        level: level ?? "primary",
+        status: "enrolled",
+        date_of_birth: typeof payload.dob === "string" && payload.dob.length ? payload.dob : null,
+        passport_photo_url: typeof payload.passport_photo_url === "string" && payload.passport_photo_url.length ? payload.passport_photo_url : null,
+        favorite_sports: typeof payload.favorite_sports === "string" && payload.favorite_sports.length ? payload.favorite_sports : null,
+        future_aspiration:
+          typeof payload.future_aspiration === "string" && payload.future_aspiration.length ? payload.future_aspiration : null,
+        child_with: typeof payload.child_with === "string" && payload.child_with.length ? payload.child_with : null,
+        sex: typeof payload.sex === "string" && payload.sex.length ? payload.sex : null,
+        religion: typeof payload.religion === "string" && payload.religion.length ? payload.religion : null,
+        hobbies,
+        admissions_application_id: params.id
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (createError || !createdStudent?.id) {
+      redirect(`/admin/students/applications/${params.id}`);
+    }
+
+    await supabaseAction
+      .from("admissions_applications")
+      .update({ status: "enrolled" })
+      .eq("id", params.id);
+
+    redirect(`/admin/students/${createdStudent.id}`);
+  }
 
   return (
     <div className="space-y-6">
@@ -84,11 +170,28 @@ export default async function AdminApplicationDetailPage({
 
           <div className="flex flex-wrap gap-2">
             <Link
-              href="/admin/applications"
+              href="/admin/students/applications"
               className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
             >
               Back to list
             </Link>
+            {existingStudentId ? (
+              <Link
+                href={`/admin/students/${existingStudentId}`}
+                className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+              >
+                View student
+              </Link>
+            ) : (
+              <form action={approveApplication}>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+                >
+                  Approve
+                </button>
+              </form>
+            )}
             {row.phone ? (
               <a
                 href={`https://wa.me/${String(row.phone).replace(/\D/g, "")}`}

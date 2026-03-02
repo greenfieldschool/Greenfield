@@ -60,14 +60,20 @@ export default async function AdminApplicationsPage({
 
           <div className="flex flex-wrap gap-2">
             <Link
+              href="/admin/students/applications/new"
+              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+            >
+              New application
+            </Link>
+            <Link
               href="/apply"
               className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
             >
               Open /apply
             </Link>
             <Link
-              href="/admin/applications"
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+              href="/admin/students/applications"
+              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
             >
               Clear filters
             </Link>
@@ -76,31 +82,31 @@ export default async function AdminApplicationsPage({
 
         <div className="mt-6 flex flex-wrap gap-2 text-sm">
           <Link
-            href="/admin/applications?status=lead"
+            href="/admin/students/applications?status=lead"
             className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50"
           >
             Leads
           </Link>
           <Link
-            href="/admin/applications?status=submitted"
+            href="/admin/students/applications?status=submitted"
             className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50"
           >
             Submitted
           </Link>
           <Link
-            href="/admin/applications?section=creche"
+            href="/admin/students/applications?section=creche"
             className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50"
           >
             Creche
           </Link>
           <Link
-            href="/admin/applications?section=primary"
+            href="/admin/students/applications?section=primary"
             className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50"
           >
             Primary
           </Link>
           <Link
-            href="/admin/applications?section=secondary"
+            href="/admin/students/applications?section=secondary"
             className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50"
           >
             Secondary
@@ -140,7 +146,7 @@ export default async function AdminApplicationsPage({
                     <td className="px-3 py-3 text-slate-700">{row.email ?? "—"}</td>
                     <td className="px-3 py-3">
                       <Link
-                        href={`/admin/applications/${row.id}`}
+                        href={`/admin/students/applications/${row.id}`}
                         className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-50"
                       >
                         View

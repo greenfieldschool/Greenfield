@@ -58,6 +58,7 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
         items: [
           { href: "/admin", label: "Dashboard" },
           { href: "/admin/students", label: "Students" },
+          { href: "/admin/students/applications", label: "Student applications", shortLabel: "Apps" },
           { href: "/admin/guardians", label: "Guardians" }
         ]
       },
@@ -81,11 +82,6 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
         ]
       },
       {
-        key: "admissions",
-        label: "Admissions",
-        items: [{ href: "/admin/applications", label: "Applications", shortLabel: "Apps" }]
-      },
-      {
         key: "operations",
         label: "Operations",
         items: [
@@ -97,7 +93,7 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
     ];
 
       if (isAdmin) {
-        groups.splice(4, 0, {
+        groups.splice(3, 0, {
           key: "careers",
           label: "Careers",
           items: [
