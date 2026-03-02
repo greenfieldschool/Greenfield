@@ -4,6 +4,15 @@ import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 
+function admissionNumberToEmail(admissionNumberRaw: string) {
+  const admissionNumber = admissionNumberRaw.trim().toLowerCase();
+  const domain = (process.env.NEXT_PUBLIC_STUDENT_LOGIN_EMAIL_DOMAIN ?? "students.greenfield.local")
+    .trim()
+    .toLowerCase();
+  const normalizedUser = admissionNumber.replace(/[^a-z0-9._-]/g, "");
+  return `${normalizedUser}@${domain}`;
+}
+
 type StudentRow = {
   id: string;
   first_name: string;
@@ -71,15 +80,6 @@ export default async function AdminStudentDetailPage({
   }
 
   const studentId = params.id;
-
-  function admissionNumberToEmail(admissionNumberRaw: string) {
-    const admissionNumber = admissionNumberRaw.trim().toLowerCase();
-    const domain = (process.env.NEXT_PUBLIC_STUDENT_LOGIN_EMAIL_DOMAIN ?? "students.greenfield.local")
-      .trim()
-      .toLowerCase();
-    const normalizedUser = admissionNumber.replace(/[^a-z0-9._-]/g, "");
-    return `${normalizedUser}@${domain}`;
-  }
 
   const [{ data: studentData }, { data: classesData }] = await Promise.all([
     supabase
