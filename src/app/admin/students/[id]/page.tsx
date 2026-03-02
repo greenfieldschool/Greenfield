@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseServiceClient } from "@/lib/supabase/service";
 
 type StudentRow = {
   id: string;
@@ -70,10 +72,19 @@ export default async function AdminStudentDetailPage({
 
   const studentId = params.id;
 
+  function admissionNumberToEmail(admissionNumberRaw: string) {
+    const admissionNumber = admissionNumberRaw.trim().toLowerCase();
+    const domain = (process.env.NEXT_PUBLIC_STUDENT_LOGIN_EMAIL_DOMAIN ?? "students.greenfield.local")
+      .trim()
+      .toLowerCase();
+    const normalizedUser = admissionNumber.replace(/[^a-z0-9._-]/g, "");
+    return `${normalizedUser}@${domain}`;
+  }
+
   const [{ data: studentData }, { data: classesData }] = await Promise.all([
     supabase
       .from("students")
-      .select("*, classes(id, level, name)")
+      .select("*")
       .eq("id", studentId)
       .maybeSingle(),
     supabase.from("classes").select("id, level, name, active").eq("active", true).order("level").order("name")
@@ -132,6 +143,119 @@ export default async function AdminStudentDetailPage({
 
   const currentRole = (currentUserProfile?.role ?? null) as string | null;
   const isAdmin = currentRole === "super_admin" || currentRole === "admin";
+
+  const { data: existingPortalLink } = await supabase
+    .from("student_user_links")
+    .select("user_id")
+    .eq("student_id", studentId)
+    .maybeSingle();
+  const existingPortalUserId = (existingPortalLink as { user_id?: string } | null)?.user_id ?? null;
+
+  async function createPortalAccount(formData: FormData) {
+    "use server";
+
+    const admissionNumberRaw = String(formData.get("admission_number") ?? "").trim();
+    const password = String(formData.get("password") ?? "").trim();
+
+    if (!admissionNumberRaw || password.length < 8) {
+      redirect(`/admin/students/${studentId}?portal_error=1`);
+    }
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (!user) {
+      redirect(`/admin/students/${studentId}?portal_error=1`);
+    }
+
+    const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const role = (me?.role ?? null) as string | null;
+    const isAllowed = role === "super_admin" || role === "admin";
+    if (!isAllowed) {
+      redirect(`/admin/students/${studentId}?portal_error=1`);
+    }
+
+    const service = getSupabaseServiceClient();
+    if (!service) {
+      redirect(`/admin/students/${studentId}?portal_error=service`);
+    }
+
+    const email = admissionNumberToEmail(admissionNumberRaw);
+    const studentFullName = `${String(formData.get("student_first_name") ?? "").trim()} ${String(
+      formData.get("student_last_name") ?? ""
+    ).trim()}`.trim();
+
+    const { data: created, error } = await service.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: studentFullName.length ? { full_name: studentFullName } : undefined
+    });
+
+    if (error || !created.user) {
+      redirect(`/admin/students/${studentId}?portal_error=1`);
+    }
+
+    await service
+      .from("profiles")
+      .update({ role: "student", email, full_name: studentFullName.length ? studentFullName : null })
+      .eq("id", created.user.id);
+
+    await service.from("student_user_links").upsert(
+      {
+        user_id: created.user.id,
+        student_id: studentId
+      },
+      { onConflict: "user_id" }
+    );
+
+    revalidatePath(`/admin/students/${studentId}`);
+    redirect(`/admin/students/${studentId}?portal_created=1`);
+  }
+
+  async function resetPortalPassword(formData: FormData) {
+    "use server";
+
+    const password = String(formData.get("password") ?? "").trim();
+    const userId = String(formData.get("user_id") ?? "").trim();
+
+    if (!userId || password.length < 8) {
+      redirect(`/admin/students/${studentId}?portal_error=1`);
+    }
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (!user) {
+      redirect(`/admin/students/${studentId}?portal_error=1`);
+    }
+
+    const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const role = (me?.role ?? null) as string | null;
+    const isAllowed = role === "super_admin" || role === "admin";
+    if (!isAllowed) {
+      redirect(`/admin/students/${studentId}?portal_error=1`);
+    }
+
+    const service = getSupabaseServiceClient();
+    if (!service) {
+      redirect(`/admin/students/${studentId}?portal_error=service`);
+    }
+
+    const { error } = await service.auth.admin.updateUserById(userId, { password });
+    if (error) {
+      redirect(`/admin/students/${studentId}?portal_error=1`);
+    }
+
+    revalidatePath(`/admin/students/${studentId}`);
+    redirect(`/admin/students/${studentId}?portal_reset=1`);
+  }
 
   async function updateStudent(formData: FormData) {
     "use server";
@@ -250,6 +374,68 @@ export default async function AdminStudentDetailPage({
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">
           {student.first_name} {student.last_name}
         </h1>
+        {isAdmin ? (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+            <h2 className="text-base font-semibold text-slate-900">Portal account</h2>
+            <p className="mt-1 text-sm text-slate-600">Students sign in using admission number and password.</p>
+
+            {existingPortalUserId ? (
+              <form action={resetPortalPassword} className="mt-4 grid gap-4 sm:grid-cols-2">
+                <input type="hidden" name="user_id" value={existingPortalUserId} />
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-900">New password</label>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                    name="password"
+                    type="password"
+                    minLength={8}
+                    required
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+                    type="submit"
+                  >
+                    Reset portal password
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form action={createPortalAccount} className="mt-4 grid gap-4 sm:grid-cols-2">
+                <input type="hidden" name="student_first_name" value={student.first_name} />
+                <input type="hidden" name="student_last_name" value={student.last_name} />
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Admission number</label>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                    name="admission_number"
+                    defaultValue={student.admission_number ?? ""}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-900">Password</label>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                    name="password"
+                    type="password"
+                    minLength={8}
+                    required
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+                    type="submit"
+                  >
+                    Create portal account
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        ) : null}
         {isAdmin ? (
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
             <h2 className="text-base font-semibold text-slate-900">Profile</h2>

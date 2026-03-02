@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
 
   if (isPortal) {
     if (
-      pathname === "/portal/login" ||
+      pathname.startsWith("/portal/login") ||
       pathname === "/portal/unauthorized" ||
       pathname.startsWith("/portal/logout")
     ) {

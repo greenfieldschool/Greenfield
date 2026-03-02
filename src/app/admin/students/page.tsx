@@ -8,7 +8,7 @@ type StudentRow = {
   last_name: string;
   admission_number: string | null;
   level: string;
-  classes: Array<{ id: string; level: string; name: string }>;
+  class_id: string | null;
   status: string;
   date_of_birth: string | null;
 };
@@ -24,7 +24,7 @@ export default async function AdminStudentsPage() {
     supabase
       .from("students")
       .select(
-        "id, first_name, last_name, admission_number, level, class_id, status, date_of_birth, classes(id, level, name)"
+        "id, first_name, last_name, admission_number, level, class_id, status, date_of_birth"
       )
       .order("last_name", { ascending: true })
       .order("first_name", { ascending: true }),
@@ -33,6 +33,7 @@ export default async function AdminStudentsPage() {
 
   const students = (data ?? []) as unknown as StudentRow[];
   const classOptions = (classesData ?? []) as Array<{ id: string; level: string; name: string }>;
+  const classById = new Map(classOptions.map((c) => [c.id, c] as const));
 
   async function createStudent(formData: FormData) {
     "use server";
@@ -188,7 +189,7 @@ export default async function AdminStudentsPage() {
                 </div>
                 <div className="col-span-2">{s.admission_number ?? "—"}</div>
                 <div className="col-span-2">{s.level}</div>
-                <div className="col-span-2">{(s.classes ?? [])[0]?.name ?? "—"}</div>
+                <div className="col-span-2">{(s.class_id ? classById.get(s.class_id)?.name : null) ?? "—"}</div>
                 <div className="col-span-1">{s.status}</div>
                 <div className="col-span-0">{s.date_of_birth ?? "—"}</div>
               </Link>
