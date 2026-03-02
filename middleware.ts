@@ -75,6 +75,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  if (isAdmin) {
+    return response;
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
