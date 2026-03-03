@@ -18,11 +18,6 @@ type SessionRow = {
   active: boolean;
 };
 
-function firstOrNull<T>(v: T | T[] | null | undefined) {
-  if (!v) return null;
-  return Array.isArray(v) ? (v[0] ?? null) : v;
-}
-
 function withTimeout<T>(promise: Promise<T>, ms: number) {
   return Promise.race([
     promise,
