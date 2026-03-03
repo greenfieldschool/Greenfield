@@ -9,7 +9,20 @@ type StudentRow = {
   level: string;
   status: string;
   date_of_birth: string | null;
+  admission_number?: string | null;
+  class_id?: string | null;
+  classes?:
+    | { id: string; level: string; name: string }
+    | Array<{ id: string; level: string; name: string }>
+    | null;
+  sex?: string | null;
+  religion?: string | null;
 };
+
+function firstOrNull<T>(v: T | T[] | null | undefined) {
+  if (!v) return null;
+  return Array.isArray(v) ? (v[0] ?? null) : v;
+}
 
 type EnrollmentRow = {
   student_id: string;
@@ -52,7 +65,9 @@ export default async function PortalStudentsPage() {
     if (link?.student_id) {
       const { data } = await supabase
         .from("students")
-        .select("id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth")
+        .select(
+          "id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes(id, level, name), sex, religion"
+        )
         .eq("id", link.student_id);
 
       students = (data ?? []) as StudentRow[];
@@ -79,7 +94,9 @@ export default async function PortalStudentsPage() {
       if (studentIds.length) {
         const { data } = await supabase
           .from("students")
-          .select("id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth")
+          .select(
+            "id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes(id, level, name), sex, religion"
+          )
           .in("id", studentIds)
           .order("last_name", { ascending: true });
 
@@ -137,6 +154,7 @@ export default async function PortalStudentsPage() {
       <div className="mt-6 space-y-4">
         {students.map((s) => {
           const enrollments = enrollmentsByStudentId.get(s.id) ?? [];
+          const cls = firstOrNull(s.classes);
           return (
             <div key={s.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -154,6 +172,12 @@ export default async function PortalStudentsPage() {
                     <div className="mt-1 text-sm text-slate-600">
                       {s.level} • {s.status}
                       {s.date_of_birth ? ` • DOB: ${s.date_of_birth}` : ""}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-600">
+                      {cls ? `Class: ${cls.level} - ${cls.name}` : s.class_id ? "Class: —" : "Class: not assigned"}
+                      {s.admission_number ? ` • Admission: ${s.admission_number}` : ""}
+                      {s.sex ? ` • Sex: ${s.sex}` : ""}
+                      {s.religion ? ` • Religion: ${s.religion}` : ""}
                     </div>
                   </div>
                 </div>

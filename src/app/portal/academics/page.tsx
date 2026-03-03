@@ -14,8 +14,16 @@ type StudentRow = {
   first_name?: string;
   last_name?: string;
   class_id: string | null;
-  classes: Array<{ id: string; level: string; name: string }>;
+  classes:
+    | { id: string; level: string; name: string }
+    | Array<{ id: string; level: string; name: string }>
+    | null;
 };
+
+function firstOrNull<T>(v: T | T[] | null | undefined) {
+  if (!v) return null;
+  return Array.isArray(v) ? (v[0] ?? null) : v;
+}
 
 type PubRow = {
   id: string;
@@ -152,7 +160,7 @@ export default async function PortalAcademicsPage({
 
   const student = (studentData ?? null) as unknown as StudentRow | null;
   const classId = student?.class_id ?? null;
-  const cls = (student?.classes ?? [])[0] ?? null;
+  const cls = firstOrNull(student?.classes);
 
   if (!classId) {
     return (

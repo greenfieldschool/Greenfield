@@ -233,6 +233,30 @@ export default async function AdminApplicationDetailPage({
     const section = (appRow.section as string | null) ?? null;
     const level = section === "creche" || section === "primary" || section === "secondary" ? section : null;
 
+    const seekingClass = typeof payload.seeking_class === "string" ? payload.seeking_class.trim() : "";
+    let classId: string | null = null;
+    if (seekingClass.length) {
+      const { data: classExact } = await supabaseAction
+        .from("classes")
+        .select("id")
+        .ilike("name", seekingClass)
+        .limit(1)
+        .maybeSingle();
+
+      classId = (classExact?.id as string | undefined) ?? null;
+
+      if (!classId) {
+        const { data: classLoose } = await supabaseAction
+          .from("classes")
+          .select("id")
+          .ilike("name", `%${seekingClass}%`)
+          .limit(1)
+          .maybeSingle();
+
+        classId = (classLoose?.id as string | undefined) ?? null;
+      }
+    }
+
     const hobbiesRaw = typeof payload.hobbies === "string" ? payload.hobbies : "";
     const hobbies = hobbiesRaw
       .split(",")
@@ -245,6 +269,7 @@ export default async function AdminApplicationDetailPage({
         first_name: typeof payload.first_name === "string" ? payload.first_name : "",
         middle_name: typeof payload.middle_name === "string" ? payload.middle_name : null,
         last_name: typeof payload.last_name === "string" ? payload.last_name : "",
+        class_id: classId,
         level: level ?? "primary",
         status: "enrolled",
         date_of_birth: typeof payload.dob === "string" && payload.dob.length ? payload.dob : null,

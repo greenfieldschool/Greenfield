@@ -247,6 +247,12 @@ export default async function AdminExamSessionsPage() {
                       {s.requires_secret_code ? " • code" : ""}
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <Link
+                        className="text-xs font-semibold text-brand-green hover:underline"
+                        href={`/admin/exams/sessions/${s.id}`}
+                      >
+                        Edit
+                      </Link>
                       <Link className="text-xs font-semibold text-brand-green hover:underline" href={`/admin/exams/sessions/${s.id}/attempts`}>
                         Attempts
                       </Link>

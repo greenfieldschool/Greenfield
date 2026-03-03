@@ -8,9 +8,20 @@ type SessionRow = {
   ends_at: string | null;
   status: string;
   requires_secret_code: boolean;
-  exam_tests: Array<{ id: string; name: string }>;
-  classes: Array<{ id: string; level: string; name: string }>;
+  exam_tests:
+    | { id: string; name: string }
+    | Array<{ id: string; name: string }>
+    | null;
+  classes:
+    | { id: string; level: string; name: string }
+    | Array<{ id: string; level: string; name: string }>
+    | null;
 };
+
+function firstOrNull<T>(v: T | T[] | null | undefined) {
+  if (!v) return null;
+  return Array.isArray(v) ? (v[0] ?? null) : v;
+}
 
 export default async function PortalExamsPage() {
   const supabase = getSupabaseServerClient();
@@ -41,8 +52,8 @@ export default async function PortalExamsPage() {
         <div>
           {sessions.length ? (
             sessions.map((s) => {
-              const test = (s.exam_tests ?? [])[0] ?? null;
-              const cls = (s.classes ?? [])[0] ?? null;
+              const test = firstOrNull(s.exam_tests);
+              const cls = firstOrNull(s.classes);
               return (
                 <div key={s.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
                   <div className="col-span-6">
