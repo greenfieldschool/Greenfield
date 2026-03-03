@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
-type StudentLinkRow = { student_id: string };
-
-type GuardianLinkRow = { guardian_id: string };
-
 type StudentGuardianRow = { student_id: string };
 
-type ProfileRow = { role: string };
+type IdentityRow = {
+  role: string | null;
+  student_id: string | null;
+  guardian_id: string | null;
+};
 
 type StudentRow = {
   id: string;
@@ -76,8 +76,9 @@ export default async function PortalAcademicsPage({
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profileData } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  const role = ((profileData ?? null) as ProfileRow | null)?.role ?? null;
+  const { data: identityRows } = await supabase.rpc("portal_identity");
+  const identity = (Array.isArray(identityRows) ? (identityRows[0] ?? null) : null) as unknown as IdentityRow | null;
+  const role = identity?.role ?? null;
 
   if (role !== "student" && role !== "parent") return null;
 
@@ -91,23 +92,11 @@ export default async function PortalAcademicsPage({
   let parentStudents: Array<{ id: string; first_name: string; last_name: string }> = [];
 
   if (role === "student") {
-    const { data: studentLink } = await supabase
-      .from("student_user_links")
-      .select("student_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    studentId = (studentLink as StudentLinkRow | null)?.student_id ?? null;
+    studentId = identity?.student_id ?? null;
   }
 
   if (role === "parent") {
-    const { data: guardianLink } = await supabase
-      .from("guardian_user_links")
-      .select("guardian_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const guardianId = (guardianLink as GuardianLinkRow | null)?.guardian_id ?? null;
+    const guardianId = identity?.guardian_id ?? null;
     if (!guardianId) {
       return (
         <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">

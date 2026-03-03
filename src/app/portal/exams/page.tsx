@@ -104,8 +104,8 @@ export default async function PortalExamsPage({
   }
 
   let sessions: SessionRow[] = [];
-  let testsById = new Map<string, TestRow>();
-  let classesById = new Map<string, ClassRow>();
+  const testsById = new Map<string, TestRow>();
+  const classesById = new Map<string, ClassRow>();
 
   try {
     const sessionsQuery = supabase

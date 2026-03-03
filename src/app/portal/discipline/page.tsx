@@ -1,9 +1,6 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
-type ProfileRow = { role: string };
-type StudentLinkRow = { student_id: string };
-type GuardianLinkRow = { guardian_id: string };
 type StudentGuardianRow = { student_id: string };
 
 type StudentRow = { id: string; first_name: string; last_name: string };
