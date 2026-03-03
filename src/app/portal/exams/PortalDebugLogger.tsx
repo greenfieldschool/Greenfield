@@ -76,14 +76,24 @@ export default function PortalDebugLogger({ enabled }: { enabled: boolean }) {
 
         const { data: student, error: studentError } = await supabase
           .from("students")
-          .select("id, admission_number, class_id, classes!students_class_id_fkey(id, level, name)")
+          .select("id, admission_number, class_id")
           .eq("id", studentId)
           .maybeSingle();
 
         if (cancelled) return;
 
+        const classId = (student as { class_id?: string | null } | null)?.class_id ?? null;
+        const { data: cls, error: clsError } = classId
+          ? await supabase.from("classes").select("id, level, name").eq("id", classId).maybeSingle()
+          : { data: null, error: null };
+
         // eslint-disable-next-line no-console
-        console.log("students", { student: student ?? null, error: studentError ?? null });
+        console.log("students", {
+          student: student ?? null,
+          error: studentError ?? null,
+          class: cls ?? null,
+          classError: clsError ?? null
+        });
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error("[portal-debug] Unexpected error", e);

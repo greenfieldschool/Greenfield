@@ -32,11 +32,9 @@ type StudentRow = {
   id: string;
   admission_number: string | null;
   class_id: string | null;
-  classes:
-    | { id: string; level: string; name: string }
-    | Array<{ id: string; level: string; name: string }>
-    | null;
 };
+
+type ClassRow = { id: string; level: string; name: string };
 
 export default async function PortalExamsPage({
   searchParams
@@ -59,6 +57,7 @@ export default async function PortalExamsPage({
 
   let role: string | null = null;
   let student: StudentRow | null = null;
+  let cls: ClassRow | null = null;
 
   if (user) {
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
@@ -75,11 +74,21 @@ export default async function PortalExamsPage({
       if (studentId) {
         const { data: studentData } = await supabase
           .from("students")
-          .select("id, admission_number, class_id, classes!students_class_id_fkey(id, level, name)")
+          .select("id, admission_number, class_id")
           .eq("id", studentId)
           .maybeSingle();
 
         student = (studentData ?? null) as unknown as StudentRow | null;
+
+        const classId = (studentData as { class_id?: string | null } | null)?.class_id ?? null;
+        if (classId) {
+          const { data: classData } = await supabase
+            .from("classes")
+            .select("id, level, name")
+            .eq("id", classId)
+            .maybeSingle();
+          cls = (classData ?? null) as ClassRow | null;
+        }
       }
     }
   }
@@ -108,7 +117,7 @@ export default async function PortalExamsPage({
                 <div>
                   <div className="font-semibold text-slate-900">{student.admission_number ?? "Student"}</div>
                   <div className="mt-1 text-xs text-slate-600">
-                    Class: {firstOrNull(student.classes) ? `${firstOrNull(student.classes)?.level} - ${firstOrNull(student.classes)?.name}` : student.class_id ? "—" : "not assigned"}
+                    Class: {cls ? `${cls.level} - ${cls.name}` : student.class_id ? "—" : "not assigned"}
                   </div>
                   <div className="mt-2 text-xs text-slate-600">
                     Sessions appear only when they are active, within the time window, and match your class.
