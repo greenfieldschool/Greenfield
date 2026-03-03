@@ -40,42 +40,57 @@ export default async function AdminExamSessionsPage({
   const debug = debugValue === "1" || debugValue === "true";
 
   let loadErrorMsg: string | null = null;
-  let tests: unknown = null;
-  let classes: unknown = null;
-  let years: unknown = null;
-  let terms: unknown = null;
-  let sessions: unknown = null;
+
+  let sessionRows: SessionRow[] = [];
+  let testRows: TestRow[] = [];
+  let classRows: ClassRow[] = [];
+  let yearRows: YearRow[] = [];
+  let termRows: TermRow[] = [];
 
   try {
-    const result = await withTimeout(
-      Promise.all([
-        supabase.from("exam_tests").select("id, name").eq("active", true).order("created_at", { ascending: false }),
-        supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name"),
-        supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
-        supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false }),
-        supabase
-          .from("exam_test_sessions")
-          .select("id, test_id, class_id, starts_at, ends_at, status, requires_secret_code, active")
-          .order("created_at", { ascending: false })
-          .limit(50)
-      ]),
-      12000
-    );
+    const sessionsQuery = supabase
+      .from("exam_test_sessions")
+      .select("id, test_id, class_id, starts_at, ends_at, status, requires_secret_code, active")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    const { data: sessionsData, error: sessionsError } = await withTimeout(Promise.resolve(sessionsQuery), 12000);
+    if (sessionsError) {
+      loadErrorMsg = String(sessionsError.message ?? "");
+    }
+    sessionRows = ((sessionsData ?? []) as unknown as SessionRow[]) ?? [];
 
-    tests = (result[0] as { data?: unknown })?.data ?? null;
-    classes = (result[1] as { data?: unknown })?.data ?? null;
-    years = (result[2] as { data?: unknown })?.data ?? null;
-    terms = (result[3] as { data?: unknown })?.data ?? null;
-    sessions = (result[4] as { data?: unknown })?.data ?? null;
+    const testsQuery = supabase.from("exam_tests").select("id, name").eq("active", true).order("created_at", { ascending: false });
+    const { data: testsData, error: testsError } = await withTimeout(Promise.resolve(testsQuery), 12000);
+    if (testsError && !loadErrorMsg) {
+      loadErrorMsg = String(testsError.message ?? "");
+    }
+    testRows = (testsData ?? []) as TestRow[];
+
+    const classesQuery = supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name");
+    const { data: classesData, error: classesError } = await withTimeout(Promise.resolve(classesQuery), 12000);
+    if (classesError && !loadErrorMsg) {
+      loadErrorMsg = String(classesError.message ?? "");
+    }
+    classRows = (classesData ?? []) as ClassRow[];
+
+    const yearsQuery = supabase.from("academic_years").select("id, name").order("name", { ascending: false });
+    const { data: yearsData, error: yearsError } = await withTimeout(Promise.resolve(yearsQuery), 12000);
+    if (yearsError && !loadErrorMsg) {
+      loadErrorMsg = String(yearsError.message ?? "");
+    }
+    yearRows = (yearsData ?? []) as YearRow[];
+
+    const termsQuery = supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false });
+    const { data: termsData, error: termsError } = await withTimeout(Promise.resolve(termsQuery), 12000);
+    if (termsError && !loadErrorMsg) {
+      loadErrorMsg = String(termsError.message ?? "");
+    }
+    termRows = (termsData ?? []) as TermRow[];
   } catch (e) {
-    loadErrorMsg = e instanceof Error ? e.message : String(e);
+    if (!loadErrorMsg) {
+      loadErrorMsg = e instanceof Error ? e.message : String(e);
+    }
   }
-
-  const testRows = (tests ?? []) as TestRow[];
-  const classRows = (classes ?? []) as ClassRow[];
-  const yearRows = (years ?? []) as YearRow[];
-  const termRows = (terms ?? []) as TermRow[];
-  const sessionRows = (sessions ?? []) as unknown as SessionRow[];
 
   const testsById = new Map<string, TestRow>();
   for (const t of testRows) {
