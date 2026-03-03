@@ -19,30 +19,19 @@ export default async function PortalHomePage() {
   let student: StudentRow | null = null;
 
   if (supabase && user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
+    const { data: identityRows } = await supabase.rpc("portal_identity");
+    const identity = Array.isArray(identityRows) ? (identityRows[0] ?? null) : (identityRows as unknown);
+    role = ((identity as { role?: string } | null)?.role as string | null | undefined) ?? null;
 
-    role = (profile?.role as string | null | undefined) ?? null;
-
-    if (role === "student") {
-      const { data: link } = await supabase
-        .from("student_user_links")
-        .select("student_id")
-        .eq("user_id", user.id)
+    const studentId = (identity as { student_id?: string | null } | null)?.student_id ?? null;
+    if (role === "student" && studentId) {
+      const { data } = await supabase
+        .from("students")
+        .select("id, first_name, last_name, level, status")
+        .eq("id", studentId)
         .maybeSingle();
 
-      if (link?.student_id) {
-        const { data } = await supabase
-          .from("students")
-          .select("id, first_name, last_name, level, status")
-          .eq("id", link.student_id)
-          .maybeSingle();
-
-        student = (data ?? null) as StudentRow | null;
-      }
+      student = (data ?? null) as StudentRow | null;
     }
   }
 

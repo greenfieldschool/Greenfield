@@ -23,8 +23,14 @@ export default async function PortalAttendancePage({
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profileData } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  const role = ((profileData ?? null) as ProfileRow | null)?.role ?? null;
+  const { data: identityRows } = await supabase.rpc("portal_identity");
+  const identity = (Array.isArray(identityRows) ? (identityRows[0] ?? null) : null) as unknown as {
+    role?: string | null;
+    student_id?: string | null;
+    guardian_id?: string | null;
+  } | null;
+
+  const role = identity?.role ?? null;
   if (role !== "student" && role !== "parent") return null;
 
   const sp = (await searchParams) ?? {};
@@ -37,23 +43,11 @@ export default async function PortalAttendancePage({
   let parentStudents: StudentRow[] = [];
 
   if (role === "student") {
-    const { data: studentLink } = await supabase
-      .from("student_user_links")
-      .select("student_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    studentId = (studentLink as StudentLinkRow | null)?.student_id ?? null;
+    studentId = identity?.student_id ?? null;
   }
 
   if (role === "parent") {
-    const { data: guardianLink } = await supabase
-      .from("guardian_user_links")
-      .select("guardian_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const guardianId = (guardianLink as GuardianLinkRow | null)?.guardian_id ?? null;
+    const guardianId = identity?.guardian_id ?? null;
     if (!guardianId) return null;
 
     const { data: links } = await supabase

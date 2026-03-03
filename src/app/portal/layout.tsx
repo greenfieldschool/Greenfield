@@ -26,11 +26,11 @@ export default async function PortalLayout({ children }: { children: ReactNode }
 
   let role: string | null | undefined = null;
   try {
-    const query = supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-    const { data: profile, error: profileError } = await withTimeout(Promise.resolve(query), 6000);
+    const query = supabase.rpc("portal_identity");
+    const { data: identityRows, error: identityError } = await withTimeout(Promise.resolve(query), 6000);
 
-    if (profileError) {
-      const msg = String(profileError.message ?? "");
+    if (identityError) {
+      const msg = String(identityError.message ?? "");
       const isTimeout = msg.toLowerCase().includes("timeout") || msg.toLowerCase().includes("databasetimeout");
       return (
         <div className="mx-auto max-w-3xl px-6 py-16">
@@ -47,7 +47,8 @@ export default async function PortalLayout({ children }: { children: ReactNode }
       );
     }
 
-    role = (profile?.role as string | null | undefined) ?? null;
+    const identity = Array.isArray(identityRows) ? (identityRows[0] ?? null) : (identityRows as unknown);
+    role = ((identity as { role?: string } | null)?.role as string | null | undefined) ?? null;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const isTimeout = msg.toLowerCase().includes("timeout");

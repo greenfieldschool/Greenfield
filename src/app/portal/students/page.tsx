@@ -1,5 +1,11 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
+type IdentityRow = {
+  role: string | null;
+  student_id: string | null;
+  guardian_id: string | null;
+};
+
 type StudentRow = {
   id: string;
   first_name: string;
@@ -46,46 +52,34 @@ export default async function PortalStudentsPage() {
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
+    .rpc("portal_identity")
     .maybeSingle();
 
-  const role = profile?.role as string | null | undefined;
+  const role = ((profile ?? null) as unknown as IdentityRow | null)?.role ?? null;
 
   let students: StudentRow[] = [];
 
   if (role === "student") {
-    const { data: link } = await supabase
-      .from("student_user_links")
-      .select("student_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (link?.student_id) {
+    const studentId = ((profile ?? null) as unknown as IdentityRow | null)?.student_id ?? null;
+    if (studentId) {
       const { data } = await supabase
         .from("students")
         .select(
           "id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes!students_class_id_fkey(id, level, name), sex, religion"
         )
-        .eq("id", link.student_id);
+        .eq("id", studentId);
 
       students = (data ?? []) as StudentRow[];
     }
   }
 
   if (role === "parent") {
-    const { data: guardianLink } = await supabase
-      .from("guardian_user_links")
-      .select("guardian_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (guardianLink?.guardian_id) {
+    const guardianId = ((profile ?? null) as unknown as IdentityRow | null)?.guardian_id ?? null;
+    if (guardianId) {
       const { data: studentLinks } = await supabase
         .from("student_guardians")
         .select("student_id")
-        .eq("guardian_id", guardianLink.guardian_id);
+        .eq("guardian_id", guardianId);
 
       const studentIds = (studentLinks ?? [])
         .map((r) => r.student_id as string)
