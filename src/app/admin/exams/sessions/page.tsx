@@ -57,9 +57,9 @@ export default async function AdminExamSessionsPage({
           .from("exam_test_sessions")
           .select("id, test_id, class_id, starts_at, ends_at, status, requires_secret_code, active")
           .order("created_at", { ascending: false })
-          .limit(200)
+          .limit(50)
       ]),
-      6000
+      12000
     );
 
     tests = (result[0] as { data?: unknown })?.data ?? null;
