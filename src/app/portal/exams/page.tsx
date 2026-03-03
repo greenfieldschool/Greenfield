@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import PortalDebugLogger from "./PortalDebugLogger";
 
 type SessionRow = {
   id: string;
@@ -37,9 +38,20 @@ type StudentRow = {
     | null;
 };
 
-export default async function PortalExamsPage() {
+export default async function PortalExamsPage({
+  searchParams
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
+
+  const sp = (await searchParams) ?? {};
+  const debugRaw = sp.debug;
+  const debug =
+    debugRaw === "1" ||
+    debugRaw === "true" ||
+    (Array.isArray(debugRaw) && (debugRaw[0] === "1" || debugRaw[0] === "true"));
 
   const {
     data: { user }
@@ -82,6 +94,7 @@ export default async function PortalExamsPage() {
 
   return (
     <div className="space-y-6">
+      <PortalDebugLogger enabled={debug} />
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Portal</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">Exams</h1>
