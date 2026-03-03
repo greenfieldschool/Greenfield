@@ -16,14 +16,6 @@ type SessionRow = {
   status: string;
   requires_secret_code: boolean;
   active: boolean;
-  exam_tests:
-    | { id: string; name: string }
-    | Array<{ id: string; name: string }>
-    | null;
-  classes:
-    | { id: string; level: string; name: string }
-    | Array<{ id: string; level: string; name: string }>
-    | null;
 };
 
 function firstOrNull<T>(v: T | T[] | null | undefined) {
@@ -31,30 +23,63 @@ function firstOrNull<T>(v: T | T[] | null | undefined) {
   return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number) {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("DatabaseTimeout")), ms))
+  ]);
+}
+
 export default async function AdminExamSessionsPage() {
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
 
-  const [{ data: tests }, { data: classes }, { data: years }, { data: terms }, { data: sessions }] =
-    await Promise.all([
-      supabase.from("exam_tests").select("id, name").eq("active", true).order("created_at", { ascending: false }),
-      supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name"),
-      supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
-      supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false }),
-      supabase
-        .from("exam_test_sessions")
-        .select(
-          "id, test_id, class_id, starts_at, ends_at, status, requires_secret_code, active, exam_tests(id, name), classes(id, level, name)"
-        )
-        .order("created_at", { ascending: false })
-        .limit(200)
-    ]);
+  let loadErrorMsg: string | null = null;
+  let tests: unknown = null;
+  let classes: unknown = null;
+  let years: unknown = null;
+  let terms: unknown = null;
+  let sessions: unknown = null;
+
+  try {
+    const result = await withTimeout(
+      Promise.all([
+        supabase.from("exam_tests").select("id, name").eq("active", true).order("created_at", { ascending: false }),
+        supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name"),
+        supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
+        supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false }),
+        supabase
+          .from("exam_test_sessions")
+          .select("id, test_id, class_id, starts_at, ends_at, status, requires_secret_code, active")
+          .order("created_at", { ascending: false })
+          .limit(200)
+      ]),
+      6000
+    );
+
+    tests = (result[0] as { data?: unknown })?.data ?? null;
+    classes = (result[1] as { data?: unknown })?.data ?? null;
+    years = (result[2] as { data?: unknown })?.data ?? null;
+    terms = (result[3] as { data?: unknown })?.data ?? null;
+    sessions = (result[4] as { data?: unknown })?.data ?? null;
+  } catch (e) {
+    loadErrorMsg = e instanceof Error ? e.message : String(e);
+  }
 
   const testRows = (tests ?? []) as TestRow[];
   const classRows = (classes ?? []) as ClassRow[];
   const yearRows = (years ?? []) as YearRow[];
   const termRows = (terms ?? []) as TermRow[];
   const sessionRows = (sessions ?? []) as unknown as SessionRow[];
+
+  const testsById = new Map<string, TestRow>();
+  for (const t of testRows) {
+    if (t?.id) testsById.set(t.id, t);
+  }
+  const classesById = new Map<string, ClassRow>();
+  for (const c of classRows) {
+    if (c?.id) classesById.set(c.id, c);
+  }
 
   async function createSession(formData: FormData) {
     "use server";
@@ -217,6 +242,13 @@ export default async function AdminExamSessionsPage() {
         </form>
       </div>
 
+      {loadErrorMsg ? (
+        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-8 text-amber-900 shadow-sm">
+          <div className="text-sm font-semibold">Sessions temporarily unavailable</div>
+          <div className="mt-2 text-sm">{loadErrorMsg}</div>
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
           <div className="col-span-5">Test</div>
@@ -227,8 +259,8 @@ export default async function AdminExamSessionsPage() {
         <div>
           {sessionRows.length ? (
             sessionRows.map((s) => {
-              const test = firstOrNull(s.exam_tests);
-              const cls = firstOrNull(s.classes);
+              const test = testsById.get(s.test_id) ?? null;
+              const cls = s.class_id ? (classesById.get(s.class_id) ?? null) : null;
               const windowLabel =
                 s.starts_at || s.ends_at
                   ? `${s.starts_at ? String(s.starts_at).slice(0, 16) : "—"} → ${s.ends_at ? String(s.ends_at).slice(0, 16) : "—"}`

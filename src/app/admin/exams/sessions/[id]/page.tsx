@@ -29,6 +29,20 @@ function asString(v: unknown) {
   return typeof v === "string" ? v : "";
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number) {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("DatabaseTimeout")), ms))
+  ]);
+}
+
+function toIsoOrNull(input: string) {
+  if (!input.trim().length) return null;
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 function toDateTimeLocal(ts: string | null) {
   if (!ts) return "";
   const d = new Date(ts);
@@ -45,20 +59,55 @@ export default async function AdminExamSessionEditPage({
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
 
-  const [{ data: sessionData }, { data: tests }, { data: classes }, { data: years }, { data: terms }] =
-    await Promise.all([
-      supabase
-        .from("exam_test_sessions")
-        .select(
-          "id, test_id, class_id, academic_year_id, academic_term_id, starts_at, ends_at, status, requires_secret_code, secret_code, active"
-        )
-        .eq("id", id)
-        .maybeSingle(),
-      supabase.from("exam_tests").select("id, name").eq("active", true).order("created_at", { ascending: false }),
-      supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name"),
-      supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
-      supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false })
-    ]);
+  let loadErrorMsg: string | null = null;
+  let sessionData: unknown = null;
+  let tests: unknown = null;
+  let classes: unknown = null;
+  let years: unknown = null;
+  let terms: unknown = null;
+
+  try {
+    const result = await withTimeout(
+      Promise.all([
+        supabase
+          .from("exam_test_sessions")
+          .select(
+            "id, test_id, class_id, academic_year_id, academic_term_id, starts_at, ends_at, status, requires_secret_code, secret_code, active"
+          )
+          .eq("id", id)
+          .maybeSingle(),
+        supabase.from("exam_tests").select("id, name").eq("active", true).order("created_at", { ascending: false }),
+        supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name"),
+        supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
+        supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false })
+      ]),
+      6000
+    );
+
+    sessionData = (result[0] as { data?: unknown })?.data ?? null;
+    tests = (result[1] as { data?: unknown })?.data ?? null;
+    classes = (result[2] as { data?: unknown })?.data ?? null;
+    years = (result[3] as { data?: unknown })?.data ?? null;
+    terms = (result[4] as { data?: unknown })?.data ?? null;
+  } catch (e) {
+    loadErrorMsg = e instanceof Error ? e.message : String(e);
+  }
+
+  if (loadErrorMsg) {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-8 text-amber-900 shadow-sm">
+          <div className="text-sm font-semibold">Session editor temporarily unavailable</div>
+          <div className="mt-2 text-sm">{loadErrorMsg}</div>
+          <div className="mt-4">
+            <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/exams/sessions">
+              Back to sessions
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const session = (sessionData ?? null) as unknown as SessionRow | null;
   if (!session) {
@@ -108,8 +157,8 @@ export default async function AdminExamSessionEditPage({
         class_id: classIdRaw.length ? classIdRaw : null,
         academic_year_id: yearIdRaw.length ? yearIdRaw : null,
         academic_term_id: termIdRaw.length ? termIdRaw : null,
-        starts_at: startsAt.length ? new Date(startsAt).toISOString() : null,
-        ends_at: endsAt.length ? new Date(endsAt).toISOString() : null,
+        starts_at: toIsoOrNull(startsAt),
+        ends_at: toIsoOrNull(endsAt),
         status,
         active: isActive,
         requires_secret_code: requiresSecretCode,
