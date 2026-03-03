@@ -154,7 +154,7 @@ export default async function PortalAcademicsPage({
 
   const { data: studentData } = await supabase
     .from("students")
-    .select("id, first_name, last_name, class_id, classes(id, level, name)")
+    .select("id, first_name, last_name, class_id, classes!students_class_id_fkey(id, level, name)")
     .eq("id", studentId)
     .maybeSingle();
 

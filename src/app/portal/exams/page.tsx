@@ -75,7 +75,7 @@ export default async function PortalExamsPage({
       if (studentId) {
         const { data: studentData } = await supabase
           .from("students")
-          .select("id, admission_number, class_id, classes(id, level, name)")
+          .select("id, admission_number, class_id, classes!students_class_id_fkey(id, level, name)")
           .eq("id", studentId)
           .maybeSingle();
 

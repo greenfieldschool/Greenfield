@@ -66,7 +66,7 @@ export default async function PortalStudentsPage() {
       const { data } = await supabase
         .from("students")
         .select(
-          "id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes(id, level, name), sex, religion"
+          "id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes!students_class_id_fkey(id, level, name), sex, religion"
         )
         .eq("id", link.student_id);
 
@@ -95,7 +95,7 @@ export default async function PortalStudentsPage() {
         const { data } = await supabase
           .from("students")
           .select(
-            "id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes(id, level, name), sex, religion"
+            "id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes!students_class_id_fkey(id, level, name), sex, religion"
           )
           .in("id", studentIds)
           .order("last_name", { ascending: true });
