@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import AdminSessionsDebugLogger from "./AdminSessionsDebugLogger";
 
 type TestRow = { id: string; name: string };
 type ClassRow = { id: string; level: string; name: string };
@@ -25,9 +26,18 @@ function withTimeout<T>(promise: Promise<T>, ms: number) {
   ]);
 }
 
-export default async function AdminExamSessionsPage() {
+export default async function AdminExamSessionsPage({
+  searchParams
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
+
+  const sp = (await searchParams) ?? {};
+  const debugRaw = sp.debug;
+  const debugValue = Array.isArray(debugRaw) ? (debugRaw[0] ?? "") : (debugRaw ?? "");
+  const debug = debugValue === "1" || debugValue === "true";
 
   let loadErrorMsg: string | null = null;
   let tests: unknown = null;
@@ -111,6 +121,7 @@ export default async function AdminExamSessionsPage() {
 
   return (
     <div className="space-y-6">
+      <AdminSessionsDebugLogger enabled={debug} loadErrorMsg={loadErrorMsg} sessions={sessionRows} />
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Exams</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">Sessions</h1>
