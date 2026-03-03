@@ -23,9 +23,54 @@ function firstOrNull<T>(v: T | T[] | null | undefined) {
   return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
+type ProfileRow = { role: string };
+
+type StudentLinkRow = { student_id: string };
+
+type StudentRow = {
+  id: string;
+  admission_number: string | null;
+  class_id: string | null;
+  classes:
+    | { id: string; level: string; name: string }
+    | Array<{ id: string; level: string; name: string }>
+    | null;
+};
+
 export default async function PortalExamsPage() {
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  let role: string | null = null;
+  let student: StudentRow | null = null;
+
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    role = ((profile ?? null) as ProfileRow | null)?.role ?? null;
+
+    if (role === "student") {
+      const { data: link } = await supabase
+        .from("student_user_links")
+        .select("student_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const studentId = ((link ?? null) as StudentLinkRow | null)?.student_id ?? null;
+      if (studentId) {
+        const { data: studentData } = await supabase
+          .from("students")
+          .select("id, admission_number, class_id, classes(id, level, name)")
+          .eq("id", studentId)
+          .maybeSingle();
+
+        student = (studentData ?? null) as unknown as StudentRow | null;
+      }
+    }
+  }
 
   const { data } = await supabase
     .from("exam_test_sessions")
@@ -41,6 +86,30 @@ export default async function PortalExamsPage() {
         <div className="text-sm font-semibold text-slate-500">Portal</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">Exams</h1>
         <p className="mt-2 text-sm text-slate-600">Available exam sessions.</p>
+
+        {role === "student" ? (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-700">
+            <div className="text-xs font-semibold text-slate-500">Student access</div>
+            <div className="mt-2">
+              {student ? (
+                <div>
+                  <div className="font-semibold text-slate-900">{student.admission_number ?? "Student"}</div>
+                  <div className="mt-1 text-xs text-slate-600">
+                    Class: {firstOrNull(student.classes) ? `${firstOrNull(student.classes)?.level} - ${firstOrNull(student.classes)?.name}` : student.class_id ? "—" : "not assigned"}
+                  </div>
+                  <div className="mt-2 text-xs text-slate-600">
+                    Sessions appear only when they are active, within the time window, and match your class.
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-slate-700">
+                  No student record is linked to this account yet. Ask an admin to link your portal account to admission
+                  number.
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
