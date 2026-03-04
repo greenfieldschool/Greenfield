@@ -59,28 +59,47 @@ export default async function AdminExamSessionsPage({
     }
     sessionRows = ((sessionsData ?? []) as unknown as SessionRow[]) ?? [];
 
-    const testsQuery = supabase.from("exam_tests").select("id, name").eq("active", true).order("created_at", { ascending: false });
+    const testsQuery = supabase
+      .from("exam_tests")
+      .select("id, name")
+      .eq("active", true)
+      .order("created_at", { ascending: false })
+      .limit(500);
     const { data: testsData, error: testsError } = await withTimeout(Promise.resolve(testsQuery), 12000);
     if (testsError && !loadErrorMsg) {
       loadErrorMsg = String(testsError.message ?? "");
     }
     testRows = (testsData ?? []) as TestRow[];
 
-    const classesQuery = supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name");
+    const classesQuery = supabase
+      .from("classes")
+      .select("id, level, name")
+      .eq("active", true)
+      .order("level")
+      .order("name")
+      .limit(500);
     const { data: classesData, error: classesError } = await withTimeout(Promise.resolve(classesQuery), 12000);
     if (classesError && !loadErrorMsg) {
       loadErrorMsg = String(classesError.message ?? "");
     }
     classRows = (classesData ?? []) as ClassRow[];
 
-    const yearsQuery = supabase.from("academic_years").select("id, name").order("name", { ascending: false });
+    const yearsQuery = supabase
+      .from("academic_years")
+      .select("id, name")
+      .order("name", { ascending: false })
+      .limit(50);
     const { data: yearsData, error: yearsError } = await withTimeout(Promise.resolve(yearsQuery), 12000);
     if (yearsError && !loadErrorMsg) {
       loadErrorMsg = String(yearsError.message ?? "");
     }
     yearRows = (yearsData ?? []) as YearRow[];
 
-    const termsQuery = supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false });
+    const termsQuery = supabase
+      .from("academic_terms")
+      .select("id, name")
+      .order("starts_on", { ascending: false })
+      .limit(50);
     const { data: termsData, error: termsError } = await withTimeout(Promise.resolve(termsQuery), 12000);
     if (termsError && !loadErrorMsg) {
       loadErrorMsg = String(termsError.message ?? "");
@@ -136,7 +155,7 @@ export default async function AdminExamSessionsPage({
 
   return (
     <div className="space-y-6">
-      <AdminSessionsDebugLogger enabled={debug} loadErrorMsg={loadErrorMsg} sessions={sessionRows} />
+      {debug ? <AdminSessionsDebugLogger enabled={debug} loadErrorMsg={loadErrorMsg} sessions={sessionRows} /> : null}
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Exams</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">Sessions</h1>
