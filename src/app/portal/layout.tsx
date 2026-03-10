@@ -2,12 +2,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
- async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
-   return (await Promise.race([
-     Promise.resolve(promise),
-     new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))
-   ])) as T;
- }
+async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
+  return (await Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))
+  ])) as T;
+}
 
 export default async function PortalLayout({ children }: { children: ReactNode }) {
   const supabase = getSupabaseServerClient();
@@ -25,6 +25,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
   }
 
   let role: string | null | undefined = null;
+  let studentId: string | null = null;
   try {
     const query = supabase.rpc("portal_identity");
     const { data: identityRows, error: identityError } = await withTimeout(Promise.resolve(query), 6000);
@@ -49,6 +50,17 @@ export default async function PortalLayout({ children }: { children: ReactNode }
 
     const identity = Array.isArray(identityRows) ? (identityRows[0] ?? null) : (identityRows as unknown);
     role = ((identity as { role?: string } | null)?.role as string | null | undefined) ?? null;
+    studentId = ((identity as { student_id?: string } | null)?.student_id as string | null | undefined) ?? null;
+
+    if (role === "student" && !studentId) {
+      const { data: linkedStudentId } = await withTimeout(
+        supabase.rpc("auto_link_student_by_email"),
+        4000
+      );
+      if (linkedStudentId) {
+        studentId = linkedStudentId as string;
+      }
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const isTimeout = msg.toLowerCase().includes("timeout");

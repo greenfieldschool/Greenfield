@@ -118,7 +118,12 @@ export default async function PortalHomePage() {
             ) : null}
           </div>
         ) : role === "student" ? (
-          <div className="mt-4 text-sm text-amber-700">No student linked yet.</div>
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="text-sm font-semibold text-amber-900">No student record linked</div>
+            <div className="mt-1 text-xs text-amber-800">
+              Your account is not linked to a student record yet. Please contact the school administrator to link your account.
+            </div>
+          </div>
         ) : null}
 
         {role === "parent" && guardian ? (
