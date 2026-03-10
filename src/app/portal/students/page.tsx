@@ -1,5 +1,12 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
+async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
+  return (await Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))
+  ])) as T;
+}
+
 type IdentityRow = {
   role: string | null;
   student_id: string | null;
@@ -9,6 +16,7 @@ type IdentityRow = {
 type StudentRow = {
   id: string;
   first_name: string;
+  middle_name: string | null;
   last_name: string;
   profile_photo_url: string | null;
   hobbies: string[];
@@ -23,6 +31,8 @@ type StudentRow = {
     | null;
   sex?: string | null;
   religion?: string | null;
+  favorite_sports?: string | null;
+  future_aspiration?: string | null;
 };
 
 function firstOrNull<T>(v: T | T[] | null | undefined) {
@@ -51,9 +61,15 @@ export default async function PortalStudentsPage() {
     return null;
   }
 
-  const { data: profile } = await supabase
-    .rpc("portal_identity")
-    .maybeSingle();
+  let errorMsg: string | null = null;
+
+  const { data: profile, error: profileError } = await withTimeout(
+    supabase.rpc("portal_identity").maybeSingle(),
+    6000
+  );
+  if (profileError) {
+    errorMsg = String(profileError.message ?? "");
+  }
 
   const role = ((profile ?? null) as unknown as IdentityRow | null)?.role ?? null;
 
@@ -62,12 +78,15 @@ export default async function PortalStudentsPage() {
   if (role === "student") {
     const studentId = ((profile ?? null) as unknown as IdentityRow | null)?.student_id ?? null;
     if (studentId) {
-      const { data } = await supabase
-        .from("students")
-        .select(
-          "id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes!students_class_id_fkey(id, level, name), sex, religion"
-        )
-        .eq("id", studentId);
+      const { data } = await withTimeout(
+        supabase
+          .from("students")
+          .select(
+            "id, first_name, middle_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes!students_class_id_fkey(id, level, name), sex, religion, favorite_sports, future_aspiration"
+          )
+          .eq("id", studentId),
+        6000
+      );
 
       students = (data ?? []) as StudentRow[];
     }
@@ -86,13 +105,16 @@ export default async function PortalStudentsPage() {
         .filter((id): id is string => typeof id === "string" && id.length > 0);
 
       if (studentIds.length) {
-        const { data } = await supabase
-          .from("students")
-          .select(
-            "id, first_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes!students_class_id_fkey(id, level, name), sex, religion"
-          )
-          .in("id", studentIds)
-          .order("last_name", { ascending: true });
+        const { data } = await withTimeout(
+          supabase
+            .from("students")
+            .select(
+              "id, first_name, middle_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes!students_class_id_fkey(id, level, name), sex, religion, favorite_sports, future_aspiration"
+            )
+            .in("id", studentIds)
+            .order("last_name", { ascending: true }),
+          6000
+        );
 
         students = (data ?? []) as StudentRow[];
       }
@@ -145,6 +167,13 @@ export default async function PortalStudentsPage() {
         {role === "student" ? "Your student profile." : "Students linked to your parent account."}
       </p>
 
+      {errorMsg ? (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+          <div className="text-sm font-semibold">Profile temporarily unavailable</div>
+          <div className="mt-2 text-xs opacity-80">{errorMsg}</div>
+        </div>
+      ) : null}
+
       <div className="mt-6 space-y-4">
         {students.map((s) => {
           const enrollments = enrollmentsByStudentId.get(s.id) ?? [];
@@ -161,7 +190,7 @@ export default async function PortalStudentsPage() {
                   </div>
                   <div className="min-w-0">
                     <div className="truncate text-base font-semibold text-slate-900">
-                      {s.first_name} {s.last_name}
+                      {s.first_name} {s.middle_name ? `${s.middle_name} ` : ""}{s.last_name}
                     </div>
                     <div className="mt-1 text-sm text-slate-600">
                       {s.level} • {s.status}
@@ -210,6 +239,23 @@ export default async function PortalStudentsPage() {
                   </div>
                 </div>
               </div>
+
+              {(s.favorite_sports || s.future_aspiration) ? (
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  {s.favorite_sports ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">Favorite sports</div>
+                      <div className="mt-1 text-sm text-slate-700">{s.favorite_sports}</div>
+                    </div>
+                  ) : null}
+                  {s.future_aspiration ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">Future aspiration</div>
+                      <div className="mt-1 text-sm text-slate-700">{s.future_aspiration}</div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           );
         })}

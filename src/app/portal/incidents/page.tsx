@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
+async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
+  return (await Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))
+  ])) as T;
+}
+
 type StudentGuardianRow = { student_id: string };
 
 type StudentRow = { id: string; first_name: string; last_name: string };
@@ -27,7 +34,15 @@ export default async function PortalIncidentsPage({
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: identityRows } = await supabase.rpc("portal_identity");
+  let errorMsg: string | null = null;
+
+  const { data: identityRows, error: identityError } = await withTimeout(
+    supabase.rpc("portal_identity"),
+    6000
+  );
+  if (identityError) {
+    errorMsg = String(identityError.message ?? "");
+  }
   const identity = (Array.isArray(identityRows) ? (identityRows[0] ?? null) : null) as unknown as {
     role?: string | null;
     student_id?: string | null;
@@ -79,14 +94,26 @@ export default async function PortalIncidentsPage({
 
   if (!studentId) return null;
 
-  const { data } = await supabase
-    .from("welfare_incidents")
-    .select("id, incident_type, description, severity, resolved, occurred_at")
-    .eq("student_id", studentId)
-    .order("occurred_at", { ascending: false })
-    .limit(50);
-
-  const rows = (data ?? []) as IncidentRow[];
+  let rows: IncidentRow[] = [];
+  try {
+    const { data, error: incidentsError } = await withTimeout(
+      supabase
+        .from("welfare_incidents")
+        .select("id, incident_type, description, severity, resolved, occurred_at")
+        .eq("student_id", studentId)
+        .order("occurred_at", { ascending: false })
+        .limit(50),
+      6000
+    );
+    if (incidentsError && !errorMsg) {
+      errorMsg = String(incidentsError.message ?? "");
+    }
+    rows = (data ?? []) as IncidentRow[];
+  } catch (e) {
+    if (!errorMsg) {
+      errorMsg = e instanceof Error ? e.message : String(e);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -115,6 +142,13 @@ export default async function PortalIncidentsPage({
           </div>
         ) : null}
         <p className="mt-2 text-sm text-slate-600">Recent incident and health records.</p>
+
+        {errorMsg ? (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+            <div className="text-sm font-semibold">Incidents temporarily unavailable</div>
+            <div className="mt-2 text-xs opacity-80">{errorMsg}</div>
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-4">

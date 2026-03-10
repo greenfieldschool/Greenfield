@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
+async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
+  return (await Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))
+  ])) as T;
+}
+
 type AttemptRow = {
   id: string;
   session_id: string;
@@ -26,28 +33,46 @@ export default async function PortalExamResultsPage() {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: studentLink } = await supabase
-    .from("student_user_links")
-    .select("student_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  let errorMsg: string | null = null;
+  let studentId: string | null = null;
+  let released: AttemptRow[] = [];
 
-  const studentId = (studentLink as StudentLinkRow | null)?.student_id ?? null;
-  if (!studentId) return null;
+  try {
+    const { data: studentLink, error: linkError } = await withTimeout(
+      supabase.from("student_user_links").select("student_id").eq("user_id", user.id).maybeSingle(),
+      6000
+    );
+    if (linkError) {
+      errorMsg = String(linkError.message ?? "");
+    }
 
-  const { data } = await supabase
-    .from("exam_attempts")
-    .select(
-      "id, session_id, submitted_at, obtained_marks, max_marks, percent, exam_test_sessions(id, results_released_at, exam_tests(id, name))"
-    )
-    .eq("student_id", studentId)
-    .not("submitted_at", "is", null)
-    .order("submitted_at", { ascending: false })
-    .limit(50);
+    studentId = (studentLink as StudentLinkRow | null)?.student_id ?? null;
 
-  const rows = (data ?? []) as unknown as AttemptRow[];
+    if (studentId) {
+      const { data, error: attemptsError } = await withTimeout(
+        supabase
+          .from("exam_attempts")
+          .select(
+            "id, session_id, submitted_at, obtained_marks, max_marks, percent, exam_test_sessions(id, results_released_at, exam_tests(id, name))"
+          )
+          .eq("student_id", studentId)
+          .not("submitted_at", "is", null)
+          .order("submitted_at", { ascending: false })
+          .limit(50),
+        6000
+      );
+      if (attemptsError && !errorMsg) {
+        errorMsg = String(attemptsError.message ?? "");
+      }
 
-  const released = rows.filter((r) => (r.exam_test_sessions?.[0]?.results_released_at ?? null) !== null);
+      const rows = (data ?? []) as unknown as AttemptRow[];
+      released = rows.filter((r) => (r.exam_test_sessions?.[0]?.results_released_at ?? null) !== null);
+    }
+  } catch (e) {
+    if (!errorMsg) {
+      errorMsg = e instanceof Error ? e.message : String(e);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -60,6 +85,19 @@ export default async function PortalExamResultsPage() {
             Back to exams
           </Link>
         </div>
+
+        {errorMsg ? (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+            <div className="text-sm font-semibold">Results temporarily unavailable</div>
+            <div className="mt-2 text-xs opacity-80">{errorMsg}</div>
+          </div>
+        ) : null}
+
+        {!studentId && !errorMsg ? (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-700">
+            No student record is linked to this account yet.
+          </div>
+        ) : null}
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
