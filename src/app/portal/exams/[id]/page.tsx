@@ -78,6 +78,8 @@ export default async function PortalExamRunnerPage({ params }: { params: Promise
 
   const attempt = (attemptData ?? null) as AttemptRow | null;
 
+  const attemptId = typeof attempt?.id === "string" && attempt.id.length ? attempt.id : null;
+
   async function startAttempt(formData: FormData) {
     "use server";
 
@@ -109,17 +111,14 @@ export default async function PortalExamRunnerPage({ params }: { params: Promise
   const questions = (questionsData ?? []) as QuestionRow[];
 
   const canRenderExam =
-    !!attempt && (!session.requires_secret_code || attempt.secret_code_verified === true);
+    !!attemptId && (!session.requires_secret_code || attempt?.secret_code_verified === true);
 
   const isSubmitted = !!attempt?.submitted_at || attempt?.status === "submitted" || attempt?.status === "graded";
 
   const isLocked = !!attempt?.locked_at || attempt?.status === "locked";
 
   const { data: answersData } = canRenderExam
-    ? await supabase
-        .from("exam_attempt_answers")
-        .select("question_id, answer")
-        .eq("attempt_id", attempt!.id)
+    ? await supabase.from("exam_attempt_answers").select("question_id, answer").eq("attempt_id", attemptId)
     : { data: [] as unknown[] };
 
   const initialAnswers = (answersData ?? []) as AnswerRow[];
@@ -127,12 +126,12 @@ export default async function PortalExamRunnerPage({ params }: { params: Promise
   async function submitAttempt() {
     "use server";
 
-    if (!attempt) return;
+    if (!attemptId) return;
 
     const supabase = getSupabaseServerClient();
     if (!supabase) return;
 
-    await supabase.rpc("submit_exam_attempt", { attempt_uuid: attempt.id });
+    await supabase.rpc("submit_exam_attempt", { attempt_uuid: attemptId });
     redirect(`/portal/exams/${id}`);
   }
 
@@ -212,11 +211,13 @@ export default async function PortalExamRunnerPage({ params }: { params: Promise
             )}
           </div>
 
-          <ExamAnswersClient attemptId={attempt!.id} questions={questions} initialAnswers={initialAnswers} readOnly />
+          {attemptId ? (
+            <ExamAnswersClient attemptId={attemptId} questions={questions} initialAnswers={initialAnswers} readOnly />
+          ) : null}
         </div>
       ) : (
         <>
-          <LockOnBlurClient attemptId={attempt!.id} />
+          {attemptId ? <LockOnBlurClient attemptId={attemptId} /> : null}
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -235,7 +236,7 @@ export default async function PortalExamRunnerPage({ params }: { params: Promise
             </div>
           </div>
 
-          <ExamAnswersClient attemptId={attempt!.id} questions={questions} initialAnswers={initialAnswers} />
+          {attemptId ? <ExamAnswersClient attemptId={attemptId} questions={questions} initialAnswers={initialAnswers} /> : null}
         </>
       )}
     </div>

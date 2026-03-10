@@ -299,6 +299,11 @@ create table if not exists public.student_user_links (
   created_at timestamptz not null default now()
 );
 
+-- Performance indexes for RLS policy lookups
+create index if not exists student_user_links_student_id_idx on public.student_user_links(student_id);
+create index if not exists guardian_user_links_guardian_id_idx on public.guardian_user_links(guardian_id);
+create index if not exists profiles_id_role_idx on public.profiles(id, role);
+
 create table if not exists public.activities (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -2509,7 +2514,14 @@ create trigger career_applications_set_updated_at
  );
  
  create index if not exists exam_malpractice_attempt_idx on public.exam_malpractice_events(attempt_id);
- 
+
+-- Performance indexes for exam RLS policy lookups
+create index if not exists exam_conductor_user_links_user_id_idx on public.exam_conductor_user_links(user_id);
+create index if not exists exam_session_conductors_conductor_id_idx on public.exam_session_conductors(conductor_id);
+create index if not exists exam_test_sessions_active_status_idx on public.exam_test_sessions(active, status) where active = true;
+create index if not exists exam_test_sessions_class_active_idx on public.exam_test_sessions(class_id, active) where active = true;
+create index if not exists exam_attempts_session_student_idx on public.exam_attempts(session_id, student_id);
+
  alter table public.exam_tests enable row level security;
  alter table public.exam_questions enable row level security;
  alter table public.exam_question_solutions enable row level security;
@@ -2532,46 +2544,58 @@ create trigger career_applications_set_updated_at
  $$;
  
  create or replace function public.can_student_view_session_results(session_uuid uuid) returns boolean
- language sql stable
+ language sql stable parallel safe
  as $$
-   select exists(
-     select 1
-     from public.exam_test_sessions s
-     join public.students st on st.id = public.current_student_id()
-     where s.id = session_uuid
-       and s.active = true
-       and (s.class_id is null or s.class_id = st.class_id)
-       and s.results_released_at is not null
-   );
- $$;
+  select exists(
+    select 1
+    from public.exam_test_sessions s
+    inner join public.student_user_links sul on sul.user_id = auth.uid()
+    inner join public.students st on st.id = sul.student_id
+    where s.id = session_uuid
+      and s.active = true
+      and (s.class_id is null or s.class_id = st.class_id)
+      and s.results_released_at is not null
+  );
+$$;
  
  create or replace function public.can_student_view_session(session_uuid uuid) returns boolean
- language sql stable
+ language sql stable parallel safe
  as $$
-   select public.can_student_access_session(session_uuid)
-      or public.can_student_view_session_results(session_uuid);
- $$;
+  select exists(
+    select 1
+    from public.exam_test_sessions s
+    inner join public.student_user_links sul on sul.user_id = auth.uid()
+    inner join public.students st on st.id = sul.student_id
+    where s.id = session_uuid
+      and s.active = true
+      and (s.class_id is null or s.class_id = st.class_id)
+      and (
+        (s.status = 'active' and (s.starts_at is null or s.starts_at <= now()) and (s.ends_at is null or s.ends_at >= now()))
+        or s.results_released_at is not null
+      )
+  );
+$$;
  
  create or replace function public.can_conduct_session(session_uuid uuid) returns boolean
- language sql stable
+ language sql stable parallel safe
  as $$
-   select exists(
-     select 1
-     from public.exam_conductor_user_links l
-     join public.exam_session_conductors sc on sc.conductor_id = l.conductor_id
-     where l.user_id = auth.uid()
-       and sc.session_id = session_uuid
-   );
- $$;
+  select exists(
+    select 1
+    from public.exam_conductor_user_links l
+    inner join public.exam_session_conductors sc on sc.conductor_id = l.conductor_id
+    where l.user_id = auth.uid()
+      and sc.session_id = session_uuid
+  );
+$$;
  
  create or replace function public.current_student_id() returns uuid
- language sql stable
+ language sql stable parallel safe
  as $$
-   select sul.student_id
-   from public.student_user_links sul
-   where sul.user_id = auth.uid()
-   limit 1;
- $$;
+  select sul.student_id
+  from public.student_user_links sul
+  where sul.user_id = auth.uid()
+  limit 1;
+$$;
 
  create or replace function public.portal_identity()
  returns table (
@@ -2593,20 +2617,21 @@ create trigger career_applications_set_updated_at
  grant execute on function public.portal_identity() to authenticated;
  
  create or replace function public.can_student_access_session(session_uuid uuid) returns boolean
- language sql stable
+ language sql stable parallel safe
  as $$
-   select exists(
-     select 1
-     from public.exam_test_sessions s
-     join public.students st on st.id = public.current_student_id()
-     where s.id = session_uuid
-       and s.active = true
-       and s.status = 'active'
-       and (s.class_id is null or s.class_id = st.class_id)
-       and (s.starts_at is null or s.starts_at <= now())
-       and (s.ends_at is null or s.ends_at >= now())
-   );
- $$;
+  select exists(
+    select 1
+    from public.exam_test_sessions s
+    inner join public.student_user_links sul on sul.user_id = auth.uid()
+    inner join public.students st on st.id = sul.student_id
+    where s.id = session_uuid
+      and s.active = true
+      and s.status = 'active'
+      and (s.class_id is null or s.class_id = st.class_id)
+      and (s.starts_at is null or s.starts_at <= now())
+      and (s.ends_at is null or s.ends_at >= now())
+  );
+$$;
  
  create or replace function public.start_exam_attempt(session_uuid uuid, secret_code_input text default null)
  returns uuid
