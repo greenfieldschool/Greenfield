@@ -957,7 +957,7 @@ export default async function AdminUsersPage({
             <h2 className="text-base font-semibold text-slate-900">Users</h2>
             {query.length ? (
               <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-                Search: "{query}"
+                Search: &quot;{query}&quot;
               </span>
             ) : null}
             {roleFilter.length ? (
