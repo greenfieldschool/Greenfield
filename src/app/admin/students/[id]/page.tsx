@@ -261,7 +261,18 @@ export default async function AdminStudentDetailPage({
   async function updateStudent(formData: FormData) {
     "use server";
 
-    if (!isAdmin) return;
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const role = (me?.role ?? null) as string | null;
+    const isAllowed = role === "super_admin" || role === "admin";
+    if (!isAllowed) return;
 
     const firstName = String(formData.get("first_name") ?? "").trim();
     const middleName = String(formData.get("middle_name") ?? "").trim();
@@ -276,9 +287,6 @@ export default async function AdminStudentDetailPage({
 
     const classId = classIdRaw.length ? classIdRaw : null;
     const dateOfBirth = dateOfBirthRaw.length ? dateOfBirthRaw : null;
-
-    const supabase = getSupabaseServerClient();
-    if (!supabase) return;
 
     await supabase
       .from("students")
@@ -296,6 +304,7 @@ export default async function AdminStudentDetailPage({
 
     revalidatePath(`/admin/students/${studentId}`);
     revalidatePath("/admin/students");
+    redirect(`/admin/students/${studentId}?saved=1`);
   }
 
   async function saveStudentPhoto(formData: FormData) {

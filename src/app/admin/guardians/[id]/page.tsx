@@ -285,7 +285,18 @@ export default async function AdminGuardianDetailPage({
   async function updateGuardianBasics(formData: FormData) {
     "use server";
 
-    if (!isAdmin) return;
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const role = (me?.role ?? null) as string | null;
+    const isAllowed = role === "super_admin" || role === "admin";
+    if (!isAllowed) return;
 
     const fullName = String(formData.get("full_name") ?? "").trim();
     const emailRaw = String(formData.get("email") ?? "").trim();
@@ -296,9 +307,6 @@ export default async function AdminGuardianDetailPage({
     const email = emailRaw.length ? emailRaw : null;
     const phone = phoneRaw.length ? phoneRaw : null;
 
-    const supabase = getSupabaseServerClient();
-    if (!supabase) return;
-
     await supabase
       .from("guardians")
       .update({ full_name: fullName, email, phone })
@@ -306,7 +314,7 @@ export default async function AdminGuardianDetailPage({
 
     revalidatePath(`/admin/guardians/${guardianId}`);
     revalidatePath("/admin/guardians");
-    redirect(`/admin/guardians/${guardianId}`);
+    redirect(`/admin/guardians/${guardianId}?saved=1`);
   }
 
   async function unlinkStudent(formData: FormData) {
