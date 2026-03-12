@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type YearRow = { id: string; name: string };
 
@@ -187,12 +188,12 @@ export default async function AdminAcademicsPublicationsPage() {
           </div>
 
           <div className="flex items-end sm:col-span-2">
-            <button
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-              type="submit"
+            <SubmitButton
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              pendingText="Publishing…"
             >
               Publish
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </div>
@@ -220,9 +221,13 @@ export default async function AdminAcademicsPublicationsPage() {
                   <div className="col-span-1">
                     <form action={unpublish}>
                       <input type="hidden" name="id" value={p.id} />
-                      <button className="text-xs font-semibold text-brand-green hover:underline" type="submit">
+                      <SubmitButton
+                        className="text-xs font-semibold text-brand-green hover:underline disabled:opacity-60"
+                        pendingText="Unpublishing…"
+                        showSpinner={false}
+                      >
                         Unpublish
-                      </button>
+                      </SubmitButton>
                     </form>
                   </div>
                 </div>

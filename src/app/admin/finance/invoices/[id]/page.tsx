@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type InvoiceBalanceRow = {
   invoice_id: string;
@@ -368,13 +369,13 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
             </div>
 
             <div className="flex items-end">
-              <button
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-50"
-                type="submit"
+              <SubmitButton
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+                pendingText="Generating…"
                 disabled={!eligibleSchedules.length || itemRows.length > 0}
               >
                 Generate items
-              </button>
+              </SubmitButton>
             </div>
           </form>
 
@@ -406,12 +407,12 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
                 />
               </div>
               <div className="sm:col-span-3">
-                <button
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-                  type="submit"
+                <SubmitButton
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  pendingText="Adding…"
                 >
                   Add item
-                </button>
+                </SubmitButton>
               </div>
             </form>
 
@@ -457,12 +458,12 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
                 />
               </div>
               <div className="flex items-end">
-                <button
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-                  type="submit"
+                <SubmitButton
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  pendingText="Creating…"
                 >
                   Create reference
-                </button>
+                </SubmitButton>
               </div>
             </form>
 
@@ -520,12 +521,12 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
                 />
               </div>
               <div className="sm:col-span-2">
-                <button
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-                  type="submit"
+                <SubmitButton
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  pendingText="Adding…"
                 >
                   Add adjustment
-                </button>
+                </SubmitButton>
               </div>
             </form>
 

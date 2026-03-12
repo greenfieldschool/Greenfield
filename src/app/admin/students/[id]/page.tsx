@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
+import SubmitButton from "@/components/submit-button";
 import StudentPhotoUploader from "./StudentPhotoUploader";
 
 function admissionNumberToEmail(admissionNumberRaw: string) {
@@ -431,12 +432,12 @@ export default async function AdminStudentDetailPage({
                   />
                 </div>
                 <div className="flex items-end">
-                  <button
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-                    type="submit"
+                  <SubmitButton
+                    className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                    pendingText="Saving…"
                   >
                     Reset portal password
-                  </button>
+                  </SubmitButton>
                 </div>
               </form>
             ) : (
@@ -463,12 +464,12 @@ export default async function AdminStudentDetailPage({
                   />
                 </div>
                 <div className="flex items-end">
-                  <button
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-                    type="submit"
+                  <SubmitButton
+                    className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                    pendingText="Creating…"
                   >
                     Create portal account
-                  </button>
+                  </SubmitButton>
                 </div>
               </form>
             )}
@@ -501,12 +502,12 @@ export default async function AdminStudentDetailPage({
                 />
               </div>
               <div className="flex items-end">
-                <button
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-                  type="submit"
+                <SubmitButton
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  pendingText="Saving…"
                 >
                   Save profile
-                </button>
+                </SubmitButton>
               </div>
             </form>
           </div>
@@ -716,12 +717,12 @@ export default async function AdminStudentDetailPage({
               </select>
             </div>
             <div className="flex items-end">
-              <button
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-                type="submit"
+              <SubmitButton
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Saving…"
               >
                 Save changes
-              </button>
+              </SubmitButton>
             </div>
           </form>
           <div className="mt-3 text-xs text-slate-600">
@@ -774,12 +775,13 @@ export default async function AdminStudentDetailPage({
                 </div>
                 <form action={removeGuardian}>
                   <input type="hidden" name="guardian_id" value={g.id} />
-                  <button
-                    type="submit"
-                    className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                  <SubmitButton
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    pendingText="Removing…"
+                    showSpinner={false}
                   >
                     Remove
-                  </button>
+                  </SubmitButton>
                 </form>
               </div>
             ))
@@ -831,13 +833,13 @@ export default async function AdminStudentDetailPage({
             </label>
           </div>
           <div className="flex items-end">
-            <button
+            <SubmitButton
               className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              type="submit"
+              pendingText="Linking…"
               disabled={!availableGuardians.length}
             >
               Link guardian
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </div>

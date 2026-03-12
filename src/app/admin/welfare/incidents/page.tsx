@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type StudentRow = { id: string; first_name: string; last_name: string; class_id: string | null };
 type YearRow = { id: string; name: string };
@@ -186,12 +187,12 @@ export default async function AdminWelfareIncidentsPage() {
           </div>
 
           <div className="flex items-end">
-            <button
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-              type="submit"
+            <SubmitButton
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              pendingText="Creating…"
             >
               Create incident
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </div>
@@ -221,17 +222,25 @@ export default async function AdminWelfareIncidentsPage() {
                     <form action={toggleResolved}>
                       <input type="hidden" name="id" value={i.id} />
                       <input type="hidden" name="resolved" value={String(i.resolved)} />
-                      <button className="text-xs font-semibold text-brand-green hover:underline" type="submit">
+                      <SubmitButton
+                        className="text-xs font-semibold text-brand-green hover:underline disabled:opacity-60"
+                        pendingText="Saving…"
+                        showSpinner={false}
+                      >
                         {i.resolved ? "Resolved" : "Open"}
-                      </button>
+                      </SubmitButton>
                     </form>
                   </div>
                   <div className="col-span-1">
                     <form action={deleteIncident}>
                       <input type="hidden" name="id" value={i.id} />
-                      <button className="text-xs font-semibold text-red-600 hover:underline" type="submit">
+                      <SubmitButton
+                        className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-60"
+                        pendingText="Deleting…"
+                        showSpinner={false}
+                      >
                         Delete
-                      </button>
+                      </SubmitButton>
                     </form>
                   </div>
                 </div>

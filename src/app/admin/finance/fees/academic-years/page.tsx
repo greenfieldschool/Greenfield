@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type AcademicYearRow = {
   id: string;
@@ -199,12 +200,12 @@ export default async function AdminAcademicYearsPage() {
               </label>
             </div>
             <div className="flex items-end sm:col-span-2">
-              <button
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-                type="submit"
+              <SubmitButton
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Creating…"
               >
                 Create academic year
-              </button>
+              </SubmitButton>
             </div>
           </form>
         </div>
@@ -262,12 +263,12 @@ export default async function AdminAcademicYearsPage() {
               </label>
             </div>
             <div className="flex items-end sm:col-span-2">
-              <button
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-                type="submit"
+              <SubmitButton
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Creating…"
               >
                 Create academic term
-              </button>
+              </SubmitButton>
             </div>
           </form>
         </div>
@@ -291,9 +292,13 @@ export default async function AdminAcademicYearsPage() {
                   <form action={toggleYearActive}>
                     <input type="hidden" name="id" value={y.id} />
                     <input type="hidden" name="active" value={String(y.is_active)} />
-                    <button className="text-xs font-semibold text-brand-green hover:underline" type="submit">
+                    <SubmitButton
+                      className="text-xs font-semibold text-brand-green hover:underline disabled:opacity-60"
+                      pendingText="Saving…"
+                      showSpinner={false}
+                    >
                       {y.is_active ? "Active" : "Set active"}
-                    </button>
+                    </SubmitButton>
                   </form>
                 </div>
               </div>
@@ -325,9 +330,13 @@ export default async function AdminAcademicYearsPage() {
                     <input type="hidden" name="id" value={t.id} />
                     <input type="hidden" name="academic_year_id" value={t.academic_year_id} />
                     <input type="hidden" name="active" value={String(t.is_active)} />
-                    <button className="text-xs font-semibold text-brand-green hover:underline" type="submit">
+                    <SubmitButton
+                      className="text-xs font-semibold text-brand-green hover:underline disabled:opacity-60"
+                      pendingText="Saving…"
+                      showSpinner={false}
+                    >
                       {t.is_active ? "Active" : "Set active"}
-                    </button>
+                    </SubmitButton>
                   </form>
                 </div>
               </div>

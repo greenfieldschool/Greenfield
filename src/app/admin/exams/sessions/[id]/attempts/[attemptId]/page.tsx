@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type AttemptRow = {
   id: string;
@@ -135,12 +136,12 @@ export default async function AdminExamAttemptMarkingPage({
             Back to attempts
           </Link>
           <form action={recalcTotals}>
-            <button
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
-              type="submit"
+            <SubmitButton
+              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              pendingText="Recalculating…"
             >
               Recalculate totals
-            </button>
+            </SubmitButton>
           </form>
         </div>
       </div>
@@ -205,12 +206,13 @@ export default async function AdminExamAttemptMarkingPage({
                     />
                   </div>
                   <div className="sm:col-span-3">
-                    <button
-                      className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-                      type="submit"
+                    <SubmitButton
+                      className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      pendingText="Saving…"
+                      showSpinner={false}
                     >
                       Save marking
-                    </button>
+                    </SubmitButton>
                   </div>
                 </form>
               </div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type ConductorRow = {
   id: string;
@@ -142,13 +143,13 @@ export default async function AdminExamSessionConductorsPage({
             )}
           </div>
 
-          <button
+          <SubmitButton
             className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-            type="submit"
+            pendingText="Saving…"
             disabled={!conductors.length}
           >
             Save assignments
-          </button>
+          </SubmitButton>
         </form>
       </div>
     </div>

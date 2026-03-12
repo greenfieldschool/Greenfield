@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type AttemptRow = {
   attempt_id: string;
@@ -143,12 +145,13 @@ export default async function AdminExamSessionAttemptsPage({
 
           {release?.results_released_at ? (
             <form action={unreleaseResults}>
-              <button
-                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-                type="submit"
+              <SubmitButton
+                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Unreleasing…"
+                showSpinner={false}
               >
                 Unrelease
-              </button>
+              </SubmitButton>
             </form>
           ) : (
             <form action={releaseResults} className="grid w-full gap-3 sm:max-w-md">
@@ -157,12 +160,12 @@ export default async function AdminExamSessionAttemptsPage({
                 name="note"
                 placeholder="(optional release note)"
               />
-              <button
-                className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
-                type="submit"
+              <SubmitButton
+                className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Releasing…"
               >
                 Release results
-              </button>
+              </SubmitButton>
             </form>
           )}
         </div>
@@ -215,12 +218,12 @@ export default async function AdminExamSessionAttemptsPage({
                       {a.locked_at ? ` • locked(${a.lock_count ?? 0})` : ""}
                     </div>
                     <div className="col-span-2">
-                      <button
-                        className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95"
-                        type="submit"
+                      <SubmitButton
+                        className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                        pendingText="Saving…"
                       >
                         Save
-                      </button>
+                      </SubmitButton>
                     </div>
                   </form>
                 </div>

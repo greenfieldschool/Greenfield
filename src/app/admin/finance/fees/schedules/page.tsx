@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type YearRow = { id: string; name: string };
 type TermRow = { id: string; name: string; academic_year_id: string };
@@ -159,12 +160,12 @@ export default async function AdminFeeSchedulesPage() {
           </div>
 
           <div className="flex items-end sm:col-span-2">
-            <button
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-              type="submit"
+            <SubmitButton
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              pendingText="Creating…"
             >
               Create schedule
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </div>

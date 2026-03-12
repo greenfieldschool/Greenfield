@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
+import SubmitButton from "@/components/submit-button";
 
 function field(label: string, value: unknown) {
   const text = typeof value === "string" && value.trim() ? value.trim() : value ? String(value) : "—";
@@ -144,22 +145,23 @@ export default async function AdminCareerApplicationDetailPage({ params }: { par
                 <option value="rejected">rejected</option>
               </select>
             </div>
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+            <SubmitButton
+              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              pendingText="Saving…"
             >
               Save
-            </button>
+            </SubmitButton>
           </form>
 
           {row.cv_path ? (
             <form action={downloadCv}>
-              <button
-                type="submit"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              <SubmitButton
+                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Preparing…"
+                showSpinner={false}
               >
                 Download CV
-              </button>
+              </SubmitButton>
             </form>
           ) : null}
         </div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type AdmissionsSection = "creche" | "primary" | "secondary";
 
@@ -423,13 +424,13 @@ export default async function AdminNewApplicationPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+          <div className="flex justify-end">
+            <SubmitButton
+              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              pendingText="Creating…"
             >
               Create application
-            </button>
+            </SubmitButton>
             <Link
               href="/admin/students/applications"
               className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"

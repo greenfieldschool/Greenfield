@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import { CopyButton } from "@/components/copy-button";
+import SubmitButton from "@/components/submit-button";
 
 type ProfileRow = {
   id: string;
@@ -684,12 +685,13 @@ export default async function AdminUsersPage({
               </select>
             </div>
             <div className="flex gap-2">
-              <button
-                className="inline-flex flex-1 items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-                type="submit"
+              <SubmitButton
+                className="inline-flex flex-1 items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Searching…"
+                showSpinner={false}
               >
                 Search
-              </button>
+              </SubmitButton>
               {(query.length > 0 || roleFilter.length > 0) ? (
                 <a
                   href="/admin/users"
@@ -794,12 +796,12 @@ export default async function AdminUsersPage({
                   </select>
                 </div>
               </div>
-              <button
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white hover:brightness-95"
-                type="submit"
+              <SubmitButton
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Sending…"
               >
                 Send Invite
-              </button>
+              </SubmitButton>
             </form>
           </div>
 
@@ -850,12 +852,13 @@ export default async function AdminUsersPage({
                   </select>
                 </div>
               </div>
-              <button
-                className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-                type="submit"
+              <SubmitButton
+                className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Generating…"
+                showSpinner={false}
               >
                 Generate Link
-              </button>
+              </SubmitButton>
             </form>
           </div>
         </div>
@@ -910,12 +913,12 @@ export default async function AdminUsersPage({
               </select>
             </div>
             <div className="flex items-end">
-              <button
-                className="inline-flex w-full items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
-                type="submit"
+              <SubmitButton
+                className="inline-flex w-full items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Assigning…"
               >
                 Assign
-              </button>
+              </SubmitButton>
             </div>
           </form>
 
@@ -937,12 +940,13 @@ export default async function AdminUsersPage({
                       <form action={removeTeacherClass}>
                         <input type="hidden" name="teacher_id" value={a.teacher_id} />
                         <input type="hidden" name="class_id" value={a.class_id} />
-                        <button
-                          className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                          type="submit"
+                        <SubmitButton
+                          className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          pendingText="Removing…"
+                          showSpinner={false}
                         >
                           Remove
-                        </button>
+                        </SubmitButton>
                       </form>
                     </div>
                   </div>
@@ -1075,12 +1079,12 @@ export default async function AdminUsersPage({
                               placeholder="(optional)"
                             />
                           </div>
-                          <button
-                            className="rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
-                            type="submit"
+                          <SubmitButton
+                            className="rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                            pendingText="Saving…"
                           >
                             Save
-                          </button>
+                          </SubmitButton>
                         </form>
                       ) : null}
 
@@ -1103,12 +1107,12 @@ export default async function AdminUsersPage({
                             <option value="student">Student</option>
                           </select>
                         </div>
-                        <button
-                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                          type="submit"
+                        <SubmitButton
+                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                          pendingText="Updating…"
                         >
                           Update
-                        </button>
+                        </SubmitButton>
                       </form>
 
                       {/* Link Controls */}
@@ -1120,9 +1124,13 @@ export default async function AdminUsersPage({
                             {linkedGuardian ? (
                               <form action={unlinkGuardian}>
                                 <input type="hidden" name="user_id" value={p.id} />
-                                <button className="text-xs font-medium text-red-600 hover:text-red-700" type="submit">
+                                <SubmitButton
+                                  className="text-xs font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                  pendingText="Unlinking…"
+                                  showSpinner={false}
+                                >
                                   Unlink
-                                </button>
+                                </SubmitButton>
                               </form>
                             ) : null}
                           </div>
@@ -1140,12 +1148,13 @@ export default async function AdminUsersPage({
                                 </option>
                               ))}
                             </select>
-                            <button
-                              className="shrink-0 rounded-lg bg-brand-green px-3 py-1.5 text-xs font-semibold text-white hover:brightness-95"
-                              type="submit"
+                            <SubmitButton
+                              className="shrink-0 rounded-lg bg-brand-green px-3 py-1.5 text-xs font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                              pendingText="Linking…"
+                              showSpinner={false}
                             >
                               Link
-                            </button>
+                            </SubmitButton>
                           </form>
                         </div>
 
@@ -1156,9 +1165,13 @@ export default async function AdminUsersPage({
                             {linkedStudent ? (
                               <form action={unlinkStudent}>
                                 <input type="hidden" name="user_id" value={p.id} />
-                                <button className="text-xs font-medium text-red-600 hover:text-red-700" type="submit">
+                                <SubmitButton
+                                  className="text-xs font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                  pendingText="Unlinking…"
+                                  showSpinner={false}
+                                >
                                   Unlink
-                                </button>
+                                </SubmitButton>
                               </form>
                             ) : null}
                           </div>
@@ -1172,16 +1185,17 @@ export default async function AdminUsersPage({
                               <option value="">Select...</option>
                               {students.map((s) => (
                                 <option key={s.id} value={s.id}>
-                                  {s.first_name} {s.last_name} ({s.level})
+                                  {s.last_name} {s.first_name} ({s.level})
                                 </option>
                               ))}
                             </select>
-                            <button
-                              className="shrink-0 rounded-lg bg-brand-green px-3 py-1.5 text-xs font-semibold text-white hover:brightness-95"
-                              type="submit"
+                            <SubmitButton
+                              className="shrink-0 rounded-lg bg-brand-green px-3 py-1.5 text-xs font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                              pendingText="Linking…"
+                              showSpinner={false}
                             >
                               Link
-                            </button>
+                            </SubmitButton>
                           </form>
                         </div>
                       </div>

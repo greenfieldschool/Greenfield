@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type GuardianRow = {
   id: string;
@@ -80,12 +81,12 @@ export default async function AdminGuardiansPage() {
             />
           </div>
           <div className="sm:col-span-2">
-            <button
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-              type="submit"
+            <SubmitButton
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              pendingText="Creating…"
             >
               Create guardian
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </div>

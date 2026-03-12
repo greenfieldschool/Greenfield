@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import SubmitButton from "@/components/submit-button";
 
  function asString(v: unknown) {
   return typeof v === "string" ? v.trim() : "";
@@ -327,12 +328,12 @@ export default async function AdminApplicationDetailPage({
               </Link>
             ) : (
               <form action={approveApplication}>
-                <button
-                  type="submit"
-                  className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+                <SubmitButton
+                  className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  pendingText="Approving…"
                 >
                   Approve
-                </button>
+                </SubmitButton>
               </form>
             )}
             {row.phone ? (
@@ -434,12 +435,12 @@ export default async function AdminApplicationDetailPage({
             </div>
 
             <div className="sm:col-span-2">
-              <button
-                type="submit"
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+              <SubmitButton
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Saving…"
               >
                 Save application
-              </button>
+              </SubmitButton>
             </div>
           </form>
         </div>
@@ -832,12 +833,12 @@ export default async function AdminApplicationDetailPage({
             </div>
 
             <div>
-              <button
-                type="submit"
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+              <SubmitButton
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Saving…"
               >
                 Save application details
-              </button>
+              </SubmitButton>
             </div>
           </form>
         </div>
@@ -859,12 +860,12 @@ export default async function AdminApplicationDetailPage({
               <option value="closed">closed</option>
             </select>
           </div>
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+          <SubmitButton
+            className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+            pendingText="Saving…"
           >
             Save
-          </button>
+          </SubmitButton>
         </form>
       </div>
 

@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type StudentRow = { id: string; first_name: string; last_name: string };
 type YearRow = { id: string; name: string };
@@ -172,12 +173,12 @@ export default async function AdminWelfareUniformPage() {
           </div>
 
           <div className="flex items-end sm:col-span-2">
-            <button
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-              type="submit"
+            <SubmitButton
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              pendingText="Saving…"
             >
               Save check
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </div>
@@ -207,9 +208,13 @@ export default async function AdminWelfareUniformPage() {
                   <div className="col-span-1">
                     <form action={deleteCheck}>
                       <input type="hidden" name="id" value={u.id} />
-                      <button className="text-xs font-semibold text-red-600 hover:underline" type="submit">
+                      <SubmitButton
+                        className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-60"
+                        pendingText="Deleting…"
+                        showSpinner={false}
+                      >
                         Delete
-                      </button>
+                      </SubmitButton>
                     </form>
                   </div>
                 </div>

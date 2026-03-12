@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type SubjectRow = {
   id: string;
@@ -90,12 +91,12 @@ export default async function AdminSubjectsPage() {
           </div>
 
           <div className="flex items-end sm:col-span-2">
-            <button
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-              type="submit"
+            <SubmitButton
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              pendingText="Creating…"
             >
               Create subject
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </div>
@@ -116,9 +117,13 @@ export default async function AdminSubjectsPage() {
                   <form action={toggleActive}>
                     <input type="hidden" name="id" value={s.id} />
                     <input type="hidden" name="active" value={String(s.active)} />
-                    <button className="text-xs font-semibold text-brand-green hover:underline" type="submit">
+                    <SubmitButton
+                      className="text-xs font-semibold text-brand-green hover:underline disabled:opacity-60"
+                      pendingText="Saving…"
+                      showSpinner={false}
+                    >
                       {s.active ? "Active" : "Inactive"}
-                    </button>
+                    </SubmitButton>
                   </form>
                 </div>
               </div>

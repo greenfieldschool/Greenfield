@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type ClassRow = { id: string; level: string; name: string };
 type StudentRow = { id: string; first_name: string; last_name: string; class_id: string | null };
@@ -285,12 +286,12 @@ export default async function AdminWelfareAttendancePage({
                       </select>
                     </div>
                     <div className="col-span-4">
-                      <button
-                        className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95"
-                        type="submit"
+                      <SubmitButton
+                        className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                        pendingText="Saving…"
                       >
                         Save
-                      </button>
+                      </SubmitButton>
                     </div>
                   </form>
                 </div>

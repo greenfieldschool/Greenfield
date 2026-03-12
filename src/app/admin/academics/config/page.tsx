@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
 
 type WeightRow = {
   id: string;
@@ -174,12 +175,12 @@ export default async function AdminAcademicsConfigPage() {
                             </label>
                           </div>
                           <div className="col-span-2">
-                            <button
-                              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95"
-                              type="submit"
+                            <SubmitButton
+                              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                              pendingText="Saving…"
                             >
                               Save
-                            </button>
+                            </SubmitButton>
                           </div>
                         </form>
                       </div>
@@ -219,12 +220,12 @@ export default async function AdminAcademicsConfigPage() {
                     </label>
                   </div>
                   <div className="col-span-2">
-                    <button
-                      className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-50"
-                      type="submit"
+                    <SubmitButton
+                      className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                      pendingText="Adding…"
                     >
                       Add
-                    </button>
+                    </SubmitButton>
                   </div>
                 </form>
               </div>
@@ -250,6 +251,7 @@ export default async function AdminAcademicsConfigPage() {
                   <div className="col-span-2">Active</div>
                   <div className="col-span-2">Save</div>
                 </div>
+
                 {scaleRows.filter((s) => s.level === lvl).length ? (
                   scaleRows
                     .filter((s) => s.level === lvl)
@@ -293,12 +295,12 @@ export default async function AdminAcademicsConfigPage() {
                             </label>
                           </div>
                           <div className="col-span-2">
-                            <button
-                              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95"
-                              type="submit"
+                            <SubmitButton
+                              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                              pendingText="Saving…"
                             >
                               Save
-                            </button>
+                            </SubmitButton>
                           </div>
                         </form>
                       </div>
@@ -348,12 +350,13 @@ export default async function AdminAcademicsConfigPage() {
                     </label>
                   </div>
                   <div className="col-span-2">
-                    <button
-                      className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-50"
-                      type="submit"
+                    <SubmitButton
+                      className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      pendingText="Adding…"
+                      showSpinner={false}
                     >
                       Add
-                    </button>
+                    </SubmitButton>
                   </div>
                 </form>
               </div>
