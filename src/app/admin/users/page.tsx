@@ -261,6 +261,8 @@ export default async function AdminUsersPage({
   async function updateRole(formData: FormData) {
     "use server";
 
+    if (!canInviteStaff) return;
+
     const userId = String(formData.get("user_id") ?? "").trim();
     const role = String(formData.get("role") ?? "").trim();
 
@@ -272,6 +274,26 @@ export default async function AdminUsersPage({
     }
 
     await supabase.from("profiles").update({ role }).eq("id", userId);
+
+    revalidatePath("/admin/users");
+  }
+
+  async function updateUserFullName(formData: FormData) {
+    "use server";
+
+    if (!canInviteStaff) return;
+
+    const userId = String(formData.get("user_id") ?? "").trim();
+    const fullNameRaw = String(formData.get("full_name") ?? "").trim();
+
+    if (!userId) return;
+
+    const fullName = fullNameRaw.length ? fullNameRaw : null;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase.from("profiles").update({ full_name: fullName }).eq("id", userId);
 
     revalidatePath("/admin/users");
   }
@@ -1040,6 +1062,28 @@ export default async function AdminUsersPage({
 
                     {/* Actions */}
                     <div className="grid w-full gap-4 xl:w-[480px]">
+                      {/* Name Editor */}
+                      {canInviteStaff ? (
+                        <form action={updateUserFullName} className="flex items-end gap-2">
+                          <input type="hidden" name="user_id" value={p.id} />
+                          <div className="flex-1">
+                            <label className="text-xs font-semibold text-slate-600">Full name</label>
+                            <input
+                              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                              name="full_name"
+                              defaultValue={p.full_name ?? ""}
+                              placeholder="(optional)"
+                            />
+                          </div>
+                          <button
+                            className="rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+                            type="submit"
+                          >
+                            Save
+                          </button>
+                        </form>
+                      ) : null}
+
                       {/* Role Selector */}
                       <form action={updateRole} className="flex items-end gap-2">
                         <input type="hidden" name="user_id" value={p.id} />

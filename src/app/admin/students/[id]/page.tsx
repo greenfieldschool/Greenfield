@@ -261,14 +261,21 @@ export default async function AdminStudentDetailPage({
   async function updateStudent(formData: FormData) {
     "use server";
 
+    if (!isAdmin) return;
+
+    const firstName = String(formData.get("first_name") ?? "").trim();
+    const middleName = String(formData.get("middle_name") ?? "").trim();
+    const lastName = String(formData.get("last_name") ?? "").trim();
+    const dateOfBirthRaw = String(formData.get("date_of_birth") ?? "").trim();
     const admissionNumber = String(formData.get("admission_number") ?? "").trim();
     const level = String(formData.get("level") ?? "").trim();
     const classIdRaw = String(formData.get("class_id") ?? "").trim();
     const status = String(formData.get("status") ?? "").trim();
 
-    if (!level || !status) return;
+    if (!firstName || !lastName || !level || !status) return;
 
     const classId = classIdRaw.length ? classIdRaw : null;
+    const dateOfBirth = dateOfBirthRaw.length ? dateOfBirthRaw : null;
 
     const supabase = getSupabaseServerClient();
     if (!supabase) return;
@@ -276,6 +283,10 @@ export default async function AdminStudentDetailPage({
     await supabase
       .from("students")
       .update({
+        first_name: firstName,
+        middle_name: middleName.length ? middleName : null,
+        last_name: lastName,
+        date_of_birth: dateOfBirth,
         admission_number: admissionNumber.length ? admissionNumber : null,
         level,
         class_id: classId,
@@ -606,6 +617,42 @@ export default async function AdminStudentDetailPage({
         <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
           <h2 className="text-base font-semibold text-slate-900">Edit student</h2>
           <form action={updateStudent} className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-sm font-semibold text-slate-900">First name</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                name="first_name"
+                defaultValue={student.first_name}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Middle name</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                name="middle_name"
+                defaultValue={student.middle_name ?? ""}
+                placeholder="(optional)"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Last name</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                name="last_name"
+                defaultValue={student.last_name}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-slate-900">Date of birth</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                name="date_of_birth"
+                type="date"
+                defaultValue={student.date_of_birth ?? ""}
+              />
+            </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Admission number</label>
               <input

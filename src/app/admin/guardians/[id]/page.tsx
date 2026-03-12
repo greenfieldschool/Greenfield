@@ -282,6 +282,33 @@ export default async function AdminGuardianDetailPage({
     redirect(`/admin/guardians/${guardianId}?portal_reset=1`);
   }
 
+  async function updateGuardianBasics(formData: FormData) {
+    "use server";
+
+    if (!isAdmin) return;
+
+    const fullName = String(formData.get("full_name") ?? "").trim();
+    const emailRaw = String(formData.get("email") ?? "").trim();
+    const phoneRaw = String(formData.get("phone") ?? "").trim();
+
+    if (!fullName) return;
+
+    const email = emailRaw.length ? emailRaw : null;
+    const phone = phoneRaw.length ? phoneRaw : null;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase
+      .from("guardians")
+      .update({ full_name: fullName, email, phone })
+      .eq("id", guardianId);
+
+    revalidatePath(`/admin/guardians/${guardianId}`);
+    revalidatePath("/admin/guardians");
+    redirect(`/admin/guardians/${guardianId}`);
+  }
+
   async function unlinkStudent(formData: FormData) {
     "use server";
 
@@ -305,6 +332,48 @@ export default async function AdminGuardianDetailPage({
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Guardian</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">{guardianFullName}</h1>
+        {isAdmin ? (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+            <h2 className="text-base font-semibold text-slate-900">Edit guardian</h2>
+            <form action={updateGuardianBasics} className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="text-sm font-semibold text-slate-900">Full name</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="full_name"
+                  defaultValue={guardian.full_name}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-slate-900">Email</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="email"
+                  type="email"
+                  defaultValue={guardian.email ?? ""}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-slate-900">Phone</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="phone"
+                  type="tel"
+                  defaultValue={guardian.phone ?? ""}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <button
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
+                  type="submit"
+                >
+                  Save changes
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
         {isAdmin ? (
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
             <h2 className="text-base font-semibold text-slate-900">Profile</h2>
