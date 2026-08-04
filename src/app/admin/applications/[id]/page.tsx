@@ -236,25 +236,28 @@ export default async function AdminApplicationDetailPage({
 
     const seekingClass = typeof payload.seeking_class === "string" ? payload.seeking_class.trim() : "";
     let classId: string | null = null;
+    let classLevel: string | null = null;
     if (seekingClass.length) {
       const { data: classExact } = await supabaseAction
         .from("classes")
-        .select("id")
+        .select("id, level")
         .ilike("name", seekingClass)
         .limit(1)
         .maybeSingle();
 
       classId = (classExact?.id as string | undefined) ?? null;
+      classLevel = (classExact?.level as string | undefined) ?? null;
 
       if (!classId) {
         const { data: classLoose } = await supabaseAction
           .from("classes")
-          .select("id")
+          .select("id, level")
           .ilike("name", `%${seekingClass}%`)
           .limit(1)
           .maybeSingle();
 
         classId = (classLoose?.id as string | undefined) ?? null;
+        classLevel = (classLoose?.level as string | undefined) ?? null;
       }
     }
 
@@ -271,7 +274,7 @@ export default async function AdminApplicationDetailPage({
         middle_name: typeof payload.middle_name === "string" ? payload.middle_name : null,
         last_name: typeof payload.last_name === "string" ? payload.last_name : "",
         class_id: classId,
-        level: level ?? "primary",
+        level: classLevel ?? level ?? "primary",
         status: "enrolled",
         date_of_birth: typeof payload.dob === "string" && payload.dob.length ? payload.dob : null,
         passport_photo_url: typeof payload.passport_photo_url === "string" && payload.passport_photo_url.length ? payload.passport_photo_url : null,

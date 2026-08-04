@@ -203,8 +203,7 @@ export default async function AdminStudentDetailPage({
 
     await service
       .from("profiles")
-      .update({ role: "student", email, full_name: studentFullName.length ? studentFullName : null })
-      .eq("id", created.user.id);
+      .upsert({ id: created.user.id, role: "student", email, full_name: studentFullName.length ? studentFullName : null }, { onConflict: "id" });
 
     await service.from("student_user_links").upsert(
       {
@@ -280,7 +279,7 @@ export default async function AdminStudentDetailPage({
     const lastName = String(formData.get("last_name") ?? "").trim();
     const dateOfBirthRaw = String(formData.get("date_of_birth") ?? "").trim();
     const admissionNumber = String(formData.get("admission_number") ?? "").trim();
-    const level = String(formData.get("level") ?? "").trim();
+    let level = String(formData.get("level") ?? "").trim();
     const classIdRaw = String(formData.get("class_id") ?? "").trim();
     const status = String(formData.get("status") ?? "").trim();
 
@@ -288,6 +287,18 @@ export default async function AdminStudentDetailPage({
 
     const classId = classIdRaw.length ? classIdRaw : null;
     const dateOfBirth = dateOfBirthRaw.length ? dateOfBirthRaw : null;
+
+    // Sync student level with class level if class is assigned
+    if (classId) {
+      const { data: cls } = await supabase
+        .from("classes")
+        .select("level")
+        .eq("id", classId)
+        .maybeSingle();
+      if (cls?.level) {
+        level = cls.level;
+      }
+    }
 
     await supabase
       .from("students")
