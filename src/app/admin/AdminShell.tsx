@@ -58,6 +58,7 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
         label: "Core",
         items: [
           { href: "/admin", label: "Dashboard" },
+          { href: "/admin/learn", label: "Learn Centre" },
           { href: "/admin/students", label: "Students" },
           { href: "/admin/students/applications", label: "Student applications", shortLabel: "Apps", indent: true },
           { href: "/admin/guardians", label: "Guardians" }
