@@ -26,9 +26,50 @@ export default function AdminLearnCentrePage() {
       ]
     },
     {
+      title: "Examination & Assessment Lifecycle",
+      color: "border-purple-200 bg-purple-50/20",
+      guides: [
+        {
+          name: "Creating Tests & Setting Up Questions",
+          steps: [
+            "Go to Operations > Exams > Tests (/admin/exams/tests).",
+            "Create a new test specifying name, description, duration (minutes), and subject details.",
+            "Click on the newly created test to open the questions editor.",
+            "Configure question types (MCQ single/multi, true/false, fill-blank, essay) and points/marks.",
+            "Open the 'Advanced (JSON)' section to modify or reuse structured options and answers."
+          ]
+        },
+        {
+          name: "Scheduling Exam Sessions",
+          steps: [
+            "Go to Operations > Exams > Sessions (/admin/exams/sessions).",
+            "Create a session linking a Test to a specific Class, Academic Year, and Academic Term.",
+            "Provide optional start/end validity windows and enable 'Requires secret code' for secure validation.",
+            "Students access scheduled active exams via the student portal (/portal/login/student)."
+          ]
+        },
+        {
+          name: "Marking and Reviewing Scores",
+          steps: [
+            "Access the active session's 'Attempts' list in (/admin/exams/sessions/[id]/attempts).",
+            "Review submissions by student, evaluate automatically graded answers, and manually score essays.",
+            "Publish results to release final reports directly to the student portal."
+          ]
+        }
+      ]
+    },
+    {
       title: "Academics & Configurations",
       color: "border-emerald-200 bg-emerald-50/20",
       guides: [
+        {
+          name: "Adding Subjects",
+          steps: [
+            "Open Academics > Subjects (/admin/academics/subjects).",
+            "Add a new subject name (e.g. English Language) and tag it to a broad school section (creche, primary, secondary).",
+            "Toggle 'Active' to enable selection across tests and class schedules."
+          ]
+        },
         {
           name: "Academic Calendars (Years & Terms)",
           steps: [
@@ -79,7 +120,7 @@ export default function AdminLearnCentrePage() {
         <div className="text-sm font-semibold text-slate-500">Knowledge Base</div>
         <h1 className="mt-2 text-3xl font-bold text-slate-900">Admin Learn Centre</h1>
         <p className="mt-2 text-sm text-slate-600">
-          A scalable documentation directory for managing the school's operational lifecycle, grading scales, admissions, and user accounts.
+          A scalable documentation directory for managing the school's operational lifecycle, grading scales, admissions, examinations, and subjects.
         </p>
       </div>
 
@@ -122,6 +163,12 @@ export default function AdminLearnCentrePage() {
           </Link>
           <Link href="/admin/academics/config" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
             Grading Scales
+          </Link>
+          <Link href="/admin/academics/subjects" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
+            Subject Management
+          </Link>
+          <Link href="/admin/exams/tests" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
+            Exams & Tests
           </Link>
         </div>
       </div>
