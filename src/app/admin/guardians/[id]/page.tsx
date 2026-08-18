@@ -6,6 +6,7 @@ import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import SubmitButton from "@/components/submit-button";
 import GuardianPhotoUploader from "./GuardianPhotoUploader";
 import UrlToast from "@/components/url-toast";
+import PasswordInput from "@/components/password-input";
 
 type GuardianRow = {
   id: string;
@@ -275,7 +276,7 @@ export default async function AdminGuardianDetailPage({
       redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Service client unavailable — check server config")}&toast_type=error`);
     }
 
-    const { error } = await service.auth.admin.updateUserById(userId, { password });
+    const { error } = await service.auth.admin.updateUserById(userId, { password, email_confirm: true });
     if (error) {
       redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent(error.message ?? "Failed to reset password")}&toast_type=error`);
     }
@@ -457,16 +458,13 @@ export default async function AdminGuardianDetailPage({
 
               <form action={resetPortalPassword} className="mt-4 grid gap-4 sm:grid-cols-2">
                 <input type="hidden" name="user_id" value={portalUserId} />
-                <div className="sm:col-span-2">
-                  <label className="text-sm font-semibold text-slate-900">New password</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                    name="password"
-                    type="text"
-                    minLength={8}
-                    required
-                  />
-                </div>
+                <PasswordInput
+                  label="New password"
+                  name="password"
+                  minLength={8}
+                  required
+                  containerClassName="sm:col-span-2"
+                />
                 <div className="sm:col-span-2">
                   <SubmitButton
                     className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -490,16 +488,13 @@ export default async function AdminGuardianDetailPage({
                   required
                 />
               </div>
-              <div className="sm:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Initial password</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="password"
-                  type="text"
-                  minLength={8}
-                  required
-                />
-              </div>
+              <PasswordInput
+                label="Initial password"
+                name="password"
+                minLength={8}
+                required
+                containerClassName="sm:col-span-2"
+              />
               <div className="sm:col-span-2">
                 <SubmitButton
                   className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"

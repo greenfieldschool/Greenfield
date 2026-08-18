@@ -6,6 +6,7 @@ import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import SubmitButton from "@/components/submit-button";
 import StudentPhotoUploader from "./StudentPhotoUploader";
 import UrlToast from "@/components/url-toast";
+import PasswordInput from "@/components/password-input";
 
 function admissionNumberToEmail(admissionNumberRaw: string) {
   const admissionNumber = admissionNumberRaw.trim().toLowerCase();
@@ -250,7 +251,7 @@ export default async function AdminStudentDetailPage({
       redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Service client unavailable — check server config")}&toast_type=error`);
     }
 
-    const { error } = await service.auth.admin.updateUserById(userId, { password });
+    const { error } = await service.auth.admin.updateUserById(userId, { password, email_confirm: true });
     if (error) {
       redirect(`/admin/students/${studentId}?toast=${encodeURIComponent(error.message ?? "Failed to reset password")}&toast_type=error`);
     }
@@ -436,16 +437,13 @@ export default async function AdminStudentDetailPage({
             {existingPortalUserId ? (
               <form action={resetPortalPassword} className="mt-4 grid gap-4 sm:grid-cols-2">
                 <input type="hidden" name="user_id" value={existingPortalUserId} />
-                <div className="sm:col-span-2">
-                  <label className="text-sm font-semibold text-slate-900">New password</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                    name="password"
-                    type="password"
-                    minLength={8}
-                    required
-                  />
-                </div>
+                <PasswordInput
+                  label="New password"
+                  name="password"
+                  minLength={8}
+                  required
+                  containerClassName="sm:col-span-2"
+                />
                 <div className="flex items-end">
                   <SubmitButton
                     className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
@@ -468,16 +466,12 @@ export default async function AdminStudentDetailPage({
                     required
                   />
                 </div>
-                <div>
-                  <label className="text-sm font-semibold text-slate-900">Password</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                    name="password"
-                    type="password"
-                    minLength={8}
-                    required
-                  />
-                </div>
+                <PasswordInput
+                  label="Password"
+                  name="password"
+                  minLength={8}
+                  required
+                />
                 <div className="flex items-end">
                   <SubmitButton
                     className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"

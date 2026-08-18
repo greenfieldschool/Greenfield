@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
+import PasswordInput from "@/components/password-input";
+
 type FormState =
   | { status: "idle" }
   | { status: "submitting" }
@@ -70,18 +72,14 @@ export function PortalLoginForm({ redirectTo }: { redirectTo: string }) {
             />
           </div>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Password</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </div>
+          <PasswordInput
+            label="Password"
+            name="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
 
           {state.status === "error" ? (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
