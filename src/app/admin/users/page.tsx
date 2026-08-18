@@ -65,12 +65,6 @@ export default async function AdminUsersPage({
 
   const query = (searchParams.q ?? "").trim();
   const roleFilter = (searchParams.role ?? "").trim();
-  // Legacy params (kept for backward-compat, still usable via direct URL)
-  const inviteSuccess = String(searchParams.invited ?? "").trim() === "1";
-  const inviteErrorRaw = String(searchParams.invite_error ?? "").trim();
-  const inviteError = inviteErrorRaw.length > 0;
-  const inviteAlreadyExists = inviteErrorRaw === "exists";
-  const inviteHasDetail = inviteErrorRaw !== "1" && inviteErrorRaw !== "exists";
 
   const cookieStore = cookies();
   const generatedMagicLink = cookieStore.get("admin_generated_magic_link")?.value ?? "";

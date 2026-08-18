@@ -120,7 +120,7 @@ export default function AdminLearnCentrePage() {
         <div className="text-sm font-semibold text-slate-500">Knowledge Base</div>
         <h1 className="mt-2 text-3xl font-bold text-slate-900">Admin Learn Centre</h1>
         <p className="mt-2 text-sm text-slate-600">
-          A scalable documentation directory for managing the school's operational lifecycle, grading scales, admissions, examinations, and subjects.
+          A scalable documentation directory for managing the school&apos;s operational lifecycle, grading scales, admissions, examinations, and subjects.
         </p>
       </div>
 
