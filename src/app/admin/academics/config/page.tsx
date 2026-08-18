@@ -1,6 +1,8 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import UrlToast from "@/components/url-toast";
 
 type WeightRow = {
   id: string;
@@ -70,6 +72,7 @@ export default async function AdminAcademicsConfigPage() {
       );
 
     revalidatePath("/admin/academics/config");
+    redirect(`/admin/academics/config?toast=${encodeURIComponent("Weight saved")}&toast_type=success`);
   }
 
   async function upsertScale(formData: FormData) {
@@ -103,6 +106,7 @@ export default async function AdminAcademicsConfigPage() {
       );
 
     revalidatePath("/admin/academics/config");
+    redirect(`/admin/academics/config?toast=${encodeURIComponent("Grading scale saved")}&toast_type=success`);
   }
 
   function sumWeights(level: string) {
@@ -113,6 +117,7 @@ export default async function AdminAcademicsConfigPage() {
 
   return (
     <div className="space-y-6">
+      <UrlToast />
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Academics</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">Configuration</h1>

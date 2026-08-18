@@ -5,6 +5,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import SubmitButton from "@/components/submit-button";
 import GuardianPhotoUploader from "./GuardianPhotoUploader";
+import UrlToast from "@/components/url-toast";
 
 type GuardianRow = {
   id: string;
@@ -189,7 +190,7 @@ export default async function AdminGuardianDetailPage({
     const email = String(formData.get("email") ?? "").trim().toLowerCase();
 
     if (!email || password.length < 8) {
-      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+      redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Email or password is invalid (min 8 chars)")}&toast_type=error`);
     }
 
     const supabase = getSupabaseServerClient();
@@ -199,19 +200,19 @@ export default async function AdminGuardianDetailPage({
       data: { user }
     } = await supabase.auth.getUser();
     if (!user) {
-      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+      redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("You must be logged in")}&toast_type=error`);
     }
 
     const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
     const role = (me?.role ?? null) as string | null;
     const isAdmin = role === "super_admin" || role === "admin";
     if (!isAdmin) {
-      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+      redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("You do not have permission to do this")}&toast_type=error`);
     }
 
     const service = getSupabaseServiceClient();
     if (!service) {
-      redirect(`/admin/guardians/${guardianId}?portal_error=service`);
+      redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Service client unavailable — check server config")}&toast_type=error`);
     }
 
     const { data: created, error } = await service.auth.admin.createUser({
@@ -222,7 +223,7 @@ export default async function AdminGuardianDetailPage({
     });
 
     if (error || !created.user) {
-      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+      redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent(error?.message ?? "Failed to create portal account")}&toast_type=error`);
     }
 
     await service
@@ -239,7 +240,7 @@ export default async function AdminGuardianDetailPage({
     );
 
     revalidatePath(`/admin/guardians/${guardianId}`);
-    redirect(`/admin/guardians/${guardianId}?portal_created=1`);
+    redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Portal account created successfully")}&toast_type=success`);
   }
 
   async function resetPortalPassword(formData: FormData) {
@@ -249,7 +250,7 @@ export default async function AdminGuardianDetailPage({
     const userId = String(formData.get("user_id") ?? "").trim();
 
     if (!userId || password.length < 8) {
-      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+      redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Password must be at least 8 characters")}&toast_type=error`);
     }
 
     const supabase = getSupabaseServerClient();
@@ -259,28 +260,28 @@ export default async function AdminGuardianDetailPage({
       data: { user }
     } = await supabase.auth.getUser();
     if (!user) {
-      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+      redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("You must be logged in")}&toast_type=error`);
     }
 
     const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
     const role = (me?.role ?? null) as string | null;
     const isAdmin = role === "super_admin" || role === "admin";
     if (!isAdmin) {
-      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+      redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("You do not have permission to do this")}&toast_type=error`);
     }
 
     const service = getSupabaseServiceClient();
     if (!service) {
-      redirect(`/admin/guardians/${guardianId}?portal_error=service`);
+      redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Service client unavailable — check server config")}&toast_type=error`);
     }
 
     const { error } = await service.auth.admin.updateUserById(userId, { password });
     if (error) {
-      redirect(`/admin/guardians/${guardianId}?portal_error=1`);
+      redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent(error.message ?? "Failed to reset password")}&toast_type=error`);
     }
 
     revalidatePath(`/admin/guardians/${guardianId}`);
-    redirect(`/admin/guardians/${guardianId}?portal_reset=1`);
+    redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Portal password updated successfully")}&toast_type=success`);
   }
 
   async function updateGuardianBasics(formData: FormData) {
@@ -315,7 +316,7 @@ export default async function AdminGuardianDetailPage({
 
     revalidatePath(`/admin/guardians/${guardianId}`);
     revalidatePath("/admin/guardians");
-    redirect(`/admin/guardians/${guardianId}?saved=1`);
+    redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Guardian details saved")}&toast_type=success`);
   }
 
   async function unlinkStudent(formData: FormData) {
@@ -338,6 +339,7 @@ export default async function AdminGuardianDetailPage({
 
   return (
     <div className="space-y-6">
+      <UrlToast />
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Guardian</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">{guardianFullName}</h1>

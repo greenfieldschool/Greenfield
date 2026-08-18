@@ -5,6 +5,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import SubmitButton from "@/components/submit-button";
 import StudentPhotoUploader from "./StudentPhotoUploader";
+import UrlToast from "@/components/url-toast";
 
 function admissionNumberToEmail(admissionNumberRaw: string) {
   const admissionNumber = admissionNumberRaw.trim().toLowerCase();
@@ -160,7 +161,7 @@ export default async function AdminStudentDetailPage({
     const password = String(formData.get("password") ?? "").trim();
 
     if (!admissionNumberRaw || password.length < 8) {
-      redirect(`/admin/students/${studentId}?portal_error=1`);
+      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Invalid admission number or password too short")}&toast_type=error`);
     }
 
     const supabase = getSupabaseServerClient();
@@ -170,19 +171,19 @@ export default async function AdminStudentDetailPage({
       data: { user }
     } = await supabase.auth.getUser();
     if (!user) {
-      redirect(`/admin/students/${studentId}?portal_error=1`);
+      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("You must be logged in")}&toast_type=error`);
     }
 
     const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
     const role = (me?.role ?? null) as string | null;
     const isAllowed = role === "super_admin" || role === "admin";
     if (!isAllowed) {
-      redirect(`/admin/students/${studentId}?portal_error=1`);
+      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("You do not have permission to do this")}&toast_type=error`);
     }
 
     const service = getSupabaseServiceClient();
     if (!service) {
-      redirect(`/admin/students/${studentId}?portal_error=service`);
+      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Service client unavailable — check server config")}&toast_type=error`);
     }
 
     const email = admissionNumberToEmail(admissionNumberRaw);
@@ -198,7 +199,7 @@ export default async function AdminStudentDetailPage({
     });
 
     if (error || !created.user) {
-      redirect(`/admin/students/${studentId}?portal_error=1`);
+      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent(error?.message ?? "Failed to create portal account")}&toast_type=error`);
     }
 
     await service
@@ -214,7 +215,7 @@ export default async function AdminStudentDetailPage({
     );
 
     revalidatePath(`/admin/students/${studentId}`);
-    redirect(`/admin/students/${studentId}?portal_created=1`);
+    redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Portal account created successfully")}&toast_type=success`);
   }
 
   async function resetPortalPassword(formData: FormData) {
@@ -224,7 +225,7 @@ export default async function AdminStudentDetailPage({
     const userId = String(formData.get("user_id") ?? "").trim();
 
     if (!userId || password.length < 8) {
-      redirect(`/admin/students/${studentId}?portal_error=1`);
+      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Password must be at least 8 characters")}&toast_type=error`);
     }
 
     const supabase = getSupabaseServerClient();
@@ -234,28 +235,28 @@ export default async function AdminStudentDetailPage({
       data: { user }
     } = await supabase.auth.getUser();
     if (!user) {
-      redirect(`/admin/students/${studentId}?portal_error=1`);
+      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("You must be logged in")}&toast_type=error`);
     }
 
     const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
     const role = (me?.role ?? null) as string | null;
     const isAllowed = role === "super_admin" || role === "admin";
     if (!isAllowed) {
-      redirect(`/admin/students/${studentId}?portal_error=1`);
+      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("You do not have permission to do this")}&toast_type=error`);
     }
 
     const service = getSupabaseServiceClient();
     if (!service) {
-      redirect(`/admin/students/${studentId}?portal_error=service`);
+      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Service client unavailable — check server config")}&toast_type=error`);
     }
 
     const { error } = await service.auth.admin.updateUserById(userId, { password });
     if (error) {
-      redirect(`/admin/students/${studentId}?portal_error=1`);
+      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent(error.message ?? "Failed to reset password")}&toast_type=error`);
     }
 
     revalidatePath(`/admin/students/${studentId}`);
-    redirect(`/admin/students/${studentId}?portal_reset=1`);
+    redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Portal password updated successfully")}&toast_type=success`);
   }
 
   async function updateStudent(formData: FormData) {
@@ -316,7 +317,7 @@ export default async function AdminStudentDetailPage({
 
     revalidatePath(`/admin/students/${studentId}`);
     revalidatePath("/admin/students");
-    redirect(`/admin/students/${studentId}?saved=1`);
+    redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Student details saved")}&toast_type=success`);
   }
 
   async function saveStudentPhoto(formData: FormData) {
@@ -384,6 +385,7 @@ export default async function AdminStudentDetailPage({
     });
 
     revalidatePath(`/admin/students/${studentId}`);
+    redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Guardian linked")}&toast_type=success`);
   }
 
   async function removeGuardian(formData: FormData) {
@@ -402,6 +404,7 @@ export default async function AdminStudentDetailPage({
       .eq("guardian_id", guardianId);
 
     revalidatePath(`/admin/students/${studentId}`);
+    redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Guardian removed")}&toast_type=success`);
   }
 
   if (!student) {
@@ -419,6 +422,7 @@ export default async function AdminStudentDetailPage({
 
   return (
     <div className="space-y-6">
+      <UrlToast />
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Student</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">

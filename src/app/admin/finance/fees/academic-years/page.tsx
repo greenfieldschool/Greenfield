@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import UrlToast from "@/components/url-toast";
 
 type AcademicYearRow = {
   id: string;
@@ -67,6 +69,7 @@ export default async function AdminAcademicYearsPage() {
     });
 
     revalidatePath("/admin/finance/fees/academic-years");
+    redirect(`/admin/finance/fees/academic-years?toast=${encodeURIComponent("Academic year created")}&toast_type=success`);
   }
 
   async function toggleYearActive(formData: FormData) {
@@ -88,6 +91,7 @@ export default async function AdminAcademicYearsPage() {
     }
 
     revalidatePath("/admin/finance/fees/academic-years");
+    redirect(`/admin/finance/fees/academic-years?toast=${encodeURIComponent(active ? "Year deactivated" : "Year set as active")}&toast_type=success`);
   }
 
   async function createTerm(formData: FormData) {
@@ -121,6 +125,7 @@ export default async function AdminAcademicYearsPage() {
     });
 
     revalidatePath("/admin/finance/fees/academic-years");
+    redirect(`/admin/finance/fees/academic-years?toast=${encodeURIComponent("Term created")}&toast_type=success`);
   }
 
   async function toggleTermActive(formData: FormData) {
@@ -147,12 +152,28 @@ export default async function AdminAcademicYearsPage() {
     }
 
     revalidatePath("/admin/finance/fees/academic-years");
+    redirect(`/admin/finance/fees/academic-years?toast=${encodeURIComponent(active ? "Term deactivated" : "Term set as active")}&toast_type=success`);
   }
 
   const activeYearId = years.find((y) => y.is_active)?.id ?? "";
 
+  // Generate academic year options: 4 years back to 3 years forward
+  const currentYear = new Date().getFullYear();
+  const yearOptions: string[] = [];
+  for (let y = currentYear - 4; y <= currentYear + 3; y++) {
+    yearOptions.push(`${y}/${y + 1}`);
+  }
+  // Put the most likely upcoming year first
+  yearOptions.reverse();
+  const existingYearNames = new Set(years.map((y) => y.name));
+  const availableYearOptions = yearOptions.filter((n) => !existingYearNames.has(n));
+  const suggestedYear = yearOptions.find((n) => !existingYearNames.has(n)) ?? yearOptions[0];
+
+  const termOptions = ["First Term", "Second Term", "Third Term"] as const;
+
   return (
     <div className="space-y-6">
+      <UrlToast />
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Finance</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">Academic years & terms</h1>
@@ -169,13 +190,26 @@ export default async function AdminAcademicYearsPage() {
           <h2 className="text-lg font-semibold text-slate-900">Add academic year</h2>
           <form action={createYear} className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <label className="text-sm font-semibold text-slate-900">Name</label>
-              <input
+              <label className="text-sm font-semibold text-slate-900">Academic year</label>
+              <select
                 className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
                 name="name"
-                placeholder="2025/2026"
+                defaultValue={suggestedYear}
                 required
-              />
+              >
+                {availableYearOptions.length ? (
+                  availableYearOptions.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))
+                ) : (
+                  yearOptions.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))
+                )}
+              </select>
+              {availableYearOptions.length === 0 ? (
+                <p className="mt-1 text-xs text-amber-700">All nearby year pairs already exist. You can still re-add one.</p>
+              ) : null}
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Starts on</label>
@@ -232,13 +266,17 @@ export default async function AdminAcademicYearsPage() {
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className="text-sm font-semibold text-slate-900">Term name</label>
-              <input
+              <label className="text-sm font-semibold text-slate-900">Term</label>
+              <select
                 className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
                 name="name"
-                placeholder="Term 1"
+                defaultValue="First Term"
                 required
-              />
+              >
+                {termOptions.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Starts on</label>

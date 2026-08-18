@@ -6,6 +6,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import { CopyButton } from "@/components/copy-button";
 import SubmitButton from "@/components/submit-button";
+import UrlToast from "@/components/url-toast";
 
 type ProfileRow = {
   id: string;
@@ -54,7 +55,7 @@ type TeacherClassAssignmentRow = {
 export default async function AdminUsersPage({
   searchParams
 }: {
-  searchParams: { q?: string; role?: string; invited?: string; invite_error?: string };
+  searchParams: { q?: string; role?: string; toast?: string; toast_type?: string; invited?: string; invite_error?: string };
 }) {
   const supabase = getSupabaseServerClient();
 
@@ -64,6 +65,7 @@ export default async function AdminUsersPage({
 
   const query = (searchParams.q ?? "").trim();
   const roleFilter = (searchParams.role ?? "").trim();
+  // Legacy params (kept for backward-compat, still usable via direct URL)
   const inviteSuccess = String(searchParams.invited ?? "").trim() === "1";
   const inviteErrorRaw = String(searchParams.invite_error ?? "").trim();
   const inviteError = inviteErrorRaw.length > 0;
@@ -272,12 +274,13 @@ export default async function AdminUsersPage({
 
     const supabase = getSupabaseServerClient();
     if (!supabase) {
-      redirect("/admin/users?invite_error=1");
+      redirect(`/admin/users?toast=${encodeURIComponent("Server error — could not update role")}&toast_type=error`);
     }
 
     await supabase.from("profiles").update({ role }).eq("id", userId);
 
     revalidatePath("/admin/users");
+    redirect(`/admin/users?toast=${encodeURIComponent("Role updated successfully")}&toast_type=success`);
   }
 
   async function updateUserFullName(formData: FormData) {
@@ -308,7 +311,7 @@ export default async function AdminUsersPage({
     const role = String(formData.get("role") ?? "").trim();
 
     if (!email || !role) {
-      redirect("/admin/users?invite_error=1");
+      redirect(`/admin/users?toast=${encodeURIComponent("Email and role are required")}&toast_type=error`);
     }
 
     const supabase = getSupabaseServerClient();
@@ -319,19 +322,19 @@ export default async function AdminUsersPage({
     } = await supabase.auth.getUser();
 
     if (!user) {
-      redirect("/admin/users?invite_error=1");
+      redirect(`/admin/users?toast=${encodeURIComponent("You must be logged in")}&toast_type=error`);
     }
 
     const { data: inviterProfile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
     const inviterRole = (inviterProfile?.role ?? null) as string | null;
     const isAllowed = inviterRole === "super_admin" || inviterRole === "admin";
     if (!isAllowed) {
-      redirect("/admin/users?invite_error=1");
+      redirect(`/admin/users?toast=${encodeURIComponent("You do not have permission to invite staff")}&toast_type=error`);
     }
 
     const service = getSupabaseServiceClient();
     if (!service) {
-      redirect("/admin/users?invite_error=1");
+      redirect(`/admin/users?toast=${encodeURIComponent("Service client unavailable — check server config")}&toast_type=error`);
       return;
     }
 
@@ -352,9 +355,9 @@ export default async function AdminUsersPage({
     if (inviteError || !inviteResult?.user) {
       const message = (inviteError?.message ?? "").toLowerCase();
       const isAlready = message.includes("already") || message.includes("exists") || message.includes("registered");
-      const errorDetail = inviteError?.message ? encodeURIComponent(inviteError.message.slice(0, 200)) : "";
+      const detail = inviteError?.message ?? "Could not send invite. Check Supabase email settings.";
       redirect(
-        `/admin/users?q=${encodeURIComponent(email)}&invite_error=${isAlready ? "exists" : errorDetail || "1"}`
+        `/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent(isAlready ? "That email already has an account or pending invite." : detail)}&toast_type=error`
       );
     }
 
@@ -368,7 +371,7 @@ export default async function AdminUsersPage({
       .eq("id", inviteResult.user.id);
 
     revalidatePath("/admin/users");
-    redirect(`/admin/users?q=${encodeURIComponent(email)}&invited=1`);
+    redirect(`/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent(`Invite sent to ${email}. They should check their email.`)}&toast_type=success`);
   }
 
   async function generateMagicLink(formData: FormData) {
@@ -379,7 +382,7 @@ export default async function AdminUsersPage({
     const role = String(formData.get("role") ?? "").trim();
 
     if (!email || !role) {
-      redirect("/admin/users?invite_error=1");
+      redirect(`/admin/users?toast=${encodeURIComponent("Email and role are required")}&toast_type=error`);
     }
 
     const supabase = getSupabaseServerClient();
@@ -390,19 +393,19 @@ export default async function AdminUsersPage({
     } = await supabase.auth.getUser();
 
     if (!user) {
-      redirect("/admin/users?invite_error=1");
+      redirect(`/admin/users?toast=${encodeURIComponent("You must be logged in")}&toast_type=error`);
     }
 
     const { data: inviterProfile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
     const inviterRole = (inviterProfile?.role ?? null) as string | null;
     const isAllowed = inviterRole === "super_admin" || inviterRole === "admin";
     if (!isAllowed) {
-      redirect("/admin/users?invite_error=1");
+      redirect(`/admin/users?toast=${encodeURIComponent("You do not have permission to do this")}&toast_type=error`);
     }
 
     const service = getSupabaseServiceClient();
     if (!service) {
-      redirect("/admin/users?invite_error=1");
+      redirect(`/admin/users?toast=${encodeURIComponent("Service client unavailable")}&toast_type=error`);
       return;
     }
 
@@ -434,14 +437,14 @@ export default async function AdminUsersPage({
       const message = created.error.message.toLowerCase();
       const already = message.includes("already") || message.includes("exists") || message.includes("registered");
       if (!already) {
-        const errorDetail = created.error?.message ? encodeURIComponent(created.error.message.slice(0, 200)) : "";
-        redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=${errorDetail || "1"}`);
+        const detail = created.error?.message ?? "Could not create account";
+        redirect(`/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent(detail)}&toast_type=error`);
       }
     }
 
     const userId = created.data?.user?.id ?? (await resolveUserIdByEmail(email));
     if (!userId) {
-      redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=${encodeURIComponent("Could not resolve user id")}`);
+      redirect(`/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent("Could not resolve user ID — try again")}&toast_type=error`);
     }
 
     await serviceClient
@@ -457,8 +460,8 @@ export default async function AdminUsersPage({
 
     const actionLink = linkResult.data?.properties?.action_link ?? null;
     if (linkResult.error || !actionLink) {
-      const errorDetail = linkResult.error?.message ? encodeURIComponent(linkResult.error.message.slice(0, 200)) : "";
-      redirect(`/admin/users?q=${encodeURIComponent(email)}&invite_error=${errorDetail || "1"}`);
+      const detail = linkResult.error?.message ?? "Failed to generate magic link";
+      redirect(`/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent(detail)}&toast_type=error`);
     }
 
     const cookieStore = cookies();
@@ -471,7 +474,7 @@ export default async function AdminUsersPage({
     });
 
     revalidatePath("/admin/users");
-    redirect(`/admin/users?q=${encodeURIComponent(email)}`);
+    redirect(`/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent("Magic link generated and copied to clipboard")}&toast_type=success`);
   }
 
   async function assignTeacherClass(formData: FormData) {
@@ -635,6 +638,7 @@ export default async function AdminUsersPage({
 
   return (
     <div className="space-y-8">
+      <UrlToast />
       {/* Header */}
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -705,26 +709,6 @@ export default async function AdminUsersPage({
           </form>
         </div>
 
-        {/* Notifications */}
-        {inviteSuccess ? (
-          <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            <span className="font-semibold">✓ Invite sent</span>{query.length ? ` to ${query}` : ""}. The staff member should check their email and set a password.
-          </div>
-        ) : null}
-
-        {inviteError ? (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-            <span className="font-semibold">✗ Error:</span> {inviteAlreadyExists
-              ? "That email already has an account or pending invite."
-              : "Could not send invite. Check Supabase email settings."}
-          </div>
-        ) : null}
-
-        {canInviteStaff && inviteHasDetail ? (
-          <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-            <span className="font-semibold">Supabase error:</span> {decodeURIComponent(inviteErrorRaw)}
-          </div>
-        ) : null}
 
         {!canInviteStaff ? (
           <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

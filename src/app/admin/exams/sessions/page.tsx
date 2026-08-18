@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 import AdminSessionsDebugLogger from "./AdminSessionsDebugLogger";
+import UrlToast from "@/components/url-toast";
 
 type TestRow = { id: string; name: string };
 type ClassRow = { id: string; level: string; name: string };
@@ -152,11 +154,13 @@ export default async function AdminExamSessionsPage({
     });
 
     revalidatePath("/admin/exams/sessions");
+    redirect(`/admin/exams/sessions?toast=${encodeURIComponent("Session scheduled")}&toast_type=success`);
   }
 
   return (
     <div className="space-y-6">
       {debug ? <AdminSessionsDebugLogger enabled={debug} loadErrorMsg={loadErrorMsg} sessions={sessionRows} /> : null}
+      <UrlToast />
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Exams</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">Sessions</h1>

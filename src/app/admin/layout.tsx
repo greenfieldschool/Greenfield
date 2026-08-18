@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AdminShell from "./AdminShell";
+import { ToastProvider } from "@/components/toast-provider";
 
  async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
    return (await Promise.race([
@@ -76,8 +77,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
 
   return (
-    <AdminShell userEmail={user.email ?? ""} role={(role ?? null) as string | null}>
-      {children}
-    </AdminShell>
+    <ToastProvider>
+      <AdminShell userEmail={user.email ?? ""} role={(role ?? null) as string | null}>
+        {children}
+      </AdminShell>
+    </ToastProvider>
   );
 }
