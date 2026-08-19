@@ -68,6 +68,22 @@ export default async function AdminStudentsPage({
 
   const students = (studentList ?? []) as unknown as StudentRow[];
 
+  // Fetch student-role profiles that have no valid student_user_link
+  const { data: allStudentLinks } = await supabase
+    .from("student_user_links")
+    .select("user_id, student_id");
+  const linkedUserIds = new Set((allStudentLinks ?? []).map((l: { user_id: string }) => l.user_id));
+
+  // Student-role profiles not yet linked to any student record
+  const { data: unlinkedStudentProfiles } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .eq("role", "student")
+    .limit(100);
+
+  const unlinkedStudentAccounts = ((unlinkedStudentProfiles ?? []) as Array<{ id: string; full_name: string | null }>)
+    .filter((p) => !linkedUserIds.has(p.id));
+
   async function filterStudents(formData: FormData) {
     "use server";
 
@@ -88,6 +104,37 @@ export default async function AdminStudentsPage({
 
   return (
     <div className="space-y-6">
+      {/* Unlinked account diagnostic banner */}
+      {unlinkedStudentAccounts.length > 0 && !query && !levelFilter && !classFilter && !statusFilter ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <div className="flex items-start gap-3">
+            <svg className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div className="flex-1">
+              <div className="font-semibold text-amber-900">
+                {unlinkedStudentAccounts.length} student portal account{unlinkedStudentAccounts.length !== 1 ? "s" : ""} not linked to a student record
+              </div>
+              <p className="mt-1 text-sm text-amber-800">
+                These accounts can log in to the portal but will see &quot;no student record found&quot; because they are not connected to a student profile.
+                Go to <a href="/admin/users?role=student" className="underline font-semibold">Admin → Users (filter: student)</a> to link them, or create a student record first via Applications.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {unlinkedStudentAccounts.slice(0, 5).map((p) => (
+                  <span key={p.id} className="inline-flex items-center rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-900">
+                    {p.full_name ?? p.id}
+                  </span>
+                ))}
+                {unlinkedStudentAccounts.length > 5 ? (
+                  <span className="inline-flex items-center rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+                    +{unlinkedStudentAccounts.length - 5} more
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {/* Header and Controls */}
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">

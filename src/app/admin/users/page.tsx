@@ -1141,9 +1141,11 @@ export default async function AdminUsersPage({
                         </div>
 
                         {/* Student Link */}
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div className={`rounded-xl border p-3 ${p.role === "student" && !linkedStudent ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-600">Student Link</span>
+                            <span className={`text-xs font-semibold ${p.role === "student" && !linkedStudent ? "text-amber-700" : "text-slate-600"}`}>
+                              Student Link {p.role === "student" && !linkedStudent ? "⚠️ Not linked" : ""}
+                            </span>
                             {linkedStudent ? (
                               <form action={unlinkStudent}>
                                 <input type="hidden" name="user_id" value={p.id} />
@@ -1157,6 +1159,9 @@ export default async function AdminUsersPage({
                               </form>
                             ) : null}
                           </div>
+                          {p.role === "student" && !linkedStudent ? (
+                            <p className="mt-1 text-xs text-amber-700">This student account will see &quot;no record found&quot; in the portal until linked.</p>
+                          ) : null}
                           <form action={linkStudent} className="mt-2 flex gap-2">
                             <input type="hidden" name="user_id" value={p.id} />
                             <select
