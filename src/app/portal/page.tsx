@@ -23,19 +23,6 @@ type GuardianRow = {
   full_name: string;
 };
 
-function getLevelColor(level: string) {
-  if (level === "creche") return "bg-pink-100 text-pink-700";
-  if (level === "primary") return "bg-blue-100 text-blue-700";
-  if (level === "secondary") return "bg-purple-100 text-purple-700";
-  return "bg-slate-100 text-slate-600";
-}
-
-function getStatusColor(status: string) {
-  if (status === "active") return "bg-emerald-100 text-emerald-700";
-  if (status === "enrolled") return "bg-blue-100 text-blue-700";
-  if (status === "graduated") return "bg-amber-100 text-amber-700";
-  return "bg-slate-100 text-slate-500";
-}
 
 export default async function PortalHomePage() {
   const supabase = getSupabaseServerClient();
