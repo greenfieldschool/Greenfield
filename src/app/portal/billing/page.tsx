@@ -207,51 +207,55 @@ export default async function PortalBillingPage({
       ) : null}
 
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-4">Invoice</div>
-          <div className="col-span-2">Issued</div>
-          <div className="col-span-2">Due</div>
-          <div className="col-span-2 text-right">Balance</div>
-          <div className="col-span-2">Pay</div>
-        </div>
-        <div>
-          {invoices.length ? (
-            invoices.map((inv) => (
-              <div
-                key={inv.invoice_id}
-                className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm text-slate-700"
-              >
-                <div className="col-span-4">
-                  <div className="font-semibold text-slate-900">{inv.invoice_no ?? inv.invoice_id}</div>
-                  <div className="mt-1 text-xs text-slate-600">{inv.status}</div>
-                </div>
-                <div className="col-span-2">{inv.issue_date}</div>
-                <div className="col-span-2">{inv.due_date ?? "—"}</div>
-                <div className="col-span-2 text-right font-semibold text-slate-900">
-                  {inv.currency} {asMoney(inv.balance)}
-                </div>
-                <div className="col-span-2">
-                  {inv.balance > 0 ? (
-                    <form action={payNow}>
-                      <input type="hidden" name="invoice_id" value={inv.invoice_id} />
-                      <input type="hidden" name="amount" value={String(inv.balance)} />
-                      <input type="hidden" name="currency" value={inv.currency} />
-                      <button
-                        className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95"
-                        type="submit"
-                      >
-                        Pay now
-                      </button>
-                    </form>
-                  ) : (
-                    <span className="text-xs text-slate-500">Paid</span>
-                  )}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No invoices yet.</div>
-          )}
+        <div className="overflow-x-auto">
+          <div className="min-w-[768px]">
+            <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
+              <div className="col-span-4">Invoice</div>
+              <div className="col-span-2">Issued</div>
+              <div className="col-span-2">Due</div>
+              <div className="col-span-2 text-right">Balance</div>
+              <div className="col-span-2">Pay</div>
+            </div>
+            <div>
+              {invoices.length ? (
+                invoices.map((inv) => (
+                  <div
+                    key={inv.invoice_id}
+                    className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm text-slate-700"
+                  >
+                    <div className="col-span-4">
+                      <div className="font-semibold text-slate-900">{inv.invoice_no ?? inv.invoice_id}</div>
+                      <div className="mt-1 text-xs text-slate-600">{inv.status}</div>
+                    </div>
+                    <div className="col-span-2">{inv.issue_date}</div>
+                    <div className="col-span-2">{inv.due_date ?? "—"}</div>
+                    <div className="col-span-2 text-right font-semibold text-slate-900">
+                      {inv.currency} {asMoney(inv.balance)}
+                    </div>
+                    <div className="col-span-2 pl-4">
+                      {inv.balance > 0 ? (
+                        <form action={payNow}>
+                          <input type="hidden" name="invoice_id" value={inv.invoice_id} />
+                          <input type="hidden" name="amount" value={String(inv.balance)} />
+                          <input type="hidden" name="currency" value={inv.currency} />
+                          <button
+                            className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95 active:scale-95 transition-all"
+                            type="submit"
+                          >
+                            Pay now
+                          </button>
+                        </form>
+                      ) : (
+                        <span className="text-xs text-slate-500">Paid</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="px-6 py-8 text-sm text-slate-600">No invoices yet.</div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -260,28 +264,32 @@ export default async function PortalBillingPage({
         <p className="mt-1 text-sm text-slate-600">Your posted payments recorded against your account.</p>
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-          <div className="grid grid-cols-12 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600">
-            <div className="col-span-3">Date</div>
-            <div className="col-span-3">Method</div>
-            <div className="col-span-3">Reference</div>
-            <div className="col-span-1">Status</div>
-            <div className="col-span-2 text-right">Amount</div>
-          </div>
-          {paymentRows.length ? (
-            paymentRows.map((p) => (
-              <div key={p.id} className="grid grid-cols-12 border-t border-slate-200 px-4 py-3 text-sm">
-                <div className="col-span-3 text-slate-700">{String(p.paid_at).slice(0, 10)}</div>
-                <div className="col-span-3 text-slate-700">{p.method ?? p.provider ?? "—"}</div>
-                <div className="col-span-3 font-semibold text-slate-900">{p.reference ?? "—"}</div>
-                <div className="col-span-1 text-slate-700">{p.status}</div>
-                <div className="col-span-2 text-right text-slate-700">
-                  {p.currency} {asMoney(p.amount)}
-                </div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[768px]">
+              <div className="grid grid-cols-12 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600">
+                <div className="col-span-3">Date</div>
+                <div className="col-span-3">Method</div>
+                <div className="col-span-3">Reference</div>
+                <div className="col-span-1">Status</div>
+                <div className="col-span-2 text-right">Amount</div>
               </div>
-            ))
-          ) : (
-            <div className="px-4 py-4 text-sm text-slate-600">No payments yet.</div>
-          )}
+              {paymentRows.length ? (
+                paymentRows.map((p) => (
+                  <div key={p.id} className="grid grid-cols-12 border-t border-slate-200 px-4 py-3 text-sm">
+                    <div className="col-span-3 text-slate-700">{String(p.paid_at).slice(0, 10)}</div>
+                    <div className="col-span-3 text-slate-700">{p.method ?? p.provider ?? "—"}</div>
+                    <div className="col-span-3 font-semibold text-slate-900">{p.reference ?? "—"}</div>
+                    <div className="col-span-1 text-slate-700">{p.status}</div>
+                    <div className="col-span-2 text-right text-slate-700 font-semibold">
+                      {p.currency} {asMoney(p.amount)}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="px-4 py-4 text-sm text-slate-600">No payments yet.</div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -293,24 +301,28 @@ export default async function PortalBillingPage({
         </p>
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-          <div className="grid grid-cols-12 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600">
-            <div className="col-span-7">Reference</div>
-            <div className="col-span-2">Status</div>
-            <div className="col-span-3 text-right">Amount</div>
-          </div>
-          {intentRows.length ? (
-            intentRows.map((pi) => (
-              <div key={pi.id} className="grid grid-cols-12 border-t border-slate-200 px-4 py-3 text-sm">
-                <div className="col-span-7 font-semibold text-slate-900">{pi.reference}</div>
-                <div className="col-span-2 text-slate-700">{pi.status}</div>
-                <div className="col-span-3 text-right text-slate-700">
-                  {pi.currency} {asMoney(pi.amount)}
-                </div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[640px]">
+              <div className="grid grid-cols-12 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600">
+                <div className="col-span-7">Reference</div>
+                <div className="col-span-2">Status</div>
+                <div className="col-span-3 text-right">Amount</div>
               </div>
-            ))
-          ) : (
-            <div className="px-4 py-4 text-sm text-slate-600">No references yet.</div>
-          )}
+              {intentRows.length ? (
+                intentRows.map((pi) => (
+                  <div key={pi.id} className="grid grid-cols-12 border-t border-slate-200 px-4 py-3 text-sm">
+                    <div className="col-span-7 font-semibold text-slate-900">{pi.reference}</div>
+                    <div className="col-span-2 text-slate-700">{pi.status}</div>
+                    <div className="col-span-3 text-right text-slate-700 font-semibold">
+                      {pi.currency} {asMoney(pi.amount)}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="px-4 py-4 text-sm text-slate-600">No references yet.</div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 text-xs text-slate-500">

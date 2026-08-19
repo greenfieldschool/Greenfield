@@ -9,18 +9,28 @@ export const metadata: Metadata = {
   description: "Greenfield School — Excellence in learning, character, and community."
 };
 
+import { headers } from "next/headers";
+
 export default function RootLayout({
   children
 }: Readonly<{
   children: ReactNode;
 }>) {
+  const headerList = headers();
+  const pathname = headerList.get("x-pathname") || "";
+
+  const isAppArea =
+    pathname.startsWith("/portal") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/conductor");
+
   return (
     <html lang="en">
       <body>
         <div className="min-h-screen flex flex-col">
-          <SiteHeader />
+          {!isAppArea && <SiteHeader />}
           <main className="flex-1">{children}</main>
-          <SiteFooter />
+          {!isAppArea && <SiteFooter />}
         </div>
 
         <a

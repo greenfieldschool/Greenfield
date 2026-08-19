@@ -4,12 +4,19 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
   const isAdmin = pathname.startsWith("/admin");
   const isPortal = pathname.startsWith("/portal");
   const isConductor = pathname.startsWith("/conductor");
 
   if (!isAdmin && !isPortal && !isConductor) {
-    return NextResponse.next();
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      }
+    });
   }
 
   if (isAdmin) {
@@ -125,7 +132,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/conductor/unauthorized", request.url));
   }
 
-  return response;
+  const nextResponse = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    }
+  });
+
+  response.cookies.getAll().forEach((cookie) => {
+    nextResponse.cookies.set(cookie.name, cookie.value, {
+      path: cookie.path,
+      domain: cookie.domain,
+      maxAge: cookie.maxAge,
+      secure: cookie.secure,
+      httpOnly: cookie.httpOnly,
+      sameSite: cookie.sameSite
+    });
+  });
+
+  return nextResponse;
 }
 
 export const config = {
