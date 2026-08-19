@@ -4,7 +4,7 @@ import { getPublishedCareerJobs } from "@/lib/careers";
 export const metadata = {
   title: "Careers — Greenfield School",
   description:
-    "Join Greenfield School. View open roles and apply to help us build excellence in learning, character, and community."
+    "Join Greenfield School. View open roles and apply to help us build excellence in learning and character."
 };
 
 export default async function CareersPage() {

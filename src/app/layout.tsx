@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   title: "Greenfield School",
-  description: "Greenfield School — Excellence in learning, character, and community."
+  description: "Greenfield School — Excellence in learning and character."
 };
 
 import { headers } from "next/headers";
@@ -18,11 +18,19 @@ export default function RootLayout({
 }>) {
   const headerList = headers();
   const pathname = headerList.get("x-pathname") || "";
+  const nextUrl = headerList.get("x-next-url") || "";
+  const referer = headerList.get("referer") || "";
 
   const isAppArea =
     pathname.startsWith("/portal") ||
     pathname.startsWith("/admin") ||
-    pathname.startsWith("/conductor");
+    pathname.startsWith("/conductor") ||
+    nextUrl.startsWith("/portal") ||
+    nextUrl.startsWith("/admin") ||
+    nextUrl.startsWith("/conductor") ||
+    referer.includes("/portal") ||
+    referer.includes("/admin") ||
+    referer.includes("/conductor");
 
   return (
     <html lang="en">
