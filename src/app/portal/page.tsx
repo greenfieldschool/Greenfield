@@ -131,8 +131,8 @@ export default async function PortalHomePage() {
         <div className="pointer-events-none absolute bottom-4 right-4 h-16 w-16 rounded-full bg-white/5" />
 
         <div className="relative">
-          <div className="text-sm font-medium text-emerald-100">Greenfield School Portal</div>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">
+          <div className="text-xs font-semibold uppercase tracking-widest text-emerald-200">Greenfield School Portal</div>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
             {greeting()}, {displayName}! 👋
           </h1>
           <p className="mt-2 max-w-lg text-sm text-emerald-100">
@@ -212,11 +212,11 @@ export default async function PortalHomePage() {
       {/* Quick nav grid — Student */}
       {role === "student" ? (
         <div>
-          <h2 className="mb-4 text-base font-semibold text-slate-700">Quick access</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Quick access</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Link
               href="/portal/students"
-              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-green/40 hover:shadow-md"
+              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-green/40 hover:shadow-md active:scale-[0.97] sm:p-5"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 group-hover:bg-brand-green/10 transition-colors">
                 <svg className="h-5 w-5 text-slate-600 group-hover:text-brand-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -229,7 +229,7 @@ export default async function PortalHomePage() {
 
             <Link
               href="/portal/exams"
-              className="group relative overflow-hidden rounded-2xl border border-brand-green/30 bg-gradient-to-br from-brand-green/5 to-teal-50 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+              className="group relative overflow-hidden rounded-2xl border border-brand-green/30 bg-gradient-to-br from-brand-green/5 to-teal-50 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97] sm:p-5"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-green/10 transition-colors">
                 <svg className="h-5 w-5 text-brand-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -242,7 +242,7 @@ export default async function PortalHomePage() {
 
             <Link
               href="/portal/academics"
-              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md"
+              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md active:scale-[0.97] sm:p-5"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 group-hover:bg-indigo-100 transition-colors">
                 <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -255,7 +255,7 @@ export default async function PortalHomePage() {
 
             <Link
               href="/portal/attendance"
-              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-cyan-200 hover:shadow-md"
+              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-cyan-200 hover:shadow-md active:scale-[0.97] sm:p-5"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 group-hover:bg-cyan-100 transition-colors">
                 <svg className="h-5 w-5 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -268,7 +268,7 @@ export default async function PortalHomePage() {
 
             <Link
               href="/portal/activities"
-              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-md"
+              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-md active:scale-[0.97] sm:p-5"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 group-hover:bg-amber-100 transition-colors">
                 <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -281,7 +281,7 @@ export default async function PortalHomePage() {
 
             <Link
               href="/portal/incidents"
-              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md"
+              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md active:scale-[0.97] sm:p-5"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 group-hover:bg-rose-100 transition-colors">
                 <svg className="h-5 w-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -298,11 +298,11 @@ export default async function PortalHomePage() {
       {/* Quick nav grid — Parent */}
       {role === "parent" ? (
         <div>
-          <h2 className="mb-4 text-base font-semibold text-slate-700">Quick access</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Quick access</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Link
               href="/portal/profile"
-              className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-green/40 hover:shadow-md"
+              className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-green/40 hover:shadow-md active:scale-[0.97] sm:p-5"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 group-hover:bg-brand-green/10 transition-colors">
                 <svg className="h-5 w-5 text-slate-600 group-hover:text-brand-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -315,7 +315,7 @@ export default async function PortalHomePage() {
 
             <Link
               href="/portal/students"
-              className="group rounded-2xl border border-brand-green/30 bg-gradient-to-br from-brand-green/5 to-teal-50 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+              className="group rounded-2xl border border-brand-green/30 bg-gradient-to-br from-brand-green/5 to-teal-50 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97] sm:p-5"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-green/10 transition-colors">
                 <svg className="h-5 w-5 text-brand-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -328,7 +328,7 @@ export default async function PortalHomePage() {
 
             <Link
               href="/portal/academics"
-              className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md"
+              className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md active:scale-[0.97] sm:p-5"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 group-hover:bg-indigo-100 transition-colors">
                 <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -341,7 +341,7 @@ export default async function PortalHomePage() {
 
             <Link
               href="/portal/attendance"
-              className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-cyan-200 hover:shadow-md"
+              className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-cyan-200 hover:shadow-md active:scale-[0.97] sm:p-5"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 group-hover:bg-cyan-100 transition-colors">
                 <svg className="h-5 w-5 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -354,7 +354,7 @@ export default async function PortalHomePage() {
 
             <Link
               href="/portal/billing"
-              className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+              className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md active:scale-[0.97] sm:p-5"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 group-hover:bg-emerald-100 transition-colors">
                 <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -367,7 +367,7 @@ export default async function PortalHomePage() {
 
             <Link
               href="/portal/incidents"
-              className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md"
+              className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md active:scale-[0.97] sm:p-5"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 group-hover:bg-rose-100 transition-colors">
                 <svg className="h-5 w-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
