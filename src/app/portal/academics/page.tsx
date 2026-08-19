@@ -143,11 +143,24 @@ export default async function PortalAcademicsPage({
 
   const { data: studentData } = await supabase
     .from("students")
-    .select("id, first_name, last_name, class_id, classes!students_class_id_fkey(id, level, name)")
+    .select("id, first_name, last_name, class_id")
     .eq("id", studentId)
     .maybeSingle();
 
-  const student = (studentData ?? null) as unknown as StudentRow | null;
+  let classesData = null;
+  if (studentData?.class_id) {
+    const { data } = await supabase
+      .from("classes")
+      .select("id, level, name")
+      .eq("id", studentData.class_id)
+      .maybeSingle();
+    classesData = data;
+  }
+
+  const student = studentData ? {
+    ...studentData,
+    classes: classesData
+  } as unknown as StudentRow : null;
   const classId = student?.class_id ?? null;
   const cls = firstOrNull(student?.classes);
 

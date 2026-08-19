@@ -52,16 +52,35 @@ export default async function PortalHomePage() {
       const guardianId = (identity as { guardian_id?: string | null } | null)?.guardian_id ?? null;
 
       if (role === "student" && studentId) {
-        const { data } = await withTimeout(
+        const { data: studentData } = await withTimeout(
           supabase
             .from("students")
-            .select("id, first_name, last_name, level, status, admission_number, classes!students_class_id_fkey(id, level, name)")
+            .select("id, first_name, last_name, level, status, admission_number, class_id")
             .eq("id", studentId)
             .maybeSingle(),
           6000
         );
 
-        student = (data ?? null) as StudentRow | null;
+        if (studentData) {
+          let classesData = null;
+          if (studentData.class_id) {
+            const { data } = await withTimeout(
+              supabase
+                .from("classes")
+                .select("id, level, name")
+                .eq("id", studentData.class_id)
+                .maybeSingle(),
+              4000
+            );
+            classesData = data;
+          }
+          student = {
+            ...studentData,
+            classes: classesData
+          } as unknown as StudentRow;
+        } else {
+          student = null;
+        }
       }
 
       if (role === "parent" && guardianId) {

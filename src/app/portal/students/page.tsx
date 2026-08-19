@@ -78,17 +78,30 @@ export default async function PortalStudentsPage() {
   if (role === "student") {
     const studentId = ((profile ?? null) as unknown as IdentityRow | null)?.student_id ?? null;
     if (studentId) {
-      const { data } = await withTimeout(
+      const { data: studentList } = await withTimeout(
         supabase
           .from("students")
           .select(
-            "id, first_name, middle_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes!students_class_id_fkey(id, level, name), sex, religion, favorite_sports, future_aspiration"
+            "id, first_name, middle_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, sex, religion, favorite_sports, future_aspiration"
           )
           .eq("id", studentId),
         6000
       );
 
-      students = (data ?? []) as StudentRow[];
+      const rawStudents = (studentList ?? []) as Array<StudentRow>;
+      if (rawStudents.length > 0) {
+        const classIds = rawStudents.map((s) => s.class_id).filter((cid): cid is string => typeof cid === "string" && cid.length > 0);
+        let classList: Array<{ id: string; level: string; name: string }> = [];
+        if (classIds.length > 0) {
+          const { data: classes } = await supabase.from("classes").select("id, level, name").in("id", classIds);
+          classList = (classes ?? []) as Array<{ id: string; level: string; name: string }>;
+        }
+        const classMap = new Map(classList.map((c) => [c.id, c]));
+        students = rawStudents.map((s) => ({
+          ...s,
+          classes: s.class_id ? classMap.get(s.class_id) ?? null : null
+        }));
+      }
     }
   }
 
@@ -105,18 +118,31 @@ export default async function PortalStudentsPage() {
         .filter((id): id is string => typeof id === "string" && id.length > 0);
 
       if (studentIds.length) {
-        const { data } = await withTimeout(
+        const { data: studentList } = await withTimeout(
           supabase
             .from("students")
             .select(
-              "id, first_name, middle_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, classes!students_class_id_fkey(id, level, name), sex, religion, favorite_sports, future_aspiration"
+              "id, first_name, middle_name, last_name, profile_photo_url, hobbies, level, status, date_of_birth, admission_number, class_id, sex, religion, favorite_sports, future_aspiration"
             )
             .in("id", studentIds)
             .order("last_name", { ascending: true }),
           6000
         );
 
-        students = (data ?? []) as StudentRow[];
+        const rawStudents = (studentList ?? []) as Array<StudentRow>;
+        if (rawStudents.length > 0) {
+          const classIds = rawStudents.map((s) => s.class_id).filter((cid): cid is string => typeof cid === "string" && cid.length > 0);
+          let classList: Array<{ id: string; level: string; name: string }> = [];
+          if (classIds.length > 0) {
+            const { data: classes } = await supabase.from("classes").select("id, level, name").in("id", classIds);
+            classList = (classes ?? []) as Array<{ id: string; level: string; name: string }>;
+          }
+          const classMap = new Map(classList.map((c) => [c.id, c]));
+          students = rawStudents.map((s) => ({
+            ...s,
+            classes: s.class_id ? classMap.get(s.class_id) ?? null : null
+          }));
+        }
       }
     }
   }
