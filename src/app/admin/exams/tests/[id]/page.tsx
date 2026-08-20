@@ -7,6 +7,7 @@ import SubmitButton from "@/components/submit-button";
 type TestRow = {
   id: string;
   name: string;
+  description: string | null;
   duration_minutes: number;
 };
 
@@ -51,6 +52,26 @@ function questionTypeLabel(t: string) {
     default:
       return t;
   }
+}
+
+function parseDescriptionAndTargets(desc: string | null) {
+  const text = desc || "";
+  const match = text.match(/\|\|TARGETS:(.*?)\|\|/);
+  if (match) {
+    try {
+      const targets = JSON.parse(match[1]);
+      const cleanDesc = text.replace(/\|\|TARGETS:.*?\|\|/, "").trim();
+      return { description: cleanDesc, targets: targets as Record<string, number> };
+    } catch {
+      // ignore
+    }
+  }
+  return { description: text, targets: {} as Record<string, number> };
+}
+
+function formatDescriptionWithTargets(cleanDesc: string, targets: Record<string, number>) {
+  const jsonStr = JSON.stringify(targets);
+  return `${cleanDesc.trim()} ||TARGETS:${jsonStr}||`;
 }
 
 function safeString(v: unknown) {
@@ -126,7 +147,7 @@ export default async function AdminExamTestDetailPage({
   const isFrozen = await checkTestFrozen(supabase, id);
 
   const [{ data: testData }, { data: questionsData }, { data: solutionsData }] = await Promise.all([
-    supabase.from("exam_tests").select("id, name, duration_minutes").eq("id", id).maybeSingle(),
+    supabase.from("exam_tests").select("id, name, description, duration_minutes").eq("id", id).maybeSingle(),
     supabase
       .from("exam_questions")
       .select("id, question_type, prompt, marks, options, active")
@@ -144,6 +165,70 @@ export default async function AdminExamTestDetailPage({
   const questions = (questionsData ?? []) as QuestionRow[];
   const solutions = (solutionsData ?? []) as SolutionRow[];
   const solutionByQuestionId = new Map(solutions.map((s) => [s.question_id, s] as const));
+
+  // Parse description and targets
+  const { description: displayDescription, targets } = parseDescriptionAndTargets(test.description);
+
+  // Compute stats
+  const actualCounts: Record<string, number> = {};
+  for (const type of questionTypes) {
+    actualCounts[type] = 0;
+  }
+  for (const q of questions) {
+    if (q.question_type in actualCounts) {
+      actualCounts[q.question_type]++;
+    }
+  }
+
+  let totalTarget = 0;
+  let totalSet = 0;
+  const leftToSet: Array<{ type: string; count: number }> = [];
+
+  for (const type of questionTypes) {
+    const target = targets[type] ?? 0;
+    const actual = actualCounts[type] ?? 0;
+    totalTarget += target;
+    totalSet += actual;
+    if (target > actual) {
+      leftToSet.push({ type, count: target - actual });
+    }
+  }
+
+  async function updateQuestionTargets(formData: FormData) {
+    "use server";
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    if (await checkTestFrozen(supabase, id)) return;
+
+    const { data: currentTest } = await supabase
+      .from("exam_tests")
+      .select("description")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (!currentTest) return;
+
+    const { description: cleanDesc } = parseDescriptionAndTargets(currentTest.description);
+
+    const newTargets: Record<string, number> = {};
+    for (const type of questionTypes) {
+      const val = Number(formData.get(`target_${type}`) ?? "0");
+      if (val > 0) {
+        newTargets[type] = val;
+      }
+    }
+
+    const updatedDesc = formatDescriptionWithTargets(cleanDesc, newTargets);
+
+    await supabase
+      .from("exam_tests")
+      .update({ description: updatedDesc })
+      .eq("id", id);
+
+    revalidatePath(`/admin/exams/tests/${id}`);
+  }
 
   async function createQuestion(formData: FormData) {
     "use server";
@@ -378,9 +463,11 @@ export default async function AdminExamTestDetailPage({
         </div>
       ) : null}
 
+      {/* Main header block */}
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Exams</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">{test.name}</h1>
+        {displayDescription && <p className="mt-1 text-sm text-slate-500">{displayDescription}</p>}
         <p className="mt-2 text-sm text-slate-600">Duration: {test.duration_minutes} minutes</p>
         <div className="mt-4">
           <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/exams/tests">
@@ -393,10 +480,94 @@ export default async function AdminExamTestDetailPage({
         </div>
       </div>
 
+      {/* Live Targets and Tracker Panel */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Question Targets &amp; Quota</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Specify and track how many questions of each type you need to set.</p>
+          </div>
+          {totalTarget > 0 && (
+            <div className={`rounded-xl px-4 py-2 text-sm font-semibold ${totalSet >= totalTarget ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' : 'bg-amber-50 text-amber-800 border border-amber-100'}`}>
+              {totalSet < totalTarget ? (
+                <span>
+                  Quota remaining: {totalTarget - totalSet} question{totalTarget - totalSet > 1 ? 's' : ''} left to set (
+                  {leftToSet.map(item => `${item.count} ${questionTypeLabel(item.type).split(' ')[0]}`).join(', ')}
+                  )
+                </span>
+              ) : (
+                <span>🎉 All targets met! You set {totalSet} / {totalTarget} questions.</span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Progress Grid */}
+        {totalTarget > 0 && (
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+            {questionTypes.map((type) => {
+              const target = targets[type] ?? 0;
+              if (target === 0) return null;
+              const actual = actualCounts[type] ?? 0;
+              const percent = Math.min(100, Math.round((actual / target) * 100));
+              return (
+                <div key={type} className="rounded-2xl border border-slate-100 p-4 bg-slate-50/50">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-slate-600 truncate mr-2" title={questionTypeLabel(type)}>
+                      {questionTypeLabel(type)}
+                    </span>
+                    <span className="text-slate-900 shrink-0">{actual} / {target}</span>
+                  </div>
+                  <div className="mt-2 h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${percent === 100 ? 'bg-emerald-500' : percent > 50 ? 'bg-amber-500' : 'bg-brand-green'}`}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Form to update targets (only if not frozen) */}
+        {!isFrozen && (
+          <details className="mt-6 border-t border-slate-100 pt-4">
+            <summary className="cursor-pointer text-xs font-semibold text-slate-700 hover:text-brand-green">
+              Configure Question Targets
+            </summary>
+            <form action={updateQuestionTargets} className="mt-4 grid gap-4 sm:grid-cols-3 md:grid-cols-6">
+              {questionTypes.map((type) => (
+                <div key={type}>
+                  <label className="text-xs font-semibold text-slate-600 truncate block" title={questionTypeLabel(type)}>
+                    {questionTypeLabel(type).split(' ')[0]}...
+                  </label>
+                  <input
+                    type="number"
+                    name={`target_${type}`}
+                    min={0}
+                    defaultValue={targets[type] ?? 0}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                </div>
+              ))}
+              <div className="sm:col-span-3 md:col-span-6 flex justify-end">
+                <SubmitButton
+                  className="rounded-xl bg-slate-900 text-white px-4 py-2 text-xs font-semibold hover:bg-slate-800 transition-all"
+                  pendingText="Updating Targets..."
+                >
+                  Save Targets
+                </SubmitButton>
+              </div>
+            </form>
+          </details>
+        )}
+      </div>
+
       {!isFrozen && (
         <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Add question</h2>
-          <form action={createQuestion} className="mt-4 grid gap-4">
+          <form action={createQuestion} className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-semibold text-slate-900">Type</label>
