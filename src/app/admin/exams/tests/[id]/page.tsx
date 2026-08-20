@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 
@@ -92,10 +93,37 @@ function getCorrectFillBlank(v: unknown): string {
   return safeString(asObj.value).trim();
 }
 
-export default async function AdminExamTestDetailPage({ params }: { params: Promise<{ id: string }> }) {
+async function checkTestFrozen(supabase: ReturnType<typeof getSupabaseServerClient>, testId: string): Promise<boolean> {
+  if (!supabase) return false;
+  const { data: sessionRows } = await supabase
+    .from("exam_test_sessions")
+    .select("id")
+    .eq("test_id", testId);
+  const sessionIds = sessionRows?.map((s) => s.id) ?? [];
+  if (sessionIds.length > 0) {
+    const { count } = await supabase
+      .from("exam_attempts")
+      .select("id", { count: "exact", head: true })
+      .in("session_id", sessionIds);
+    return (count ?? 0) > 0;
+  }
+  return false;
+}
+
+export default async function AdminExamTestDetailPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error } = await searchParams;
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
+
+  // Check if test is frozen (taken by students)
+  const isFrozen = await checkTestFrozen(supabase, id);
 
   const [{ data: testData }, { data: questionsData }, { data: solutionsData }] = await Promise.all([
     supabase.from("exam_tests").select("id, name, duration_minutes").eq("id", id).maybeSingle(),
@@ -103,7 +131,7 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
       .from("exam_questions")
       .select("id, question_type, prompt, marks, options, active")
       .eq("test_id", id)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
     ,
     supabase
       .from("exam_question_solutions")
@@ -120,15 +148,17 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
   async function createQuestion(formData: FormData) {
     "use server";
 
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    if (await checkTestFrozen(supabase, id)) return;
+
     const questionType = String(formData.get("question_type") ?? "").trim();
     const prompt = String(formData.get("prompt") ?? "").trim();
     const marks = Number(String(formData.get("marks") ?? "1").trim() || "1");
 
     if (!questionType || !prompt) return;
     if (!Number.isFinite(marks) || marks <= 0) return;
-
-    const supabase = getSupabaseServerClient();
-    if (!supabase) return;
 
     await supabase.from("exam_questions").insert({
       test_id: id,
@@ -142,6 +172,11 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
 
   async function updateQuestion(formData: FormData) {
     "use server";
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    if (await checkTestFrozen(supabase, id)) return;
 
     const questionId = String(formData.get("question_id") ?? "").trim();
     const questionType = String(formData.get("question_type") ?? "").trim();
@@ -211,9 +246,6 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
       }
     }
 
-    const supabase = getSupabaseServerClient();
-    if (!supabase) return;
-
     await supabase
       .from("exam_questions")
       .update({
@@ -239,8 +271,113 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
     revalidatePath(`/admin/exams/tests/${id}`);
   }
 
+  async function deleteQuestion(formData: FormData) {
+    "use server";
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    if (await checkTestFrozen(supabase, id)) {
+      redirect(`/admin/exams/tests/${id}?error=cannot_delete_taken_question`);
+    }
+
+    const questionId = String(formData.get("question_id") ?? "").trim();
+    if (!questionId) return;
+
+    // Delete question cascades to Solutions automatically
+    await supabase.from("exam_questions").delete().eq("id", questionId).eq("test_id", id);
+
+    revalidatePath(`/admin/exams/tests/${id}`);
+  }
+
+  async function duplicateQuestion(formData: FormData) {
+    "use server";
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    if (await checkTestFrozen(supabase, id)) return;
+
+    const questionId = String(formData.get("question_id") ?? "").trim();
+    if (!questionId) return;
+
+    // 1. Fetch original question
+    const { data: qData } = await supabase
+      .from("exam_questions")
+      .select("question_type, prompt, marks, options")
+      .eq("id", questionId)
+      .maybeSingle();
+
+    if (!qData) return;
+
+    // 2. Insert duplicated question
+    const { data: newQ, error: newQErr } = await supabase
+      .from("exam_questions")
+      .insert({
+        test_id: id,
+        question_type: qData.question_type,
+        prompt: `${qData.prompt} (Copy)`,
+        marks: qData.marks,
+        options: qData.options
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (newQErr || !newQ) return;
+
+    // 3. Fetch original solution
+    const { data: solData } = await supabase
+      .from("exam_question_solutions")
+      .select("correct_answer, explanation")
+      .eq("question_id", questionId)
+      .maybeSingle();
+
+    // 4. Insert duplicated solution if exists
+    if (solData) {
+      await supabase.from("exam_question_solutions").insert({
+        question_id: newQ.id,
+        correct_answer: solData.correct_answer,
+        explanation: solData.explanation
+      });
+    }
+
+    revalidatePath(`/admin/exams/tests/${id}`);
+  }
+
   return (
     <div className="space-y-6">
+      {isFrozen && (
+        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-950 shadow-sm flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
+            <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <div>
+            <div className="font-semibold text-amber-900">Exam record frozen</div>
+            <p className="mt-1 text-sm opacity-90">
+              This exam has already been administered to classes and has recorded student attempts. Questions have been locked to preserve the absolute integrity of historical exam records and grades.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {error === "cannot_delete_taken_question" ? (
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-950 shadow-sm flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
+            <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <div className="font-semibold">Cannot delete question</div>
+            <p className="mt-1 text-sm opacity-90">
+              Students have already taken this exam and submitted answers for this question. Deleting it would corrupt their grades. If you no longer want this question to be active, uncheck the <strong className="font-semibold">&quot;Active&quot;</strong> checkbox and save instead.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Exams</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">{test.name}</h1>
@@ -256,64 +393,66 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
         </div>
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Add question</h2>
-        <form action={createQuestion} className="mt-4 grid gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Type</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="question_type"
-                defaultValue={questionTypes[0]}
-              >
-                {questionTypes.map((t) => (
-                  <option key={t} value={t}>
-                    {questionTypeLabel(t)}
-                  </option>
-                ))}
-              </select>
+      {!isFrozen && (
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Add question</h2>
+          <form action={createQuestion} className="mt-4 grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="text-sm font-semibold text-slate-900">Type</label>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="question_type"
+                  defaultValue={questionTypes[0]}
+                >
+                  {questionTypes.map((t) => (
+                    <option key={t} value={t}>
+                      {questionTypeLabel(t)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-slate-900">Marks</label>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  name="marks"
+                  type="number"
+                  step="0.01"
+                  min={0.01}
+                  defaultValue={1}
+                  required
+                />
+              </div>
             </div>
+
             <div>
-              <label className="text-sm font-semibold text-slate-900">Marks</label>
-              <input
+              <label className="text-sm font-semibold text-slate-900">Prompt</label>
+              <textarea
                 className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="marks"
-                type="number"
-                step="0.01"
-                min={0.01}
-                defaultValue={1}
+                name="prompt"
+                rows={5}
                 required
               />
             </div>
-          </div>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Prompt</label>
-            <textarea
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="prompt"
-              rows={5}
-              required
-            />
-          </div>
-
-          <div>
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white transition-all duration-150 hover:brightness-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Creating…"
-            >
-              Create question
-            </SubmitButton>
-          </div>
-        </form>
-      </div>
+            <div>
+              <SubmitButton
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white transition-all duration-150 hover:brightness-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                pendingText="Creating…"
+              >
+                Create question
+              </SubmitButton>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
           <div className="col-span-2">Type</div>
-          <div className="col-span-8">Question</div>
-          <div className="col-span-2">Save</div>
+          <div className="col-span-8">{isFrozen ? "Question (Read-only)" : "Question"}</div>
+          <div className="col-span-2">Actions</div>
         </div>
         <div>
           {questions.length ? (
@@ -346,26 +485,28 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
                         <div className="sm:col-span-2">
                           <label className="text-xs font-semibold text-slate-600">Prompt</label>
                           <textarea
-                            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
                             name="prompt"
                             defaultValue={q.prompt}
                             rows={3}
                             required
+                            disabled={isFrozen}
                           />
                         </div>
                         <div>
                           <label className="text-xs font-semibold text-slate-600">Marks</label>
                           <input
-                            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
                             name="marks"
                             type="number"
                             step="0.01"
                             min={0.01}
                             defaultValue={String(q.marks)}
                             required
+                            disabled={isFrozen}
                           />
                           <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-700">
-                            <input className="h-4 w-4" name="active" type="checkbox" defaultChecked={q.active} />
+                            <input className="h-4 w-4" name="active" type="checkbox" defaultChecked={q.active} disabled={isFrozen} />
                             Active
                           </label>
                         </div>
@@ -394,37 +535,41 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
                                       <div>
                                         <label className="text-xs font-semibold text-slate-600">Option A</label>
                                         <input
-                                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
                                           name="option_a"
                                           defaultValue={optionByKey.get("A") ?? ""}
                                           placeholder="(optional)"
+                                          disabled={isFrozen}
                                         />
                                       </div>
                                       <div>
                                         <label className="text-xs font-semibold text-slate-600">Option B</label>
                                         <input
-                                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
                                           name="option_b"
                                           defaultValue={optionByKey.get("B") ?? ""}
                                           placeholder="(optional)"
+                                          disabled={isFrozen}
                                         />
                                       </div>
                                       <div>
                                         <label className="text-xs font-semibold text-slate-600">Option C</label>
                                         <input
-                                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
                                           name="option_c"
                                           defaultValue={optionByKey.get("C") ?? ""}
                                           placeholder="(optional)"
+                                          disabled={isFrozen}
                                         />
                                       </div>
                                       <div>
                                         <label className="text-xs font-semibold text-slate-600">Option D</label>
                                         <input
-                                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
                                           name="option_d"
                                           defaultValue={optionByKey.get("D") ?? ""}
                                           placeholder="(optional)"
+                                          disabled={isFrozen}
                                         />
                                       </div>
                                     </div>
@@ -434,10 +579,11 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
                                     <label className="text-xs font-semibold text-slate-600">Correct answer</label>
                                     {q.question_type === "mcq_single" ? (
                                       <select
-                                        className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                                        className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
                                         name="correct_single"
                                         defaultValue={correctKeys[0] ?? ""}
                                         required
+                                        disabled={isFrozen}
                                       >
                                         <option value="">—</option>
                                         {["A", "B", "C", "D"].map((k) => (
@@ -456,6 +602,7 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
                                               name="correct_multi"
                                               value={k}
                                               defaultChecked={correctKeys.includes(k)}
+                                              disabled={isFrozen}
                                             />
                                             {k}
                                           </label>
@@ -473,10 +620,11 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
                                   <div>
                                     <label className="text-xs font-semibold text-slate-600">Correct answer</label>
                                     <select
-                                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
                                       name="correct_tf"
                                       defaultValue={correctBool === null ? "" : correctBool ? "true" : "false"}
                                       required
+                                      disabled={isFrozen}
                                     >
                                       <option value="">—</option>
                                       <option value="true">True</option>
@@ -493,11 +641,12 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
                                   <div className="sm:col-span-2">
                                     <label className="text-xs font-semibold text-slate-600">Correct answer</label>
                                     <input
-                                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
                                       name="correct_blank"
                                       defaultValue={correctBlank}
                                       placeholder="Type the exact answer"
                                       required
+                                      disabled={isFrozen}
                                     />
                                   </div>
                                 </div>
@@ -513,17 +662,18 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
                               <div>
                                 <label className="text-xs font-semibold text-slate-600">Options (JSON)</label>
                                 <textarea
-                                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-mono text-xs outline-none focus:ring-2 focus:ring-brand-green"
+                                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-mono text-xs outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
                                   name="options"
                                   defaultValue={q.options ? JSON.stringify(q.options, null, 2) : ""}
                                   rows={6}
                                   placeholder='e.g. [{"key":"A","label":"Option A"}]'
+                                  disabled={isFrozen}
                                 />
                               </div>
                               <div>
                                 <label className="text-xs font-semibold text-slate-600">Correct answer (JSON)</label>
                                 <textarea
-                                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-mono text-xs outline-none focus:ring-2 focus:ring-brand-green"
+                                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-mono text-xs outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
                                   name="correct_answer"
                                   defaultValue={
                                     (solutionByQuestionId.get(q.id)?.correct_answer ?? null)
@@ -532,6 +682,7 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
                                   }
                                   rows={6}
                                   placeholder='e.g. {"value":"A"}'
+                                  disabled={isFrozen}
                                 />
                               </div>
                             </div>
@@ -542,22 +693,39 @@ export default async function AdminExamTestDetailPage({ params }: { params: Prom
                       <div>
                         <label className="text-xs font-semibold text-slate-600">Explanation (optional)</label>
                         <textarea
-                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
                           name="explanation"
                           defaultValue={solutionByQuestionId.get(q.id)?.explanation ?? ""}
                           rows={3}
                           placeholder="Shown after grading/release"
+                          disabled={isFrozen}
                         />
                       </div>
 
-                      <div className="flex justify-end">
-                        <SubmitButton
-                          className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white transition-all duration-150 hover:brightness-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-                          pendingText="Saving…"
-                        >
-                          Save question
-                        </SubmitButton>
-                      </div>
+                      {!isFrozen && (
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                          <button
+                            formAction={deleteQuestion}
+                            className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 active:scale-[0.98] transition-all"
+                          >
+                            Delete
+                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              formAction={duplicateQuestion}
+                              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition-all"
+                            >
+                              Duplicate
+                            </button>
+                            <SubmitButton
+                              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:brightness-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                              pendingText="Saving…"
+                            >
+                              Save question
+                            </SubmitButton>
+                          </div>
+                        </div>
+                      )}
                     </form>
                   </div>
                 </div>
