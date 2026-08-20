@@ -42,6 +42,12 @@ export default async function AdminExamSessionsPage({
   const debugValue = Array.isArray(debugRaw) ? (debugRaw[0] ?? "") : (debugRaw ?? "");
   const debug = debugValue === "1" || debugValue === "true";
 
+  const search = typeof sp.search === "string" ? sp.search.trim() : "";
+  const page = Number(sp.page ?? "1") || 1;
+  const pageSize = 15;
+  const offset = (page - 1) * pageSize;
+
+  let totalCount = 0;
   let loadErrorMsg: string | null = null;
 
   let sessionRows: SessionRow[] = [];
@@ -51,16 +57,44 @@ export default async function AdminExamSessionsPage({
   let termRows: TermRow[] = [];
 
   try {
-    const sessionsQuery = supabase
+    let matchTestIds: string[] = [];
+    const isSearchActive = search.length > 0;
+
+    if (isSearchActive) {
+      const { data: matchedTests } = await supabase
+        .from("exam_tests")
+        .select("id")
+        .ilike("name", `%${search}%`);
+      matchTestIds = matchedTests?.map((t) => t.id) ?? [];
+    }
+
+    let sessionsQuery = supabase
       .from("exam_test_sessions")
-      .select("id, test_id, class_id, starts_at, ends_at, status, requires_secret_code, active")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    const { data: sessionsData, error: sessionsError } = await withTimeout(Promise.resolve(sessionsQuery), 12000);
+      .select("id, test_id, class_id, starts_at, ends_at, status, requires_secret_code, active", { count: "exact" });
+
+    if (isSearchActive) {
+      if (matchTestIds.length > 0) {
+        sessionsQuery = sessionsQuery.in("test_id", matchTestIds);
+      } else {
+        // Match nothing if query doesn't find tests
+        sessionsQuery = sessionsQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+      }
+    }
+
+    const { data: sessionsData, count, error: sessionsError } = await withTimeout(
+      Promise.resolve(
+        sessionsQuery
+          .order("created_at", { ascending: false })
+          .range(offset, offset + pageSize - 1)
+      ),
+      12000
+    );
+
     if (sessionsError) {
       loadErrorMsg = String(sessionsError.message ?? "");
     }
     sessionRows = ((sessionsData ?? []) as unknown as SessionRow[]) ?? [];
+    totalCount = count ?? 0;
 
     const testsQuery = supabase
       .from("exam_tests")
@@ -294,58 +328,174 @@ export default async function AdminExamSessionsPage({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-5">Test</div>
-          <div className="col-span-3">Class</div>
-          <div className="col-span-2">Window</div>
-          <div className="col-span-2">Actions</div>
+      <div className="space-y-4">
+        {/* Search filter controls */}
+        <div className="flex justify-between items-center gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <form method="GET" action="/admin/exams/sessions" className="flex items-center gap-2 w-full max-w-md">
+            <input
+              type="text"
+              name="search"
+              defaultValue={search}
+              placeholder="Search sessions by test name..."
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+            />
+            {search && (
+              <Link
+                href="/admin/exams/sessions"
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-500 hover:text-slate-900"
+              >
+                Clear
+              </Link>
+            )}
+            <button
+              type="submit"
+              className="rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white hover:brightness-95 transition-all"
+            >
+              Search
+            </button>
+          </form>
         </div>
-        <div>
-          {sessionRows.length ? (
-            sessionRows.map((s) => {
-              const test = testsById.get(s.test_id) ?? null;
-              const cls = s.class_id ? (classesById.get(s.class_id) ?? null) : null;
-              const windowLabel =
-                s.starts_at || s.ends_at
-                  ? `${s.starts_at ? String(s.starts_at).slice(0, 16) : "—"} → ${s.ends_at ? String(s.ends_at).slice(0, 16) : "—"}`
-                  : "—";
-              return (
-                <div
-                  key={s.id}
-                  className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm text-slate-700"
-                >
-                  <div className="col-span-5 font-semibold text-slate-900">{test?.name ?? s.test_id}</div>
-                  <div className="col-span-3">{cls ? `${cls.level} - ${cls.name}` : "—"}</div>
-                  <div className="col-span-2 text-xs text-slate-600">{windowLabel}</div>
-                  <div className="col-span-2 flex flex-col gap-1">
-                    <div className="text-[11px] font-semibold text-slate-700">
-                      {s.status}
-                      {s.requires_secret_code ? " • code" : ""}
+
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
+            <div className="col-span-4">Test</div>
+            <div className="col-span-3">Class</div>
+            <div className="col-span-3">Window</div>
+            <div className="col-span-2 text-right">Actions</div>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {sessionRows.length ? (
+              sessionRows.map((s) => {
+                const test = testsById.get(s.test_id) ?? null;
+                const cls = s.class_id ? (classesById.get(s.class_id) ?? null) : null;
+                const windowLabel =
+                  s.starts_at || s.ends_at
+                    ? `${s.starts_at ? String(s.starts_at).slice(0, 16) : "—"} → ${s.ends_at ? String(s.ends_at).slice(0, 16) : "—"}`
+                    : "—";
+                return (
+                  <div
+                    key={s.id}
+                    className="grid grid-cols-12 gap-0 px-6 py-4 text-sm text-slate-700 items-center hover:bg-slate-50/50"
+                  >
+                    <div className="col-span-4 font-semibold text-slate-900">
+                      <Link href={`/admin/exams/sessions/${s.id}`} className="hover:text-brand-green hover:underline">
+                        {test?.name ?? s.test_id}
+                      </Link>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Link
-                        className="text-xs font-semibold text-brand-green hover:underline"
-                        href={`/admin/exams/sessions/${s.id}`}
-                      >
-                        Edit
-                      </Link>
-                      <Link className="text-xs font-semibold text-brand-green hover:underline" href={`/admin/exams/sessions/${s.id}/attempts`}>
-                        Attempts
-                      </Link>
-                      <Link
-                        className="text-xs font-semibold text-brand-green hover:underline"
-                        href={`/admin/exams/sessions/${s.id}/conductors`}
-                      >
-                        Conductors
-                      </Link>
+                    <div className="col-span-3">{cls ? `${cls.level} - ${cls.name}` : "—"}</div>
+                    <div className="col-span-3 text-xs text-slate-600">{windowLabel}</div>
+                    <div className="col-span-2 flex flex-col items-end gap-1">
+                      <div className="text-[11px] font-semibold text-slate-500">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          s.status === 'active' ? 'bg-emerald-50 text-emerald-700' :
+                          s.status === 'draft' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {s.status}
+                        </span>
+                        {s.requires_secret_code ? " • code" : ""}
+                      </div>
+                      <div className="flex flex-wrap justify-end gap-2 mt-1">
+                        <Link
+                          className="text-xs font-semibold text-brand-green hover:underline"
+                          href={`/admin/exams/sessions/${s.id}`}
+                        >
+                          Edit
+                        </Link>
+                        <span className="text-slate-300">|</span>
+                        <Link className="text-xs font-semibold text-brand-green hover:underline" href={`/admin/exams/sessions/${s.id}/attempts`}>
+                          Attempts
+                        </Link>
+                        <span className="text-slate-300">|</span>
+                        <Link
+                          className="text-xs font-semibold text-brand-green hover:underline"
+                          href={`/admin/exams/sessions/${s.id}/conductors`}
+                        >
+                          Conductors
+                        </Link>
+                      </div>
                     </div>
                   </div>
+                );
+              })
+            ) : (
+              <div className="px-6 py-8 text-sm text-slate-600">No sessions match query.</div>
+            )}
+          </div>
+
+          {/* Pagination controls */}
+          {totalCount > pageSize && (
+            <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4">
+              <div className="flex flex-1 justify-between sm:hidden">
+                {page > 1 ? (
+                  <Link
+                    href={`/admin/exams/sessions?page=${page - 1}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
+                    className="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Previous
+                  </Link>
+                ) : (
+                  <span className="relative inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400">
+                    Previous
+                  </span>
+                )}
+                {offset + sessionRows.length < totalCount ? (
+                  <Link
+                    href={`/admin/exams/sessions?page=${page + 1}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
+                    className="relative ml-3 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Next
+                  </Link>
+                ) : (
+                  <span className="relative ml-3 inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400">
+                    Next
+                  </span>
+                )}
+              </div>
+              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-slate-700">
+                    Showing <span className="font-semibold">{offset + 1}</span> to{" "}
+                    <span className="font-semibold">{Math.min(offset + pageSize, totalCount)}</span> of{" "}
+                    <span className="font-semibold">{totalCount}</span> results
+                  </p>
                 </div>
-              );
-            })
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No sessions yet.</div>
+                <div className="flex items-center gap-1">
+                  {page > 1 && (
+                    <Link
+                      href={`/admin/exams/sessions?page=${page - 1}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Previous
+                    </Link>
+                  )}
+                  {Array.from({ length: Math.ceil(totalCount / pageSize) }).map((_, i) => {
+                    const p = i + 1;
+                    const isCurrent = p === page;
+                    return (
+                      <Link
+                        key={p}
+                        href={`/admin/exams/sessions?page=${p}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-semibold transition-all ${
+                          isCurrent
+                            ? "border-brand-green bg-brand-green text-white"
+                            : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {p}
+                      </Link>
+                    );
+                  })}
+                  {offset + sessionRows.length < totalCount && (
+                    <Link
+                      href={`/admin/exams/sessions?page=${page + 1}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Next
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

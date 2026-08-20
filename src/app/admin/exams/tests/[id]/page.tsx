@@ -54,6 +54,25 @@ function questionTypeLabel(t: string) {
   }
 }
 
+function questionTypeShortLabel(t: string) {
+  switch (t) {
+    case "mcq_single":
+      return "MCQ (Single)";
+    case "mcq_multi":
+      return "MCQ (Multi)";
+    case "true_false":
+      return "True / False";
+    case "fill_blank":
+      return "Fill Blank";
+    case "short_answer":
+      return "Short Answer";
+    case "essay":
+      return "Essay";
+    default:
+      return t;
+  }
+}
+
 function parseDescriptionAndTargets(desc: string | null) {
   const text = desc || "";
   const match = text.match(/\|\|TARGETS:(.*?)\|\|/);
@@ -536,11 +555,11 @@ export default async function AdminExamTestDetailPage({
             <summary className="cursor-pointer text-xs font-semibold text-slate-700 hover:text-brand-green">
               Configure Question Targets
             </summary>
-            <form action={updateQuestionTargets} className="mt-4 grid gap-4 sm:grid-cols-3 md:grid-cols-6">
+            <form action={updateQuestionTargets} className="mt-4 grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
               {questionTypes.map((type) => (
                 <div key={type}>
-                  <label className="text-xs font-semibold text-slate-600 truncate block" title={questionTypeLabel(type)}>
-                    {questionTypeLabel(type).split(' ')[0]}...
+                  <label className="text-xs font-semibold text-slate-600 block whitespace-nowrap" title={questionTypeLabel(type)}>
+                    {questionTypeShortLabel(type)}
                   </label>
                   <input
                     type="number"
