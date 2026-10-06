@@ -66,7 +66,7 @@ export default async function ConductorSessionsPage() {
     .limit(100);
 
   const rows = (data ?? []) as unknown as SessionConductorRow[];
-  const sessions = rows.map((r) => (r.exam_test_sessions ?? [])[0]).filter(Boolean) as SessionRow[];
+  const sessions = rows.map((r) => firstOrNull(r.exam_test_sessions)).filter(Boolean) as SessionRow[];
 
   return (
     <div className="space-y-6">

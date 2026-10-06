@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import { firstOrNull } from "@/lib/relations";
 
 type AttemptRow = {
   id: string;
@@ -107,7 +108,7 @@ export default async function AdminExamAttemptMarkingPage({
     const parsed = (rows ?? []) as unknown as Array<{ awarded_marks: number; exam_questions: Array<{ marks: number }> }>;
 
     const obtained = parsed.reduce((acc, r) => acc + Number(r.awarded_marks ?? 0), 0);
-    const max = parsed.reduce((acc, r) => acc + Number((r.exam_questions ?? [])[0]?.marks ?? 0), 0);
+    const max = parsed.reduce((acc, r) => acc + Number(firstOrNull(r.exam_questions)?.marks ?? 0), 0);
     const percent = max > 0 ? (obtained / max) * 100 : 0;
 
     await supabase
@@ -166,7 +167,7 @@ export default async function AdminExamAttemptMarkingPage({
       <div className="space-y-4">
         {answers.length ? (
           answers.map((a, idx) => {
-            const q = (a.exam_questions ?? [])[0] ?? null;
+            const q = firstOrNull(a.exam_questions);
             const maxMarks = Number(q?.marks ?? 0);
 
             return (

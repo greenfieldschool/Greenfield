@@ -40,7 +40,7 @@ export default async function AdminNewPaymentPage({
 
     const guardianIdRaw = String(formData.get("guardian_id") ?? "").trim();
     const invoiceIdRaw = String(formData.get("invoice_id") ?? "").trim();
-    const amount = Number(String(formData.get("amount") ?? "0").trim() || "0");
+    const amount = Number(String(formData.get("amount") ?? "0").replace(/,/g, "").trim() || "0");
     const currency = String(formData.get("currency") ?? "NGN").trim() || "NGN";
     const method = String(formData.get("method") ?? "cash").trim();
     const reference = String(formData.get("reference") ?? "").trim();
@@ -140,7 +140,10 @@ export default async function AdminNewPaymentPage({
             <input
               className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
               name="amount"
-              defaultValue="0"
+              type="number"
+              step="0.01"
+              min="0.01"
+              placeholder="0.00"
               required
             />
           </div>

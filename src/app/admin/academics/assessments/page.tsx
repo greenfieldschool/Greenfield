@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 import UrlToast from "@/components/url-toast";
+import { firstOrNull } from "@/lib/relations";
 
 type YearRow = { id: string; name: string };
 type TermRow = { id: string; name: string };
@@ -22,7 +23,17 @@ type AssessmentRow = {
   academic_terms: Array<{ id: string; name: string }>;
 };
 
-const assessmentTypes = ["weekly_test", "mid_term", "exam", "mock", "assignment"] as const;
+const assessmentTypes = [
+  "weekly_test",
+  "mid_term",
+  "exam",
+  "mock",
+  "assignment",
+  "first_ca",
+  "second_ca",
+  "exam_objective",
+  "exam_theory"
+] as const;
 
 export default async function AdminAssessmentsPage() {
   const supabase = getSupabaseServerClient();
@@ -249,8 +260,8 @@ export default async function AdminAssessmentsPage() {
         <div>
           {assessmentRows.length ? (
             assessmentRows.map((a) => {
-              const cls = (a.classes ?? [])[0] ?? null;
-              const subj = (a.subjects ?? [])[0] ?? null;
+              const cls = firstOrNull(a.classes);
+              const subj = firstOrNull(a.subjects);
               return (
                 <Link
                   key={a.id}

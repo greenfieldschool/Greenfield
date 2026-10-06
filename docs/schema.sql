@@ -2184,7 +2184,16 @@ create trigger career_applications_set_updated_at
      c.level as class_level,
      a.subject_id,
      sub.name as subject_name,
-     coalesce(sum((sc.score / nullif(a.max_score, 0)) * 100 * (w.weight / 100)), 0) as weighted_score
+     coalesce(
+       sum(
+         case
+           when w.weight is not null then (sc.score / nullif(a.max_score, 0)) * 100 * (w.weight / 100)
+           when a.assessment_type in ('first_ca', 'second_ca', 'exam_objective', 'exam_theory') then sc.score
+           else 0
+         end
+       ),
+       0
+     ) as weighted_score
    from public.academic_assessment_scores sc
    join public.academic_assessments a on a.id = sc.assessment_id
    join public.students s on s.id = sc.student_id

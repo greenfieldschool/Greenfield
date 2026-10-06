@@ -254,7 +254,7 @@ export default async function PortalStudentsPage() {
                       enrollments.map((e, idx) => (
                         <div key={`${e.student_id}-${idx}`} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
                           <div className="text-sm font-semibold text-slate-900">
-                            {e.activities?.[0]?.name ?? "Activity"}
+                            {firstOrNull(e.activities)?.name ?? "Activity"}
                           </div>
                           <div className="mt-1 text-xs text-slate-600">Status: {e.status}</div>
                         </div>

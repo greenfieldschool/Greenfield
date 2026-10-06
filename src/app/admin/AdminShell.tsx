@@ -69,6 +69,8 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
         label: "Academics",
         items: [
           { href: "/admin/academics/subjects", label: "Subjects", shortLabel: "Subj" },
+          { href: "/admin/academics/results", label: "Result sheet", shortLabel: "Results" },
+          { href: "/admin/academics/assessments", label: "Assessments", shortLabel: "Assess" },
           { href: "/admin/academics/config", label: "Config" },
           { href: "/admin/academics/publications", label: "Publish", shortLabel: "Publish" }
         ]

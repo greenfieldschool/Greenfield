@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import { firstOrNull } from "@/lib/relations";
 
 type AttemptRow = {
   attempt_id: string;
@@ -22,7 +23,11 @@ type AttemptRow = {
 
 type SessionReleaseRow = {
   id: string;
+  class_id: string | null;
+  academic_year_id: string | null;
+  academic_term_id: string | null;
   results_released_at: string | null;
+  exam_tests: { subject_id: string | null } | Array<{ subject_id: string | null }> | null;
 };
 
 export default async function AdminExamSessionAttemptsPage({
@@ -36,11 +41,18 @@ export default async function AdminExamSessionAttemptsPage({
 
   const { data: releaseData } = await supabase
     .from("exam_test_sessions")
-    .select("id, results_released_at")
+    .select("id, class_id, academic_year_id, academic_term_id, results_released_at, exam_tests(subject_id)")
     .eq("id", id)
     .maybeSingle();
 
-  const release = (releaseData ?? null) as SessionReleaseRow | null;
+  const release = (releaseData ?? null) as unknown as SessionReleaseRow | null;
+  const subjectId = firstOrNull(release?.exam_tests)?.subject_id ?? null;
+  const resultSheetParams = new URLSearchParams({ session_id: id });
+  if (release?.class_id) resultSheetParams.set("class_id", release.class_id);
+  if (subjectId) resultSheetParams.set("subject_id", subjectId);
+  if (release?.academic_year_id) resultSheetParams.set("year_id", release.academic_year_id);
+  if (release?.academic_term_id) resultSheetParams.set("term_id", release.academic_term_id);
+  const resultSheetHref = `/admin/academics/results?${resultSheetParams.toString()}`;
 
   const { data: attemptsData } = await supabase
     .from("exam_attempt_list_v")
@@ -76,6 +88,8 @@ export default async function AdminExamSessionAttemptsPage({
 
     revalidatePath(`/admin/exams/sessions/${id}/attempts`);
     revalidatePath("/portal/exams");
+    revalidatePath("/portal/exams/results");
+    revalidatePath("/portal");
   }
 
   async function unreleaseResults() {
@@ -135,7 +149,7 @@ export default async function AdminExamSessionAttemptsPage({
           <div>
             <div className="text-sm font-semibold text-slate-900">Result release</div>
             <p className="mt-2 text-sm text-slate-600">
-              Students can only view correct answers/explanations after results are released.
+              Students see their CBT score, correct answers and explanations under Exam Results only after you release.
             </p>
             <div className="mt-2 text-xs font-semibold text-slate-700">
               Status: {release?.results_released_at ? `Released (${release.results_released_at})` : "Not released"}
@@ -167,6 +181,29 @@ export default async function AdminExamSessionAttemptsPage({
               </SubmitButton>
             </form>
           )}
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-sm font-semibold text-slate-900">Add to term result</div>
+            <p className="mt-2 text-sm text-slate-600">
+              Copy these objective scores into the class result sheet, then add 1st CA, 2nd CA and theory before
+              publishing the term result.
+            </p>
+            {!release?.class_id || !subjectId || !release?.academic_term_id ? (
+              <p className="mt-2 text-xs text-amber-700">
+                Tip: set the class and term on this session (and a subject on its test) so the sheet opens pre-filled.
+              </p>
+            ) : null}
+          </div>
+          <Link
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+            href={resultSheetHref}
+          >
+            Open result sheet
+          </Link>
         </div>
       </div>
 

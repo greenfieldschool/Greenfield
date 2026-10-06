@@ -1,5 +1,6 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { firstOrNull } from "@/lib/relations";
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
   return (await Promise.race([
@@ -18,6 +19,18 @@ type StudentRow = {
   classes: { id: string; level: string; name: string } | null;
 };
 
+type RecentResultRow = {
+  id: string;
+  obtained_marks: number;
+  max_marks: number;
+  percent: number;
+  submitted_at: string | null;
+  exam_test_sessions:
+    | { results_released_at: string | null; exam_tests: { name: string } | Array<{ name: string }> | null }
+    | Array<{ results_released_at: string | null; exam_tests: { name: string } | Array<{ name: string }> | null }>
+    | null;
+};
+
 type GuardianRow = {
   id: string;
   full_name: string;
@@ -34,6 +47,8 @@ export default async function PortalHomePage() {
   let student: StudentRow | null = null;
   let guardian: GuardianRow | null = null;
   let errorMsg: string | null = null;
+  let recentResults: RecentResultRow[] = [];
+  let termResultsPublished = false;
 
   if (supabase && user) {
     try {
@@ -78,6 +93,36 @@ export default async function PortalHomePage() {
             ...studentData,
             classes: classesData
           } as unknown as StudentRow;
+
+          // Best effort: the dashboard still renders if results cannot be loaded.
+          try {
+            const [{ data: attemptsData }, { data: pubData }] = await withTimeout(
+              Promise.all([
+                supabase
+                  .from("exam_attempts")
+                  .select(
+                    "id, obtained_marks, max_marks, percent, submitted_at, exam_test_sessions!inner(results_released_at, exam_tests(name))"
+                  )
+                  .eq("student_id", studentId)
+                  .not("exam_test_sessions.results_released_at", "is", null)
+                  .order("submitted_at", { ascending: false })
+                  .limit(3),
+                studentData.class_id
+                  ? supabase
+                      .from("result_publications")
+                      .select("id")
+                      .eq("scope", "term_results")
+                      .eq("class_id", studentData.class_id)
+                      .limit(1)
+                  : Promise.resolve({ data: [] as unknown[] })
+              ]),
+              6000
+            );
+            recentResults = (attemptsData ?? []) as unknown as RecentResultRow[];
+            termResultsPublished = ((pubData ?? []) as unknown[]).length > 0;
+          } catch {
+            recentResults = [];
+          }
         } else {
           student = null;
         }
@@ -206,6 +251,47 @@ export default async function PortalHomePage() {
               </div>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {/* Latest results — Student */}
+      {role === "student" && student && (recentResults.length || termResultsPublished) ? (
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Latest results</h2>
+            <div className="flex gap-3 text-xs font-semibold">
+              {termResultsPublished ? (
+                <Link className="text-brand-green hover:underline" href="/portal/academics">
+                  Term report
+                </Link>
+              ) : null}
+              <Link className="text-brand-green hover:underline" href="/portal/exams/results">
+                All exam results
+              </Link>
+            </div>
+          </div>
+          {recentResults.length ? (
+            <div className="mt-4 divide-y divide-slate-100">
+              {recentResults.map((r) => {
+                const test = firstOrNull(firstOrNull(r.exam_test_sessions)?.exam_tests);
+                return (
+                  <Link
+                    key={r.id}
+                    href={`/portal/exams/results/${r.id}`}
+                    className="flex items-center justify-between gap-3 py-3 text-sm hover:bg-slate-50"
+                  >
+                    <span className="font-semibold text-slate-900">{test?.name ?? "Exam"}</span>
+                    <span className="text-slate-700">
+                      {Number(r.obtained_marks ?? 0)} / {Number(r.max_marks ?? 0)} ·{" "}
+                      <span className="font-semibold">{Number(r.percent ?? 0).toFixed(0)}%</span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-slate-600">Your term result has been published. Open the term report to view it.</p>
+          )}
         </div>
       ) : null}
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { firstOrNull } from "@/lib/relations";
 
 type AttemptRow = {
   id: string;
@@ -86,7 +87,7 @@ export default async function PortalExamResultDetailPage({ params }: { params: P
     );
   }
 
-  const session = (attempt.exam_test_sessions ?? [])[0] ?? null;
+  const session = firstOrNull(attempt.exam_test_sessions);
   const releasedAt = session?.results_released_at ?? null;
 
   if (!releasedAt) {
@@ -124,7 +125,7 @@ export default async function PortalExamResultDetailPage({ params }: { params: P
   const solutions = (solutionsData ?? []) as unknown as SolutionRow[];
   const solByQ = new Map(solutions.map((s) => [s.question_id, s] as const));
 
-  const test = (session?.exam_tests ?? [])[0] ?? null;
+  const test = firstOrNull(session?.exam_tests);
 
   return (
     <div className="space-y-6">
@@ -157,7 +158,7 @@ export default async function PortalExamResultDetailPage({ params }: { params: P
       <div className="space-y-4">
         {answers.length ? (
           answers.map((a, idx) => {
-            const q = (a.exam_questions ?? [])[0] ?? null;
+            const q = firstOrNull(a.exam_questions);
             const sol = q ? solByQ.get(q.id) ?? null : null;
 
             const yourAnswer = asValue(a.answer);

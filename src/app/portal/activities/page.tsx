@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { firstOrNull } from "@/lib/relations";
 
 type StudentGuardianRow = { student_id: string };
 
@@ -213,7 +214,7 @@ export default async function PortalActivitiesPage({
         <div className="mt-4 space-y-3">
           {enrollments.length ? (
             enrollments.map((e) => {
-              const activity = e.activities[0] ?? null;
+              const activity = firstOrNull(e.activities);
               return (
                 <div key={e.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

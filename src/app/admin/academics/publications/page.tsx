@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import { firstOrNull } from "@/lib/relations";
 
 type YearRow = { id: string; name: string };
 
@@ -208,9 +209,9 @@ export default async function AdminAcademicsPublicationsPage() {
         <div>
           {publicationRows.length ? (
             publicationRows.map((p) => {
-              const year = (p.academic_years ?? [])[0] ?? null;
-              const term = (p.academic_terms ?? [])[0] ?? null;
-              const cls = (p.classes ?? [])[0] ?? null;
+              const year = firstOrNull(p.academic_years);
+              const term = firstOrNull(p.academic_terms);
+              const cls = firstOrNull(p.classes);
               return (
                 <div key={p.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
                   <div className="col-span-3 font-semibold text-slate-900">{p.scope}</div>

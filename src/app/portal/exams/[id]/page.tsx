@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import LockOnBlurClient from "./LockOnBlurClient";
 import ExamAnswersClient from "./ExamAnswersClient";
+import { firstOrNull } from "@/lib/relations";
 
 type SessionRow = {
   id: string;
@@ -65,7 +66,7 @@ export default async function PortalExamRunnerPage({ params }: { params: Promise
   const session = (sessionData ?? null) as unknown as SessionRow | null;
   if (!session) return null;
 
-  const test = (session.exam_tests ?? [])[0] ?? null;
+  const test = firstOrNull(session.exam_tests);
 
   const { data: attemptData } = await supabase
     .from("exam_attempts")

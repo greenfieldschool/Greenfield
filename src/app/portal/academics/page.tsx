@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { resultColumnTypes } from "@/lib/results";
 
 type StudentGuardianRow = { student_id: string };
 
@@ -53,6 +54,14 @@ type TermSummaryRow = {
   academic_year_id: string | null;
   academic_term_id: string | null;
   average_score: number;
+};
+
+type BreakdownRow = {
+  score: number;
+  academic_assessments:
+    | { subject_id: string; assessment_type: string; max_score: number }
+    | Array<{ subject_id: string; assessment_type: string; max_score: number }>
+    | null;
 };
 
 type WelfareSummaryRow = {
@@ -185,7 +194,9 @@ export default async function PortalAcademicsPage({
     .limit(6);
 
   const pubs = (pubsData ?? []) as unknown as PubRow[];
-  const latest = pubs[0] ?? null;
+  const selectedPubRaw = sp.pub;
+  const selectedPubId = Array.isArray(selectedPubRaw) ? (selectedPubRaw[0] ?? "") : (selectedPubRaw ?? "");
+  const latest = pubs.find((p) => p.id === selectedPubId) ?? pubs[0] ?? null;
 
   if (!latest?.academic_year_id || !latest?.academic_term_id) {
     return (
@@ -202,7 +213,7 @@ export default async function PortalAcademicsPage({
   const yearId = latest.academic_year_id;
   const termId = latest.academic_term_id;
 
-  const [{ data: subjectData }, { data: termData }, { data: welfareData }] = await Promise.all([
+  const [{ data: subjectData }, { data: termData }, { data: welfareData }, { data: breakdownData }] = await Promise.all([
     supabase
       .from("academic_student_subject_term_summary")
       .select("student_id, academic_year_id, academic_term_id, subject_id, subject_name, weighted_score, grade")
@@ -223,15 +234,37 @@ export default async function PortalAcademicsPage({
       .eq("student_id", studentId)
       .eq("academic_year_id", yearId)
       .eq("academic_term_id", termId)
-      .maybeSingle()
+      .maybeSingle(),
+    supabase
+      .from("academic_assessment_scores")
+      .select("score, academic_assessments!inner(subject_id, assessment_type, max_score, academic_year_id, academic_term_id)")
+      .eq("student_id", studentId)
+      .eq("academic_assessments.academic_year_id", yearId)
+      .eq("academic_assessments.academic_term_id", termId)
+      .in("academic_assessments.assessment_type", resultColumnTypes)
   ]);
 
   const subjects = (subjectData ?? []) as unknown as SubjectSummaryRow[];
   const term = (termData ?? null) as unknown as TermSummaryRow | null;
   const welfare = (welfareData ?? null) as unknown as WelfareSummaryRow | null;
 
-  const year = (latest.academic_years ?? [])[0] ?? null;
-  const termMeta = (latest.academic_terms ?? [])[0] ?? null;
+  // 1st CA / 2nd CA / Exam breakdown per subject from the result sheet (exam = objective + theory).
+  const breakdown = new Map<string, { ca1: number | null; ca2: number | null; exam: number | null }>();
+  for (const row of (breakdownData ?? []) as unknown as BreakdownRow[]) {
+    const a = firstOrNull(row.academic_assessments);
+    if (!a) continue;
+    const entry = breakdown.get(a.subject_id) ?? { ca1: null, ca2: null, exam: null };
+    const score = Number(row.score ?? 0);
+    if (a.assessment_type === "first_ca") entry.ca1 = (entry.ca1 ?? 0) + score;
+    else if (a.assessment_type === "second_ca") entry.ca2 = (entry.ca2 ?? 0) + score;
+    else entry.exam = (entry.exam ?? 0) + score;
+    breakdown.set(a.subject_id, entry);
+  }
+  const showBreakdown = breakdown.size > 0;
+  const fmt = (v: number | null | undefined) => (v === null || v === undefined ? "—" : String(Math.round(v * 100) / 100));
+
+  const year = firstOrNull(latest.academic_years);
+  const termMeta = firstOrNull(latest.academic_terms);
 
   return (
     <div className="space-y-6">
@@ -262,6 +295,29 @@ export default async function PortalAcademicsPage({
         <p className="mt-2 text-sm text-slate-600">
           {cls ? `${cls.level} - ${cls.name}` : "Class"} • {year?.name ?? "Year"} • {termMeta?.name ?? "Term"}
         </p>
+        {pubs.length > 1 ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {pubs.map((p) => {
+              const active = p.id === latest.id;
+              const params = new URLSearchParams({ pub: p.id });
+              if (role === "parent") params.set("student_id", studentId!);
+              return (
+                <Link
+                  key={p.id}
+                  href={`/portal/academics?${params.toString()}`}
+                  className={
+                    "rounded-xl border px-3 py-1.5 text-xs font-semibold transition " +
+                    (active
+                      ? "border-brand-green bg-brand-green text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                  }
+                >
+                  {firstOrNull(p.academic_years)?.name ?? ""} {firstOrNull(p.academic_terms)?.name ?? "Term"}
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
         <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
           <div>
             <div className="text-xs font-semibold text-slate-500">Average</div>
@@ -279,23 +335,53 @@ export default async function PortalAcademicsPage({
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-6">Subject</div>
-          <div className="col-span-3">Score</div>
-          <div className="col-span-3">Grade</div>
-        </div>
-        <div>
-          {subjects.length ? (
-            subjects.map((s) => (
-              <div key={s.subject_id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                <div className="col-span-6 font-semibold text-slate-900">{s.subject_name}</div>
-                <div className="col-span-3 text-slate-700">{Number(s.weighted_score ?? 0).toFixed(2)}%</div>
-                <div className="col-span-3 text-slate-700">{s.grade ?? "—"}</div>
-              </div>
-            ))
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No subject results available yet.</div>
-          )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
+              <tr>
+                <th className="px-6 py-3 text-left">Subject</th>
+                {showBreakdown ? (
+                  <>
+                    <th className="px-3 py-3 text-right">1st CA</th>
+                    <th className="px-3 py-3 text-right">2nd CA</th>
+                    <th className="px-3 py-3 text-right">Exam</th>
+                  </>
+                ) : null}
+                <th className="px-3 py-3 text-right">{showBreakdown ? "Total" : "Score"}</th>
+                <th className="px-6 py-3 text-right">Grade</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subjects.length ? (
+                subjects.map((s) => {
+                  const b = breakdown.get(s.subject_id);
+                  return (
+                    <tr key={s.subject_id} className="border-t border-slate-200">
+                      <td className="px-6 py-4 font-semibold text-slate-900">{s.subject_name}</td>
+                      {showBreakdown ? (
+                        <>
+                          <td className="px-3 py-4 text-right text-slate-700">{fmt(b?.ca1)}</td>
+                          <td className="px-3 py-4 text-right text-slate-700">{fmt(b?.ca2)}</td>
+                          <td className="px-3 py-4 text-right text-slate-700">{fmt(b?.exam)}</td>
+                        </>
+                      ) : null}
+                      <td className="px-3 py-4 text-right font-semibold text-slate-900">
+                        {Number(s.weighted_score ?? 0).toFixed(2)}
+                        {showBreakdown ? "" : "%"}
+                      </td>
+                      <td className="px-6 py-4 text-right text-slate-700">{s.grade ?? "—"}</td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={showBreakdown ? 6 : 3} className="px-6 py-8 text-sm text-slate-600">
+                    No subject results available yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

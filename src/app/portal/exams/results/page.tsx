@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { firstOrNull } from "@/lib/relations";
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
   return (await Promise.race([
@@ -66,7 +67,7 @@ export default async function PortalExamResultsPage() {
       }
 
       const rows = (data ?? []) as unknown as AttemptRow[];
-      released = rows.filter((r) => (r.exam_test_sessions?.[0]?.results_released_at ?? null) !== null);
+      released = rows.filter((r) => (firstOrNull(r.exam_test_sessions)?.results_released_at ?? null) !== null);
     }
   } catch (e) {
     if (!errorMsg) {
@@ -110,8 +111,8 @@ export default async function PortalExamResultsPage() {
         <div>
           {released.length ? (
             released.map((a) => {
-              const session = (a.exam_test_sessions ?? [])[0] ?? null;
-              const test = (session?.exam_tests ?? [])[0] ?? null;
+              const session = firstOrNull(a.exam_test_sessions);
+              const test = firstOrNull(session?.exam_tests);
 
               return (
                 <div key={a.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">

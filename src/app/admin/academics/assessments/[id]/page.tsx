@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import { firstOrNull } from "@/lib/relations";
 
 type AssessmentRow = {
   id: string;
@@ -64,8 +65,8 @@ export default async function AdminAssessmentDetailPage({ params }: { params: Pr
   const scores = (scoresData ?? []) as ScoreRow[];
   const scoreByStudentId = new Map(scores.map((s) => [s.student_id, s] as const));
 
-  const cls = (assessment.classes ?? [])[0] ?? null;
-  const subj = (assessment.subjects ?? [])[0] ?? null;
+  const cls = firstOrNull(assessment.classes);
+  const subj = firstOrNull(assessment.subjects);
 
   async function upsertScore(formData: FormData) {
     "use server";

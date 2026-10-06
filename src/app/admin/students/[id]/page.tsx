@@ -7,6 +7,7 @@ import SubmitButton from "@/components/submit-button";
 import StudentPhotoUploader from "./StudentPhotoUploader";
 import UrlToast from "@/components/url-toast";
 import PasswordInput from "@/components/password-input";
+import { firstOrNull } from "@/lib/relations";
 
 function admissionNumberToEmail(admissionNumberRaw: string) {
   const admissionNumber = admissionNumberRaw.trim().toLowerCase();
@@ -735,7 +736,7 @@ export default async function AdminStudentDetailPage({
             </div>
           </form>
           <div className="mt-3 text-xs text-slate-600">
-            Current class: {(student.classes ?? [])[0]?.name ?? "—"}
+            Current class: {firstOrNull(student.classes)?.name ?? "—"}
           </div>
         </div>
         <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">

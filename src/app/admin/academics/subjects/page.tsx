@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
 
 type SubjectRow = {
@@ -56,13 +57,67 @@ export default async function AdminSubjectsPage() {
     redirect(`/admin/academics/subjects?toast=${encodeURIComponent(active ? "Subject deactivated" : "Subject activated")}&toast_type=success`);
   }
 
+  async function updateLevel(formData: FormData) {
+    "use server";
+
+    const id = String(formData.get("id") ?? "").trim();
+    const levelRaw = String(formData.get("level") ?? "").trim();
+
+    if (!id) return;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    const { error } = await supabase
+      .from("subjects")
+      .update({ level: levelRaw.length ? levelRaw : null })
+      .eq("id", id);
+
+    revalidatePath("/admin/academics/subjects");
+    if (error) {
+      redirect(`/admin/academics/subjects?toast=${encodeURIComponent(error.message)}&toast_type=error`);
+    }
+    redirect(`/admin/academics/subjects?toast=${encodeURIComponent("Subject level updated")}&toast_type=success`);
+  }
+
+  async function clearAllLevels() {
+    "use server";
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    const { error } = await supabase.from("subjects").update({ level: null }).not("level", "is", null);
+
+    revalidatePath("/admin/academics/subjects");
+    if (error) {
+      redirect(`/admin/academics/subjects?toast=${encodeURIComponent(error.message)}&toast_type=error`);
+    }
+    redirect(
+      `/admin/academics/subjects?toast=${encodeURIComponent("Levels removed from all subjects")}&toast_type=success`
+    );
+  }
+
+  const subjectsWithLevel = subjects.filter((s) => s.level).length;
+
   return (
     <div className="space-y-6">
       <UrlToast />
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Academics</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">Subjects</h1>
-        <p className="mt-2 text-sm text-slate-600">Manage subjects offered by level.</p>
+        <p className="mt-2 text-sm text-slate-600">
+          Manage subjects. A level is optional — leave it blank and the class is picked when you schedule an exam session.
+        </p>
+        {subjectsWithLevel > 0 ? (
+          <form action={clearAllLevels} className="mt-4">
+            <ConfirmSubmitButton
+              confirmMessage={`Remove the level from all ${subjectsWithLevel} subject(s)? Subjects will no longer be tied to creche/primary/secondary.`}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60"
+            >
+              Remove level from all subjects
+            </ConfirmSubmitButton>
+          </form>
+        ) : null}
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -117,7 +172,28 @@ export default async function AdminSubjectsPage() {
             subjects.map((s) => (
               <div key={s.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
                 <div className="col-span-6 font-semibold text-slate-900">{s.name}</div>
-                <div className="col-span-4 text-slate-700">{s.level ?? "—"}</div>
+                <div className="col-span-4 text-slate-700">
+                  <form action={updateLevel} className="flex items-center gap-2">
+                    <input type="hidden" name="id" value={s.id} />
+                    <select
+                      className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                      name="level"
+                      defaultValue={s.level ?? ""}
+                    >
+                      <option value="">— (none)</option>
+                      <option value="creche">creche</option>
+                      <option value="primary">primary</option>
+                      <option value="secondary">secondary</option>
+                    </select>
+                    <SubmitButton
+                      className="text-xs font-semibold text-brand-green hover:underline disabled:opacity-60"
+                      pendingText="Saving…"
+                      showSpinner={false}
+                    >
+                      Save
+                    </SubmitButton>
+                  </form>
+                </div>
                 <div className="col-span-2">
                   <form action={toggleActive}>
                     <input type="hidden" name="id" value={s.id} />

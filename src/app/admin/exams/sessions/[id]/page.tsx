@@ -192,7 +192,7 @@ export default async function AdminExamSessionEditPage({
             className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
             href={`/admin/exams/sessions/${id}/attempts`}
           >
-            Attempts
+            Attempts &amp; results release
           </Link>
           <Link
             className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50" 

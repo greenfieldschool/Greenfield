@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import { firstOrNull } from "@/lib/relations";
 
 type InvoiceBalanceRow = {
   invoice_id: string;
@@ -248,7 +249,7 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
 
     const payload = lines
       .map((l) => {
-        const fc = (l.fee_components ?? [])[0] ?? null;
+        const fc = firstOrNull(l.fee_components);
         return {
           invoice_id: id,
           revenue_category_id: fc?.revenue_category_id ?? null,
@@ -565,7 +566,7 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
               </div>
               {allocationRows.length ? (
                 allocationRows.map((al) => {
-                  const txn = (al.finance_payment_transactions ?? [])[0] ?? null;
+                  const txn = firstOrNull(al.finance_payment_transactions);
                   const ref = txn?.provider_txn_id || txn?.reference || txn?.id || "—";
                   return (
                     <div key={al.id} className="grid grid-cols-12 border-t border-slate-200 px-4 py-3 text-sm">

@@ -3,7 +3,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
+import { firstOrNull } from "@/lib/relations";
 
 type SubjectRow = { id: string; name: string };
 
@@ -175,6 +177,44 @@ export default async function AdminExamTestsPage({
 
     revalidatePath("/admin/exams/tests");
     redirect(`/admin/exams/tests?toast=${encodeURIComponent("Test duplicated successfully")}&toast_type=success`);
+  }
+
+  async function deleteTest(formData: FormData) {
+    "use server";
+
+    const testId = String(formData.get("test_id") ?? "").trim();
+    if (!testId) return;
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    // Deleting a test cascades to its sessions and attempts, so refuse when students have already sat it.
+    const { data: sessions } = await supabase.from("exam_test_sessions").select("id").eq("test_id", testId);
+    const sessionIds = (sessions ?? []).map((s) => s.id as string);
+
+    if (sessionIds.length) {
+      const { count: attemptCount } = await supabase
+        .from("exam_attempts")
+        .select("id", { count: "exact", head: true })
+        .in("session_id", sessionIds);
+
+      if ((attemptCount ?? 0) > 0) {
+        redirect(
+          `/admin/exams/tests?toast=${encodeURIComponent(
+            "This test has student attempts and cannot be deleted. Mark it inactive instead."
+          )}&toast_type=error`
+        );
+      }
+    }
+
+    const { error } = await supabase.from("exam_tests").delete().eq("id", testId);
+    if (error) {
+      redirect(`/admin/exams/tests?toast=${encodeURIComponent(error.message)}&toast_type=error`);
+    }
+
+    revalidatePath("/admin/exams/tests");
+    revalidatePath("/admin/exams/sessions");
+    redirect(`/admin/exams/tests?toast=${encodeURIComponent("Test deleted")}&toast_type=success`);
   }
 
   async function filterTests(formData: FormData) {
@@ -420,11 +460,11 @@ export default async function AdminExamTestsPage({
       {/* Tests Table */}
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-5">Test</div>
+          <div className="col-span-4">Test</div>
           <div className="col-span-3">Subject</div>
           <div className="col-span-2">Duration</div>
           <div className="col-span-1">Status</div>
-          <div className="col-span-1 text-right">Actions</div>
+          <div className="col-span-2 text-right">Actions</div>
         </div>
         <div className="divide-y divide-slate-200">
           {tests.length ? (
@@ -433,19 +473,19 @@ export default async function AdminExamTestsPage({
                 key={t.id}
                 className="grid grid-cols-12 gap-0 px-6 py-4 text-sm text-slate-700 hover:bg-slate-50/50 items-center"
               >
-                <div className="col-span-5 font-semibold text-slate-900">
+                <div className="col-span-4 font-semibold text-slate-900">
                   <Link href={`/admin/exams/tests/${t.id}`} className="hover:text-brand-green hover:underline">
                     {t.name}
                   </Link>
                 </div>
-                <div className="col-span-3">{(t.subjects ?? [])[0]?.name ?? "—"}</div>
+                <div className="col-span-3">{firstOrNull(t.subjects)?.name ?? "—"}</div>
                 <div className="col-span-2">{t.duration_minutes}m</div>
                 <div className="col-span-1">
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${t.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>
                     {t.active ? "Active" : "Inactive"}
                   </span>
                 </div>
-                <div className="col-span-1 flex items-center justify-end gap-2">
+                <div className="col-span-2 flex items-center justify-end gap-2">
                   <form action={duplicateTest}>
                     <input type="hidden" name="test_id" value={t.id} />
                     <button
@@ -457,6 +497,18 @@ export default async function AdminExamTestsPage({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
                       </svg>
                     </button>
+                  </form>
+                  <form action={deleteTest}>
+                    <input type="hidden" name="test_id" value={t.id} />
+                    <ConfirmSubmitButton
+                      title="Delete test"
+                      confirmMessage={`Delete "${t.name}" and all its questions? This cannot be undone.`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-white text-red-500 hover:bg-red-50 hover:text-red-700 active:scale-95 transition-all shadow-sm disabled:opacity-60"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </ConfirmSubmitButton>
                   </form>
                 </div>
               </div>
