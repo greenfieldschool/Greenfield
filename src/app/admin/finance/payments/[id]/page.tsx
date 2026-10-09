@@ -40,6 +40,17 @@ function toInputValue(iso: string) {
 
 const methods = ["cash", "transfer", "pos", "online"] as const;
 
+// Kept at module level: inline server actions cannot reach helper functions declared inside the component.
+function revalidateFinance(paymentId: string, invoiceIds: string[]) {
+  revalidatePath("/admin/finance/payments");
+  revalidatePath(`/admin/finance/payments/${paymentId}`);
+  revalidatePath("/admin/finance/invoices");
+  revalidatePath("/admin/finance/debtors");
+  revalidatePath("/admin/finance");
+  revalidatePath("/portal/billing");
+  for (const invoiceId of invoiceIds) revalidatePath(`/admin/finance/invoices/${invoiceId}`);
+}
+
 export default async function AdminEditPaymentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = getSupabaseServerClient();
@@ -75,16 +86,6 @@ export default async function AdminEditPaymentPage({ params }: { params: Promise
     invoiceRows.unshift({ invoice_id: currentInvoiceId, invoice_no: null, currency: payment.currency, balance: 0 });
   }
 
-  function revalidateFinance(invoiceIds: string[]) {
-    revalidatePath("/admin/finance/payments");
-    revalidatePath(`/admin/finance/payments/${id}`);
-    revalidatePath("/admin/finance/invoices");
-    revalidatePath("/admin/finance/debtors");
-    revalidatePath("/admin/finance");
-    revalidatePath("/portal/billing");
-    for (const invoiceId of invoiceIds) revalidatePath(`/admin/finance/invoices/${invoiceId}`);
-  }
-
   async function updatePayment(formData: FormData) {
     "use server";
 
@@ -101,6 +102,11 @@ export default async function AdminEditPaymentPage({ params }: { params: Promise
 
     if (!Number.isFinite(amount) || amount <= 0) {
       redirect(`/admin/finance/payments/${id}?toast=${encodeURIComponent("Enter a valid amount")}&toast_type=error`);
+    }
+
+    const paidAt = paidAtRaw.length ? new Date(paidAtRaw) : null;
+    if (paidAt && Number.isNaN(paidAt.getTime())) {
+      redirect(`/admin/finance/payments/${id}?toast=${encodeURIComponent("Enter a valid payment date")}&toast_type=error`);
     }
 
     const supabase = getSupabaseServerClient();
@@ -121,7 +127,7 @@ export default async function AdminEditPaymentPage({ params }: { params: Promise
         method,
         reference: reference.length ? reference : null,
         notes: notes.length ? notes : null,
-        paid_at: paidAtRaw.length ? new Date(paidAtRaw).toISOString() : undefined,
+        paid_at: paidAt ? paidAt.toISOString() : undefined,
         status
       })
       .eq("id", id);
@@ -134,16 +140,24 @@ export default async function AdminEditPaymentPage({ params }: { params: Promise
     if (!keepAllocations) {
       await supabase.from("finance_payment_allocations").delete().eq("payment_transaction_id", id);
       if (invoiceIdRaw.length) {
-        await supabase.from("finance_payment_allocations").insert({
+        const { error: allocationError } = await supabase.from("finance_payment_allocations").insert({
           payment_transaction_id: id,
           invoice_id: invoiceIdRaw,
           amount
         });
         touchedInvoiceIds.add(invoiceIdRaw);
+        if (allocationError) {
+          revalidateFinance(id, Array.from(touchedInvoiceIds));
+          redirect(
+            `/admin/finance/payments/${id}?toast=${encodeURIComponent(
+              `Payment saved, but linking it to the invoice failed: ${allocationError.message}`
+            )}&toast_type=error`
+          );
+        }
       }
     }
 
-    revalidateFinance(Array.from(touchedInvoiceIds));
+    revalidateFinance(id, Array.from(touchedInvoiceIds));
     redirect(`/admin/finance/payments?toast=${encodeURIComponent("Payment updated")}&toast_type=success`);
   }
 
@@ -163,7 +177,7 @@ export default async function AdminEditPaymentPage({ params }: { params: Promise
       redirect(`/admin/finance/payments/${id}?toast=${encodeURIComponent(error.message)}&toast_type=error`);
     }
 
-    revalidateFinance((before ?? []).map((r) => r.invoice_id as string));
+    revalidateFinance(id, (before ?? []).map((r) => r.invoice_id as string));
     redirect(`/admin/finance/payments?toast=${encodeURIComponent("Payment deleted")}&toast_type=success`);
   }
 

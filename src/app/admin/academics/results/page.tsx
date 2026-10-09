@@ -8,6 +8,7 @@ import { isResultColumnType, resultColumns, resultColumnTypes, type ResultColumn
 import SubmitButton from "@/components/submit-button";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
+import SheetPicker from "./SheetPicker";
 
 type YearRow = { id: string; name: string };
 type TermRow = { id: string; name: string; academic_year_id: string };
@@ -104,6 +105,24 @@ async function ensureAssessments(
   return byType;
 }
 
+// Module level so it cannot capture values from the page render (inline actions that do can crash).
+async function openSheet(formData: FormData) {
+  "use server";
+  const nextTermId = String(formData.get("term_id") ?? "").trim();
+  const supabase = getSupabaseServerClient();
+  const { data: nextTerm } =
+    supabase && nextTermId
+      ? await supabase.from("academic_terms").select("academic_year_id").eq("id", nextTermId).maybeSingle()
+      : { data: null };
+  const next: SheetContext = {
+    classId: String(formData.get("class_id") ?? "").trim(),
+    subjectId: String(formData.get("subject_id") ?? "").trim(),
+    yearId: (nextTerm as { academic_year_id: string } | null)?.academic_year_id ?? "",
+    termId: nextTermId
+  };
+  redirect(sheetUrl(next));
+}
+
 function revalidateResults() {
   revalidatePath("/admin/academics/results");
   revalidatePath("/admin/academics/assessments");
@@ -161,6 +180,23 @@ export default async function AdminResultSheetPage({
         .filter((c): c is ClassRow => Boolean(c))
     : ((classes ?? []) as ClassRow[]);
   const subjectRows = (subjects ?? []) as SubjectRow[];
+
+  // Subjects assigned to each visible class (Academics → Class subjects). Empty if none are set up yet.
+  const { data: classSubjects } = classRows.length
+    ? await supabase
+        .from("class_subjects")
+        .select("class_id, subject_id")
+        .in(
+          "class_id",
+          classRows.map((c) => c.id)
+        )
+    : { data: [] as unknown[] };
+  const subjectIdsByClass: Record<string, string[]> = {};
+  for (const row of (classSubjects ?? []) as Array<{ class_id: string; subject_id: string }>) {
+    (subjectIdsByClass[row.class_id] ??= []).push(row.subject_id);
+  }
+  const classSubjectIds = subjectIdsByClass[classId] ?? [];
+  const classSubjectRows = subjectRows.filter((s) => classSubjectIds.includes(s.id));
   const yearNameById = new Map(yearRows.map((y) => [y.id, y.name] as const));
   const termLabel = (t: TermRow) => `${yearNameById.get(t.academic_year_id) ?? ""} · ${t.name}`.replace(/^ · /, "");
 
@@ -265,18 +301,6 @@ export default async function AdminResultSheetPage({
   };
 
   const enteredCount = students.filter((st) => resultColumns.some((c) => scoreFor(c.type, st.id) !== null)).length;
-
-  async function openSheet(formData: FormData) {
-    "use server";
-    const nextTermId = String(formData.get("term_id") ?? "").trim();
-    const next: SheetContext = {
-      classId: String(formData.get("class_id") ?? "").trim(),
-      subjectId: String(formData.get("subject_id") ?? "").trim(),
-      yearId: termRows.find((t) => t.id === nextTermId)?.academic_year_id ?? "",
-      termId: nextTermId
-    };
-    redirect(sheetUrl(next));
-  }
 
   async function saveColumns(formData: FormData) {
     "use server";
@@ -463,49 +487,44 @@ export default async function AdminResultSheetPage({
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <form action={openSheet} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Class</label>
-            <select className={selectClass} name="class_id" defaultValue={classId} required>
-              <option value="">Select class</option>
-              {classRows.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.level} - {c.name}
-                </option>
+        <SheetPicker
+          key={`${classId}|${subjectId}|${termId}`}
+          action={openSheet}
+          classes={classRows.map((c) => ({ id: c.id, label: `${c.level} - ${c.name}` }))}
+          subjects={subjectRows.map((sub) => ({ id: sub.id, label: sub.name }))}
+          terms={termRows.map((t) => ({ id: t.id, label: termLabel(t) }))}
+          subjectIdsByClass={subjectIdsByClass}
+          defaultClassId={classId}
+          defaultSubjectId={subjectId}
+          defaultTermId={termId}
+        />
+        {ready && classSubjectRows.length ? (
+          <div className="mt-5 border-t border-slate-200 pt-4">
+            <div className="text-xs font-semibold text-slate-500">
+              Subjects for {cls ? cls.name : "this class"} — {classSubjectRows.length} in total
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {classSubjectRows.map((sub) => (
+                <Link
+                  key={sub.id}
+                  href={sheetUrl({ ...ctx, subjectId: sub.id })}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                    sub.id === subjectId
+                      ? "border-brand-green bg-brand-green text-white"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {sub.name}
+                </Link>
               ))}
-            </select>
+            </div>
           </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Subject</label>
-            <select className={selectClass} name="subject_id" defaultValue={subjectId} required>
-              <option value="">Select subject</option>
-              {subjectRows.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+        ) : null}
+        {ready && classSubjectIds.length > 0 && !classSubjectIds.includes(subjectId) ? (
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {subject?.name ?? "This subject"} is not assigned to this class.
           </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Term</label>
-            <select className={selectClass} name="term_id" defaultValue={termId} required>
-              <option value="">Select term</option>
-              {termRows.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {termLabel(t)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-end">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Opening…"
-            >
-              Open sheet
-            </SubmitButton>
-          </div>
-        </form>
+        ) : null}
         {isTeacher && !classRows.length ? (
           <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             No classes are assigned to your account yet. Ask an admin to assign you to at least one class.

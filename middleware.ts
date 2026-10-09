@@ -112,7 +112,14 @@ export async function middleware(request: NextRequest) {
   const isConductorUser = !!conductorLink;
 
   if (isAdmin && isStaffRole && !isAdminRole) {
-    const adminOnlyPrefixes = ["/admin/users", "/admin/finance", "/admin/audit", "/admin/settings"];
+    const adminOnlyPrefixes = [
+      "/admin/users",
+      "/admin/finance",
+      "/admin/audit",
+      "/admin/settings",
+      "/admin/academics/subjects",
+      "/admin/academics/class-subjects"
+    ];
     const isAdminOnly = adminOnlyPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
     if (isAdminOnly) {
       return NextResponse.redirect(new URL("/admin", request.url));

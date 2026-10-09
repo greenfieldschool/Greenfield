@@ -30,6 +30,9 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
+// Subjects and class-subject assignments are managed by admins only (also enforced in middleware and RLS).
+const adminOnlyAcademicsHrefs = ["/admin/academics/subjects", "/admin/academics/class-subjects"];
+
 export default function AdminShell({ userEmail, role, children }: AdminShellProps) {
   const pathname = usePathname() ?? "/admin";
   const [collapsed, setCollapsed] = useState(false);
@@ -69,6 +72,7 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
         label: "Academics",
         items: [
           { href: "/admin/academics/subjects", label: "Subjects", shortLabel: "Subj" },
+          { href: "/admin/academics/class-subjects", label: "Class subjects", shortLabel: "Cls subj" },
           { href: "/admin/academics/results", label: "Result sheet", shortLabel: "Results" },
           { href: "/admin/academics/assessments", label: "Assessments", shortLabel: "Assess" },
           { href: "/admin/academics/config", label: "Config" },
@@ -115,6 +119,12 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
 
       return groups
         .map((group) => {
+          if (group.key === "academics") {
+            return {
+              ...group,
+              items: group.items.filter((item) => !adminOnlyAcademicsHrefs.includes(item.href))
+            };
+          }
           if (group.key === "operations") {
             return {
               ...group,

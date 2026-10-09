@@ -67,7 +67,36 @@ export default function AdminLearnCentrePage() {
           steps: [
             "Open Academics > Subjects (/admin/academics/subjects).",
             "Add a new subject name (e.g. English Language) and tag it to a broad school section (creche, primary, secondary).",
-            "Toggle 'Active' to enable selection across tests and class schedules."
+            "Toggle 'Active' to enable selection across tests and class schedules.",
+            "Only admins can add subjects. A subject with the same name and level as an existing one is rejected."
+          ]
+        },
+        {
+          name: "Removing Duplicate Subjects",
+          steps: [
+            "Open Academics > Subjects. Likely duplicates (e.g. 'HEALTH HABIT' and 'Health habit', 'ICT' and 'I.C.T') are listed at the top.",
+            "Click 'Merge into …' to move the duplicate's results, CBT tests and class assignments onto the subject you keep. The duplicate is then deleted.",
+            "For duplicates spelled differently, use 'Merge two subjects' and pick the one to remove and the one to keep.",
+            "Subjects with no results can be deleted directly from the list."
+          ]
+        },
+        {
+          name: "Assigning Subjects to Classes",
+          steps: [
+            "Open Academics > Class subjects (/admin/academics/class-subjects) and pick a class.",
+            "Tick every subject the class takes and click 'Save subjects'. Use 'Copy subjects from another class' to start from a similar class.",
+            "The Result sheet then only offers that class's subjects, with quick links to switch between them."
+          ]
+        },
+        {
+          name: "Entering Term Results (Result sheet)",
+          steps: [
+            "Open Academics > Result sheet (/admin/academics/results).",
+            "Pick the class first. The Subject list then shows only that class's subjects (or all subjects if none are assigned yet), then pick the term and click 'Open sheet'.",
+            "Enter 1st CA, 2nd CA, Exam (Objective) and Exam (Theory) scores and click 'Save all scores'. Leave a box empty to clear it.",
+            "Use 'Copy CBT scores' to bring in objective scores from a computer-based exam session for the class.",
+            "Use the subject links under the picker to move to the class's next subject without re-selecting everything.",
+            "When every subject is done, click 'Publish results' so students and parents can see them."
           ]
         },
         {
@@ -85,6 +114,21 @@ export default function AdminLearnCentrePage() {
             "Open Academics > Config (/admin/academics/config).",
             "Set weight allocations (e.g. exams vs. weekly tests) per school level (creche, primary, secondary). Active weights must total 100%.",
             "Configure Grading scale thresholds (e.g. A = 70 to 100) per level."
+          ]
+        }
+      ]
+    },
+    {
+      title: "Finance",
+      color: "border-amber-200 bg-amber-50/20",
+      guides: [
+        {
+          name: "Editing or Voiding a Payment",
+          steps: [
+            "Open Operations > Finance > Payments (/admin/finance/payments) and click the payment to change.",
+            "Correct the guardian, invoice, amount, method, reference, date or notes and click 'Save changes'. Invoice balances update automatically.",
+            "To cancel a payment but keep a record, set Status to 'void' (it is then ignored in balances).",
+            "'Delete payment' removes it and its invoice links completely and cannot be undone."
           ]
         }
       ]

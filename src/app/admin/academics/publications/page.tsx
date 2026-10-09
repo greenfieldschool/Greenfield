@@ -65,7 +65,8 @@ export default async function AdminAcademicsPublicationsPage() {
       data: { user }
     } = await supabase.auth.getUser();
 
-    const cls = classRows.find((c) => c.id === classId) ?? null;
+    // Looked up here rather than via classRows: inline server actions cannot capture array methods.
+    const { data: cls } = await supabase.from("classes").select("level").eq("id", classId).maybeSingle();
 
     await supabase
       .from("result_publications")
