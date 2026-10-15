@@ -65,6 +65,7 @@ export default function AdminLearnCentrePage() {
             "Create a new test with its name, subject, duration (minutes) and the number of objective and theory questions you plan to set (e.g. 30 and 5).",
             "You are taken straight to the test, where a tracker shows how many questions are still left to set. The Tests list shows 'set / planned' for every test.",
             "Use 'Edit test name and duration' on the test page to change the time allowed later.",
+            "Tests set before planned numbers existed: open the Tests page and press \'Use existing questions\' to fill in each test\'s objective and theory numbers from the questions it already has, or press \'Use these as targets\' on a single test.",
             "Configure question types (MCQ single/multi, true/false, fill-blank, essay) and points/marks.",
             "Open the 'Advanced (JSON)' section to modify or reuse structured options and answers."
           ]

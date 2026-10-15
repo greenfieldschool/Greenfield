@@ -9,6 +9,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { FormSection, Field } from "@/components/ui/form-section";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { Pagination } from "../_components/exam-ui";
@@ -16,7 +17,17 @@ import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
 import { firstOrNull } from "@/lib/relations";
 import { safeFilterTerm } from "@/lib/postgrest";
-import { formatDescriptionWithTargets, parseDescriptionAndTargets, totalTarget } from "@/lib/exam-targets";
+import {
+  countByType,
+  formatDescriptionWithTargets,
+  groupCounts,
+  hasTargets,
+  parseDescriptionAndTargets,
+  targetProgress,
+  targetsFromCounts,
+  type QuestionCounts
+} from "@/lib/exam-targets";
+import { fetchAllRows } from "@/lib/fetch-all";
 import { failWithToast, NO_DB_MESSAGE } from "../_components/feedback";
 
 type SubjectRow = { id: string; name: string };
@@ -58,8 +69,8 @@ export default async function AdminExamTestsPage({
   // 2. Fetch ALL tests to compute metrics
   const { data: metricsTests } = await supabase
     .from("exam_tests")
-    .select("id, active, subject_id");
-  const allTests = metricsTests ?? [];
+    .select("id, active, subject_id, description");
+  const allTests = (metricsTests ?? []) as Array<{ id: string; active: boolean; subject_id: string | null; description: string | null }>;
 
   const totalTests = allTests.length;
   const activeCount = allTests.filter((t) => t.active).length;
@@ -88,17 +99,24 @@ export default async function AdminExamTestsPage({
 
   const tests = (testsList ?? []) as unknown as TestRow[];
 
-  // Questions set so far per test, to show against the number of questions planned.
-  const questionCountByTest = new Map<string, number>();
-  if (tests.length) {
-    const { data: questionRows } = await supabase
-      .from("exam_questions")
-      .select("test_id")
-      .in("test_id", tests.map((t) => t.id));
-    for (const q of (questionRows ?? []) as Array<{ test_id: string }>) {
-      questionCountByTest.set(q.test_id, (questionCountByTest.get(q.test_id) ?? 0) + 1);
-    }
+  // Questions already set, per test and type — compared with the number planned.
+  const questionRows = await fetchAllRows<{ test_id: string; question_type: string }>(() =>
+    supabase.from("exam_questions").select("test_id, question_type").order("id", { ascending: true })
+  );
+  const typesByTest = new Map<string, string[]>();
+  for (const q of questionRows) {
+    const list = typesByTest.get(q.test_id) ?? [];
+    list.push(q.question_type);
+    typesByTest.set(q.test_id, list);
   }
+  const countsByTest = new Map<string, QuestionCounts>(
+    Array.from(typesByTest.entries()).map(([testId, types]) => [testId, countByType(types)] as const)
+  );
+
+  // Tests that already have questions but no planned numbers yet (older tests).
+  const untargetedCount = allTests.filter(
+    (t) => !hasTargets(parseDescriptionAndTargets(t.description).targets) && typesByTest.has(t.id)
+  ).length;
   const totalCount = count ?? 0;
   const isFiltered = query.length > 0 || subjectFilter.length > 0 || statusFilter.length > 0;
 
@@ -121,8 +139,8 @@ export default async function AdminExamTestsPage({
 
     // Number of questions is saved as question targets, tracked on the test page while questions are set.
     const targets: Record<string, number> = {};
-    if (Number.isFinite(objectiveCount) && objectiveCount > 0) targets.mcq_single = objectiveCount;
-    if (Number.isFinite(theoryCount) && theoryCount > 0) targets.essay = theoryCount;
+    if (Number.isFinite(objectiveCount) && objectiveCount > 0) targets.objective = objectiveCount;
+    if (Number.isFinite(theoryCount) && theoryCount > 0) targets.theory = theoryCount;
     const storedDescription = Object.keys(targets).length
       ? formatDescriptionWithTargets(description, targets)
       : description.length
@@ -261,6 +279,47 @@ export default async function AdminExamTestsPage({
     redirect(`/admin/exams/tests?toast=${encodeURIComponent("Test deleted")}&toast_type=success`);
   }
 
+  // One click for older tests: use the questions already in each test as its planned numbers.
+  async function setTargetsFromExistingQuestions() {
+    "use server";
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) failWithToast("/admin/exams/tests", NO_DB_MESSAGE);
+
+    const { data: tests } = await supabase.from("exam_tests").select("id, description");
+    const rows = await fetchAllRows<{ test_id: string; question_type: string }>(() =>
+      supabase.from("exam_questions").select("test_id, question_type").order("id", { ascending: true })
+    );
+    const byTest = new Map<string, string[]>();
+    for (const q of rows) byTest.set(q.test_id, [...(byTest.get(q.test_id) ?? []), q.question_type]);
+
+    let updated = 0;
+    let failed = 0;
+    for (const t of (tests ?? []) as Array<{ id: string; description: string | null }>) {
+      const parsed = parseDescriptionAndTargets(t.description);
+      const types = byTest.get(t.id);
+      if (hasTargets(parsed.targets) || !types?.length) continue;
+      const fromCounts = targetsFromCounts(countByType(types));
+      if (!Object.keys(fromCounts).length) continue;
+      const { error } = await supabase
+        .from("exam_tests")
+        .update({ description: formatDescriptionWithTargets(parsed.description, fromCounts) })
+        .eq("id", t.id);
+      if (error) failed += 1;
+      else updated += 1;
+    }
+
+    revalidatePath("/admin/exams/tests");
+    if (failed) {
+      failWithToast("/admin/exams/tests", `Updated ${updated} test(s), but ${failed} could not be saved. Please try again.`);
+    }
+    redirect(
+      `/admin/exams/tests?toast=${encodeURIComponent(
+        updated ? `Planned numbers set for ${updated} test${updated === 1 ? "" : "s"} from their existing questions` : "No tests needed updating"
+      )}&toast_type=success`
+    );
+  }
+
   async function filterTests(formData: FormData) {
     "use server";
 
@@ -295,6 +354,26 @@ export default async function AdminExamTestsPage({
           </a>
         }
       />
+
+      {untargetedCount > 0 ? (
+        <Alert
+          tone="info"
+          title={`${untargetedCount} test${untargetedCount === 1 ? " has" : "s have"} questions but no planned numbers`}
+          action={
+            <form action={setTargetsFromExistingQuestions}>
+              <ConfirmSubmitButton
+                confirmMessage={`Use the questions already set as the planned objective / theory numbers for ${untargetedCount} test(s)? This only fills in tests that have no planned numbers yet.`}
+                className={buttonClasses({ variant: "secondary", size: "sm" })}
+              >
+                Use existing questions
+              </ConfirmSubmitButton>
+            </form>
+          }
+        >
+          Older tests were set before planned numbers existed. One click fills in each test&apos;s objective and theory
+          numbers from the questions it already has — you can still change them on each test.
+        </Alert>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total tests" value={totalTests} hint="All registered exam templates" icon={FileText} tone="slate" />
@@ -430,8 +509,13 @@ export default async function AdminExamTestsPage({
               </thead>
               <tbody>
                 {tests.map((t) => {
-                  const planned = totalTarget(parseDescriptionAndTargets(t.description).targets);
-                  const set = questionCountByTest.get(t.id) ?? 0;
+                  const counts = countsByTest.get(t.id) ?? {};
+                  const progress = targetProgress(parseDescriptionAndTargets(t.description).targets, counts);
+                  const planned = progress.totalTarget;
+                  const set = progress.totalSet;
+                  const short = progress.remaining > 0;
+                  const groups = groupCounts(counts);
+                  const total = Object.values(counts).reduce((acc, n) => acc + n, 0);
                   return (
                     <tr key={t.id}>
                       <td>
@@ -445,9 +529,14 @@ export default async function AdminExamTestsPage({
                           <Clock className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
                           {t.duration_minutes}m
                         </div>
-                        <div className={`text-xs ${planned > 0 && set < planned ? "font-semibold text-brand-gold-800" : "text-slate-500"}`}>
-                          {planned > 0 ? `${set} / ${planned} questions` : `${set} question${set === 1 ? "" : "s"}`}
+                        <div className={`text-xs ${planned > 0 && short ? "font-semibold text-brand-gold-800" : "text-slate-500"}`}>
+                          {planned > 0 ? `${set} / ${planned} questions` : `${total} question${total === 1 ? "" : "s"}`}
                         </div>
+                        {total > 0 ? (
+                          <div className="text-xs text-slate-500">
+                            {groups.objective} objective · {groups.theory} theory
+                          </div>
+                        ) : null}
                       </td>
                       <td>
                         <Badge tone={t.active ? "green" : "slate"} dot>

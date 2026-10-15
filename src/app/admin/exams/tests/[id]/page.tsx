@@ -12,7 +12,15 @@ import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
-import { formatDescriptionWithTargets, parseDescriptionAndTargets } from "@/lib/exam-targets";
+import {
+  countByType,
+  formatDescriptionWithTargets,
+  groupCounts,
+  hasTargets,
+  parseDescriptionAndTargets,
+  targetsFromCounts,
+  targetProgress
+} from "@/lib/exam-targets";
 import UrlToast from "@/components/url-toast";
 
 type TestRow = {
@@ -202,30 +210,17 @@ export default async function AdminExamTestDetailPage({
   // Parse description and targets
   const { description: displayDescription, targets } = parseDescriptionAndTargets(test.description);
 
-  // Compute stats
-  const actualCounts: Record<string, number> = {};
-  for (const type of questionTypes) {
-    actualCounts[type] = 0;
-  }
-  for (const q of questions) {
-    if (q.question_type in actualCounts) {
-      actualCounts[q.question_type]++;
-    }
-  }
-
-  let totalTarget = 0;
-  let totalSet = 0;
-  const leftToSet: Array<{ type: string; count: number }> = [];
-
-  for (const type of questionTypes) {
-    const target = targets[type] ?? 0;
-    const actual = actualCounts[type] ?? 0;
-    totalTarget += target;
-    totalSet += actual;
-    if (target > actual) {
-      leftToSet.push({ type, count: target - actual });
-    }
-  }
+  // Compute stats from the questions that are already set
+  const actualCounts = countByType(questions.map((q) => q.question_type));
+  const setGroups = groupCounts(actualCounts);
+  const progress = targetProgress(targets, actualCounts);
+  const totalTarget = progress.totalTarget;
+  const totalSet = progress.totalSet;
+  const leftToSet = progress.rows
+    .filter((r) => r.target > r.actual)
+    .map((r) => ({ label: r.label, count: r.target - r.actual }));
+  const perTypeMode = hasTargets(targets) && !(targets.objective > 0 || targets.theory > 0);
+  const setGroupsFromTargets = groupCounts(targets);
 
   async function updateQuestionTargets(formData: FormData) {
     "use server";
@@ -245,22 +240,61 @@ export default async function AdminExamTestDetailPage({
 
     const { description: cleanDesc } = parseDescriptionAndTargets(currentTest.description);
 
-    const newTargets: Record<string, number> = {};
+    // Per-type numbers (advanced) win when any are filled in; otherwise the two totals are used.
+    const perType: Record<string, number> = {};
     for (const type of questionTypes) {
-      const val = Number(formData.get(`target_${type}`) ?? "0");
-      if (val > 0) {
-        newTargets[type] = val;
-      }
+      const val = Math.floor(Number(formData.get(`target_${type}`) ?? "0"));
+      if (val > 0) perType[type] = val;
+    }
+    const newTargets: Record<string, number> = {};
+    if (Object.keys(perType).length) {
+      Object.assign(newTargets, perType);
+    } else {
+      const objective = Math.floor(Number(formData.get("target_objective") ?? "0"));
+      const theory = Math.floor(Number(formData.get("target_theory") ?? "0"));
+      if (objective > 0) newTargets.objective = objective;
+      if (theory > 0) newTargets.theory = theory;
     }
 
     const updatedDesc = formatDescriptionWithTargets(cleanDesc, newTargets);
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("exam_tests")
       .update({ description: updatedDesc })
       .eq("id", id);
+    if (updateError) failTo(id, `Could not save targets: ${updateError.message}`);
 
     revalidatePath(`/admin/exams/tests/${id}`);
+    revalidatePath("/admin/exams/tests");
+    redirect(`/admin/exams/tests/${id}?toast=${encodeURIComponent("Question targets saved")}&toast_type=success`);
+  }
+
+  // Sets the targets from the questions that are already in the test. Targets are planning
+  // information only, so this is allowed even for tests students have already sat.
+  async function useCurrentCountsAsTargets() {
+    "use server";
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) failTo(id, NO_DB_MESSAGE);
+
+    const { data: currentTest } = await supabase.from("exam_tests").select("description").eq("id", id).maybeSingle();
+    if (!currentTest) failTo(id, "Test not found.");
+
+    const { data: qs } = await supabase.from("exam_questions").select("question_type").eq("test_id", id);
+    const counts = countByType(((qs ?? []) as Array<{ question_type: string }>).map((q) => q.question_type));
+    const fromCounts = targetsFromCounts(counts);
+    if (!Object.keys(fromCounts).length) failTo(id, "This test has no questions yet, so there is nothing to count.");
+
+    const { description: cleanDesc } = parseDescriptionAndTargets(currentTest.description);
+    const { error: updateError } = await supabase
+      .from("exam_tests")
+      .update({ description: formatDescriptionWithTargets(cleanDesc, fromCounts) })
+      .eq("id", id);
+    if (updateError) failTo(id, `Could not save targets: ${updateError.message}`);
+
+    revalidatePath(`/admin/exams/tests/${id}`);
+    revalidatePath("/admin/exams/tests");
+    redirect(`/admin/exams/tests/${id}?toast=${encodeURIComponent("Targets set from the questions already in this test")}&toast_type=success`);
   }
 
   async function updateTestDetails(formData: FormData) {
@@ -486,7 +520,7 @@ export default async function AdminExamTestDetailPage({
   }
 
   const totalMarks = questions.reduce((sum, q) => sum + (Number(q.marks) || 0), 0);
-  const overallPercent = totalTarget > 0 ? Math.min(100, Math.round((totalSet / totalTarget) * 100)) : 0;
+  const overallPercent = totalTarget > 0 ? Math.min(100, Math.round(((totalTarget - progress.remaining) / totalTarget) * 100)) : 0;
 
   return (
     <div className="space-y-6">
@@ -576,7 +610,7 @@ export default async function AdminExamTestDetailPage({
           description="Specify and track how many questions of each type you need to set."
           action={
             totalTarget > 0 ? (
-              <Badge tone={totalSet >= totalTarget ? "green" : "gold"}>
+              <Badge tone={progress.met ? "green" : "gold"}>
                 {totalSet} / {totalTarget} set
               </Badge>
             ) : null
@@ -605,10 +639,10 @@ export default async function AdminExamTestDetailPage({
                 </div>
               </div>
 
-              {totalSet < totalTarget ? (
+              {!progress.met ? (
                 <Alert tone="warning">
-                  Quota remaining: {totalTarget - totalSet} question{totalTarget - totalSet > 1 ? "s" : ""} left to set (
-                  {leftToSet.map((item) => `${item.count} ${questionTypeShortLabel(item.type)}`).join(", ")})
+                  Quota remaining: {progress.remaining} question{progress.remaining > 1 ? "s" : ""} left to set (
+                  {leftToSet.map((item) => `${item.count} ${item.label.toLowerCase()}`).join(", ")})
                 </Alert>
               ) : (
                 <Alert tone="success">
@@ -617,19 +651,16 @@ export default async function AdminExamTestDetailPage({
               )}
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {questionTypes.map((type) => {
-                  const target = targets[type] ?? 0;
-                  if (target === 0) return null;
-                  const actual = actualCounts[type] ?? 0;
-                  const percent = Math.min(100, Math.round((actual / target) * 100));
+                {progress.rows.map((row) => {
+                  const percent = Math.min(100, Math.round((row.actual / row.target) * 100));
                   return (
-                    <div key={type} className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+                    <div key={row.key} className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
                       <div className="flex items-center justify-between gap-2 text-sm">
-                        <span className="truncate font-medium text-slate-700" title={questionTypeLabel(type)}>
-                          {questionTypeLabel(type)}
+                        <span className="truncate font-medium text-slate-700" title={row.label}>
+                          {row.label}
                         </span>
                         <span className="shrink-0 font-semibold text-slate-900">
-                          {actual} / {target}
+                          {row.actual} / {row.target}
                         </span>
                       </div>
                       <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200">
@@ -646,7 +677,27 @@ export default async function AdminExamTestDetailPage({
               </div>
             </>
           ) : (
-            <p className="text-sm text-slate-500">No targets set yet. Add how many questions of each type this paper needs.</p>
+            questions.length > 0 ? (
+              <Alert
+                tone="info"
+                title={`${questions.length} question${questions.length === 1 ? "" : "s"} already set, no targets yet`}
+                action={
+                  <form action={useCurrentCountsAsTargets}>
+                    <SubmitButton variant="secondary" size="sm" pendingText="Saving…">
+                      Use these as targets
+                    </SubmitButton>
+                  </form>
+                }
+              >
+                This test has {setGroups.objective} objective and {setGroups.theory} theory question
+                {setGroups.objective + setGroups.theory === 1 ? "" : "s"}. Use them as the targets, or set different
+                numbers below.
+              </Alert>
+            ) : (
+              <p className="text-sm text-slate-500">
+                No targets set yet. Add how many objective and theory questions this paper needs.
+              </p>
+            )
           )}
 
           {!isFrozen && (
@@ -656,23 +707,68 @@ export default async function AdminExamTestDetailPage({
                 Configure question targets
                 <ChevronDown className="h-4 w-4 transition group-open:rotate-180" aria-hidden="true" />
               </summary>
-              <form action={updateQuestionTargets} className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-                {questionTypes.map((type) => (
-                  <div key={type}>
-                    <label htmlFor={`target-${type}`} className="gf-label whitespace-nowrap" title={questionTypeLabel(type)}>
-                      {questionTypeShortLabel(type)}
-                    </label>
+              <form action={updateQuestionTargets} className="mt-4 space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field
+                    label="Objective questions"
+                    htmlFor="target-objective"
+                    hint="Counts every auto-marked question: multiple choice, true / false and fill in the blank."
+                  >
                     <input
-                      id={`target-${type}`}
+                      id="target-objective"
                       type="number"
-                      name={`target_${type}`}
+                      name="target_objective"
                       min={0}
-                      defaultValue={targets[type] ?? 0}
+                      defaultValue={perTypeMode ? setGroupsFromTargets.objective : (targets.objective ?? 0)}
+                      disabled={perTypeMode}
                       className="gf-input"
                     />
+                  </Field>
+                  <Field label="Theory questions" htmlFor="target-theory" hint="Short answer and essay questions.">
+                    <input
+                      id="target-theory"
+                      type="number"
+                      name="target_theory"
+                      min={0}
+                      defaultValue={perTypeMode ? setGroupsFromTargets.theory : (targets.theory ?? 0)}
+                      disabled={perTypeMode}
+                      className="gf-input"
+                    />
+                  </Field>
+                </div>
+                {perTypeMode ? (
+                  <p className="text-xs text-slate-500">
+                    These targets are set by question type below. Set every type to 0 to switch back to the two totals.
+                  </p>
+                ) : null}
+
+                <details className="rounded-xl border border-slate-200 p-4" open={perTypeMode}>
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                    Set by question type instead (advanced)
+                  </summary>
+                  <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                    {questionTypes.map((type) => (
+                      <div key={type}>
+                        <label htmlFor={`target-${type}`} className="gf-label whitespace-nowrap" title={questionTypeLabel(type)}>
+                          {questionTypeShortLabel(type)}
+                        </label>
+                        <input
+                          id={`target-${type}`}
+                          type="number"
+                          name={`target_${type}`}
+                          min={0}
+                          defaultValue={perTypeMode ? (targets[type] ?? 0) : 0}
+                          className="gf-input"
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
-                <div className="col-span-2 flex justify-end sm:col-span-3 lg:col-span-6">
+                  <p className="mt-3 text-xs text-slate-500">
+                    If any number here is above 0, these per-type targets are used instead of the two totals above.
+                  </p>
+                </details>
+
+                <div className="flex justify-end">
                   <SubmitButton variant="primary" size="sm" pendingText="Updating Targets...">
                     Save targets
                   </SubmitButton>
