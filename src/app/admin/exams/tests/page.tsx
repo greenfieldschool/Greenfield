@@ -6,6 +6,7 @@ import SubmitButton from "@/components/submit-button";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
 import { firstOrNull } from "@/lib/relations";
+import { formatDescriptionWithTargets, parseDescriptionAndTargets, totalTarget } from "@/lib/exam-targets";
 
 type SubjectRow = { id: string; name: string };
 
@@ -74,6 +75,18 @@ export default async function AdminExamTestsPage({
     .range(offset, offset + pageSize - 1);
 
   const tests = (testsList ?? []) as unknown as TestRow[];
+
+  // Questions set so far per test, to show against the number of questions planned.
+  const questionCountByTest = new Map<string, number>();
+  if (tests.length) {
+    const { data: questionRows } = await supabase
+      .from("exam_questions")
+      .select("test_id")
+      .in("test_id", tests.map((t) => t.id));
+    for (const q of (questionRows ?? []) as Array<{ test_id: string }>) {
+      questionCountByTest.set(q.test_id, (questionCountByTest.get(q.test_id) ?? 0) + 1);
+    }
+  }
   const totalCount = count ?? 0;
   const isFiltered = query.length > 0 || subjectFilter.length > 0 || statusFilter.length > 0;
 
@@ -85,6 +98,8 @@ export default async function AdminExamTestsPage({
     const description = String(formData.get("description") ?? "").trim();
     const durationMinutes = Number(String(formData.get("duration_minutes") ?? "60").trim() || "60");
     const active = String(formData.get("active") ?? "").trim() === "on";
+    const objectiveCount = Math.max(0, Math.floor(Number(String(formData.get("objective_count") ?? "0").trim() || "0")));
+    const theoryCount = Math.max(0, Math.floor(Number(String(formData.get("theory_count") ?? "0").trim() || "0")));
 
     if (!name) return;
     if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) return;
@@ -92,16 +107,33 @@ export default async function AdminExamTestsPage({
     const supabase = getSupabaseServerClient();
     if (!supabase) return;
 
-    await supabase.from("exam_tests").insert({
-      subject_id: subjectIdRaw.length ? subjectIdRaw : null,
-      name,
-      description: description.length ? description : null,
-      duration_minutes: durationMinutes,
-      active
-    });
+    // Number of questions is saved as question targets, tracked on the test page while questions are set.
+    const targets: Record<string, number> = {};
+    if (Number.isFinite(objectiveCount) && objectiveCount > 0) targets.mcq_single = objectiveCount;
+    if (Number.isFinite(theoryCount) && theoryCount > 0) targets.essay = theoryCount;
+    const storedDescription = Object.keys(targets).length
+      ? formatDescriptionWithTargets(description, targets)
+      : description.length
+        ? description
+        : null;
+
+    const { data: created, error } = await supabase
+      .from("exam_tests")
+      .insert({
+        subject_id: subjectIdRaw.length ? subjectIdRaw : null,
+        name,
+        description: storedDescription,
+        duration_minutes: durationMinutes,
+        active
+      })
+      .select("id")
+      .maybeSingle();
 
     revalidatePath("/admin/exams/tests");
-    redirect(`/admin/exams/tests?toast=${encodeURIComponent("Test created")}&toast_type=success`);
+    if (error || !created) {
+      redirect(`/admin/exams/tests?toast=${encodeURIComponent(error?.message ?? "Could not create test")}&toast_type=error`);
+    }
+    redirect(`/admin/exams/tests/${created.id}?toast=${encodeURIComponent("Test created — now add the questions")}&toast_type=success`);
   }
 
   async function duplicateTest(formData: FormData) {
@@ -424,6 +456,28 @@ export default async function AdminExamTestsPage({
               required
             />
           </div>
+          <div>
+            <label className="text-sm font-semibold text-slate-900">Number of objective questions</label>
+            <input
+              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              name="objective_count"
+              type="number"
+              min={0}
+              step={1}
+              placeholder="e.g. 30"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-slate-900">Number of theory questions</label>
+            <input
+              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              name="theory_count"
+              type="number"
+              min={0}
+              step={1}
+              placeholder="e.g. 5 (leave empty if none)"
+            />
+          </div>
           <div className="sm:col-span-2">
             <label className="text-sm font-semibold text-slate-900">Test name</label>
             <input
@@ -462,7 +516,7 @@ export default async function AdminExamTestsPage({
         <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
           <div className="col-span-4">Test</div>
           <div className="col-span-3">Subject</div>
-          <div className="col-span-2">Duration</div>
+          <div className="col-span-2">Duration / questions</div>
           <div className="col-span-1">Status</div>
           <div className="col-span-2 text-right">Actions</div>
         </div>
@@ -479,7 +533,18 @@ export default async function AdminExamTestsPage({
                   </Link>
                 </div>
                 <div className="col-span-3">{firstOrNull(t.subjects)?.name ?? "—"}</div>
-                <div className="col-span-2">{t.duration_minutes}m</div>
+                <div className="col-span-2">
+                  <div>{t.duration_minutes}m</div>
+                  {(() => {
+                    const planned = totalTarget(parseDescriptionAndTargets(t.description).targets);
+                    const set = questionCountByTest.get(t.id) ?? 0;
+                    return (
+                      <div className={`text-xs ${planned > 0 && set < planned ? "text-amber-700" : "text-slate-500"}`}>
+                        {planned > 0 ? `${set} / ${planned} questions` : `${set} question${set === 1 ? "" : "s"}`}
+                      </div>
+                    );
+                  })()}
+                </div>
                 <div className="col-span-1">
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${t.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>
                     {t.active ? "Active" : "Inactive"}

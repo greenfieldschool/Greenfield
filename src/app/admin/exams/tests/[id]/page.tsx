@@ -3,6 +3,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import { formatDescriptionWithTargets, parseDescriptionAndTargets } from "@/lib/exam-targets";
+import UrlToast from "@/components/url-toast";
 
 type TestRow = {
   id: string;
@@ -71,26 +73,6 @@ function questionTypeShortLabel(t: string) {
     default:
       return t;
   }
-}
-
-function parseDescriptionAndTargets(desc: string | null) {
-  const text = desc || "";
-  const match = text.match(/\|\|TARGETS:(.*?)\|\|/);
-  if (match) {
-    try {
-      const targets = JSON.parse(match[1]);
-      const cleanDesc = text.replace(/\|\|TARGETS:.*?\|\|/, "").trim();
-      return { description: cleanDesc, targets: targets as Record<string, number> };
-    } catch {
-      // ignore
-    }
-  }
-  return { description: text, targets: {} as Record<string, number> };
-}
-
-function formatDescriptionWithTargets(cleanDesc: string, targets: Record<string, number>) {
-  const jsonStr = JSON.stringify(targets);
-  return `${cleanDesc.trim()} ||TARGETS:${jsonStr}||`;
 }
 
 function safeString(v: unknown) {
@@ -247,6 +229,29 @@ export default async function AdminExamTestDetailPage({
       .eq("id", id);
 
     revalidatePath(`/admin/exams/tests/${id}`);
+  }
+
+  async function updateTestDetails(formData: FormData) {
+    "use server";
+
+    const name = String(formData.get("name") ?? "").trim();
+    const durationMinutes = Number(String(formData.get("duration_minutes") ?? "").trim());
+    if (!name || !Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+      redirect(`/admin/exams/tests/${id}?toast=${encodeURIComponent("Enter a name and a duration above 0")}&toast_type=error`);
+    }
+
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return;
+
+    await supabase
+      .from("exam_tests")
+      .update({ name, duration_minutes: Math.round(durationMinutes) })
+      .eq("id", id);
+
+    revalidatePath(`/admin/exams/tests/${id}`);
+    revalidatePath("/admin/exams/tests");
+    revalidatePath("/portal/exams");
+    redirect(`/admin/exams/tests/${id}?toast=${encodeURIComponent("Test details saved")}&toast_type=success`);
   }
 
   async function createQuestion(formData: FormData) {
@@ -450,6 +455,7 @@ export default async function AdminExamTestDetailPage({
 
   return (
     <div className="space-y-6">
+      <UrlToast />
       {isFrozen && (
         <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-950 shadow-sm flex items-start gap-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
@@ -497,6 +503,41 @@ export default async function AdminExamTestDetailPage({
             Preview
           </Link>
         </div>
+        <details className="mt-4 border-t border-slate-100 pt-4">
+          <summary className="cursor-pointer text-xs font-semibold text-slate-700 hover:text-brand-green">
+            Edit test name and duration
+          </summary>
+          <form action={updateTestDetails} className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold text-slate-600">Test name</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                name="name"
+                defaultValue={test.name}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600">Duration (minutes)</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                name="duration_minutes"
+                type="number"
+                min={1}
+                defaultValue={test.duration_minutes}
+                required
+              />
+            </div>
+            <div className="sm:col-span-3 flex justify-end">
+              <SubmitButton
+                className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                pendingText="Saving…"
+              >
+                Save details
+              </SubmitButton>
+            </div>
+          </form>
+        </details>
       </div>
 
       {/* Live Targets and Tracker Panel */}

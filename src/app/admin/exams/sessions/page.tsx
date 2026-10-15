@@ -5,6 +5,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 import AdminSessionsDebugLogger from "./AdminSessionsDebugLogger";
 import UrlToast from "@/components/url-toast";
+import { formatLagosDate, lagosEndOfDayIso, lagosStartOfDayIso, sessionVisibility } from "@/lib/lagos-dates";
 
 type TestRow = { id: string; name: string };
 type ClassRow = { id: string; level: string; name: string };
@@ -196,13 +197,16 @@ export default async function AdminExamSessionsPage({
     const classIdRaw = String(formData.get("class_id") ?? "").trim();
     const yearIdRaw = String(formData.get("academic_year_id") ?? "").trim();
     const termIdRaw = String(formData.get("academic_term_id") ?? "").trim();
-    const startsAt = String(formData.get("starts_at") ?? "").trim();
-    const endsAt = String(formData.get("ends_at") ?? "").trim();
-    const status = String(formData.get("status") ?? "draft").trim() || "draft";
+    const startDate = String(formData.get("start_date") ?? "").trim();
+    const endDate = String(formData.get("end_date") ?? "").trim();
+    const status = String(formData.get("status") ?? "active").trim() || "active";
     const requiresSecretCode = String(formData.get("requires_secret_code") ?? "").trim() === "on";
     const secretCode = String(formData.get("secret_code") ?? "").trim();
 
     if (!testId) return;
+    if (startDate && endDate && endDate < startDate) {
+      redirect(`/admin/exams/sessions?toast=${encodeURIComponent("End date cannot be before the start date")}&toast_type=error`);
+    }
 
     const supabase = getSupabaseServerClient();
     if (!supabase) return;
@@ -212,8 +216,8 @@ export default async function AdminExamSessionsPage({
       class_id: classIdRaw.length ? classIdRaw : null,
       academic_year_id: yearIdRaw.length ? yearIdRaw : null,
       academic_term_id: termIdRaw.length ? termIdRaw : null,
-      starts_at: startsAt.length ? new Date(startsAt).toISOString() : null,
-      ends_at: endsAt.length ? new Date(endsAt).toISOString() : null,
+      starts_at: startDate.length ? lagosStartOfDayIso(startDate) : null,
+      ends_at: endDate.length ? lagosEndOfDayIso(endDate) : null,
       status,
       requires_secret_code: requiresSecretCode,
       secret_code: requiresSecretCode && secretCode.length ? secretCode : null
@@ -468,30 +472,32 @@ export default async function AdminExamSessionsPage({
             </select>
           </div>
           <div>
-            <label className="text-sm font-semibold text-slate-900">Starts at (optional)</label>
+            <label className="text-sm font-semibold text-slate-900">Start date (optional)</label>
             <input
               className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="starts_at"
-              type="datetime-local"
+              name="start_date"
+              type="date"
             />
+            <p className="mt-1 text-xs text-slate-500">Students can see the exam from the start of this day.</p>
           </div>
           <div>
-            <label className="text-sm font-semibold text-slate-900">Ends at (optional)</label>
+            <label className="text-sm font-semibold text-slate-900">End date (optional)</label>
             <input
               className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="ends_at"
-              type="datetime-local"
+              name="end_date"
+              type="date"
             />
+            <p className="mt-1 text-xs text-slate-500">Open until the end of this day. The time allowed comes from the test&apos;s duration.</p>
           </div>
           <div>
             <label className="text-sm font-semibold text-slate-900">Status</label>
             <select
               className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
               name="status"
-              defaultValue="draft"
+              defaultValue="active"
             >
-              <option value="draft">draft</option>
-              <option value="active">active</option>
+              <option value="active">active (students can take it within the dates)</option>
+              <option value="draft">draft (hidden from students)</option>
               <option value="closed">closed</option>
             </select>
           </div>
@@ -530,7 +536,7 @@ export default async function AdminExamSessionsPage({
         <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
           <div className="col-span-4">Test</div>
           <div className="col-span-3">Class</div>
-          <div className="col-span-3">Window</div>
+          <div className="col-span-3">Dates / student access</div>
           <div className="col-span-2 text-right">Actions</div>
         </div>
         <div className="divide-y divide-slate-100">
@@ -540,8 +546,9 @@ export default async function AdminExamSessionsPage({
               const cls = s.class_id ? (classesById.get(s.class_id) ?? null) : null;
               const windowLabel =
                 s.starts_at || s.ends_at
-                  ? `${s.starts_at ? String(s.starts_at).slice(0, 16) : "—"} → ${s.ends_at ? String(s.ends_at).slice(0, 16) : "—"}`
-                  : "—";
+                  ? `${s.starts_at ? formatLagosDate(s.starts_at) : "Any time"} → ${s.ends_at ? formatLagosDate(s.ends_at) : "no end"}`
+                  : "No date limit";
+              const visibility = sessionVisibility(s);
               return (
                 <div
                   key={s.id}
@@ -553,7 +560,13 @@ export default async function AdminExamSessionsPage({
                     </Link>
                   </div>
                   <div className="col-span-3">{cls ? `${cls.level} - ${cls.name}` : "—"}</div>
-                  <div className="col-span-3 text-xs text-slate-600">{windowLabel}</div>
+                  <div className="col-span-3 text-xs text-slate-600">
+                    <div>{windowLabel}</div>
+                    <div className={`mt-1 font-semibold ${visibility.visible ? "text-emerald-700" : "text-amber-700"}`}>
+                      {visibility.visible ? "● " : "○ "}
+                      {visibility.reason}
+                    </div>
+                  </div>
                   <div className="col-span-2 flex flex-col items-end gap-1">
                     <div className="text-[11px] font-semibold text-slate-500">
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${

@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import { lagosEndOfDayIso, lagosStartOfDayIso, sessionVisibility, toLagosDateInput } from "@/lib/lagos-dates";
+import UrlToast from "@/components/url-toast";
 
 type SessionRow = {
   id: string;
@@ -37,19 +39,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number) {
   ]);
 }
 
-function toIsoOrNull(input: string) {
-  if (!input.trim().length) return null;
-  const d = new Date(input);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
-
-function toDateTimeLocal(ts: string | null) {
-  if (!ts) return "";
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 16);
-}
 
 export default async function AdminExamSessionEditPage({
   params
@@ -139,14 +128,17 @@ export default async function AdminExamSessionEditPage({
     const classIdRaw = asString(formData.get("class_id")).trim();
     const yearIdRaw = asString(formData.get("academic_year_id")).trim();
     const termIdRaw = asString(formData.get("academic_term_id")).trim();
-    const startsAt = asString(formData.get("starts_at")).trim();
-    const endsAt = asString(formData.get("ends_at")).trim();
+    const startDate = asString(formData.get("start_date")).trim();
+    const endDate = asString(formData.get("end_date")).trim();
     const status = asString(formData.get("status")).trim() || "draft";
     const isActive = asString(formData.get("active")).trim() === "on";
     const requiresSecretCode = asString(formData.get("requires_secret_code")).trim() === "on";
     const secretCode = asString(formData.get("secret_code")).trim();
 
     if (!testId) return;
+    if (startDate && endDate && endDate < startDate) {
+      redirect(`/admin/exams/sessions/${id}?toast=${encodeURIComponent("End date cannot be before the start date")}&toast_type=error`);
+    }
 
     const supabase = getSupabaseServerClient();
     if (!supabase) return;
@@ -158,8 +150,8 @@ export default async function AdminExamSessionEditPage({
         class_id: classIdRaw.length ? classIdRaw : null,
         academic_year_id: yearIdRaw.length ? yearIdRaw : null,
         academic_term_id: termIdRaw.length ? termIdRaw : null,
-        starts_at: toIsoOrNull(startsAt),
-        ends_at: toIsoOrNull(endsAt),
+        starts_at: startDate.length ? lagosStartOfDayIso(startDate) : null,
+        ends_at: endDate.length ? lagosEndOfDayIso(endDate) : null,
         status,
         active: isActive,
         requires_secret_code: requiresSecretCode,
@@ -172,15 +164,29 @@ export default async function AdminExamSessionEditPage({
     revalidatePath(`/admin/exams/sessions/${id}/attempts`);
     revalidatePath(`/admin/exams/sessions/${id}/conductors`);
     revalidatePath("/portal/exams");
-    redirect(`/admin/exams/sessions/${id}`);
+    redirect(`/admin/exams/sessions/${id}?toast=${encodeURIComponent("Session saved")}&toast_type=success`);
   }
+
+  const visibility = sessionVisibility(session);
 
   return (
     <div className="space-y-6">
+      <UrlToast />
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="text-sm font-semibold text-slate-500">Exams</div>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">Edit session</h1>
-        <p className="mt-2 text-sm text-slate-600">Update the class, time window, and access settings for this session.</p>
+        <p className="mt-2 text-sm text-slate-600">Update the class, dates, and access settings for this session.</p>
+        <div
+          className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
+            visibility.visible
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-amber-200 bg-amber-50 text-amber-900"
+          }`}
+        >
+          <span className="font-semibold">Student access: </span>
+          {visibility.reason}
+          {visibility.visible ? " (only students in the selected class, or every class if none is selected)." : "."}
+        </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
@@ -270,23 +276,25 @@ export default async function AdminExamSessionEditPage({
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-slate-900">Starts at (optional)</label>
+            <label className="text-sm font-semibold text-slate-900">Start date (optional)</label>
             <input
               className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="starts_at"
-              type="datetime-local"
-              defaultValue={toDateTimeLocal(session.starts_at)}
+              name="start_date"
+              type="date"
+              defaultValue={toLagosDateInput(session.starts_at)}
             />
+            <p className="mt-1 text-xs text-slate-500">Students can see the exam from the start of this day.</p>
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-slate-900">Ends at (optional)</label>
+            <label className="text-sm font-semibold text-slate-900">End date (optional)</label>
             <input
               className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="ends_at"
-              type="datetime-local"
-              defaultValue={toDateTimeLocal(session.ends_at)}
+              name="end_date"
+              type="date"
+              defaultValue={toLagosDateInput(session.ends_at)}
             />
+            <p className="mt-1 text-xs text-slate-500">Open until the end of this day. The time allowed comes from the test&apos;s duration.</p>
           </div>
 
           <div>
@@ -296,8 +304,8 @@ export default async function AdminExamSessionEditPage({
               name="status"
               defaultValue={session.status}
             >
-              <option value="draft">draft</option>
-              <option value="active">active</option>
+              <option value="active">active (students can take it within the dates)</option>
+              <option value="draft">draft (hidden from students)</option>
               <option value="closed">closed</option>
             </select>
 

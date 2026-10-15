@@ -5,11 +5,14 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
+import { loadStudentsByClass } from "@/lib/student-classes";
+import StudentSelect from "../StudentSelect";
 
 type PaymentRow = {
   id: string;
   direction: string;
   guardian_id: string | null;
+  student_id: string | null;
   amount: number;
   currency: string;
   method: string | null;
@@ -58,21 +61,22 @@ export default async function AdminEditPaymentPage({ params }: { params: Promise
 
   const { data: paymentData } = await supabase
     .from("finance_payment_transactions")
-    .select("id, direction, guardian_id, amount, currency, method, reference, notes, paid_at, status, provider")
+    .select("id, direction, guardian_id, student_id, amount, currency, method, reference, notes, paid_at, status, provider")
     .eq("id", id)
     .maybeSingle();
 
   const payment = (paymentData ?? null) as PaymentRow | null;
   if (!payment) notFound();
 
-  const [{ data: guardians }, { data: invoices }, { data: allocations }] = await Promise.all([
+  const [{ data: guardians }, { data: invoices }, { data: allocations }, studentData] = await Promise.all([
     supabase.from("guardians").select("id, full_name").order("full_name", { ascending: true }),
     supabase
       .from("finance_invoice_balances")
       .select("invoice_id, invoice_no, currency, balance")
       .order("issue_date", { ascending: false })
       .limit(200),
-    supabase.from("finance_payment_allocations").select("invoice_id, amount").eq("payment_transaction_id", id)
+    supabase.from("finance_payment_allocations").select("invoice_id, amount").eq("payment_transaction_id", id),
+    loadStudentsByClass(supabase)
   ]);
 
   const guardianRows = (guardians ?? []) as GuardianRow[];
@@ -90,6 +94,7 @@ export default async function AdminEditPaymentPage({ params }: { params: Promise
     "use server";
 
     const guardianIdRaw = String(formData.get("guardian_id") ?? "").trim();
+    const studentIdRaw = String(formData.get("student_id") ?? "").trim();
     const invoiceIdRaw = String(formData.get("invoice_id") ?? "").trim();
     const amount = Number(String(formData.get("amount") ?? "0").replace(/,/g, "").trim() || "0");
     const currency = String(formData.get("currency") ?? "NGN").trim() || "NGN";
@@ -122,6 +127,7 @@ export default async function AdminEditPaymentPage({ params }: { params: Promise
       .from("finance_payment_transactions")
       .update({
         guardian_id: guardianIdRaw.length ? guardianIdRaw : null,
+        student_id: studentIdRaw.length ? studentIdRaw : null,
         amount,
         currency,
         method,
@@ -207,6 +213,15 @@ export default async function AdminEditPaymentPage({ params }: { params: Promise
 
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <form action={updatePayment} className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="text-sm font-semibold text-slate-900">Student (by class)</label>
+            <StudentSelect
+              groups={studentData.groups}
+              defaultValue={payment.student_id ?? ""}
+              className={inputClass}
+            />
+          </div>
+
           <div>
             <label className="text-sm font-semibold text-slate-900">Guardian (optional)</label>
             <select className={inputClass} name="guardian_id" defaultValue={payment.guardian_id ?? ""}>

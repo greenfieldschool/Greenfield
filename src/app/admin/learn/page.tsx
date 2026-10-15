@@ -22,6 +22,15 @@ export default function AdminLearnCentrePage() {
             "Inside their detail view, find the 'Portal Account' configuration.",
             "Set a secure password and generate the account. This registers a virtual email (e.g. [admission_number]@students.greenfield.local) inside Supabase Auth."
           ]
+        },
+        {
+          name: "Checking a Class and Fixing Wrong Registrations",
+          steps: [
+            "Open Core > Classes (/admin/classes) to see every class and how many current students it has.",
+            "Click a class to list its children. Admins can correct the name, admission number, class or status on a row and press 'Save'.",
+            "Changing the class moves the child to that class (their level follows the new class).",
+            "Use the amber link at the top of the Classes page to find current students who have no class yet."
+          ]
         }
       ]
     },
@@ -33,8 +42,9 @@ export default function AdminLearnCentrePage() {
           name: "Creating Tests & Setting Up Questions",
           steps: [
             "Go to Operations > Exams > Tests (/admin/exams/tests).",
-            "Create a new test specifying name, description, duration (minutes), and subject details.",
-            "Click on the newly created test to open the questions editor.",
+            "Create a new test with its name, subject, duration (minutes) and the number of objective and theory questions you plan to set (e.g. 30 and 5).",
+            "You are taken straight to the test, where a tracker shows how many questions are still left to set. The Tests list shows 'set / planned' for every test.",
+            "Use 'Edit test name and duration' on the test page to change the time allowed later.",
             "Configure question types (MCQ single/multi, true/false, fill-blank, essay) and points/marks.",
             "Open the 'Advanced (JSON)' section to modify or reuse structured options and answers."
           ]
@@ -44,8 +54,10 @@ export default function AdminLearnCentrePage() {
           steps: [
             "Go to Operations > Exams > Sessions (/admin/exams/sessions).",
             "Create a session linking a Test to a specific Class, Academic Year, and Academic Term.",
-            "Provide optional start/end validity windows and enable 'Requires secret code' for secure validation.",
-            "Students access scheduled active exams via the student portal (/portal/login/student)."
+            "Pick a Start date and End date (no times needed). Students in the class see the exam from the start of the start date until the end of the end date; the time allowed comes from the test's duration.",
+            "Keep Status as 'active'. A 'draft' session is hidden from students. The sessions list shows 'Open to students now' or why a session is hidden.",
+            "Enable 'Requires secret code' only if students must type a code given in the exam hall.",
+            "Students access scheduled exams via the student portal (/portal/login/student)."
           ]
         },
         {
@@ -122,6 +134,14 @@ export default function AdminLearnCentrePage() {
       title: "Finance",
       color: "border-amber-200 bg-amber-50/20",
       guides: [
+        {
+          name: "Recording Payments by Student and Class",
+          steps: [
+            "Open Finance > Payments > Record payment and pick the Student — the list is grouped by class. Picking an invoice instead fills in its student automatically.",
+            "The Payments page shows each payment's student and class. Filter by class and dates to get the total collected for a class; the 'Amount collected per class' table compares classes.",
+            "Open Finance > Debtors to see invoiced, paid and outstanding per class, then click a class to list the children who still owe, with WhatsApp and 'Record payment' shortcuts."
+          ]
+        },
         {
           name: "Editing or Voiding a Payment",
           steps: [

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import PortalDebugLogger from "./PortalDebugLogger";
+import { formatLagosDate } from "@/lib/lagos-dates";
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
   return (await Promise.race([
@@ -33,7 +34,20 @@ type StudentRow = {
 
 type ClassRow = { id: string; level: string; name: string };
 
-type TestRow = { id: string; name: string };
+type TestRow = { id: string; name: string; duration_minutes?: number | null };
+
+type PortalSessionRpcRow = {
+  id: string;
+  test_id: string;
+  test_name: string;
+  duration_minutes: number | null;
+  class_id: string | null;
+  class_level: string | null;
+  class_name: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  requires_secret_code: boolean;
+};
 
 export default async function PortalExamsPage({
   searchParams
@@ -107,45 +121,82 @@ export default async function PortalExamsPage({
   const testsById = new Map<string, TestRow>();
   const classesById = new Map<string, ClassRow>();
 
-  try {
-    const sessionsQuery = supabase
-      .from("exam_test_sessions")
-      .select("id, test_id, class_id, starts_at, ends_at, status, requires_secret_code")
-      .order("starts_at", { ascending: false })
-      .limit(50);
-    const { data: sessionsData, error: sessionsError } = await withTimeout(Promise.resolve(sessionsQuery), 6000);
-    if (sessionsError && !examsErrorMsg) {
-      examsErrorMsg = String(sessionsError.message ?? "");
-    }
-    sessions = ((sessionsData ?? []) as unknown as SessionRow[]) ?? [];
-
-    const testIds = Array.from(new Set(sessions.map((s) => s.test_id).filter((v): v is string => typeof v === "string" && v.length > 0)));
-    const classIds = Array.from(
-      new Set(
-        sessions
-          .map((s) => (typeof s.class_id === "string" ? s.class_id : ""))
-          .filter((v): v is string => typeof v === "string" && v.length > 0)
-      )
-    );
-
-    if (testIds.length) {
-      const testsQuery = supabase.from("exam_tests").select("id, name").in("id", testIds);
-      const { data: testsData } = await withTimeout(Promise.resolve(testsQuery), 6000);
-      for (const t of (testsData ?? []) as TestRow[]) {
-        if (t?.id) testsById.set(t.id, t);
+  // Preferred path: one security-definer call (docs/migrations/20261015_portal_exam_sessions.sql).
+  let usedRpc = false;
+  if (role === "student") {
+    try {
+      const { data: rpcData, error: rpcError } = await withTimeout(
+        Promise.resolve(supabase.rpc("portal_student_exam_sessions")),
+        10000
+      );
+      if (!rpcError) {
+        usedRpc = true;
+        for (const r of (rpcData ?? []) as PortalSessionRpcRow[]) {
+          sessions.push({
+            id: r.id,
+            test_id: r.test_id,
+            class_id: r.class_id,
+            starts_at: r.starts_at,
+            ends_at: r.ends_at,
+            status: "active",
+            requires_secret_code: r.requires_secret_code
+          });
+          testsById.set(r.test_id, { id: r.test_id, name: r.test_name, duration_minutes: r.duration_minutes });
+          if (r.class_id && r.class_level && r.class_name) {
+            classesById.set(r.class_id, { id: r.class_id, level: r.class_level, name: r.class_name });
+          }
+        }
       }
-    }
-
-    if (classIds.length) {
-      const classesQuery = supabase.from("classes").select("id, level, name").in("id", classIds);
-      const { data: classesData } = await withTimeout(Promise.resolve(classesQuery), 6000);
-      for (const c of (classesData ?? []) as ClassRow[]) {
-        if (c?.id) classesById.set(c.id, c);
+    } catch (e) {
+      if (!examsErrorMsg) {
+        examsErrorMsg = e instanceof Error ? e.message : String(e);
       }
+      usedRpc = true;
     }
-  } catch (e) {
-    if (!examsErrorMsg) {
-      examsErrorMsg = e instanceof Error ? e.message : String(e);
+  }
+
+  if (!usedRpc) {
+    try {
+      const sessionsQuery = supabase
+        .from("exam_test_sessions")
+        .select("id, test_id, class_id, starts_at, ends_at, status, requires_secret_code")
+        .eq("status", "active")
+        .order("starts_at", { ascending: false })
+        .limit(50);
+      const { data: sessionsData, error: sessionsError } = await withTimeout(Promise.resolve(sessionsQuery), 10000);
+      if (sessionsError && !examsErrorMsg) {
+        examsErrorMsg = String(sessionsError.message ?? "");
+      }
+      sessions = ((sessionsData ?? []) as unknown as SessionRow[]) ?? [];
+
+      const testIds = Array.from(new Set(sessions.map((s) => s.test_id).filter((v): v is string => typeof v === "string" && v.length > 0)));
+      const classIds = Array.from(
+        new Set(
+          sessions
+            .map((s) => (typeof s.class_id === "string" ? s.class_id : ""))
+            .filter((v): v is string => typeof v === "string" && v.length > 0)
+        )
+      );
+
+      if (testIds.length) {
+        const testsQuery = supabase.from("exam_tests").select("id, name, duration_minutes").in("id", testIds);
+        const { data: testsData } = await withTimeout(Promise.resolve(testsQuery), 6000);
+        for (const t of (testsData ?? []) as TestRow[]) {
+          if (t?.id) testsById.set(t.id, t);
+        }
+      }
+
+      if (classIds.length) {
+        const classesQuery = supabase.from("classes").select("id, level, name").in("id", classIds);
+        const { data: classesData } = await withTimeout(Promise.resolve(classesQuery), 6000);
+        for (const c of (classesData ?? []) as ClassRow[]) {
+          if (c?.id) classesById.set(c.id, c);
+        }
+      }
+    } catch (e) {
+      if (!examsErrorMsg) {
+        examsErrorMsg = e instanceof Error ? e.message : String(e);
+      }
     }
   }
 
@@ -175,7 +226,7 @@ export default async function PortalExamsPage({
                     Class: {cls ? `${cls.level} - ${cls.name}` : student.class_id ? "—" : "not assigned"}
                   </div>
                   <div className="mt-2 text-xs text-slate-600">
-                    Sessions appear only when they are active, within the time window, and match your class.
+                    Exams appear here on their start date when they are set for your class. Ask your teacher if one is missing.
                   </div>
                 </div>
               ) : (
@@ -208,9 +259,8 @@ export default async function PortalExamsPage({
                       <div className="col-span-6">
                         <div className="font-semibold text-slate-900">{test?.name ?? s.test_id}</div>
                         <div className="mt-1 text-xs text-slate-600">
-                          {s.starts_at || s.ends_at
-                            ? `${s.starts_at ? String(s.starts_at).slice(0, 16) : "—"} → ${s.ends_at ? String(s.ends_at).slice(0, 16) : "—"}`
-                            : "—"}
+                          {test?.duration_minutes ? `${test.duration_minutes} minutes` : "No time limit set"}
+                          {s.ends_at ? ` • open until ${formatLagosDate(s.ends_at)}` : ""}
                           {s.requires_secret_code ? " • code required" : ""}
                         </div>
                       </div>
@@ -227,7 +277,7 @@ export default async function PortalExamsPage({
                   );
                 })
               ) : (
-                <div className="px-6 py-8 text-sm text-slate-600">No exam sessions available.</div>
+                <div className="px-6 py-8 text-sm text-slate-600">No exams are open for you right now.</div>
               )}
             </div>
           </div>
