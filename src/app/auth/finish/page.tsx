@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export default function AuthFinishPage() {
@@ -65,10 +68,18 @@ export default function AuthFinishPage() {
   }, [router]);
 
   return (
-    <div className="mx-auto max-w-md px-6 py-16">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Signing you in…</div>
-        <div className="mt-2 text-sm text-slate-600">Please wait.</div>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-canvas px-6 py-16">
+      <Link href="/" aria-label="Greenfield School home">
+        <Logo />
+      </Link>
+      <div className="mt-8 w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-8 text-center shadow-card">
+        <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-green-50 text-brand-green-600">
+          <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+        </span>
+        <h1 className="mt-4 font-display text-2xl font-semibold text-slate-900" aria-live="polite">
+          Signing you in…
+        </h1>
+        <p className="mt-2 text-sm text-slate-600">Please wait.</p>
       </div>
     </div>
   );

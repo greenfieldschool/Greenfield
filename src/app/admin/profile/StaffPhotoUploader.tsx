@@ -2,7 +2,11 @@
 
 import Image from "next/image";
 import { useMemo, useRef, useState, useTransition, type FormEvent } from "react";
+import { ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { Alert } from "@/components/ui/alert";
+import { buttonClasses } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 
 type Props = {
   userId: string;
@@ -110,12 +114,10 @@ export default function StaffPhotoUploader({ userId, initialUrl, saveAction }: P
   return (
     <div className="space-y-3">
       <div
-        className={
-          "flex flex-col gap-3 rounded-2xl border border-dashed p-4 transition-colors " +
-          (dragOver
-            ? "border-brand-green bg-emerald-50"
-            : "border-slate-300 bg-white hover:bg-slate-50")
-        }
+        className={cn(
+          "flex flex-col gap-4 rounded-2xl border-2 border-dashed p-4 transition-colors sm:flex-row sm:items-center sm:p-5",
+          dragOver ? "border-brand-green-400 bg-brand-green-50" : "border-slate-200 bg-slate-50/60 hover:bg-slate-50"
+        )}
         onDragEnter={(e) => {
           e.preventDefault();
           setDragOver(true);
@@ -127,31 +129,52 @@ export default function StaffPhotoUploader({ userId, initialUrl, saveAction }: P
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
       >
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-semibold text-slate-900">Profile photo</div>
-            <div className="mt-1 text-xs text-slate-600">Drag & drop an image, or click to choose.</div>
+        {previewUrl ? (
+          <Image
+            src={previewUrl}
+            alt="Profile photo"
+            width={160}
+            height={160}
+            unoptimized
+            className="h-28 w-28 shrink-0 rounded-2xl border border-slate-200 object-cover shadow-sm sm:h-32 sm:w-32"
+          />
+        ) : (
+          <div className="flex h-28 w-28 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white text-slate-400 sm:h-32 sm:w-32">
+            <ImageIcon className="h-6 w-6" aria-hidden="true" />
+            <span className="px-2 text-center text-[11px] text-slate-500">No photo uploaded yet.</span>
           </div>
+        )}
 
-          <div className="flex flex-wrap gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-slate-900">Profile photo</div>
+          <div className="mt-1 text-xs text-slate-600">Drag &amp; drop an image, or click to choose.</div>
+          <div className="mt-0.5 text-xs text-slate-500">PNG, JPG or WEBP, up to 5MB.</div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
               disabled={pending}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-50"
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
               onClick={() => fileInputRef.current?.click()}
             >
+              {pending ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Upload className="h-4 w-4" aria-hidden="true" />
+              )}
               Choose file
             </button>
             <button
               type="button"
               disabled={pending || !previewUrl}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-50"
+              className={buttonClasses({ variant: "ghost", size: "sm", className: "text-red-600 hover:bg-red-50 hover:text-red-700" })}
               onClick={async () => {
                 setError(null);
                 setPreviewUrl(null);
                 await persistUrl(null);
               }}
             >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
               Remove
             </button>
           </div>
@@ -164,22 +187,9 @@ export default function StaffPhotoUploader({ userId, initialUrl, saveAction }: P
           className="hidden"
           onChange={onFileChange}
         />
-
-        {previewUrl ? (
-          <Image
-            src={previewUrl}
-            alt="Profile photo"
-            width={160}
-            height={160}
-            unoptimized
-            className="h-40 w-40 rounded-2xl border border-slate-200 object-cover"
-          />
-        ) : (
-          <div className="text-xs text-slate-600">No photo uploaded yet.</div>
-        )}
       </div>
 
-      {error ? <div className="text-sm font-semibold text-red-600">{error}</div> : null}
+      {error ? <Alert tone="danger">{error}</Alert> : null}
       <div className="text-xs text-slate-500">Storage bucket: {bucket}</div>
     </div>
   );

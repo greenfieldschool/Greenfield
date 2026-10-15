@@ -1,10 +1,29 @@
 import Link from "next/link";
+import {
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
+  ClipboardList,
+  GraduationCap,
+  HeartPulse,
+  Library,
+  SlidersHorizontal,
+  Timer,
+  UserPlus,
+  Users,
+  Wallet
+} from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { toneStyles, type Tone } from "@/components/ui/stat-card";
+import { cn } from "@/lib/cn";
 
 export default function AdminLearnCentrePage() {
   const categories = [
     {
       title: "Core Student Lifecycle",
-      color: "border-blue-200 bg-blue-50/20",
+      icon: GraduationCap,
+      tone: "blue" as Tone,
       guides: [
         {
           name: "Admissions & Enrollment Workflow",
@@ -29,14 +48,15 @@ export default function AdminLearnCentrePage() {
             "Open Core > Classes (/admin/classes) to see every class and how many current students it has.",
             "Click a class to list its children. Admins can correct the name, admission number, class or status on a row and press 'Save'.",
             "Changing the class moves the child to that class (their level follows the new class).",
-            "Use the amber link at the top of the Classes page to find current students who have no class yet."
+            "Use the notice at the top of the Classes page to find current students who have no class yet."
           ]
         }
       ]
     },
     {
       title: "Examination & Assessment Lifecycle",
-      color: "border-purple-200 bg-purple-50/20",
+      icon: Timer,
+      tone: "violet" as Tone,
       guides: [
         {
           name: "Creating Tests & Setting Up Questions",
@@ -72,7 +92,8 @@ export default function AdminLearnCentrePage() {
     },
     {
       title: "Academics & Configurations",
-      color: "border-emerald-200 bg-emerald-50/20",
+      icon: BookOpen,
+      tone: "green" as Tone,
       guides: [
         {
           name: "Adding Subjects",
@@ -132,7 +153,8 @@ export default function AdminLearnCentrePage() {
     },
     {
       title: "Finance",
-      color: "border-amber-200 bg-amber-50/20",
+      icon: Wallet,
+      tone: "gold" as Tone,
       guides: [
         {
           name: "Recording Payments by Student and Class",
@@ -155,7 +177,8 @@ export default function AdminLearnCentrePage() {
     },
     {
       title: "Welfare & Operations",
-      color: "border-indigo-200 bg-indigo-50/20",
+      icon: HeartPulse,
+      tone: "rose" as Tone,
       guides: [
         {
           name: "Attendance Marking",
@@ -177,65 +200,95 @@ export default function AdminLearnCentrePage() {
     }
   ];
 
+  const shortcuts = [
+    { href: "/admin/students", label: "Student List", icon: Users },
+    { href: "/admin/students/applications", label: "Admissions Applications", icon: UserPlus },
+    { href: "/admin/finance/fees/academic-years", label: "Academic Calendar", icon: CalendarDays },
+    { href: "/admin/academics/config", label: "Grading Scales", icon: SlidersHorizontal },
+    { href: "/admin/academics/subjects", label: "Subject Management", icon: Library },
+    { href: "/admin/exams/tests", label: "Exams & Tests", icon: ClipboardList }
+  ];
+
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Knowledge Base</div>
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">Admin Learn Centre</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          A scalable documentation directory for managing the school&apos;s operational lifecycle, grading scales, admissions, examinations, and subjects.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Knowledge Base"
+        title="Admin Learn Centre"
+        description="A scalable documentation directory for managing the school's operational lifecycle, grading scales, admissions, examinations, and subjects."
+      />
 
-      {/* Guide Directory */}
-      <div className="space-y-6">
+      {/* Category directory */}
+      <nav aria-label="Guide categories" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {categories.map((cat, idx) => (
-          <div key={idx} className={`rounded-3xl border p-6 shadow-sm ${cat.color}`}>
-            <h2 className="text-xl font-bold text-slate-900 mb-4">{cat.title}</h2>
-            <div className="grid gap-6 md:grid-cols-2">
+          <a
+            key={idx}
+            href={`#learn-${idx}`}
+            className="group flex flex-col rounded-2xl border border-slate-200/80 bg-white p-4 shadow-card transition hover:-translate-y-0.5 hover:border-brand-green-200 hover:shadow-lift"
+          >
+            <span className={cn("inline-flex h-10 w-10 items-center justify-center rounded-xl", toneStyles[cat.tone].icon)}>
+              <cat.icon className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="mt-3 text-sm font-semibold text-slate-900">{cat.title}</span>
+            <span className="mt-0.5 text-xs text-slate-500">
+              {cat.guides.length} guide{cat.guides.length === 1 ? "" : "s"}
+            </span>
+          </a>
+        ))}
+      </nav>
+
+      {/* Guides */}
+      <div className="space-y-10">
+        {categories.map((cat, idx) => (
+          <section key={idx} id={`learn-${idx}`} aria-labelledby={`learn-${idx}-title`} className="scroll-mt-24">
+            <div className="mb-4 flex items-center gap-3">
+              <span className={cn("inline-flex h-9 w-9 items-center justify-center rounded-xl", toneStyles[cat.tone].icon)}>
+                <cat.icon className="h-[18px] w-[18px]" aria-hidden="true" />
+              </span>
+              <h2 id={`learn-${idx}-title`} className="text-lg font-semibold text-slate-900">
+                {cat.title}
+              </h2>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
               {cat.guides.map((guide, gIdx) => (
-                <div key={gIdx} className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-                  <h3 className="text-md font-semibold text-slate-900 mb-3">{guide.name}</h3>
-                  <ol className="space-y-2">
+                <Card key={gIdx}>
+                  <CardHeader title={guide.name} />
+                  <ol className="space-y-3 px-5 py-5 sm:px-6">
                     {guide.steps.map((step, sIdx) => (
-                      <li key={sIdx} className="text-xs text-slate-700 flex gap-2.5 leading-relaxed">
-                        <span className="font-bold text-brand-green">{sIdx + 1}.</span>
+                      <li key={sIdx} className="flex gap-3 text-sm leading-relaxed text-slate-700">
+                        <span
+                          className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-green-50 text-xs font-semibold text-brand-green-700 ring-1 ring-inset ring-brand-green-200/70"
+                          aria-hidden="true"
+                        >
+                          {sIdx + 1}
+                        </span>
                         <span>{step}</span>
                       </li>
                     ))}
                   </ol>
-                </div>
+                </Card>
               ))}
             </div>
-          </div>
+          </section>
         ))}
       </div>
 
       {/* Quick Links */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-900">Quick Shortcuts</h2>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link href="/admin/students" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
-            Student List
-          </Link>
-          <Link href="/admin/students/applications" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
-            Admissions Applications
-          </Link>
-          <Link href="/admin/finance/fees/academic-years" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
-            Academic Calendar
-          </Link>
-          <Link href="/admin/academics/config" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
-            Grading Scales
-          </Link>
-          <Link href="/admin/academics/subjects" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
-            Subject Management
-          </Link>
-          <Link href="/admin/exams/tests" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
-            Exams & Tests
-          </Link>
+      <Card>
+        <CardHeader title="Quick Shortcuts" />
+        <div className="grid gap-2 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+          {shortcuts.map((sc) => (
+            <Link
+              key={sc.href}
+              href={sc.href}
+              className="group flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-green-200 hover:bg-brand-green-50/50 hover:text-brand-green-800"
+            >
+              <sc.icon className="h-4 w-4 text-slate-400 group-hover:text-brand-green-600" aria-hidden="true" />
+              <span className="flex-1">{sc.label}</span>
+              <ArrowRight className="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-green" aria-hidden="true" />
+            </Link>
+          ))}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

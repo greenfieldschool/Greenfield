@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type { PointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type HeroImage = {
   src: string;
@@ -146,18 +147,19 @@ export function HeroRotator({ images, intervalMs = 7000, className }: HeroRotato
           );
         })}
 
-        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/40 to-white/0" />
-        <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_20%_10%,rgba(11,61,46,0.35),transparent_60%),radial-gradient(800px_circle_at_80%_30%,rgba(212,160,23,0.32),transparent_55%)]" />
+        {/* Green wash weighted to the left so the headline always reads, photo stays visible on the right. */}
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-green-950/95 via-brand-green-950/70 to-brand-green-950/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-brand-green-950/70 via-transparent to-transparent" />
       </div>
 
-      <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">
+      <div className="absolute bottom-6 right-6 z-10 flex items-center gap-2 sm:bottom-8 sm:right-8">
         <button
           type="button"
           onClick={prev}
           className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur hover:bg-white/20"
           aria-label="Previous image"
         >
-          <span aria-hidden>‹</span>
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </button>
 
         <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 backdrop-blur">
@@ -169,8 +171,8 @@ export function HeroRotator({ images, intervalMs = 7000, className }: HeroRotato
                 type="button"
                 onClick={() => goTo(i)}
                 className={
-                  "h-2.5 w-2.5 rounded-full transition " +
-                  (isActive ? "bg-white" : "bg-white/40 hover:bg-white/70")
+                  "h-1.5 rounded-full transition-all " +
+                  (isActive ? "w-6 bg-brand-gold" : "w-1.5 bg-white/50 hover:bg-white/80")
                 }
                 aria-label={`Go to image ${i + 1}`}
                 aria-current={isActive ? "true" : undefined}
@@ -185,7 +187,7 @@ export function HeroRotator({ images, intervalMs = 7000, className }: HeroRotato
           className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur hover:bg-white/20"
           aria-label="Next image"
         >
-          <span aria-hidden>›</span>
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
 

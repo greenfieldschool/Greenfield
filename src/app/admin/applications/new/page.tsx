@@ -1,8 +1,12 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import { PageHeader } from "@/components/ui/page-header";
+import { FormSection } from "@/components/ui/form-section";
+import { Alert } from "@/components/ui/alert";
+import { ButtonLink } from "@/components/ui/button";
+import { APPLICATION_STATUSES, SelectField, SubHeading, TextField, humanize } from "../_ui";
 
 type AdmissionsSection = "creche" | "primary" | "secondary";
 
@@ -15,9 +19,15 @@ export default async function AdminNewApplicationPage() {
 
   if (!supabase) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-900">New application</div>
-        <p className="mt-2 text-sm text-slate-600">Supabase is not configured.</p>
+      <div className="space-y-6">
+        <PageHeader
+          back={{ href: "/admin/students/applications", label: "Back to applications" }}
+          eyebrow="Admissions"
+          title="New application"
+        />
+        <Alert tone="warning" title="Supabase is not configured.">
+          Applications can&apos;t be created until the database connection is set up.
+        </Alert>
       </div>
     );
   }
@@ -105,7 +115,7 @@ export default async function AdminNewApplicationPage() {
     };
 
     const supabaseAction = getSupabaseServerClient();
-    if (!supabaseAction) return;
+    if (!supabaseAction) redirect("/admin/students/applications?create_error=1");
 
     const { data: created, error } = await supabaseAction
       .from("admissions_applications")
@@ -130,316 +140,153 @@ export default async function AdminNewApplicationPage() {
     redirect(`/admin/students/applications/${created.id}`);
   }
 
+  const statusOptions = APPLICATION_STATUSES.map((v) => ({ value: v, label: humanize(v) }));
+  const sectionOptions = [
+    { value: "", label: "—" },
+    { value: "creche", label: "Creche" },
+    { value: "primary", label: "Primary" },
+    { value: "secondary", label: "Secondary" }
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-slate-500">Admissions</div>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-900">New application</h1>
-            <p className="mt-2 text-sm text-slate-600">Create an application in the same format as /apply.</p>
-          </div>
-          <Link
-            href="/admin/students/applications"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-          >
-            Back to applications
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        back={{ href: "/admin/students/applications", label: "Back to applications" }}
+        eyebrow="Admissions"
+        title="New application"
+        description="Create an application in the same format as /apply. Only fill in what you know — everything can be edited later."
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <form action={createApplication} className="space-y-10">
-          <div>
-            <div className="text-sm font-semibold text-slate-900">Quick details</div>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Status</label>
-                <select
-                  name="status"
-                  defaultValue="lead"
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                >
-                  <option value="lead">lead</option>
-                  <option value="submitted">submitted</option>
-                  <option value="contacted">contacted</option>
-                  <option value="visit_booked">visit_booked</option>
-                  <option value="applied">applied</option>
-                  <option value="enrolled">enrolled</option>
-                  <option value="closed">closed</option>
-                </select>
+      <form action={createApplication} className="space-y-6">
+        <FormSection title="Application" description="Pipeline stage and the main contact for this enquiry.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <SelectField label="Status" name="status" defaultValue="lead" options={statusOptions} />
+            <SelectField label="Section" name="section" defaultValue="" options={sectionOptions} />
+            <TextField label="Parent name" name="parent_name" />
+            <TextField label="Phone" name="phone" type="tel" />
+            <TextField label="Email" name="email" type="email" />
+            <TextField label="Desired start" name="desired_start" placeholder="e.g. September 2026" />
+            <SelectField
+              label="Preferred contact"
+              name="preferred_contact"
+              defaultValue="whatsapp"
+              options={[
+                { value: "whatsapp", label: "WhatsApp" },
+                { value: "call", label: "Call" },
+                { value: "email", label: "Email" }
+              ]}
+            />
+            <TextField label="Note" name="note" />
+          </div>
+        </FormSection>
+
+        <FormSection title="Student details" description="The child seeking admission.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField label="Last name" name="last_name" />
+            <TextField label="First name" name="first_name" />
+            <TextField label="Middle name" name="middle_name" className="sm:col-span-2" />
+            <TextField label="Date of birth" name="dob" type="date" />
+            <SelectField
+              label="Sex"
+              name="sex"
+              defaultValue=""
+              options={[
+                { value: "", label: "—" },
+                { value: "male", label: "Male" },
+                { value: "female", label: "Female" }
+              ]}
+            />
+            <TextField label="Religion" name="religion" />
+            <TextField label="Passport photo URL" name="passport_photo_url" placeholder="https://…" />
+            <TextField label="Seeking admission into" name="seeking_class" placeholder="e.g. JSS 1" />
+            <TextField label="Favorite sports" name="favorite_sports" />
+            <TextField label="Hobbies" name="hobbies" hint="Separate with commas." className="sm:col-span-2" />
+            <TextField label="Future aspiration" name="future_aspiration" className="sm:col-span-2" />
+            <TextField label="Child is with" name="child_with" className="sm:col-span-2" />
+          </div>
+        </FormSection>
+
+        <FormSection title="Parent details" description="Contact and work details for each parent or guardian.">
+          <div className="space-y-8">
+            <div>
+              <SubHeading>Parent 1</SubHeading>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextField label="Parent 1 name" name="parent1_name" />
+                <TextField label="Parent 1 phone" name="parent1_phone" type="tel" />
+                <TextField label="Parent 1 email" name="parent1_email" type="email" />
+                <TextField label="Parent 1 occupation" name="parent1_occupation" />
+                <TextField label="Parent 1 business address" name="parent1_business_address" className="sm:col-span-2" />
+                <TextField label="Home address" name="home_address" className="sm:col-span-2" />
               </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Section</label>
-                <select
-                  name="section"
-                  defaultValue=""
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                >
-                  <option value="">—</option>
-                  <option value="creche">creche</option>
-                  <option value="primary">primary</option>
-                  <option value="secondary">secondary</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Parent name</label>
-                <input
-                  name="parent_name"
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Phone</label>
-                <input
-                  name="phone"
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Desired start</label>
-                <input
-                  name="desired_start"
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Preferred contact</label>
-                <select
-                  name="preferred_contact"
-                  defaultValue="whatsapp"
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                >
-                  <option value="whatsapp">whatsapp</option>
-                  <option value="call">call</option>
-                  <option value="email">email</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Note</label>
-                <input
-                  name="note"
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                />
+            </div>
+            <div className="border-t border-slate-100 pt-6">
+              <SubHeading>Parent 2</SubHeading>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextField label="Parent 2 name" name="parent2_name" />
+                <TextField label="Parent 2 phone" name="parent2_phone" type="tel" />
+                <TextField label="Parent 2 email" name="parent2_email" type="email" />
+                <TextField label="Parent 2 occupation" name="parent2_occupation" />
+                <TextField label="Parent 2 business address" name="parent2_business_address" className="sm:col-span-2" />
+                <TextField label="Preferred contact methods" name="preferred_contact_methods" className="sm:col-span-2" />
               </div>
             </div>
           </div>
+        </FormSection>
 
-          <div>
-            <div className="text-sm font-semibold text-slate-900">Student details</div>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Last name</label>
-                <input name="last_name" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">First name</label>
-                <input name="first_name" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Middle name</label>
-                <input name="middle_name" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Date of birth</label>
-                <input type="date" name="dob" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Sex</label>
-                <select name="sex" defaultValue="" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green">
-                  <option value="">—</option>
-                  <option value="male">male</option>
-                  <option value="female">female</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Religion</label>
-                <input name="religion" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Passport photo URL</label>
-                <input name="passport_photo_url" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Seeking admission into</label>
-                <input name="seeking_class" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Favorite sports</label>
-                <input name="favorite_sports" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Hobbies</label>
-                <input name="hobbies" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Future aspiration</label>
-                <input name="future_aspiration" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Child is with</label>
-                <input name="child_with" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-            </div>
+        <FormSection title="Previous school">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <SelectField
+              label="Has been in school"
+              name="has_been_in_school"
+              defaultValue=""
+              options={[
+                { value: "", label: "—" },
+                { value: "yes", label: "Yes" },
+                { value: "no", label: "No" }
+              ]}
+            />
+            <TextField label="Previous school name" name="previous_school_name" />
+            <TextField label="Reason for leaving" name="reason_for_leaving" className="sm:col-span-2" />
+            <TextField label="Qualification/Testimonial" name="qualification_testimonial" className="sm:col-span-2" />
+            <TextField label="Date of entry" name="date_of_entry" type="date" />
+            <TextField label="Date of exit" name="date_of_exit" type="date" />
+            <TextField label="Class of exit" name="class_of_exit" />
           </div>
+        </FormSection>
 
-          <div>
-            <div className="text-sm font-semibold text-slate-900">Parent details</div>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Parent 1 name</label>
-                <input name="parent1_name" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Parent 1 phone</label>
-                <input name="parent1_phone" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Parent 1 email</label>
-                <input type="email" name="parent1_email" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Parent 1 occupation</label>
-                <input name="parent1_occupation" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Parent 1 business address</label>
-                <input name="parent1_business_address" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Home address</label>
-                <input name="home_address" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Parent 2 name</label>
-                <input name="parent2_name" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Parent 2 phone</label>
-                <input name="parent2_phone" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Parent 2 email</label>
-                <input type="email" name="parent2_email" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Parent 2 occupation</label>
-                <input name="parent2_occupation" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Parent 2 business address</label>
-                <input name="parent2_business_address" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Preferred contact methods</label>
-                <input name="preferred_contact_methods" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-            </div>
+        <FormSection title="Referral & other details">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField label="Discovery source" name="discovery_source" />
+            <TextField label="Referred" name="referred" />
+            <TextField label="Referrer name" name="referrer_name" />
+            <TextField label="Referrer number" name="referrer_ref" />
+            <TextField label="Other child in school" name="other_child_in_school" />
+            <TextField label="Other child names" name="other_child_names" />
+            <TextField label="Pickup details" name="pickup_details" className="sm:col-span-2" />
           </div>
+        </FormSection>
 
-          <div>
-            <div className="text-sm font-semibold text-slate-900">Previous school & other details</div>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Has been in school</label>
-                <input name="has_been_in_school" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Previous school name</label>
-                <input name="previous_school_name" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Reason for leaving</label>
-                <input name="reason_for_leaving" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Qualification/Testimonial</label>
-                <input name="qualification_testimonial" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Date of entry</label>
-                <input type="date" name="date_of_entry" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Date of exit</label>
-                <input type="date" name="date_of_exit" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Class of exit</label>
-                <input name="class_of_exit" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Discovery source</label>
-                <input name="discovery_source" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Referred</label>
-                <input name="referred" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Referrer name</label>
-                <input name="referrer_name" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Referrer number</label>
-                <input name="referrer_ref" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Other child in school</label>
-                <input name="other_child_in_school" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Other child names</label>
-                <input name="other_child_names" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Pickup details</label>
-                <input name="pickup_details" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Student signature</label>
-                <input name="student_signature_name" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Student signature date</label>
-                <input type="date" name="student_signature_date" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Parent signature</label>
-                <input name="parent_signature_name" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Parent signature date</label>
-                <input type="date" name="parent_signature_date" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green" />
-              </div>
-            </div>
+        <FormSection
+          title="Signatures"
+          footer={
+            <>
+              <ButtonLink href="/admin/students/applications" variant="secondary">
+                Cancel
+              </ButtonLink>
+              <SubmitButton variant="primary" pendingText="Creating…">
+                Create application
+              </SubmitButton>
+            </>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField label="Student signature" name="student_signature_name" />
+            <TextField label="Student signature date" name="student_signature_date" type="date" />
+            <TextField label="Parent signature" name="parent_signature_name" />
+            <TextField label="Parent signature date" name="parent_signature_date" type="date" />
           </div>
-
-          <div className="flex justify-end">
-            <SubmitButton
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Creating…"
-            >
-              Create application
-            </SubmitButton>
-            <Link
-              href="/admin/students/applications"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-            >
-              Cancel
-            </Link>
-          </div>
-        </form>
-      </div>
+        </FormSection>
+      </form>
     </div>
   );
 }

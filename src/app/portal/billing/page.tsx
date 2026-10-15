@@ -1,7 +1,16 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CheckCircle2, CreditCard, History, Receipt, Wallet } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { formatLagosDate } from "@/lib/lagos-dates";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatCard } from "@/components/ui/stat-card";
+import { buttonClasses } from "@/components/ui/button";
+import SubmitButton from "@/components/submit-button";
+import { PortalPageHeader, portalMessages, statusBadge } from "../_components/portal-ui";
 import CopyReferenceButton from "./CopyReferenceButton";
 
 type InvoiceBalanceRow = {
@@ -37,7 +46,23 @@ type PaymentRow = {
 };
 
 function asMoney(n: number) {
-  return Number(n ?? 0).toLocaleString();
+  return Number(n ?? 0).toLocaleString("en-NG");
+}
+
+function money(currency: string | null | undefined, n: number) {
+  const cur = String(currency ?? "NGN").toUpperCase();
+  return cur === "NGN" ? `₦${asMoney(n)}` : `${cur} ${asMoney(n)}`;
+}
+
+function BillingNotice({ message }: { message: string }) {
+  return (
+    <div className="space-y-6">
+      <PortalPageHeader title="Fees & billing" />
+      <Card>
+        <EmptyState icon={Receipt} title="Billing isn't available" description={message} />
+      </Card>
+    </div>
+  );
 }
 
 export default async function PortalBillingPage({
@@ -55,44 +80,30 @@ export default async function PortalBillingPage({
 
   if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  const { data: identityRows, error: identityError } = await supabase.rpc("portal_identity");
+  const identity = (Array.isArray(identityRows) ? (identityRows[0] ?? null) : identityRows) as {
+    role?: string | null;
+    guardian_id?: string | null;
+  } | null;
 
-  const role = profile?.role as string | null | undefined;
+  const role = identity?.role ?? null;
 
   if (role === "student") {
     redirect("/portal");
   }
 
-  if (role !== "parent") {
-    return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Portal</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Billing</h1>
-        <p className="mt-2 text-sm text-slate-600">Billing is available for parent/guardian accounts.</p>
-      </div>
-    );
+  if (identityError) {
+    return <BillingNotice message="We couldn't load your account details. Please reload the page in a moment." />;
   }
 
-  const { data: guardianLink } = await supabase
-    .from("guardian_user_links")
-    .select("guardian_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  if (role !== "parent") {
+    return <BillingNotice message="Billing is available for parent and guardian accounts." />;
+  }
 
-  const guardianId = guardianLink?.guardian_id as string | undefined;
+  const guardianId = identity?.guardian_id ?? undefined;
 
   if (!guardianId) {
-    return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Portal</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Billing</h1>
-        <p className="mt-2 text-sm text-slate-600">No guardian record is linked to your account yet.</p>
-      </div>
-    );
+    return <BillingNotice message={portalMessages.noGuardian} />;
   }
 
   const { data } = await supabase
@@ -176,166 +187,199 @@ export default async function PortalBillingPage({
     ? intentRows.find((r) => r.reference === ref) ?? null
     : null;
 
+  const openInvoices = invoices.filter((inv) => inv.status !== "void" && Number(inv.balance ?? 0) > 0);
+  const outstanding = openInvoices.reduce((acc, inv) => acc + Number(inv.balance ?? 0), 0);
+
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Portal</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Billing</h1>
-        <p className="mt-2 text-sm text-slate-600">View your invoices and generate a Moniepoint payment reference.</p>
-      </div>
+      <PortalPageHeader
+        title="Fees & billing"
+        description="See your invoices, pay what's due and keep track of payments."
+      />
 
       {ref ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="text-sm font-semibold text-slate-500">Payment reference created</div>
-          <div className="mt-2 text-xl font-semibold text-slate-900">{ref}</div>
-          <p className="mt-2 text-sm text-slate-600">
-            Use this as your Moniepoint <span className="font-semibold">merchantReference</span>.
-            {createdIntent ? (
-              <>
-                {" "}
-                Amount: {createdIntent.currency} {asMoney(createdIntent.amount)}.
-              </>
-            ) : null}
-          </p>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <CopyReferenceButton value={ref} />
-            <Link className="text-xs font-semibold text-brand-green hover:underline" href="/portal/billing">
-              Clear
-            </Link>
-          </div>
-        </div>
+        <Card className="border-brand-green-200 bg-brand-green-50/40">
+          <CardBody>
+            <div className="flex items-start gap-4">
+              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-green text-white">
+                <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-brand-green-700">Payment reference created</div>
+                <div className="mt-1 break-all font-mono text-lg font-semibold text-slate-900">{ref}</div>
+                <p className="mt-2 text-sm text-slate-600">
+                  Use this as your Moniepoint <span className="font-semibold">merchantReference</span>.
+                  {createdIntent ? (
+                    <>
+                      {" "}
+                      Amount: <span className="font-semibold">{money(createdIntent.currency, createdIntent.amount)}</span>.
+                    </>
+                  ) : null}
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <CopyReferenceButton value={ref} />
+                  <Link className={buttonClasses({ variant: "ghost", size: "md" })} href="/portal/billing">
+                    Done
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <div className="min-w-[768px]">
-            <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-              <div className="col-span-4">Invoice</div>
-              <div className="col-span-2">Issued</div>
-              <div className="col-span-2">Due</div>
-              <div className="col-span-2 text-right">Balance</div>
-              <div className="col-span-2">Pay</div>
-            </div>
-            <div>
-              {invoices.length ? (
-                invoices.map((inv) => (
-                  <div
-                    key={inv.invoice_id}
-                    className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm text-slate-700"
-                  >
-                    <div className="col-span-4">
-                      <div className="font-semibold text-slate-900">{inv.invoice_no ?? inv.invoice_id}</div>
-                      <div className="mt-1 text-xs text-slate-600">{inv.status}</div>
-                    </div>
-                    <div className="col-span-2">{inv.issue_date}</div>
-                    <div className="col-span-2">{inv.due_date ?? "—"}</div>
-                    <div className="col-span-2 text-right font-semibold text-slate-900">
-                      {inv.currency} {asMoney(inv.balance)}
-                    </div>
-                    <div className="col-span-2 pl-4">
-                      {inv.balance > 0 ? (
-                        <form action={payNow}>
-                          <input type="hidden" name="invoice_id" value={inv.invoice_id} />
-                          <input type="hidden" name="amount" value={String(inv.balance)} />
-                          <input type="hidden" name="currency" value={inv.currency} />
-                          <button
-                            className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95 active:scale-95 transition-all"
-                            type="submit"
-                          >
-                            Pay now
-                          </button>
-                        </form>
-                      ) : (
-                        <span className="text-xs text-slate-500">Paid</span>
-                      )}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="px-6 py-8 text-sm text-slate-600">No invoices yet.</div>
-              )}
-            </div>
-          </div>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <StatCard
+          label="Outstanding"
+          value={outstanding > 0 ? `₦${asMoney(outstanding)}` : "All paid"}
+          hint={outstanding > 0 ? `${openInvoices.length} invoice${openInvoices.length === 1 ? "" : "s"} to settle` : "Thank you!"}
+          icon={Wallet}
+          tone={outstanding > 0 ? "gold" : "green"}
+        />
+        <StatCard label="Payments recorded" value={paymentRows.length} icon={History} tone="blue" />
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Payment history</h2>
-        <p className="mt-1 text-sm text-slate-600">Your posted payments recorded against your account.</p>
-
-        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-          <div className="overflow-x-auto">
-            <div className="min-w-[768px]">
-              <div className="grid grid-cols-12 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600">
-                <div className="col-span-3">Date</div>
-                <div className="col-span-3">Method</div>
-                <div className="col-span-3">Reference</div>
-                <div className="col-span-1">Status</div>
-                <div className="col-span-2 text-right">Amount</div>
-              </div>
-              {paymentRows.length ? (
-                paymentRows.map((p) => (
-                  <div key={p.id} className="grid grid-cols-12 border-t border-slate-200 px-4 py-3 text-sm">
-                    <div className="col-span-3 text-slate-700">{String(p.paid_at).slice(0, 10)}</div>
-                    <div className="col-span-3 text-slate-700">{p.method ?? p.provider ?? "—"}</div>
-                    <div className="col-span-3 font-semibold text-slate-900">{p.reference ?? "—"}</div>
-                    <div className="col-span-1 text-slate-700">{p.status}</div>
-                    <div className="col-span-2 text-right text-slate-700 font-semibold">
-                      {p.currency} {asMoney(p.amount)}
+      <Card>
+        <CardHeader title="Invoices" description="Tap Pay to get a payment reference for an invoice." />
+        {invoices.length ? (
+          <ul className="divide-y divide-slate-100">
+            {invoices.map((inv) => {
+              const badge = statusBadge(inv.status);
+              const due = inv.balance > 0;
+              return (
+                <li
+                  key={inv.invoice_id}
+                  className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:px-6"
+                >
+                  <div className="flex min-w-0 flex-1 items-start gap-4">
+                    <span
+                      className={
+                        "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl " +
+                        (due ? "bg-brand-gold-50 text-brand-gold-700" : "bg-brand-green-50 text-brand-green-600")
+                      }
+                    >
+                      <Receipt className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-slate-900">{inv.invoice_no ?? inv.invoice_id}</span>
+                        <Badge tone={badge.tone}>{badge.label}</Badge>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                        <span>Issued {formatLagosDate(inv.issue_date)}</span>
+                        <span>Due {inv.due_date ? formatLagosDate(inv.due_date) : "—"}</span>
+                        <span>Total {money(inv.currency, inv.invoice_total)}</span>
+                      </div>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="px-4 py-4 text-sm text-slate-600">No payments yet.</div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Recent Moniepoint references</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          These references are created when you click Pay now. The reference must be used as the Moniepoint
-          <span className="font-semibold"> merchantReference</span>.
-        </p>
-
-        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-          <div className="overflow-x-auto">
-            <div className="min-w-[640px]">
-              <div className="grid grid-cols-12 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600">
-                <div className="col-span-7">Reference</div>
-                <div className="col-span-2">Status</div>
-                <div className="col-span-3 text-right">Amount</div>
-              </div>
-              {intentRows.length ? (
-                intentRows.map((pi) => (
-                  <div key={pi.id} className="grid grid-cols-12 border-t border-slate-200 px-4 py-3 text-sm">
-                    <div className="col-span-7 font-semibold text-slate-900">{pi.reference}</div>
-                    <div className="col-span-2 text-slate-700">{pi.status}</div>
-                    <div className="col-span-3 text-right text-slate-700 font-semibold">
-                      {pi.currency} {asMoney(pi.amount)}
+                  <div className="flex items-center justify-between gap-4 sm:justify-end">
+                    <div className="text-left sm:text-right">
+                      <div className="text-xs text-slate-500">Balance</div>
+                      <div className={"text-lg font-bold tabular-nums " + (due ? "text-slate-900" : "text-slate-400")}>
+                        {money(inv.currency, inv.balance)}
+                      </div>
                     </div>
+                    {due ? (
+                      <form action={payNow}>
+                        <input type="hidden" name="invoice_id" value={inv.invoice_id} />
+                        <input type="hidden" name="amount" value={String(inv.balance)} />
+                        <input type="hidden" name="currency" value={inv.currency} />
+                        <SubmitButton variant="primary" size="lg" pendingText="Preparing…">
+                          <span className="inline-flex items-center gap-2">
+                            <CreditCard className="h-5 w-5" aria-hidden="true" />
+                            Pay
+                          </span>
+                        </SubmitButton>
+                      </form>
+                    ) : (
+                      <Badge tone="green" dot>
+                        Paid
+                      </Badge>
+                    )}
                   </div>
-                ))
-              ) : (
-                <div className="px-4 py-4 text-sm text-slate-600">No references yet.</div>
-              )}
-            </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <EmptyState icon={Receipt} title="No invoices yet" description="Invoices from the school will appear here." />
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader title="Payment history" description="Payments recorded against your account." />
+        {paymentRows.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[640px]">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Method</th>
+                  <th>Reference</th>
+                  <th>Status</th>
+                  <th className="text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paymentRows.map((p) => {
+                  const badge = statusBadge(p.status);
+                  return (
+                    <tr key={p.id}>
+                      <td className="whitespace-nowrap">{formatLagosDate(p.paid_at)}</td>
+                      <td className="capitalize">{p.method ?? p.provider ?? "—"}</td>
+                      <td className="font-mono text-xs text-slate-900">{p.reference ?? "—"}</td>
+                      <td>
+                        <Badge tone={badge.tone}>{badge.label}</Badge>
+                      </td>
+                      <td className="text-right font-semibold tabular-nums text-slate-900">{money(p.currency, p.amount)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        </div>
+        ) : (
+          <EmptyState icon={History} title="No payments yet" />
+        )}
+      </Card>
 
-        <div className="mt-4 text-xs text-slate-500">
-          If you want a true redirect-to-checkout experience, we’ll add the Moniepoint “initiate payment” call next and
-          store the returned `checkout_url` in `finance_payment_intents`.
-        </div>
-
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/portal">
-            Back to portal
-          </Link>
-        </div>
-      </div>
+      <Card>
+        <CardHeader
+          title="Payment references"
+          description="Created each time you tap Pay. Use the reference as the Moniepoint merchantReference."
+        />
+        {intentRows.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[520px]">
+              <thead>
+                <tr>
+                  <th>Reference</th>
+                  <th>Created</th>
+                  <th>Status</th>
+                  <th className="text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {intentRows.map((pi) => {
+                  const badge = statusBadge(pi.status);
+                  return (
+                    <tr key={pi.id}>
+                      <td className="font-mono text-xs text-slate-900">{pi.reference}</td>
+                      <td className="whitespace-nowrap">{formatLagosDate(pi.created_at)}</td>
+                      <td>
+                        <Badge tone={badge.tone}>{badge.label}</Badge>
+                      </td>
+                      <td className="text-right font-semibold tabular-nums text-slate-900">{money(pi.currency, pi.amount)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={CreditCard} title="No references yet" />
+        )}
+      </Card>
     </div>
   );
 }

@@ -1,6 +1,11 @@
-import Link from "next/link";
+import { Award, BookOpen, HeartHandshake, TrendingUp } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { resultColumnTypes } from "@/lib/results";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatCard } from "@/components/ui/stat-card";
+import { PillLinks, PortalPageHeader, PortalNotice, portalMessages } from "../_components/portal-ui";
 
 type StudentGuardianRow = { student_id: string };
 
@@ -24,6 +29,25 @@ type StudentRow = {
 function firstOrNull<T>(v: T | T[] | null | undefined) {
   if (!v) return null;
   return Array.isArray(v) ? (v[0] ?? null) : v;
+}
+
+function EmptyAcademics({ message }: { message: string }) {
+  return (
+    <div className="space-y-6">
+      <PortalPageHeader title="Report card" description="Term results published by the school." />
+      <Card>
+        <EmptyState icon={BookOpen} title="Nothing to show yet" description={message} />
+      </Card>
+    </div>
+  );
+}
+
+function gradeTone(grade: string | null): BadgeTone {
+  const g = (grade ?? "").trim().toUpperCase().charAt(0);
+  if (g === "A" || g === "B") return "green";
+  if (g === "C" || g === "D") return "gold";
+  if (g === "E" || g === "F") return "red";
+  return "slate";
 }
 
 type PubRow = {
@@ -89,7 +113,7 @@ export default async function PortalAcademicsPage({
   const identity = (Array.isArray(identityRows) ? (identityRows[0] ?? null) : null) as unknown as IdentityRow | null;
   const role = identity?.role ?? null;
 
-  if (role !== "student" && role !== "parent") return null;
+  if (role !== "student" && role !== "parent") return <PortalNotice title="Report card" message={portalMessages.notPortal} />;
 
   const sp = (await searchParams) ?? {};
   const selectedStudentIdRaw = sp.student_id;
@@ -107,13 +131,7 @@ export default async function PortalAcademicsPage({
   if (role === "parent") {
     const guardianId = identity?.guardian_id ?? null;
     if (!guardianId) {
-      return (
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="text-sm font-semibold text-slate-500">Portal</div>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900">Academic records</h1>
-          <p className="mt-2 text-sm text-slate-600">No guardian record is linked to your account yet.</p>
-        </div>
-      );
+      return <EmptyAcademics message={portalMessages.noGuardian} />;
     }
 
     const { data: links } = await supabase
@@ -126,13 +144,7 @@ export default async function PortalAcademicsPage({
       .filter((v): v is string => typeof v === "string" && v.length > 0) ?? [];
 
     if (!studentIds.length) {
-      return (
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="text-sm font-semibold text-slate-500">Portal</div>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900">Academic records</h1>
-          <p className="mt-2 text-sm text-slate-600">No students are linked to this account yet.</p>
-        </div>
-      );
+      return <EmptyAcademics message={portalMessages.noChildren} />;
     }
 
     const { data: studentsData } = await supabase
@@ -148,7 +160,13 @@ export default async function PortalAcademicsPage({
     studentId = selectedStudentId.length ? selectedStudentId : fallbackId;
   }
 
-  if (!studentId) return null;
+  if (!studentId)
+    return (
+      <PortalNotice
+        title="Report card"
+        message={role === "parent" ? portalMessages.noChildren : portalMessages.noStudent}
+      />
+    );
 
   const { data: studentData } = await supabase
     .from("students")
@@ -174,13 +192,7 @@ export default async function PortalAcademicsPage({
   const cls = firstOrNull(student?.classes);
 
   if (!classId) {
-    return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Portal</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Academic records</h1>
-        <p className="mt-2 text-sm text-slate-600">Your profile is not assigned to a class yet.</p>
-      </div>
-    );
+    return <EmptyAcademics message="Not assigned to a class yet — please contact the school office." />;
   }
 
   const { data: pubsData } = await supabase
@@ -200,13 +212,7 @@ export default async function PortalAcademicsPage({
 
   if (!latest?.academic_year_id || !latest?.academic_term_id) {
     return (
-      <div className="space-y-6">
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="text-sm font-semibold text-slate-500">Portal</div>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900">Academic records</h1>
-          <p className="mt-2 text-sm text-slate-600">No term results have been published for your class yet.</p>
-        </div>
-      </div>
+      <EmptyAcademics message="No term results have been published for this class yet. You'll see the report card here as soon as the school releases it." />
     );
   }
 
@@ -266,124 +272,100 @@ export default async function PortalAcademicsPage({
   const year = firstOrNull(latest.academic_years);
   const termMeta = firstOrNull(latest.academic_terms);
 
+  const studentName = student ? `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim() : "";
+  const classText = cls ? `${cls.level.charAt(0).toUpperCase()}${cls.level.slice(1)} · ${cls.name}` : null;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Portal</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Academic records</h1>
-        {role === "parent" ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {parentStudents.map((st) => {
-              const active = st.id === studentId;
-              return (
-                <Link
-                  key={st.id}
-                  href={`/portal/academics?student_id=${st.id}`}
-                  className={
-                    "rounded-xl border px-3 py-1.5 text-xs font-semibold transition " +
-                    (active
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
-                  }
-                >
-                  {st.first_name} {st.last_name}
-                </Link>
-              );
-            })}
-          </div>
-        ) : null}
-        <p className="mt-2 text-sm text-slate-600">
-          {cls ? `${cls.level} - ${cls.name}` : "Class"} • {year?.name ?? "Year"} • {termMeta?.name ?? "Term"}
-        </p>
-        {pubs.length > 1 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {pubs.map((p) => {
-              const active = p.id === latest.id;
-              const params = new URLSearchParams({ pub: p.id });
-              if (role === "parent") params.set("student_id", studentId!);
-              return (
-                <Link
-                  key={p.id}
-                  href={`/portal/academics?${params.toString()}`}
-                  className={
-                    "rounded-xl border px-3 py-1.5 text-xs font-semibold transition " +
-                    (active
-                      ? "border-brand-green bg-brand-green text-white"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
-                  }
-                >
-                  {firstOrNull(p.academic_years)?.name ?? ""} {firstOrNull(p.academic_terms)?.name ?? "Term"}
-                </Link>
-              );
-            })}
-          </div>
-        ) : null}
-        <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Average</div>
-            <div className="mt-1 font-semibold text-slate-900">{Number(term?.average_score ?? 0).toFixed(2)}%</div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Welfare</div>
-            <div className="mt-1 font-semibold text-slate-900">{Number(welfare?.welfare_score ?? 0).toFixed(2)}%</div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Badge</div>
-            <div className="mt-1 font-semibold text-slate-900">{welfare?.welfare_badge ?? "—"}</div>
-          </div>
-        </div>
+      <PortalPageHeader
+        eyebrow={[year?.name, termMeta?.name].filter(Boolean).join(" · ") || undefined}
+        title="Report card"
+        description={[role === "parent" ? studentName : null, classText].filter(Boolean).join(" · ") || undefined}
+      />
+
+      {role === "parent" && parentStudents.length > 1 ? (
+        <PillLinks
+          label="Choose a child"
+          items={parentStudents.map((st) => ({
+            key: st.id,
+            href: `/portal/academics?student_id=${st.id}`,
+            label: `${st.first_name} ${st.last_name}`,
+            active: st.id === studentId
+          }))}
+        />
+      ) : null}
+
+      {pubs.length > 1 ? (
+        <PillLinks
+          label="Choose a term"
+          items={pubs.map((p) => {
+            const params = new URLSearchParams({ pub: p.id });
+            if (role === "parent") params.set("student_id", studentId!);
+            return {
+              key: p.id,
+              href: `/portal/academics?${params.toString()}`,
+              label: `${firstOrNull(p.academic_years)?.name ?? ""} ${firstOrNull(p.academic_terms)?.name ?? "Term"}`.trim(),
+              active: p.id === latest.id
+            };
+          })}
+        />
+      ) : null}
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Term average" value={`${Number(term?.average_score ?? 0).toFixed(2)}%`} icon={TrendingUp} tone="green" />
+        <StatCard label="Welfare score" value={`${Number(welfare?.welfare_score ?? 0).toFixed(2)}%`} icon={HeartHandshake} tone="blue" />
+        <StatCard label="Welfare badge" value={welfare?.welfare_badge ?? "—"} icon={Award} tone="gold" />
       </div>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
-              <tr>
-                <th className="px-6 py-3 text-left">Subject</th>
-                {showBreakdown ? (
-                  <>
-                    <th className="px-3 py-3 text-right">1st CA</th>
-                    <th className="px-3 py-3 text-right">2nd CA</th>
-                    <th className="px-3 py-3 text-right">Exam</th>
-                  </>
-                ) : null}
-                <th className="px-3 py-3 text-right">{showBreakdown ? "Total" : "Score"}</th>
-                <th className="px-6 py-3 text-right">Grade</th>
-              </tr>
-            </thead>
-            <tbody>
-              {subjects.length ? (
-                subjects.map((s) => {
+      <Card>
+        <CardHeader title="Subjects" description={showBreakdown ? "Continuous assessment (CA), exam and total for each subject." : undefined} />
+        {subjects.length ? (
+          <div className="gf-table-wrap">
+            <table className={showBreakdown ? "gf-table min-w-[560px]" : "gf-table"}>
+              <thead>
+                <tr>
+                  <th>Subject</th>
+                  {showBreakdown ? (
+                    <>
+                      <th className="text-right">1st CA</th>
+                      <th className="text-right">2nd CA</th>
+                      <th className="text-right">Exam</th>
+                    </>
+                  ) : null}
+                  <th className="text-right">{showBreakdown ? "Total" : "Score"}</th>
+                  <th className="text-right">Grade</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subjects.map((s) => {
                   const b = breakdown.get(s.subject_id);
                   return (
-                    <tr key={s.subject_id} className="border-t border-slate-200">
-                      <td className="px-6 py-4 font-semibold text-slate-900">{s.subject_name}</td>
+                    <tr key={s.subject_id}>
+                      <td className="font-semibold text-slate-900">{s.subject_name}</td>
                       {showBreakdown ? (
                         <>
-                          <td className="px-3 py-4 text-right text-slate-700">{fmt(b?.ca1)}</td>
-                          <td className="px-3 py-4 text-right text-slate-700">{fmt(b?.ca2)}</td>
-                          <td className="px-3 py-4 text-right text-slate-700">{fmt(b?.exam)}</td>
+                          <td className="text-right tabular-nums">{fmt(b?.ca1)}</td>
+                          <td className="text-right tabular-nums">{fmt(b?.ca2)}</td>
+                          <td className="text-right tabular-nums">{fmt(b?.exam)}</td>
                         </>
                       ) : null}
-                      <td className="px-3 py-4 text-right font-semibold text-slate-900">
+                      <td className="text-right font-semibold tabular-nums text-slate-900">
                         {Number(s.weighted_score ?? 0).toFixed(2)}
                         {showBreakdown ? "" : "%"}
                       </td>
-                      <td className="px-6 py-4 text-right text-slate-700">{s.grade ?? "—"}</td>
+                      <td className="text-right">
+                        {s.grade ? <Badge tone={gradeTone(s.grade)}>{s.grade}</Badge> : <span className="text-slate-400">—</span>}
+                      </td>
                     </tr>
                   );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={showBreakdown ? 6 : 3} className="px-6 py-8 text-sm text-slate-600">
-                    No subject results available yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={BookOpen} title="No subject results yet" description="Subject scores will appear here once they're ready." />
+        )}
+      </Card>
     </div>
   );
 }

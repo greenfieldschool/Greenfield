@@ -4,14 +4,16 @@ import { studentLabel, type StudentOption } from "@/lib/student-classes";
 export default function StudentSelect({
   groups,
   defaultValue,
-  className
+  className = "gf-select",
+  id
 }: {
   groups: Array<{ label: string; classId: string | null; students: StudentOption[] }>;
   defaultValue?: string;
-  className: string;
+  className?: string;
+  id?: string;
 }) {
   return (
-    <select className={className} name="student_id" defaultValue={defaultValue ?? ""}>
+    <select id={id} className={className} name="student_id" defaultValue={defaultValue ?? ""}>
       <option value="">—</option>
       {groups.map((g) => (
         <optgroup key={g.classId ?? "none"} label={g.label}>

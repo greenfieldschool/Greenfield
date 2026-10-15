@@ -1,8 +1,17 @@
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { Calculator, CircleCheck, FileQuestion, Percent, Target } from "lucide-react";
 import SubmitButton from "@/components/submit-button";
+import UrlToast from "@/components/url-toast";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody } from "@/components/ui/card";
+import { Field } from "@/components/ui/form-section";
+import { StatCard } from "@/components/ui/stat-card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { formatLagosDate } from "@/lib/lagos-dates";
 import { firstOrNull } from "@/lib/relations";
+import { failWithToast, NO_DB_MESSAGE } from "../../../../_components/feedback";
 
 type AttemptRow = {
   id: string;
@@ -74,11 +83,11 @@ export default async function AdminExamAttemptMarkingPage({
     const awarded = Number(String(formData.get("awarded_marks") ?? "0").trim() || "0");
     const feedback = String(formData.get("feedback") ?? "").trim();
 
-    if (!answerId) return;
-    if (!Number.isFinite(awarded) || awarded < 0) return;
+    if (!answerId) failWithToast(`/admin/exams/sessions/${sessionId}/attempts/${attemptId}`, "Answer not found.");
+    if (!Number.isFinite(awarded) || awarded < 0) failWithToast(`/admin/exams/sessions/${sessionId}/attempts/${attemptId}`, "Awarded marks must be 0 or more.");
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast(`/admin/exams/sessions/${sessionId}/attempts/${attemptId}`, NO_DB_MESSAGE);
 
     await supabase
       .from("exam_attempt_answers")
@@ -98,7 +107,7 @@ export default async function AdminExamAttemptMarkingPage({
     "use server";
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast(`/admin/exams/sessions/${sessionId}/attempts/${attemptId}`, NO_DB_MESSAGE);
 
     const { data: rows } = await supabase
       .from("exam_attempt_answers")
@@ -122,46 +131,37 @@ export default async function AdminExamAttemptMarkingPage({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Exams</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Manual marking</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          {student ? `${student.first_name} ${student.last_name}` : "Student"}
-          {student?.admission_number ? ` • ${student.admission_number}` : ""}
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link
-            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-            href={`/admin/exams/sessions/${sessionId}/attempts`}
-          >
-            Back to attempts
-          </Link>
+      <UrlToast />
+      <PageHeader
+        back={{ href: `/admin/exams/sessions/${sessionId}/attempts`, label: "Back to attempts" }}
+        eyebrow="Exams"
+        title="Manual marking"
+        description={
+          <>
+            {student ? `${student.first_name} ${student.last_name}` : "Student"}
+            {student?.admission_number ? ` • ${student.admission_number}` : ""}
+          </>
+        }
+        actions={
           <form action={recalcTotals}>
-            <SubmitButton
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Recalculating…"
-            >
+            <SubmitButton variant="primary" pendingText="Recalculating…">
+              <Calculator className="h-4 w-4" aria-hidden="true" />
               Recalculate totals
             </SubmitButton>
           </form>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Obtained</div>
-            <div className="mt-1 font-semibold text-slate-900">{Number(attempt.obtained_marks ?? 0).toFixed(2)}</div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Max</div>
-            <div className="mt-1 font-semibold text-slate-900">{Number(attempt.max_marks ?? 0).toFixed(2)}</div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Percent</div>
-            <div className="mt-1 font-semibold text-slate-900">{Number(attempt.percent ?? 0).toFixed(2)}%</div>
-          </div>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Obtained" value={Number(attempt.obtained_marks ?? 0).toFixed(2)} icon={CircleCheck} tone="green" />
+        <StatCard label="Max" value={Number(attempt.max_marks ?? 0).toFixed(2)} icon={Target} tone="slate" />
+        <StatCard
+          label="Percent"
+          value={`${Number(attempt.percent ?? 0).toFixed(2)}%`}
+          hint={attempt.submitted_at ? `Submitted ${formatLagosDate(attempt.submitted_at)}` : "Not submitted yet"}
+          icon={Percent}
+          tone="violet"
+        />
       </div>
 
       <div className="space-y-4">
@@ -169,60 +169,65 @@ export default async function AdminExamAttemptMarkingPage({
           answers.map((a, idx) => {
             const q = firstOrNull(a.exam_questions);
             const maxMarks = Number(q?.marks ?? 0);
+            const fid = `answer-${a.id}`;
 
             return (
-              <div key={a.id} className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                <div className="text-xs font-semibold text-slate-500">
-                  Q{idx + 1} • {q?.question_type ?? "—"} • Max {maxMarks}
+              <Card key={a.id}>
+                <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-5 py-3.5 sm:px-6">
+                  <span className="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg bg-brand-green-50 px-2 text-xs font-bold text-brand-green-700">
+                    Q{idx + 1}
+                  </span>
+                  <Badge tone="blue">{q?.question_type ?? "—"}</Badge>
+                  <Badge tone="slate">Max {maxMarks}</Badge>
+                  {a.is_correct === true ? <Badge tone="green">Correct</Badge> : null}
+                  {a.is_correct === false ? <Badge tone="red">Incorrect</Badge> : null}
                 </div>
-                <div className="mt-2 whitespace-pre-wrap text-sm font-semibold text-slate-900">{q?.prompt ?? "—"}</div>
+                <CardBody className="space-y-4">
+                  <div className="whitespace-pre-wrap text-sm font-semibold text-slate-900">{q?.prompt ?? "—"}</div>
 
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-xs font-semibold text-slate-500">Student answer</div>
-                  <div className="mt-2 whitespace-pre-wrap text-sm text-slate-900">{asValue(a.answer) || "—"}</div>
-                </div>
+                  <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+                    <div className="text-xs font-semibold text-slate-500">Student answer</div>
+                    <div className="mt-1.5 whitespace-pre-wrap text-sm text-slate-900">{asValue(a.answer) || "—"}</div>
+                  </div>
 
-                <form action={markAnswer} className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <input type="hidden" name="answer_id" value={a.id} />
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600">Awarded marks</label>
-                    <input
-                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                      name="awarded_marks"
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      max={String(maxMarks)}
-                      defaultValue={String(a.awarded_marks ?? 0)}
-                      required
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-xs font-semibold text-slate-600">Feedback (optional)</label>
-                    <input
-                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                      name="feedback"
-                      defaultValue={a.feedback ?? ""}
-                      placeholder="(optional)"
-                    />
-                  </div>
-                  <div className="sm:col-span-3">
-                    <SubmitButton
-                      className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                      pendingText="Saving…"
-                      showSpinner={false}
-                    >
-                      Save marking
-                    </SubmitButton>
-                  </div>
-                </form>
-              </div>
+                  <form action={markAnswer} className="grid gap-4 sm:grid-cols-3">
+                    <input type="hidden" name="answer_id" value={a.id} />
+                    <Field label="Awarded marks" htmlFor={`${fid}-marks`} hint={`Out of ${maxMarks}`}>
+                      <input
+                        id={`${fid}-marks`}
+                        className="gf-input"
+                        name="awarded_marks"
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        max={String(maxMarks)}
+                        defaultValue={String(a.awarded_marks ?? 0)}
+                        required
+                      />
+                    </Field>
+                    <Field label="Feedback (optional)" htmlFor={`${fid}-feedback`} className="sm:col-span-2">
+                      <input
+                        id={`${fid}-feedback`}
+                        className="gf-input"
+                        name="feedback"
+                        defaultValue={a.feedback ?? ""}
+                        placeholder="(optional)"
+                      />
+                    </Field>
+                    <div className="flex justify-end sm:col-span-3">
+                      <SubmitButton variant="secondary" pendingText="Saving…" showSpinner={false}>
+                        Save marking
+                      </SubmitButton>
+                    </div>
+                  </form>
+                </CardBody>
+              </Card>
             );
           })
         ) : (
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm">
-            No answers found for this attempt.
-          </div>
+          <Card>
+            <EmptyState icon={FileQuestion} title="No answers found for this attempt." />
+          </Card>
         )}
       </div>
     </div>

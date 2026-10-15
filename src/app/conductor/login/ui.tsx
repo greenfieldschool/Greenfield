@@ -4,7 +4,12 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
+import { Loader2, LogIn, ShieldCheck } from "lucide-react";
 import PasswordInput from "@/components/password-input";
+import { Logo } from "@/components/ui/logo";
+import { Alert } from "@/components/ui/alert";
+import { buttonClasses } from "@/components/ui/button";
+import { FieldBackdrop } from "@/components/three/field-backdrop";
 
 type FormState =
   | { status: "idle" }
@@ -47,49 +52,79 @@ export function ConductorLoginForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-md px-6 py-16">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Conductor</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Sign in</h1>
-        <p className="mt-2 text-sm text-slate-600">Use your conductor email and password.</p>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-brand-green-950 px-4 py-12 sm:px-6">
+      <FieldBackdrop />
+      <div
+        className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-brand-gold/15 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-brand-green-500/20 blur-3xl"
+        aria-hidden="true"
+      />
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Email</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+      <div className="relative z-10 w-full max-w-md">
+        <div className="mb-6 flex justify-center">
+          <Logo inverted subtitle="Exam conductor" />
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white p-6 shadow-lift sm:p-8">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-green-50 text-brand-green-600">
+              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-green-600">Conductor</div>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900">Sign in</h1>
+            </div>
+          </div>
+          <p className="mt-3 text-sm text-slate-600">Use your conductor email and password.</p>
+
+          <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+            <div>
+              <label htmlFor="conductor-email" className="gf-label">
+                Email
+              </label>
+              <input
+                id="conductor-email"
+                className="gf-input"
+                name="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
+            </div>
+
+            <PasswordInput
+              id="conductor-password"
+              label="Password"
+              name="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
               required
             />
-          </div>
 
-          <PasswordInput
-            label="Password"
-            name="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-          />
+            {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
 
-          {state.status === "error" ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-              {state.message}
-            </div>
-          ) : null}
+            <button
+              type="submit"
+              disabled={!canSubmit || state.status === "submitting"}
+              className={buttonClasses({ variant: "primary", size: "lg", className: "w-full" })}
+            >
+              {state.status === "submitting" ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <LogIn className="h-4 w-4" aria-hidden="true" />
+              )}
+              {state.status === "submitting" ? "Signing in…" : "Sign in"}
+            </button>
+          </form>
+        </div>
 
-          <button
-            type="submit"
-            disabled={!canSubmit || state.status === "submitting"}
-            className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {state.status === "submitting" ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
+        <p className="mt-6 text-center text-xs text-brand-green-200/80">Greenfield School · Exam supervision</p>
       </div>
     </div>
   );

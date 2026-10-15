@@ -3,6 +3,11 @@
 import { useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import PasswordInput from "@/components/password-input";
+import Link from "next/link";
+import { ChevronLeft, Loader2 } from "lucide-react";
+import { Alert } from "@/components/ui/alert";
+import { buttonClasses } from "@/components/ui/button";
+import { LoginFrame } from "../_components/portal-ui";
 
 type FormState =
   | { status: "idle" }
@@ -59,106 +64,65 @@ export function PortalLoginForm({
   const isStudent = kind === "student";
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      {/* Brand header */}
-      <div className="bg-brand-green px-6 pb-10 pt-16 text-white sm:px-8 sm:pt-20">
-        <div className="mx-auto max-w-sm">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 shadow-md">
-            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-              />
-            </svg>
-          </div>
-          <h1 className="mt-4 text-2xl font-bold tracking-tight">Greenfield School</h1>
-          <p className="mt-1 text-sm font-medium text-emerald-100">
-            {isStudent ? "Student Portal" : "Parent / Guardian Portal"}
-          </p>
-        </div>
-      </div>
+    <LoginFrame footer="Having trouble signing in? Contact the school office.">
+      <Link
+        href="/portal/login"
+        className="-ml-1 mb-4 inline-flex min-h-[40px] items-center gap-1 rounded-lg px-1 text-sm font-medium text-slate-500 hover:text-brand-green"
+      >
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+        Back
+      </Link>
+      <h1 className="font-display text-3xl font-semibold text-slate-900">{isStudent ? "Student sign in" : "Parent sign in"}</h1>
+      <p className="mt-1.5 text-sm text-slate-600">Use your email address and password.</p>
 
-      {/* Floating card that overlaps header */}
-      <div className="relative mx-auto w-full max-w-sm -translate-y-6 px-4 pb-10">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
-          <div className="mb-6">
-            <div className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
-              {isStudent ? "Student" : "Parent / Guardian"}
-            </div>
-            <div className="mt-1 text-xl font-bold text-slate-900">Sign in</div>
-          </div>
-
-          <form className="space-y-4" onSubmit={onSubmit}>
-            <div>
-              <label className="block text-sm font-semibold text-slate-800">
-                Email address
-              </label>
-              <input
-                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base outline-none transition focus:border-brand-green focus:ring-2 focus:ring-brand-green/20"
-                name="email"
-                type="email"
-                inputMode="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                autoCapitalize="none"
-                required
-                placeholder="you@greenfieldschool.ng"
-              />
-            </div>
-
-            <PasswordInput
-              label="Password"
-              name="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
-
-            {state.status === "error" ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                {state.message}
-              </div>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={!canSubmit || state.status === "submitting"}
-              className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-green px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {state.status === "submitting" ? (
-                <>
-                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  Signing in…
-                </>
-              ) : (
-                "Sign in"
-              )}
-            </button>
-          </form>
+      <form className="mt-6 space-y-5" onSubmit={onSubmit}>
+        <div>
+          <label htmlFor="portal-email" className="gf-label">
+            Email address
+          </label>
+          <input
+            id="portal-email"
+            className="gf-input h-12 text-base"
+            name="email"
+            type="email"
+            inputMode="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            autoCapitalize="none"
+            required
+            placeholder="you@greenfieldschool.ng"
+          />
         </div>
 
-        <p className="mt-4 text-center text-xs text-slate-400">
-          © Greenfield School · Portal
-        </p>
-      </div>
-    </div>
+        <PasswordInput
+          id="portal-password"
+          label="Password"
+          name="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          className="h-12 text-base"
+          required
+        />
+
+        {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
+
+        <button
+          type="submit"
+          disabled={!canSubmit || state.status === "submitting"}
+          className={buttonClasses({ size: "lg", className: "w-full text-base" })}
+        >
+          {state.status === "submitting" ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+              Signing in…
+            </>
+          ) : (
+            "Sign in"
+          )}
+        </button>
+      </form>
+    </LoginFrame>
   );
 }

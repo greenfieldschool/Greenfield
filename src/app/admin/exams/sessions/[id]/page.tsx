@@ -2,9 +2,17 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { CalendarX, ClipboardList, Users } from "lucide-react";
 import SubmitButton from "@/components/submit-button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
 import { lagosEndOfDayIso, lagosStartOfDayIso, sessionVisibility, toLagosDateInput } from "@/lib/lagos-dates";
 import UrlToast from "@/components/url-toast";
+import { failWithToast, NO_DB_MESSAGE } from "../../_components/feedback";
 
 type SessionRow = {
   id: string;
@@ -86,15 +94,10 @@ export default async function AdminExamSessionEditPage({
   if (loadErrorMsg) {
     return (
       <div className="space-y-6">
-        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-8 text-amber-900 shadow-sm">
-          <div className="text-sm font-semibold">Session editor temporarily unavailable</div>
-          <div className="mt-2 text-sm">{loadErrorMsg}</div>
-          <div className="mt-4">
-            <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/exams/sessions">
-              Back to sessions
-            </Link>
-          </div>
-        </div>
+        <PageHeader back={{ href: "/admin/exams/sessions", label: "Back to sessions" }} eyebrow="Exams" title="Edit session" />
+        <Alert tone="warning" title="Session editor temporarily unavailable">
+          {loadErrorMsg}
+        </Alert>
       </div>
     );
   }
@@ -103,23 +106,44 @@ export default async function AdminExamSessionEditPage({
   if (!session) {
     return (
       <div className="space-y-6">
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="text-sm font-semibold text-slate-500">Exams</div>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900">Session not found</h1>
-          <div className="mt-4">
-            <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/exams/sessions">
-              Back to sessions
-            </Link>
-          </div>
-        </div>
+        <PageHeader back={{ href: "/admin/exams/sessions", label: "Back to sessions" }} eyebrow="Exams" title="Session not found" />
+        <Card>
+          <EmptyState
+            icon={CalendarX}
+            title="Session not found"
+            description="It may have been deleted. Go back to the sessions list to pick another one."
+          />
+        </Card>
       </div>
     );
   }
 
-  const testRows = (tests ?? []) as TestRow[];
-  const classRows = (classes ?? []) as ClassRow[];
+  const testRows = (tests ?? []) as Array<TestRow & { inactive?: boolean }>;
+  const classRows = (classes ?? []) as Array<ClassRow & { inactive?: boolean }>;
   const yearRows = (years ?? []) as YearRow[];
   const termRows = (terms ?? []) as TermRow[];
+
+  // The lists above only hold active tests/classes. Keep the session's current ones selectable
+  // (marked inactive) so saving never silently switches them.
+  if (session.test_id && !testRows.some((t) => t.id === session.test_id)) {
+    const { data: currentTest } = await supabase.from("exam_tests").select("id, name").eq("id", session.test_id).maybeSingle();
+    testRows.unshift({
+      id: session.test_id,
+      name: (currentTest as TestRow | null)?.name ?? "Current test",
+      inactive: true
+    });
+  }
+  if (session.class_id && !classRows.some((c) => c.id === session.class_id)) {
+    const { data: currentClass } = await supabase.from("classes").select("id, level, name").eq("id", session.class_id).maybeSingle();
+    const cls = currentClass as ClassRow | null;
+    classRows.unshift({ id: session.class_id, level: cls?.level ?? "", name: cls?.name ?? "Current class", inactive: true });
+  }
+  if (session.academic_year_id && !yearRows.some((y) => y.id === session.academic_year_id)) {
+    yearRows.unshift({ id: session.academic_year_id, name: "Current year" });
+  }
+  if (session.academic_term_id && !termRows.some((t) => t.id === session.academic_term_id)) {
+    termRows.unshift({ id: session.academic_term_id, name: "Current term" });
+  }
 
   async function updateSession(formData: FormData) {
     "use server";
@@ -135,13 +159,13 @@ export default async function AdminExamSessionEditPage({
     const requiresSecretCode = asString(formData.get("requires_secret_code")).trim() === "on";
     const secretCode = asString(formData.get("secret_code")).trim();
 
-    if (!testId) return;
+    if (!testId) failWithToast(`/admin/exams/sessions/${id}`, "Select a test.");
     if (startDate && endDate && endDate < startDate) {
       redirect(`/admin/exams/sessions/${id}?toast=${encodeURIComponent("End date cannot be before the start date")}&toast_type=error`);
     }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast(`/admin/exams/sessions/${id}`, NO_DB_MESSAGE);
 
     await supabase
       .from("exam_test_sessions")
@@ -172,178 +196,138 @@ export default async function AdminExamSessionEditPage({
   return (
     <div className="space-y-6">
       <UrlToast />
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Exams</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Edit session</h1>
-        <p className="mt-2 text-sm text-slate-600">Update the class, dates, and access settings for this session.</p>
-        <div
-          className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
-            visibility.visible
-              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-              : "border-amber-200 bg-amber-50 text-amber-900"
-          }`}
-        >
-          <span className="font-semibold">Student access: </span>
-          {visibility.reason}
-          {visibility.visible ? " (only students in the selected class, or every class if none is selected)." : "."}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link
-            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-            href="/admin/exams/sessions"
-          >
-            Back to sessions
-          </Link>
-          <Link
-            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-            href={`/admin/exams/sessions/${id}/attempts`}
-          >
-            Attempts &amp; results release
-          </Link>
-          <Link
-            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50" 
-            href={`/admin/exams/sessions/${id}/conductors`}
-          >
-            Conductors
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        back={{ href: "/admin/exams/sessions", label: "Back to sessions" }}
+        eyebrow="Exams"
+        title="Edit session"
+        description="Update the class, dates, and access settings for this session."
+        actions={
+          <>
+            <Link className={buttonClasses({ variant: "secondary" })} href={`/admin/exams/sessions/${id}/attempts`}>
+              <ClipboardList className="h-4 w-4" aria-hidden="true" />
+              Attempts &amp; results release
+            </Link>
+            <Link className={buttonClasses({ variant: "secondary" })} href={`/admin/exams/sessions/${id}/conductors`}>
+              <Users className="h-4 w-4" aria-hidden="true" />
+              Conductors
+            </Link>
+          </>
+        }
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <form action={updateSession} className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Test</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="test_id"
-              defaultValue={session.test_id}
-              required
-            >
-              {testRows.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
+      <Alert tone={visibility.visible ? "success" : "warning"} title={<>Student access: {visibility.reason}</>}>
+        {visibility.visible
+          ? "Only students in the selected class, or every class if none is selected."
+          : "Students cannot see this session right now."}
+      </Alert>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Class (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="class_id"
-              defaultValue={session.class_id ?? ""}
-            >
-              <option value="">—</option>
-              {classRows.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.level} - {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic year (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_year_id"
-              defaultValue={session.academic_year_id ?? ""}
-            >
-              <option value="">—</option>
-              {yearRows.map((y) => (
-                <option key={y.id} value={y.id}>
-                  {y.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic term (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_term_id"
-              defaultValue={session.academic_term_id ?? ""}
-            >
-              <option value="">—</option>
-              {termRows.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Start date (optional)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="start_date"
-              type="date"
-              defaultValue={toLagosDateInput(session.starts_at)}
-            />
-            <p className="mt-1 text-xs text-slate-500">Students can see the exam from the start of this day.</p>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">End date (optional)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="end_date"
-              type="date"
-              defaultValue={toLagosDateInput(session.ends_at)}
-            />
-            <p className="mt-1 text-xs text-slate-500">Open until the end of this day. The time allowed comes from the test&apos;s duration.</p>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Status</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="status"
-              defaultValue={session.status}
-            >
-              <option value="active">active (students can take it within the dates)</option>
-              <option value="draft">draft (hidden from students)</option>
-              <option value="closed">closed</option>
-            </select>
-
-            <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <input className="h-4 w-4" name="active" type="checkbox" defaultChecked={session.active} />
-              Active
-            </label>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Secret code (optional)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="secret_code"
-              placeholder="Only if required"
-              defaultValue={session.secret_code ?? ""}
-            />
-            <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <input
-                className="h-4 w-4"
-                name="requires_secret_code"
-                type="checkbox"
-                defaultChecked={session.requires_secret_code}
-              />
-              Require secret code to start
-            </label>
-          </div>
-
-          <div className="flex items-end sm:col-span-2">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Saving…"
-            >
+      <form action={updateSession}>
+        <FormSection
+          title="Session settings"
+          description="Which test, who sits it, and when."
+          footer={
+            <SubmitButton variant="primary" pendingText="Saving…">
               Save changes
             </SubmitButton>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Test" htmlFor="session-test" required>
+              <select id="session-test" className="gf-select" name="test_id" defaultValue={session.test_id} required>
+                {testRows.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                    {t.inactive ? " (inactive)" : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Class (optional)" htmlFor="session-class">
+              <select id="session-class" className="gf-select" name="class_id" defaultValue={session.class_id ?? ""}>
+                <option value="">—</option>
+                {classRows.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.level} - {c.name}
+                    {c.inactive ? " (inactive)" : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Academic year (optional)" htmlFor="session-year">
+              <select id="session-year" className="gf-select" name="academic_year_id" defaultValue={session.academic_year_id ?? ""}>
+                <option value="">—</option>
+                {yearRows.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Academic term (optional)" htmlFor="session-term">
+              <select id="session-term" className="gf-select" name="academic_term_id" defaultValue={session.academic_term_id ?? ""}>
+                <option value="">—</option>
+                {termRows.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Start date (optional)" htmlFor="session-start" hint="Students can see the exam from the start of this day.">
+              <input
+                id="session-start"
+                className="gf-input"
+                name="start_date"
+                type="date"
+                defaultValue={toLagosDateInput(session.starts_at)}
+              />
+            </Field>
+
+            <Field
+              label="End date (optional)"
+              htmlFor="session-end"
+              hint={<>Open until the end of this day. The time allowed comes from the test&apos;s duration.</>}
+            >
+              <input id="session-end" className="gf-input" name="end_date" type="date" defaultValue={toLagosDateInput(session.ends_at)} />
+            </Field>
+
+            <Field label="Status" htmlFor="session-status">
+              <select id="session-status" className="gf-select" name="status" defaultValue={session.status}>
+                <option value="active">active (students can take it within the dates)</option>
+                <option value="draft">draft (hidden from students)</option>
+                <option value="closed">closed</option>
+              </select>
+              <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+                <input className="gf-checkbox" name="active" type="checkbox" defaultChecked={session.active} />
+                Active
+              </label>
+            </Field>
+
+            <Field label="Secret code (optional)" htmlFor="session-secret">
+              <input
+                id="session-secret"
+                className="gf-input"
+                name="secret_code"
+                placeholder="Only if required"
+                defaultValue={session.secret_code ?? ""}
+              />
+              <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  className="gf-checkbox"
+                  name="requires_secret_code"
+                  type="checkbox"
+                  defaultChecked={session.requires_secret_code}
+                />
+                Require secret code to start
+              </label>
+            </Field>
           </div>
-        </form>
-      </div>
+        </FormSection>
+      </form>
     </div>
   );
 }

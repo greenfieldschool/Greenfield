@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff, KeyRound } from "lucide-react";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/ui/logo";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type FormState =
@@ -90,41 +95,57 @@ export default function SetPasswordPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-6 py-16">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Account</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Set your password</h1>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-canvas px-6 py-16">
+      <Link href="/" aria-label="Greenfield School home">
+        <Logo />
+      </Link>
+      <div className="mt-8 w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-8 shadow-card">
+        <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-green-50 text-brand-green-600">
+          <KeyRound className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-brand-gold-700">Account</div>
+        <h1 className="mt-2 font-display text-2xl font-semibold text-slate-900">Set your password</h1>
         <p className="mt-2 text-sm text-slate-600">Choose a password you will use to sign in next time.</p>
 
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div>
-            <label className="text-sm font-semibold text-slate-900">New password</label>
-            <div className="mt-1 flex overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:ring-2 focus-within:ring-brand-green">
+            <label htmlFor="new-password" className="gf-label">
+              New password
+            </label>
+            <div className="relative">
               <input
-                className="w-full bg-white px-4 py-3 text-sm outline-none"
+                id="new-password"
+                className="gf-input pr-12"
                 name="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
+                aria-describedby="new-password-hint"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                className="absolute inset-y-0 right-0 flex items-center rounded-r-xl px-3.5 text-slate-400 hover:text-slate-600"
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? "Hide" : "Show"}
+                {showPassword ? <EyeOff className="h-5 w-5" aria-hidden="true" /> : <Eye className="h-5 w-5" aria-hidden="true" />}
               </button>
             </div>
-            <div className="mt-1 text-xs font-semibold text-slate-500">Minimum 8 characters.</div>
+            <p id="new-password-hint" className="gf-hint">
+              Minimum 8 characters.
+            </p>
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-slate-900">Confirm password</label>
-            <div className="mt-1 flex overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:ring-2 focus-within:ring-brand-green">
+            <label htmlFor="confirm-password" className="gf-label">
+              Confirm password
+            </label>
+            <div className="relative">
               <input
-                className="w-full bg-white px-4 py-3 text-sm outline-none"
+                id="confirm-password"
+                className="gf-input pr-12"
                 name="confirm_password"
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
@@ -135,26 +156,28 @@ export default function SetPasswordPage() {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword((v) => !v)}
-                className="px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                className="absolute inset-y-0 right-0 flex items-center rounded-r-xl px-3.5 text-slate-400 hover:text-slate-600"
+                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
               >
-                {showConfirmPassword ? "Hide" : "Show"}
+                {showConfirmPassword ? (
+                  <EyeOff className="h-5 w-5" aria-hidden="true" />
+                ) : (
+                  <Eye className="h-5 w-5" aria-hidden="true" />
+                )}
               </button>
             </div>
           </div>
 
-          {state.status === "error" ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-              {state.message}
-            </div>
-          ) : null}
+          {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
 
-          <button
+          <Button
             type="submit"
+            size="lg"
             disabled={!canSubmit || state.status === "submitting"}
-            className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full disabled:cursor-not-allowed"
           >
             {state.status === "submitting" ? "Saving…" : state.status === "success" ? "Saved" : "Save password"}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

@@ -7,6 +7,30 @@ import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import { CopyButton } from "@/components/copy-button";
 import SubmitButton from "@/components/submit-button";
 import UrlToast from "@/components/url-toast";
+import {
+  AlertTriangle,
+  BookOpen,
+  Briefcase,
+  GraduationCap,
+  Link as LinkIcon,
+  Mail,
+  School,
+  Search,
+  UserPlus,
+  UserRound,
+  Users
+} from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { StatCard } from "@/components/ui/stat-card";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
+import { safeFilterTerm } from "@/lib/postgrest";
 
 type ProfileRow = {
   id: string;
@@ -64,6 +88,7 @@ export default async function AdminUsersPage({
   }
 
   const query = (searchParams.q ?? "").trim();
+  const safeQuery = safeFilterTerm(query);
   const roleFilter = (searchParams.role ?? "").trim();
 
   const cookieStore = cookies();
@@ -86,10 +111,18 @@ export default async function AdminUsersPage({
   const emailByUserId = new Map<string, string>();
   let listUsersErrorMessage: string | null = null;
   if (usingServiceClient && profilesClient) {
-    const { data, error } = await profilesClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    listUsersErrorMessage = error?.message ?? null;
-    for (const u of data?.users ?? []) {
-      if (u.email) emailByUserId.set(u.id, u.email);
+    const perPage = 1000;
+    for (let page = 1; page <= MAX_AUTH_USER_PAGES; page += 1) {
+      const { data, error } = await profilesClient.auth.admin.listUsers({ page, perPage });
+      if (error) {
+        listUsersErrorMessage = error.message;
+        break;
+      }
+      const batch = data?.users ?? [];
+      for (const u of batch) {
+        if (u.email) emailByUserId.set(u.id, u.email);
+      }
+      if (batch.length < perPage) break;
     }
   } else if (currentUser?.id && currentUser.email) {
     emailByUserId.set(currentUser.id, currentUser.email);
@@ -113,7 +146,7 @@ export default async function AdminUsersPage({
     let nameQuery = (profilesClient ?? supabase)
       .from("profiles")
       .select("id, full_name, role")
-      .ilike("full_name", `%${query}%`);
+      .ilike("full_name", `%${safeQuery}%`);
     
     if (hasRoleFilter) {
       nameQuery = nameQuery.eq("role", roleFilter);
@@ -148,7 +181,7 @@ export default async function AdminUsersPage({
     let searchQuery = supabase
       .from("profiles")
       .select("id, full_name, role")
-      .ilike("full_name", `%${query}%`);
+      .ilike("full_name", `%${safeQuery}%`);
     
     if (hasRoleFilter) {
       searchQuery = searchQuery.eq("role", roleFilter);
@@ -259,19 +292,30 @@ export default async function AdminUsersPage({
   async function updateRole(formData: FormData) {
     "use server";
 
-    if (!canInviteStaff) return;
+    if (!canInviteStaff) {
+      redirect(usersToast("You do not have permission to change roles"));
+    }
 
     const userId = String(formData.get("user_id") ?? "").trim();
     const role = String(formData.get("role") ?? "").trim();
 
-    if (!userId || !role) return;
+    if (!userId || !role) {
+      redirect(usersToast("Pick a role to update"));
+    }
 
     const supabase = getSupabaseServerClient();
     if (!supabase) {
       redirect(`/admin/users?toast=${encodeURIComponent("Server error — could not update role")}&toast_type=error`);
     }
 
-    await supabase.from("profiles").update({ role }).eq("id", userId);
+    if (!(await isAdminUser(supabase))) {
+      redirect(usersToast("You do not have permission to change roles"));
+    }
+
+    const { error } = await supabase.from("profiles").update({ role }).eq("id", userId);
+    if (error) {
+      redirect(usersToast(error.message));
+    }
 
     revalidatePath("/admin/users");
     redirect(`/admin/users?toast=${encodeURIComponent("Role updated successfully")}&toast_type=success`);
@@ -280,19 +324,32 @@ export default async function AdminUsersPage({
   async function updateUserFullName(formData: FormData) {
     "use server";
 
-    if (!canInviteStaff) return;
+    if (!canInviteStaff) {
+      redirect(usersToast("You do not have permission to edit users"));
+    }
 
     const userId = String(formData.get("user_id") ?? "").trim();
     const fullNameRaw = String(formData.get("full_name") ?? "").trim();
 
-    if (!userId) return;
+    if (!userId) {
+      redirect(usersToast("Missing user — reload and try again"));
+    }
 
     const fullName = fullNameRaw.length ? fullNameRaw : null;
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) {
+      redirect(usersToast("Server error — could not save name"));
+    }
 
-    await supabase.from("profiles").update({ full_name: fullName }).eq("id", userId);
+    if (!(await isAdminUser(supabase))) {
+      redirect(usersToast("You do not have permission to edit users"));
+    }
+
+    const { error } = await supabase.from("profiles").update({ full_name: fullName }).eq("id", userId);
+    if (error) {
+      redirect(usersToast(error.message));
+    }
 
     revalidatePath("/admin/users");
   }
@@ -309,7 +366,9 @@ export default async function AdminUsersPage({
     }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) {
+      redirect(usersToast("Server error — Supabase is not configured"));
+    }
 
     const {
       data: { user }
@@ -380,7 +439,9 @@ export default async function AdminUsersPage({
     }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) {
+      redirect(usersToast("Server error — Supabase is not configured"));
+    }
 
     const {
       data: { user }
@@ -406,10 +467,16 @@ export default async function AdminUsersPage({
     const serviceClient = service;
 
     async function resolveUserIdByEmail(targetEmail: string) {
-      const { data, error } = await serviceClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (error) return null;
-      const match = (data?.users ?? []).find((u) => (u.email ?? "").toLowerCase() === targetEmail.toLowerCase());
-      return match?.id ?? null;
+      const perPage = 1000;
+      for (let page = 1; page <= MAX_AUTH_USER_PAGES; page += 1) {
+        const { data, error } = await serviceClient.auth.admin.listUsers({ page, perPage });
+        if (error) return null;
+        const batch = data?.users ?? [];
+        const match = batch.find((u) => (u.email ?? "").toLowerCase() === targetEmail.toLowerCase());
+        if (match) return match.id;
+        if (batch.length < perPage) break;
+      }
+      return null;
     }
 
     const h = headers();
@@ -468,7 +535,7 @@ export default async function AdminUsersPage({
     });
 
     revalidatePath("/admin/users");
-    redirect(`/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent("Magic link generated and copied to clipboard")}&toast_type=success`);
+    redirect(`/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent("Magic link generated — use Copy to copy it")}&toast_type=success`);
   }
 
   async function assignTeacherClass(formData: FormData) {
@@ -477,10 +544,14 @@ export default async function AdminUsersPage({
     const teacherId = String(formData.get("teacher_id") ?? "").trim();
     const classId = String(formData.get("class_id") ?? "").trim();
 
-    if (!teacherId || !classId) return;
+    if (!teacherId || !classId) {
+      redirect(usersToast("Pick a teacher and a class"));
+    }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) {
+      redirect(usersToast("Server error — Supabase is not configured"));
+    }
 
     const {
       data: { user }
@@ -494,15 +565,18 @@ export default async function AdminUsersPage({
     const role = (profile as { role?: string } | null)?.role ?? null;
     const isAllowed = role === "super_admin" || role === "admin";
     if (!isAllowed) {
-      redirect("/admin/users");
+      redirect(usersToast("You do not have permission to assign classes"));
     }
 
-    await supabase
+    const { error } = await supabase
       .from("teacher_class_assignments")
       .upsert({ teacher_id: teacherId, class_id: classId, active: true }, { onConflict: "teacher_id,class_id" });
+    if (error) {
+      redirect(usersToast(error.message));
+    }
 
     revalidatePath("/admin/users");
-    redirect("/admin/users");
+    redirect(usersToast("Teacher assigned to class", "success"));
   }
 
   async function removeTeacherClass(formData: FormData) {
@@ -511,10 +585,14 @@ export default async function AdminUsersPage({
     const teacherId = String(formData.get("teacher_id") ?? "").trim();
     const classId = String(formData.get("class_id") ?? "").trim();
 
-    if (!teacherId || !classId) return;
+    if (!teacherId || !classId) {
+      redirect(usersToast("Pick a teacher and a class"));
+    }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) {
+      redirect(usersToast("Server error — Supabase is not configured"));
+    }
 
     const {
       data: { user }
@@ -528,17 +606,20 @@ export default async function AdminUsersPage({
     const role = (profile as { role?: string } | null)?.role ?? null;
     const isAllowed = role === "super_admin" || role === "admin";
     if (!isAllowed) {
-      redirect("/admin/users");
+      redirect(usersToast("You do not have permission to change class assignments"));
     }
 
-    await supabase
+    const { error } = await supabase
       .from("teacher_class_assignments")
       .update({ active: false })
       .eq("teacher_id", teacherId)
       .eq("class_id", classId);
+    if (error) {
+      redirect(usersToast(error.message));
+    }
 
     revalidatePath("/admin/users");
-    redirect("/admin/users");
+    redirect(usersToast("Class assignment removed", "success"));
   }
 
   async function linkGuardian(formData: FormData) {
@@ -547,14 +628,25 @@ export default async function AdminUsersPage({
     const userId = String(formData.get("user_id") ?? "").trim();
     const guardianId = String(formData.get("guardian_id") ?? "").trim();
 
-    if (!userId || !guardianId) return;
+    if (!userId || !guardianId) {
+      redirect(usersToast("Pick a guardian to link"));
+    }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) {
+      redirect(usersToast("Server error — Supabase is not configured"));
+    }
 
-    await supabase
+    if (!(await isAdminUser(supabase))) {
+      redirect(usersToast("You do not have permission to link accounts"));
+    }
+
+    const { error } = await supabase
       .from("guardian_user_links")
       .upsert({ user_id: userId, guardian_id: guardianId }, { onConflict: "user_id" });
+    if (error) {
+      redirect(usersToast(error.message));
+    }
 
     revalidatePath("/admin/users");
   }
@@ -565,14 +657,25 @@ export default async function AdminUsersPage({
     const userId = String(formData.get("user_id") ?? "").trim();
     const studentId = String(formData.get("student_id") ?? "").trim();
 
-    if (!userId || !studentId) return;
+    if (!userId || !studentId) {
+      redirect(usersToast("Pick a student to link"));
+    }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) {
+      redirect(usersToast("Server error — Supabase is not configured"));
+    }
 
-    await supabase
+    if (!(await isAdminUser(supabase))) {
+      redirect(usersToast("You do not have permission to link accounts"));
+    }
+
+    const { error } = await supabase
       .from("student_user_links")
       .upsert({ user_id: userId, student_id: studentId }, { onConflict: "user_id" });
+    if (error) {
+      redirect(usersToast(error.message));
+    }
 
     revalidatePath("/admin/users");
   }
@@ -581,12 +684,23 @@ export default async function AdminUsersPage({
     "use server";
 
     const userId = String(formData.get("user_id") ?? "").trim();
-    if (!userId) return;
+    if (!userId) {
+      redirect(usersToast("Missing user — reload and try again"));
+    }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) {
+      redirect(usersToast("Server error — Supabase is not configured"));
+    }
 
-    await supabase.from("guardian_user_links").delete().eq("user_id", userId);
+    if (!(await isAdminUser(supabase))) {
+      redirect(usersToast("You do not have permission to unlink accounts"));
+    }
+
+    const { error } = await supabase.from("guardian_user_links").delete().eq("user_id", userId);
+    if (error) {
+      redirect(usersToast(error.message));
+    }
 
     revalidatePath("/admin/users");
   }
@@ -595,84 +709,94 @@ export default async function AdminUsersPage({
     "use server";
 
     const userId = String(formData.get("user_id") ?? "").trim();
-    if (!userId) return;
+    if (!userId) {
+      redirect(usersToast("Missing user — reload and try again"));
+    }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) {
+      redirect(usersToast("Server error — Supabase is not configured"));
+    }
 
-    await supabase.from("student_user_links").delete().eq("user_id", userId);
+    if (!(await isAdminUser(supabase))) {
+      redirect(usersToast("You do not have permission to unlink accounts"));
+    }
+
+    const { error } = await supabase.from("student_user_links").delete().eq("user_id", userId);
+    if (error) {
+      redirect(usersToast(error.message));
+    }
 
     revalidatePath("/admin/users");
   }
-
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case "super_admin":
-        return "bg-purple-100 text-purple-800 border-purple-200";
-      case "admin":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "teacher":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200";
-      case "front_desk":
-        return "bg-amber-100 text-amber-800 border-amber-200";
-      case "nurse":
-        return "bg-pink-100 text-pink-800 border-pink-200";
-      case "parent":
-        return "bg-cyan-100 text-cyan-800 border-cyan-200";
-      case "student":
-        return "bg-indigo-100 text-indigo-800 border-indigo-200";
-      default:
-        return "bg-slate-100 text-slate-800 border-slate-200";
-    }
-  };
 
   const staffCount = profiles.filter((p) => ["super_admin", "admin", "teacher", "front_desk", "nurse"].includes(p.role)).length;
   const parentCount = profiles.filter((p) => p.role === "parent").length;
   const studentCount = profiles.filter((p) => p.role === "student").length;
 
+  const staffRoleOptions = (
+    <>
+      <option value="admin">Admin</option>
+      <option value="teacher">Teacher</option>
+      <option value="front_desk">Front Desk</option>
+      <option value="nurse">Nurse</option>
+    </>
+  );
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <UrlToast />
-      {/* Header */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">User Management</h1>
-            <p className="mt-2 text-sm text-slate-600">
-              Invite staff, manage roles, and link users to guardians or students.
-            </p>
-            
-            {/* Stats */}
-            <div className="mt-4 flex flex-wrap gap-4">
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                <span className="text-sm font-medium text-slate-700">{staffCount} Staff</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <div className="h-2 w-2 rounded-full bg-cyan-500" />
-                <span className="text-sm font-medium text-slate-700">{parentCount} Parents</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <div className="h-2 w-2 rounded-full bg-indigo-500" />
-                <span className="text-sm font-medium text-slate-700">{studentCount} Students</span>
+      <PageHeader
+        eyebrow="Admin"
+        title="User Management"
+        description="Invite staff, manage roles, and link users to guardians or students."
+        actions={
+          canInviteStaff ? (
+            <a href="#invite-staff" className={buttonClasses({ variant: "primary" })}>
+              <UserPlus className="h-4 w-4" aria-hidden="true" />
+              Invite staff
+            </a>
+          ) : undefined
+        }
+      />
+
+      {!canInviteStaff ? (
+        <Alert tone="warning">
+          You are signed in as <span className="font-semibold">{currentRole ?? "unknown"}</span>. Contact an admin for elevated access.
+        </Alert>
+      ) : null}
+
+      {/* Stats */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Staff" value={staffCount} hint="In the list below" icon={Briefcase} tone="green" />
+        <StatCard label="Parents" value={parentCount} hint="In the list below" icon={Users} tone="blue" />
+        <StatCard label="Students" value={studentCount} hint="In the list below" icon={GraduationCap} tone="violet" />
+      </div>
+
+      {/* Search */}
+      <Card>
+        <CardBody className="py-4">
+          <form action={setQuery} className="flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="flex-1">
+              <label htmlFor="users-q" className="gf-label">
+                Search
+              </label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                <input
+                  id="users-q"
+                  className="gf-input pl-10"
+                  name="q"
+                  placeholder="Search by email or name..."
+                  defaultValue={query}
+                />
               </div>
             </div>
-          </div>
-
-          {/* Search */}
-          <form action={setQuery} className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row">
-            <div className="flex flex-1 gap-2">
-              <input
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green lg:w-64"
-                name="q"
-                placeholder="Search by email or name..."
-                defaultValue={query}
-              />
-              <select
-                className="rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="role"
-                defaultValue={roleFilter}
-              >
+            <div className="md:w-52">
+              <label htmlFor="users-role" className="gf-label">
+                Role
+              </label>
+              <select id="users-role" className="gf-select" name="role" defaultValue={roleFilter}>
                 <option value="">All roles</option>
                 <option value="super_admin">Super Admin</option>
                 <option value="admin">Admin</option>
@@ -684,301 +808,235 @@ export default async function AdminUsersPage({
               </select>
             </div>
             <div className="flex gap-2">
-              <SubmitButton
-                className="inline-flex flex-1 items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                pendingText="Searching…"
-                showSpinner={false}
-              >
+              <SubmitButton variant="primary" pendingText="Searching…" showSpinner={false}>
                 Search
               </SubmitButton>
-              {(query.length > 0 || roleFilter.length > 0) ? (
-                <a
-                  href="/admin/users"
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
+              {query.length > 0 || roleFilter.length > 0 ? (
+                <a href="/admin/users" className={buttonClasses({ variant: "secondary" })}>
                   Clear
                 </a>
               ) : null}
             </div>
           </form>
-        </div>
-
-
-        {!canInviteStaff ? (
-          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            You are signed in as <span className="font-semibold">{currentRole ?? "unknown"}</span>. Contact an admin for elevated access.
-          </div>
-        ) : null}
-      </div>
+        </CardBody>
+      </Card>
 
       {/* Diagnostics (only when empty) */}
       {canInviteStaff && profiles.length === 0 ? (
-        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-950">
-          <div className="font-semibold">User list is empty — diagnostics</div>
-          <div className="mt-3 grid gap-2 text-amber-900">
-            <div>Role: <span className="font-semibold">{currentRole ?? "unknown"}</span></div>
-            <div>Service client: <span className="font-semibold">{usingServiceClient ? "enabled" : "not enabled"}</span></div>
-            {!usingServiceClient && <div>Check env var <code className="rounded bg-amber-100 px-1">SUPABASE_SERVICE_ROLE_KEY</code></div>}
-            {listUsersErrorMessage && <div>listUsers error: <span className="font-semibold">{listUsersErrorMessage}</span></div>}
-            {profilesError && <div>Supabase error: <span className="font-semibold">{profilesError.message}</span></div>}
+        <Alert tone="warning" title="User list is empty — diagnostics">
+          <div className="mt-1 grid gap-1">
+            <div>
+              Role: <span className="font-semibold">{currentRole ?? "unknown"}</span>
+            </div>
+            <div>
+              Service client: <span className="font-semibold">{usingServiceClient ? "enabled" : "not enabled"}</span>
+            </div>
+            {!usingServiceClient && (
+              <div>
+                Check env var <code className="rounded bg-brand-gold-100 px-1">SUPABASE_SERVICE_ROLE_KEY</code>
+              </div>
+            )}
+            {listUsersErrorMessage && (
+              <div>
+                listUsers error: <span className="font-semibold">{listUsersErrorMessage}</span>
+              </div>
+            )}
+            {profilesError && (
+              <div>
+                Supabase error: <span className="font-semibold">{profilesError.message}</span>
+              </div>
+            )}
           </div>
-        </div>
+        </Alert>
+      ) : null}
+
+      {canInviteStaff && generatedMagicLink.length ? (
+        <Alert tone="success" title="Magic link generated">
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 break-all rounded-lg bg-white/70 px-3 py-2 font-mono text-xs ring-1 ring-inset ring-brand-green-200">
+              {generatedMagicLink}
+            </div>
+            <div className="shrink-0">
+              <CopyButton text={generatedMagicLink} />
+            </div>
+          </div>
+          <div className="mt-2 text-xs">This link is sensitive. Share it only with the intended recipient.</div>
+        </Alert>
       ) : null}
 
       {/* Admin Actions Panel */}
       {canInviteStaff ? (
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Invite Staff Card */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-green/10">
-                <svg className="h-5 w-5 text-brand-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">Invite Staff</h2>
-                <p className="text-xs text-slate-500">Send email invite with role</p>
-              </div>
-            </div>
-            <form action={inviteStaff} className="mt-5 space-y-4">
+          <form action={inviteStaff} id="invite-staff" className="scroll-mt-24">
+            <FormSection
+              className="h-full"
+              title={
+                <span className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-brand-green-600" aria-hidden="true" />
+                  Invite Staff
+                </span>
+              }
+              description="Send email invite with role"
+              footer={
+                <SubmitButton variant="primary" pendingText="Sending…">
+                  Send Invite
+                </SubmitButton>
+              }
+            >
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-semibold text-slate-600">Email</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                    name="email"
-                    placeholder="staff@school.com"
-                    required
-                    type="email"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600">Full name</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                    name="full_name"
-                    placeholder="(optional)"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600">Role</label>
-                  <select
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                    name="role"
-                    defaultValue="teacher"
-                  >
-                    <option value="admin">Admin</option>
-                    <option value="teacher">Teacher</option>
-                    <option value="front_desk">Front Desk</option>
-                    <option value="nurse">Nurse</option>
+                <Field label="Email" htmlFor="invite-email" required className="sm:col-span-2">
+                  <input id="invite-email" className="gf-input" name="email" placeholder="staff@school.com" required type="email" />
+                </Field>
+                <Field label="Full name" htmlFor="invite-full-name">
+                  <input id="invite-full-name" className="gf-input" name="full_name" placeholder="(optional)" />
+                </Field>
+                <Field label="Role" htmlFor="invite-role">
+                  <select id="invite-role" className="gf-select" name="role" defaultValue="teacher">
+                    {staffRoleOptions}
                   </select>
-                </div>
+                </Field>
               </div>
-              <SubmitButton
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                pendingText="Sending…"
-              >
-                Send Invite
-              </SubmitButton>
-            </form>
-          </div>
+            </FormSection>
+          </form>
 
-          {/* Generate Magic Link Card */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
-                <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">Generate Login Link</h2>
-                <p className="text-xs text-slate-500">Manual link (no email sent)</p>
-              </div>
-            </div>
-            <form action={generateMagicLink} className="mt-5 space-y-4">
+          <form action={generateMagicLink}>
+            <FormSection
+              className="h-full"
+              title={
+                <span className="flex items-center gap-2">
+                  <LinkIcon className="h-4 w-4 text-brand-gold-700" aria-hidden="true" />
+                  Generate Login Link
+                </span>
+              }
+              description="Manual link (no email sent)"
+              footer={
+                <SubmitButton variant="secondary" pendingText="Generating…" showSpinner={false}>
+                  Generate Link
+                </SubmitButton>
+              }
+            >
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-semibold text-slate-600">Email</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                    name="email"
-                    placeholder="staff@school.com"
-                    required
-                    type="email"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600">Full name</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                    name="full_name"
-                    placeholder="(optional)"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600">Role</label>
-                  <select
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                    name="role"
-                    defaultValue="teacher"
-                  >
-                    <option value="admin">Admin</option>
-                    <option value="teacher">Teacher</option>
-                    <option value="front_desk">Front Desk</option>
-                    <option value="nurse">Nurse</option>
+                <Field label="Email" htmlFor="magic-email" required className="sm:col-span-2">
+                  <input id="magic-email" className="gf-input" name="email" placeholder="staff@school.com" required type="email" />
+                </Field>
+                <Field label="Full name" htmlFor="magic-full-name">
+                  <input id="magic-full-name" className="gf-input" name="full_name" placeholder="(optional)" />
+                </Field>
+                <Field label="Role" htmlFor="magic-role">
+                  <select id="magic-role" className="gf-select" name="role" defaultValue="teacher">
+                    {staffRoleOptions}
                   </select>
-                </div>
+                </Field>
               </div>
-              <SubmitButton
-                className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                pendingText="Generating…"
-                showSpinner={false}
-              >
-                Generate Link
-              </SubmitButton>
-            </form>
-          </div>
+            </FormSection>
+          </form>
         </div>
       ) : null}
 
       {/* Teacher Class Assignments */}
       {canInviteStaff ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100">
-              <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-slate-900">Teacher Class Assignments</h2>
-              <p className="text-xs text-slate-500">Assign teachers to classes for access control</p>
-            </div>
-          </div>
-
-          <form action={assignTeacherClass} className="mt-5 grid gap-4 sm:grid-cols-4">
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold text-slate-600">Teacher</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="teacher_id"
-                defaultValue=""
-                required
-              >
-                <option value="">Select teacher...</option>
-                {teacherRows.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.full_name ?? t.id}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600">Class</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="class_id"
-                defaultValue=""
-                required
-              >
-                <option value="">Select class...</option>
-                {classRows.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.level} - {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <SubmitButton
-                className="inline-flex w-full items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
-                pendingText="Assigning…"
-              >
+        <Card>
+          <CardHeader
+            title={
+              <span className="flex items-center gap-2">
+                <School className="h-4 w-4 text-sky-600" aria-hidden="true" />
+                Teacher Class Assignments
+              </span>
+            }
+            description="Assign teachers to classes for access control"
+          />
+          <CardBody className="border-b border-slate-100">
+            <form action={assignTeacherClass} className="grid gap-4 sm:grid-cols-[2fr_1.5fr_auto] sm:items-end">
+              <Field label="Teacher" htmlFor="assign-teacher">
+                <select id="assign-teacher" className="gf-select" name="teacher_id" defaultValue="" required>
+                  <option value="">Select teacher...</option>
+                  {teacherRows.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.full_name ?? t.id}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Class" htmlFor="assign-class">
+                <select id="assign-class" className="gf-select" name="class_id" defaultValue="" required>
+                  <option value="">Select class...</option>
+                  {classRows.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.level} - {c.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <SubmitButton variant="primary" pendingText="Assigning…">
                 Assign
               </SubmitButton>
-            </div>
-          </form>
+            </form>
+          </CardBody>
 
           {teacherClassAssignments.length ? (
-            <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
-              <div className="grid grid-cols-12 bg-slate-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <div className="col-span-5">Teacher</div>
-                <div className="col-span-5">Class</div>
-                <div className="col-span-2 text-right">Action</div>
-              </div>
-              {teacherClassAssignments.map((a) => {
-                const teacher = a.profiles ?? teacherById.get(a.teacher_id) ?? null;
-                const cls = a.classes ?? classById.get(a.class_id) ?? null;
-                return (
-                  <div key={`${a.teacher_id}-${a.class_id}`} className="grid grid-cols-12 items-center border-t border-slate-100 px-4 py-3 text-sm hover:bg-slate-50">
-                    <div className="col-span-5 font-medium text-slate-900">{teacher?.full_name ?? a.teacher_id}</div>
-                    <div className="col-span-5 text-slate-600">{cls ? `${cls.level} - ${cls.name}` : a.class_id}</div>
-                    <div className="col-span-2 flex justify-end">
-                      <form action={removeTeacherClass}>
-                        <input type="hidden" name="teacher_id" value={a.teacher_id} />
-                        <input type="hidden" name="class_id" value={a.class_id} />
-                        <SubmitButton
-                          className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                          pendingText="Removing…"
-                          showSpinner={false}
-                        >
-                          Remove
-                        </SubmitButton>
-                      </form>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="gf-table-wrap">
+              <table className="gf-table min-w-[480px]">
+                <thead>
+                  <tr>
+                    <th>Teacher</th>
+                    <th>Class</th>
+                    <th className="text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teacherClassAssignments.map((a) => {
+                    const teacher = a.profiles ?? teacherById.get(a.teacher_id) ?? null;
+                    const cls = a.classes ?? classById.get(a.class_id) ?? null;
+                    return (
+                      <tr key={`${a.teacher_id}-${a.class_id}`}>
+                        <td className="font-medium text-slate-900">{teacher?.full_name ?? a.teacher_id}</td>
+                        <td>{cls ? `${cls.level} - ${cls.name}` : a.class_id}</td>
+                        <td className="text-right">
+                          <form action={removeTeacherClass} className="inline-flex">
+                            <input type="hidden" name="teacher_id" value={a.teacher_id} />
+                            <input type="hidden" name="class_id" value={a.class_id} />
+                            <SubmitButton
+                              className={buttonClasses({
+                                variant: "ghost",
+                                size: "sm",
+                                className: "text-red-600 hover:bg-red-50 hover:text-red-700"
+                              })}
+                              pendingText="Removing…"
+                              showSpinner={false}
+                            >
+                              Remove
+                            </SubmitButton>
+                          </form>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           ) : (
-            <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-              No teacher assignments yet. Assign teachers above.
-            </div>
+            <EmptyState icon={School} title="No teacher assignments yet." description="Assign teachers above." />
           )}
-        </div>
-      ) : null}
-
-      {canInviteStaff && generatedMagicLink.length ? (
-        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-sm text-emerald-900 shadow-sm">
-          <div className="font-semibold">Magic link generated</div>
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="break-all font-mono text-xs">{generatedMagicLink}</div>
-            <div className="shrink-0">
-              <CopyButton text={generatedMagicLink} />
-            </div>
-          </div>
-          <div className="mt-2 text-xs text-emerald-900">
-            This link is sensitive. Share it only with the intended recipient.
-          </div>
-        </div>
+        </Card>
       ) : null}
 
       {/* Users List */}
-      <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-6 py-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-semibold text-slate-900">Users</h2>
-            {query.length ? (
-              <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-                Search: &quot;{query}&quot;
-              </span>
-            ) : null}
-            {roleFilter.length ? (
-              <span className={`rounded-lg border px-2 py-1 text-xs font-medium ${getRoleBadgeColor(roleFilter)}`}>
-                {roleFilter.replace("_", " ")}
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-1 text-xs text-slate-500">
-            {profiles.length} user{profiles.length !== 1 ? "s" : ""} found
-            {!query.length && !roleFilter.length ? " (showing recent)" : ""}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          title={
+            <span className="flex flex-wrap items-center gap-2">
+              Users
+              {query.length ? <Badge tone="slate">Search: &quot;{query}&quot;</Badge> : null}
+              {roleFilter.length ? <Badge tone={roleTone(roleFilter)}>{roleFilter.replace("_", " ")}</Badge> : null}
+            </span>
+          }
+          description={`${profiles.length} user${profiles.length !== 1 ? "s" : ""} found${
+            !query.length && !roleFilter.length ? " (showing recent)" : ""
+          }`}
+        />
 
         {profiles.length ? (
-          <div className="divide-y divide-slate-100">
+          <ul className="divide-y divide-slate-100">
             {profiles.map((p) => {
               const guardianLink = guardianLinks.find((l) => l.user_id === p.id) ?? null;
               const studentLink = studentLinks.find((l) => l.user_id === p.id) ?? null;
@@ -987,127 +1045,118 @@ export default async function AdminUsersPage({
               const linkedStudent = studentLink ? studentById.get(studentLink.student_id) ?? null : null;
 
               const isStaff = ["super_admin", "admin", "teacher", "front_desk", "nurse"].includes(p.role);
+              const studentNeedsLink = p.role === "student" && !linkedStudent;
 
               return (
-                <div key={p.id} className="p-6 hover:bg-slate-50/50">
-                  <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+                <li key={p.id} className="px-5 py-5 sm:px-6">
+                  <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
                     {/* User Info */}
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-lg font-semibold text-slate-600">
-                          {(p.full_name ?? emailByUserId.get(p.id) ?? "?").charAt(0).toUpperCase()}
-                        </div>
+                      <div className="flex items-center gap-3">
+                        <Avatar name={p.full_name ?? emailByUserId.get(p.id) ?? "?"} size="md" />
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="truncate text-base font-semibold text-slate-900">
-                              {p.full_name ?? "No name"}
-                            </span>
-                            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${getRoleBadgeColor(p.role)}`}>
+                            <span className="truncate text-sm font-semibold text-slate-900">{p.full_name ?? "No name"}</span>
+                            <Badge tone={roleTone(p.role)} className="capitalize">
                               {p.role.replace("_", " ")}
-                            </span>
+                            </Badge>
                           </div>
-                          <div className="mt-0.5 truncate text-sm text-slate-500">
-                            {emailByUserId.get(p.id) ?? "No email"}
-                          </div>
+                          <div className="mt-0.5 truncate text-sm text-slate-500">{emailByUserId.get(p.id) ?? "No email"}</div>
                         </div>
                       </div>
-                      
+
                       {/* Quick Info Tags */}
                       <div className="mt-3 flex flex-wrap gap-2">
                         {linkedGuardian ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-50 px-2.5 py-1 text-xs font-medium text-cyan-700">
-                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
+                          <Badge tone="blue">
+                            <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
                             Guardian: {linkedGuardian.full_name}
-                          </span>
+                          </Badge>
                         ) : null}
                         {linkedStudent ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">
-                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                            </svg>
+                          <Badge tone="violet">
+                            <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
                             Student: {linkedStudent.first_name} {linkedStudent.last_name} ({linkedStudent.level}
                             {linkedStudent.class_id && classById.has(linkedStudent.class_id)
                               ? ` - ${classById.get(linkedStudent.class_id)!.name}`
-                              : ""})
-                          </span>
+                              : ""}
+                            )
+                          </Badge>
                         ) : null}
                         {!linkedGuardian && !linkedStudent && !isStaff ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
+                          <Badge tone="gold">
+                            <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
                             Not linked
-                          </span>
+                          </Badge>
                         ) : null}
                       </div>
 
-                      <div className="mt-2 font-mono text-[10px] text-slate-400">{p.id}</div>
+                      <div className="mt-2 break-all font-mono text-[10px] text-slate-400">{p.id}</div>
                     </div>
 
                     {/* Actions */}
-                    <div className="grid w-full gap-4 xl:w-[480px]">
-                      {/* Name Editor */}
-                      {canInviteStaff ? (
-                        <form action={updateUserFullName} className="flex items-end gap-2">
-                          <input type="hidden" name="user_id" value={p.id} />
-                          <div className="flex-1">
-                            <label className="text-xs font-semibold text-slate-600">Full name</label>
-                            <input
-                              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                              name="full_name"
-                              defaultValue={p.full_name ?? ""}
-                              placeholder="(optional)"
-                            />
-                          </div>
-                          <SubmitButton
-                            className="rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                            pendingText="Saving…"
-                          >
-                            Save
-                          </SubmitButton>
-                        </form>
-                      ) : null}
+                    <div className="grid w-full gap-3 xl:w-[500px]">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {/* Name Editor */}
+                        {canInviteStaff ? (
+                          <form action={updateUserFullName} className="flex items-end gap-2">
+                            <input type="hidden" name="user_id" value={p.id} />
+                            <div className="min-w-0 flex-1">
+                              <label htmlFor={`fn-${p.id}`} className="gf-label text-xs">
+                                Full name
+                              </label>
+                              <input
+                                id={`fn-${p.id}`}
+                                className="gf-input py-2"
+                                name="full_name"
+                                defaultValue={p.full_name ?? ""}
+                                placeholder="(optional)"
+                              />
+                            </div>
+                            <SubmitButton variant="secondary" pendingText="Saving…">
+                              Save
+                            </SubmitButton>
+                          </form>
+                        ) : null}
 
-                      {/* Role Selector */}
-                      <form action={updateRole} className="flex items-end gap-2">
-                        <input type="hidden" name="user_id" value={p.id} />
-                        <div className="flex-1">
-                          <label className="text-xs font-semibold text-slate-600">Change role</label>
-                          <select
-                            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                            name="role"
-                            defaultValue={p.role}
-                          >
-                            <option value="super_admin">Super Admin</option>
-                            <option value="admin">Admin</option>
-                            <option value="teacher">Teacher</option>
-                            <option value="front_desk">Front Desk</option>
-                            <option value="nurse">Nurse</option>
-                            <option value="parent">Parent</option>
-                            <option value="student">Student</option>
-                          </select>
-                        </div>
-                        <SubmitButton
-                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                          pendingText="Updating…"
-                        >
-                          Update
-                        </SubmitButton>
-                      </form>
+                        {/* Role Selector */}
+                        {canInviteStaff ? (
+                          <form action={updateRole} className="flex items-end gap-2">
+                            <input type="hidden" name="user_id" value={p.id} />
+                            <div className="min-w-0 flex-1">
+                              <label htmlFor={`role-${p.id}`} className="gf-label text-xs">
+                                Change role
+                              </label>
+                              <select id={`role-${p.id}`} className="gf-select py-2" name="role" defaultValue={p.role}>
+                                <option value="super_admin">Super Admin</option>
+                                <option value="admin">Admin</option>
+                                <option value="teacher">Teacher</option>
+                                <option value="front_desk">Front Desk</option>
+                                <option value="nurse">Nurse</option>
+                                <option value="parent">Parent</option>
+                                <option value="student">Student</option>
+                              </select>
+                            </div>
+                            <SubmitButton variant="secondary" pendingText="Updating…">
+                              Update
+                            </SubmitButton>
+                          </form>
+                        ) : null}
+                      </div>
 
                       {/* Link Controls */}
                       <div className="grid gap-3 sm:grid-cols-2">
                         {/* Guardian Link */}
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-600">Guardian Link</span>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <label htmlFor={`gl-${p.id}`} className="text-xs font-semibold text-slate-600">
+                              Guardian Link
+                            </label>
                             {linkedGuardian ? (
                               <form action={unlinkGuardian}>
                                 <input type="hidden" name="user_id" value={p.id} />
                                 <SubmitButton
-                                  className="text-xs font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                  className="text-xs font-semibold text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                                   pendingText="Unlinking…"
                                   showSpinner={false}
                                 >
@@ -1119,7 +1168,8 @@ export default async function AdminUsersPage({
                           <form action={linkGuardian} className="mt-2 flex gap-2">
                             <input type="hidden" name="user_id" value={p.id} />
                             <select
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-green"
+                              id={`gl-${p.id}`}
+                              className="gf-select py-1.5 pl-2.5 text-xs"
                               name="guardian_id"
                               defaultValue={guardianLink?.guardian_id ?? ""}
                             >
@@ -1130,27 +1180,40 @@ export default async function AdminUsersPage({
                                 </option>
                               ))}
                             </select>
-                            <SubmitButton
-                              className="shrink-0 rounded-lg bg-brand-green px-3 py-1.5 text-xs font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                              pendingText="Linking…"
-                              showSpinner={false}
-                            >
+                            <SubmitButton variant="primary" size="sm" pendingText="Linking…" showSpinner={false}>
                               Link
                             </SubmitButton>
                           </form>
                         </div>
 
                         {/* Student Link */}
-                        <div className={`rounded-xl border p-3 ${p.role === "student" && !linkedStudent ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
-                          <div className="flex items-center justify-between">
-                            <span className={`text-xs font-semibold ${p.role === "student" && !linkedStudent ? "text-amber-700" : "text-slate-600"}`}>
-                              Student Link {p.role === "student" && !linkedStudent ? "⚠️ Not linked" : ""}
-                            </span>
+                        <div
+                          className={cn(
+                            "rounded-xl border p-3",
+                            studentNeedsLink ? "border-brand-gold-300 bg-brand-gold-50" : "border-slate-200 bg-slate-50/70"
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <label
+                              htmlFor={`sl-${p.id}`}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 text-xs font-semibold",
+                                studentNeedsLink ? "text-brand-gold-800" : "text-slate-600"
+                              )}
+                            >
+                              Student Link
+                              {studentNeedsLink ? (
+                                <>
+                                  <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                                  Not linked
+                                </>
+                              ) : null}
+                            </label>
                             {linkedStudent ? (
                               <form action={unlinkStudent}>
                                 <input type="hidden" name="user_id" value={p.id} />
                                 <SubmitButton
-                                  className="text-xs font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                  className="text-xs font-semibold text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                                   pendingText="Unlinking…"
                                   showSpinner={false}
                                 >
@@ -1159,13 +1222,16 @@ export default async function AdminUsersPage({
                               </form>
                             ) : null}
                           </div>
-                          {p.role === "student" && !linkedStudent ? (
-                            <p className="mt-1 text-xs text-amber-700">This student account will see &quot;no record found&quot; in the portal until linked.</p>
+                          {studentNeedsLink ? (
+                            <p className="mt-1 text-xs text-brand-gold-800">
+                              This student account will see &quot;no record found&quot; in the portal until linked.
+                            </p>
                           ) : null}
                           <form action={linkStudent} className="mt-2 flex gap-2">
                             <input type="hidden" name="user_id" value={p.id} />
                             <select
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-green"
+                              id={`sl-${p.id}`}
+                              className="gf-select py-1.5 pl-2.5 text-xs"
                               name="student_id"
                               defaultValue={studentLink?.student_id ?? ""}
                             >
@@ -1176,11 +1242,7 @@ export default async function AdminUsersPage({
                                 </option>
                               ))}
                             </select>
-                            <SubmitButton
-                              className="shrink-0 rounded-lg bg-brand-green px-3 py-1.5 text-xs font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                              pendingText="Linking…"
-                              showSpinner={false}
-                            >
+                            <SubmitButton variant="primary" size="sm" pendingText="Linking…" showSpinner={false}>
                               Link
                             </SubmitButton>
                           </form>
@@ -1188,24 +1250,56 @@ export default async function AdminUsersPage({
                       </div>
                     </div>
                   </div>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         ) : (
-          <div className="px-6 py-12 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100">
-              <svg className="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-            <h3 className="mt-4 text-sm font-semibold text-slate-900">No users found</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              {query.length ? "Try a different search term." : "Invite staff to get started."}
-            </p>
-          </div>
+          <EmptyState
+            icon={Users}
+            title="No users found"
+            description={query.length ? "Try a different search term." : "Invite staff to get started."}
+          />
         )}
-      </div>
+      </Card>
     </div>
   );
+}
+
+const MAX_AUTH_USER_PAGES = 20;
+
+function usersToast(message: string, type: "error" | "success" = "error") {
+  return `/admin/users?toast=${encodeURIComponent(message)}&toast_type=${type}`;
+}
+
+// Server-side permission check used by the inline server actions (defence in depth on top of middleware).
+async function isAdminUser(supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>) {
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  const { data } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  const role = (data as { role?: string | null } | null)?.role ?? null;
+  return role === "super_admin" || role === "admin";
+}
+
+function roleTone(role: string): BadgeTone {
+  switch (role) {
+    case "super_admin":
+      return "violet";
+    case "admin":
+      return "blue";
+    case "teacher":
+      return "green";
+    case "front_desk":
+      return "gold";
+    case "nurse":
+      return "red";
+    case "parent":
+      return "blue";
+    case "student":
+      return "violet";
+    default:
+      return "slate";
+  }
 }

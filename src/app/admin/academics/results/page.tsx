@@ -9,6 +9,15 @@ import SubmitButton from "@/components/submit-button";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
 import SheetPicker from "./SheetPicker";
+import { Download, EyeOff, FileSpreadsheet, MonitorCheck, Save, Send, Settings2, Users } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 
 type YearRow = { id: string; name: string };
 type TermRow = { id: string; name: string; academic_year_id: string };
@@ -305,7 +314,8 @@ export default async function AdminResultSheetPage({
   async function saveColumns(formData: FormData) {
     "use server";
     const supabase = getSupabaseServerClient();
-    if (!supabase || !ready) return;
+    if (!ready) back(ctx, "Choose a class, subject and term first", "error");
+    if (!supabase) back(ctx, "Database is not configured", "error");
 
     const overrides: Partial<Record<ResultColumnType, number>> = {};
     for (const col of resultColumns) {
@@ -324,9 +334,14 @@ export default async function AdminResultSheetPage({
   async function saveScores(formData: FormData) {
     "use server";
     const supabase = getSupabaseServerClient();
-    if (!supabase || !ready) return;
+    if (!ready) back(ctx, "Choose a class, subject and term first", "error");
+    if (!supabase) back(ctx, "Database is not configured", "error");
 
     const byType = await ensureAssessments(supabase, ctx);
+    const missingColumns = resultColumns.filter((c) => !byType.get(c.type)).map((c) => c.label);
+    if (missingColumns.length) {
+      back(ctx, `Could not prepare the result sheet (${missingColumns.join(", ")}). Nothing was saved — please try again.`, "error");
+    }
     const studentIds = String(formData.get("student_ids") ?? "")
       .split(",")
       .map((s) => s.trim())
@@ -366,7 +381,12 @@ export default async function AdminResultSheetPage({
     }
 
     for (const [assessmentId, ids] of Array.from(deletesByAssessment.entries())) {
-      await supabase.from("academic_assessment_scores").delete().eq("assessment_id", assessmentId).in("student_id", ids);
+      const { error } = await supabase
+        .from("academic_assessment_scores")
+        .delete()
+        .eq("assessment_id", assessmentId)
+        .in("student_id", ids);
+      if (error) back(ctx, error.message, "error");
     }
 
     revalidateResults();
@@ -379,7 +399,8 @@ export default async function AdminResultSheetPage({
   async function importCbtScores(formData: FormData) {
     "use server";
     const supabase = getSupabaseServerClient();
-    if (!supabase || !ready) return;
+    if (!ready) back(ctx, "Choose a class, subject and term first", "error");
+    if (!supabase) back(ctx, "Database is not configured", "error");
 
     const sessionId = String(formData.get("session_id") ?? "").trim();
     const target = String(formData.get("target") ?? "").trim();
@@ -430,7 +451,8 @@ export default async function AdminResultSheetPage({
   async function publishResults() {
     "use server";
     const supabase = getSupabaseServerClient();
-    if (!supabase || !ready) return;
+    if (!ready) back(ctx, "Choose a class, subject and term first", "error");
+    if (!supabase) back(ctx, "Database is not configured", "error");
 
     const {
       data: { user }
@@ -457,9 +479,10 @@ export default async function AdminResultSheetPage({
   async function unpublishResults() {
     "use server";
     const supabase = getSupabaseServerClient();
-    if (!supabase || !ready) return;
+    if (!ready) back(ctx, "Choose a class, subject and term first", "error");
+    if (!supabase) back(ctx, "Database is not configured", "error");
 
-    await supabase
+    const { error } = await supabase
       .from("result_publications")
       .delete()
       .eq("scope", "term_results")
@@ -468,95 +491,119 @@ export default async function AdminResultSheetPage({
       .eq("academic_term_id", ctx.termId);
 
     revalidateResults();
+    if (error) back(ctx, error.message, "error");
     back(ctx, "Results unpublished");
   }
 
-  const selectClass =
-    "mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green";
+  const gradeTone = (g: string | null) => {
+    if (!g) return "slate" as const;
+    const c = g.trim().toUpperCase()[0];
+    if (c === "A") return "green" as const;
+    if (c === "B" || c === "C") return "blue" as const;
+    if (c === "D" || c === "E") return "gold" as const;
+    if (c === "F") return "red" as const;
+    return "slate" as const;
+  };
 
   return (
     <div className="space-y-6">
       <UrlToast />
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Academics</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Result sheet</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Enter 1st CA, 2nd CA and Exam scores for a class and subject, copy objective scores from a CBT exam, then
-          publish so students and parents can see the result.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Academics"
+        title="Result sheet"
+        description="Enter 1st CA, 2nd CA and Exam scores for a class and subject, copy objective scores from a CBT exam, then publish so students and parents can see the result."
+        actions={
+          <ButtonLink href="/admin/academics/config" variant="secondary" size="sm">
+            <Settings2 className="h-4 w-4" aria-hidden="true" />
+            Grading scale
+          </ButtonLink>
+        }
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <SheetPicker
-          key={`${classId}|${subjectId}|${termId}`}
-          action={openSheet}
-          classes={classRows.map((c) => ({ id: c.id, label: `${c.level} - ${c.name}` }))}
-          subjects={subjectRows.map((sub) => ({ id: sub.id, label: sub.name }))}
-          terms={termRows.map((t) => ({ id: t.id, label: termLabel(t) }))}
-          subjectIdsByClass={subjectIdsByClass}
-          defaultClassId={classId}
-          defaultSubjectId={subjectId}
-          defaultTermId={termId}
-        />
-        {ready && classSubjectRows.length ? (
-          <div className="mt-5 border-t border-slate-200 pt-4">
-            <div className="text-xs font-semibold text-slate-500">
-              Subjects for {cls ? cls.name : "this class"} — {classSubjectRows.length} in total
+      <Card>
+        <CardHeader title="Open a sheet" description="Pick the class, subject and term you want to enter scores for." />
+        <CardBody className="space-y-4">
+          <SheetPicker
+            key={`${classId}|${subjectId}|${termId}`}
+            action={openSheet}
+            classes={classRows.map((c) => ({ id: c.id, label: `${c.level} - ${c.name}` }))}
+            subjects={subjectRows.map((sub) => ({ id: sub.id, label: sub.name }))}
+            terms={termRows.map((t) => ({ id: t.id, label: termLabel(t) }))}
+            subjectIdsByClass={subjectIdsByClass}
+            defaultClassId={classId}
+            defaultSubjectId={subjectId}
+            defaultTermId={termId}
+          />
+          {ready && classSubjectRows.length ? (
+            <div className="border-t border-slate-100 pt-4">
+              <div className="text-xs font-medium text-slate-500">
+                Subjects for {cls ? cls.name : "this class"} · {classSubjectRows.length} in total
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {classSubjectRows.map((sub) => (
+                  <Link
+                    key={sub.id}
+                    href={sheetUrl({ ...ctx, subjectId: sub.id })}
+                    aria-current={sub.id === subjectId ? "page" : undefined}
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs font-semibold transition",
+                      sub.id === subjectId
+                        ? "border-brand-green bg-brand-green text-white"
+                        : "border-slate-300 bg-white text-slate-700 hover:border-brand-green-300 hover:bg-brand-green-50"
+                    )}
+                  >
+                    {sub.name}
+                  </Link>
+                ))}
+              </div>
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {classSubjectRows.map((sub) => (
-                <Link
-                  key={sub.id}
-                  href={sheetUrl({ ...ctx, subjectId: sub.id })}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                    sub.id === subjectId
-                      ? "border-brand-green bg-brand-green text-white"
-                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  {sub.name}
-                </Link>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {ready && classSubjectIds.length > 0 && !classSubjectIds.includes(subjectId) ? (
-          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            {subject?.name ?? "This subject"} is not assigned to this class.
-          </div>
-        ) : null}
-        {isTeacher && !classRows.length ? (
-          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            No classes are assigned to your account yet. Ask an admin to assign you to at least one class.
-          </div>
-        ) : null}
-      </div>
+          ) : null}
+          {ready && classSubjectIds.length > 0 && !classSubjectIds.includes(subjectId) ? (
+            <Alert tone="warning">{subject?.name ?? "This subject"} is not assigned to this class.</Alert>
+          ) : null}
+          {isTeacher && !classRows.length ? (
+            <Alert tone="warning">
+              No classes are assigned to your account yet. Ask an admin to assign you to at least one class.
+            </Alert>
+          ) : null}
+        </CardBody>
+      </Card>
 
       {ready ? (
         <>
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Publish status */}
-            <div
-              className={`rounded-3xl border p-6 shadow-sm ${
-                publicationId ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"
-              }`}
-            >
-              <div className="text-sm font-semibold text-slate-900">Publish status</div>
-              <p className="mt-2 text-sm text-slate-700">
-                {publicationId
-                  ? `Published ${publishedAt ? new Date(publishedAt).toLocaleString() : ""}. Students and parents in ${
-                      cls?.name ?? "this class"
-                    } can see ${term?.name ?? "this term"}'s results.`
-                  : "Not published. Students and parents cannot see these results yet."}
-              </p>
-              <p className="mt-1 text-xs text-slate-600">Publishing applies to all subjects for this class and term.</p>
-              <div className="mt-4">
+            <Card className={publicationId ? "!border-brand-green-200" : "!border-brand-gold-200"}>
+              <CardHeader
+                title="Publish status"
+                action={
+                  publicationId ? (
+                    <Badge tone="green" dot>
+                      Published
+                    </Badge>
+                  ) : (
+                    <Badge tone="gold" dot>
+                      Not published
+                    </Badge>
+                  )
+                }
+              />
+              <CardBody className="space-y-4">
+                <p className="text-sm text-slate-700">
+                  {publicationId
+                    ? `Published ${publishedAt ? new Date(publishedAt).toLocaleString() : ""}. Students and parents in ${
+                        cls?.name ?? "this class"
+                      } can see ${term?.name ?? "this term"}'s results.`
+                    : "Not published. Students and parents cannot see these results yet."}
+                </p>
+                <p className="text-xs text-slate-500">Publishing applies to all subjects for this class and term.</p>
                 {publicationId ? (
                   <form action={unpublishResults}>
                     <ConfirmSubmitButton
                       confirmMessage="Hide this term's results from students and parents?"
-                      className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60"
+                      className={buttonClasses({ variant: "secondary" })}
                     >
+                      <EyeOff className="h-4 w-4" aria-hidden="true" />
                       Unpublish
                     </ConfirmSubmitButton>
                   </form>
@@ -564,194 +611,293 @@ export default async function AdminResultSheetPage({
                   <form action={publishResults}>
                     <ConfirmSubmitButton
                       confirmMessage={`Publish ${term?.name ?? "this term"} results for ${cls?.name ?? "this class"}? Students and parents will be able to see them.`}
-                      className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-60"
+                      className={buttonClasses({ variant: "primary" })}
                     >
+                      <Send className="h-4 w-4" aria-hidden="true" />
                       Publish results
                     </ConfirmSubmitButton>
                   </form>
                 )}
-              </div>
-            </div>
+              </CardBody>
+            </Card>
 
             {/* CBT import */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-              <div className="text-sm font-semibold text-slate-900">Copy objective scores from a CBT exam</div>
-              <p className="mt-2 text-sm text-slate-600">
-                Takes each student&apos;s score from a computer-based exam session for this class and scales it to the
-                column&apos;s max score. Re-importing overwrites the column, so theory scores are never touched.
-              </p>
-              {sessions.length ? (
-                <form action={importCbtScores} className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <select className={selectClass + " sm:col-span-2"} name="session_id" defaultValue={importSessionId} required>
-                    <option value="">Select exam session</option>
-                    {sessions.map((s) => {
-                      const test = firstOrNull(s.exam_tests);
-                      const when = s.starts_at ? new Date(s.starts_at).toLocaleDateString() : "no date";
-                      return (
-                        <option key={s.id} value={s.id}>
-                          {test?.name ?? "Exam"} ({when}){s.academic_term_id && s.academic_term_id !== termId ? " · other term" : ""}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <select className={selectClass} name="target" defaultValue="exam_objective">
-                    {resultColumns.map((c) => (
-                      <option key={c.type} value={c.type}>
-                        into {c.label}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="sm:col-span-3">
-                    <ConfirmSubmitButton
-                      confirmMessage="Copy CBT scores into the selected column? Existing scores in that column will be replaced for students who took the exam."
-                      className="inline-flex items-center justify-center rounded-xl border border-brand-green bg-white px-4 py-2 text-sm font-semibold text-brand-green hover:bg-emerald-50 disabled:opacity-60"
-                    >
-                      Copy CBT scores
-                    </ConfirmSubmitButton>
-                  </div>
-                </form>
-              ) : (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                  No CBT exam sessions found for this class and subject. Create one under Exams → Sessions with this class.
-                </div>
-              )}
-            </div>
+            <Card className="lg:col-span-2">
+              <CardHeader
+                title="Copy objective scores from a CBT exam"
+                description="Takes each student's score from a computer-based exam session for this class and scales it to the column's max score. Re-importing overwrites the column, so theory scores are never touched."
+              />
+              <CardBody>
+                {sessions.length ? (
+                  <form action={importCbtScores} className="grid gap-4 sm:grid-cols-3">
+                    <div className="sm:col-span-2">
+                      <label htmlFor="cbt-session" className="gf-label">
+                        Exam session
+                      </label>
+                      <select
+                        id="cbt-session"
+                        className="gf-select"
+                        name="session_id"
+                        defaultValue={importSessionId}
+                        required
+                      >
+                        <option value="">Select exam session</option>
+                        {sessions.map((s) => {
+                          const test = firstOrNull(s.exam_tests);
+                          const when = s.starts_at ? new Date(s.starts_at).toLocaleDateString() : "no date";
+                          return (
+                            <option key={s.id} value={s.id}>
+                              {test?.name ?? "Exam"} ({when})
+                              {s.academic_term_id && s.academic_term_id !== termId ? " · other term" : ""}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="cbt-target" className="gf-label">
+                        Column
+                      </label>
+                      <select id="cbt-target" className="gf-select" name="target" defaultValue="exam_objective">
+                        {resultColumns.map((c) => (
+                          <option key={c.type} value={c.type}>
+                            into {c.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="sm:col-span-3 flex justify-end">
+                      <ConfirmSubmitButton
+                        confirmMessage="Copy CBT scores into the selected column? Existing scores in that column will be replaced for students who took the exam."
+                        className={buttonClasses({ variant: "secondary" })}
+                      >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        Copy CBT scores
+                      </ConfirmSubmitButton>
+                    </div>
+                  </form>
+                ) : (
+                  <EmptyState
+                    icon={MonitorCheck}
+                    title="No CBT exam sessions"
+                    description="No CBT exam sessions found for this class and subject. Create one under Exams → Sessions with this class."
+                    className="py-6"
+                  />
+                )}
+              </CardBody>
+            </Card>
           </div>
 
           {/* Column max scores */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="text-sm font-semibold text-slate-900">Max scores</div>
-            <p className="mt-1 text-xs text-slate-600">
-              They should add up to 100 (currently {maxTotal}). Defaults: 1st CA 20, 2nd CA 20, Objective 30, Theory 30.
-            </p>
-            <form action={saveColumns} className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
-              {resultColumns.map((c) => (
-                <div key={c.type}>
-                  <label className="text-xs font-semibold text-slate-600">{c.label}</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                    name={`max:${c.type}`}
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    defaultValue={String(columnMax(c.type))}
-                    required
-                  />
-                </div>
-              ))}
-              <div className="flex items-end">
-                <SubmitButton
-                  className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60"
-                  pendingText="Saving…"
-                >
+          <form action={saveColumns}>
+            <FormSection
+              title="Max scores"
+              description={
+                <>
+                  They should add up to 100 (currently{" "}
+                  <span className={cn("font-semibold", maxTotal === 100 ? "text-brand-green-700" : "text-red-600")}>
+                    {maxTotal}
+                  </span>
+                  ). Defaults: 1st CA 20, 2nd CA 20, Objective 30, Theory 30.
+                </>
+              }
+              footer={
+                <SubmitButton variant="secondary" pendingText="Saving…">
                   Save max scores
                 </SubmitButton>
+              }
+            >
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {resultColumns.map((c) => (
+                  <Field key={c.type} label={c.label} htmlFor={`max-${c.type}`}>
+                    <input
+                      id={`max-${c.type}`}
+                      className="gf-input tabular-nums"
+                      name={`max:${c.type}`}
+                      type="number"
+                      inputMode="decimal"
+                      step="0.5"
+                      min="0.5"
+                      defaultValue={String(columnMax(c.type))}
+                      required
+                    />
+                  </Field>
+                ))}
               </div>
-            </form>
-          </div>
-
-          {/* Score grid */}
-          <form action={saveScores} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <input type="hidden" name="student_ids" value={students.map((s) => s.id).join(",")} />
-            <div className="flex flex-col gap-2 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="font-semibold text-slate-900">
-                  {subject?.name ?? "Subject"} · {cls ? `${cls.level} - ${cls.name}` : "Class"} · {term ? termLabel(term) : ""}
-                </div>
-                <div className="text-xs text-slate-500">
-                  {enteredCount} of {students.length} students have scores. Leave a box empty to clear it.
-                </div>
-              </div>
-              <SubmitButton
-                className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-60"
-                pendingText="Saving…"
-              >
-                Save all scores
-              </SubmitButton>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Student</th>
-                    {resultColumns.map((c) => (
-                      <th key={c.type} className="px-2 py-3 text-left">
-                        {c.label}
-                        <span className="ml-1 font-normal text-slate-400">/{columnMax(c.type)}</span>
-                      </th>
-                    ))}
-                    <th className="px-4 py-3 text-right">
-                      Total<span className="ml-1 font-normal text-slate-400">/{maxTotal}</span>
-                    </th>
-                    <th className="px-4 py-3 text-right">Grade</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.length ? (
-                    students.map((st) => {
-                      const values = resultColumns.map((c) => scoreFor(c.type, st.id));
-                      const hasAny = values.some((v) => v !== null);
-                      const total = round2(values.reduce<number>((acc, v) => acc + (v ?? 0), 0));
-                      return (
-                        <tr key={st.id} className="border-t border-slate-200">
-                          <td className="px-4 py-2">
-                            <div className="font-semibold text-slate-900">
-                              {st.last_name} {st.first_name}
-                            </div>
-                            {st.admission_number ? <div className="text-xs text-slate-500">{st.admission_number}</div> : null}
-                          </td>
-                          {resultColumns.map((c, i) => (
-                            <td key={c.type} className="px-2 py-2">
-                              <input
-                                className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                                name={`score:${c.type}:${st.id}`}
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max={String(columnMax(c.type))}
-                                defaultValue={values[i] === null ? "" : String(values[i])}
-                                aria-label={`${c.label} for ${st.first_name} ${st.last_name}`}
-                              />
-                            </td>
-                          ))}
-                          <td className="px-4 py-2 text-right font-semibold text-slate-900">{hasAny ? total : "—"}</td>
-                          <td className="px-4 py-2 text-right text-slate-700">{hasAny ? gradeFor(total) ?? "—" : "—"}</td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={resultColumns.length + 3} className="px-6 py-8 text-sm text-slate-600">
-                        No students are in this class.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {students.length ? (
-              <div className="flex justify-end border-t border-slate-200 px-6 py-4">
-                <SubmitButton
-                  className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-60"
-                  pendingText="Saving…"
-                >
-                  Save all scores
-                </SubmitButton>
-              </div>
-            ) : null}
+            </FormSection>
           </form>
 
-          <div className="text-xs text-slate-500">
+          {/* Score grid */}
+          <form action={saveScores}>
+            <Card>
+              <input type="hidden" name="student_ids" value={students.map((s) => s.id).join(",")} />
+              <CardHeader
+                title={`${subject?.name ?? "Subject"} · ${cls ? `${cls.level} - ${cls.name}` : "Class"}${
+                  term ? ` · ${termLabel(term)}` : ""
+                }`}
+                description={`${enteredCount} of ${students.length} students have scores. Leave a box empty to clear it.`}
+                action={
+                  students.length ? (
+                    <div className="hidden sm:block">
+                      <SubmitButton variant="primary" pendingText="Saving…">
+                        Save all scores
+                      </SubmitButton>
+                    </div>
+                  ) : null
+                }
+              />
+
+              {students.length ? (
+                <div className="max-h-[70vh] overflow-auto overscroll-x-contain">
+                  <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm">
+                    <thead>
+                      <tr>
+                        <th
+                          scope="col"
+                          className="sticky left-0 top-0 z-30 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 sm:pl-6"
+                        >
+                          Student
+                        </th>
+                        {resultColumns.map((c) => (
+                          <th
+                            key={c.type}
+                            scope="col"
+                            className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-2 py-2.5 text-center text-xs font-semibold text-slate-600"
+                          >
+                            <div className="whitespace-nowrap">{c.label}</div>
+                            <div className="font-normal text-slate-400">out of {columnMax(c.type)}</div>
+                          </th>
+                        ))}
+                        <th
+                          scope="col"
+                          className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-right text-xs font-semibold text-slate-600"
+                        >
+                          <div>Total</div>
+                          <div className="font-normal text-slate-400">out of {maxTotal}</div>
+                        </th>
+                        <th
+                          scope="col"
+                          className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-center text-xs font-semibold text-slate-600 sm:pr-6"
+                        >
+                          Grade
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {students.map((st, rowIndex) => {
+                        const values = resultColumns.map((c) => scoreFor(c.type, st.id));
+                        const hasAny = values.some((v) => v !== null);
+                        const total = round2(values.reduce<number>((acc, v) => acc + (v ?? 0), 0));
+                        const grade = hasAny ? gradeFor(total) : null;
+                        const zebra = rowIndex % 2 === 1 ? "bg-slate-50/60" : "bg-white";
+                        return (
+                          <tr key={st.id} className="group">
+                            <th
+                              scope="row"
+                              className={cn(
+                                "sticky left-0 z-10 border-b border-slate-100 px-4 py-2 text-left font-normal group-hover:bg-brand-green-50 sm:pl-6",
+                                rowIndex % 2 === 1 ? "bg-slate-50" : "bg-white"
+                              )}
+                            >
+                              <div className="max-w-[12rem] truncate font-semibold text-slate-900 sm:max-w-none">
+                                {st.last_name} {st.first_name}
+                              </div>
+                              {st.admission_number ? (
+                                <div className="text-xs text-slate-500">{st.admission_number}</div>
+                              ) : null}
+                            </th>
+                            {resultColumns.map((c, i) => (
+                              <td
+                                key={c.type}
+                                className={cn("border-b border-slate-100 px-2 py-2 text-center group-hover:bg-brand-green-50", zebra)}
+                              >
+                                <input
+                                  className="h-9 w-[4.5rem] rounded-lg border border-slate-300 bg-white px-2 text-center text-sm tabular-nums text-slate-900 shadow-sm outline-none transition placeholder:text-slate-300 focus:border-brand-green-500 focus:ring-4 focus:ring-brand-green-500/15 invalid:border-red-400 invalid:bg-red-50"
+                                  name={`score:${c.type}:${st.id}`}
+                                  type="number"
+                                  inputMode="decimal"
+                                  step="0.01"
+                                  min="0"
+                                  max={String(columnMax(c.type))}
+                                  placeholder="–"
+                                  defaultValue={values[i] === null ? "" : String(values[i])}
+                                  aria-label={`${c.label} for ${st.first_name} ${st.last_name}`}
+                                />
+                              </td>
+                            ))}
+                            <td
+                              className={cn(
+                                "border-b border-slate-100 px-4 py-2 text-right font-semibold tabular-nums text-slate-900 group-hover:bg-brand-green-50",
+                                zebra
+                              )}
+                            >
+                              {hasAny ? total : <span className="text-slate-400">—</span>}
+                            </td>
+                            <td
+                              className={cn(
+                                "border-b border-slate-100 px-4 py-2 text-center group-hover:bg-brand-green-50 sm:pr-6",
+                                zebra
+                              )}
+                            >
+                              {grade ? (
+                                <Badge tone={gradeTone(grade)}>{grade}</Badge>
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState
+                  icon={Users}
+                  title="No students in this class"
+                  description="Add students to this class and they will appear here for score entry."
+                />
+              )}
+
+              {students.length ? (
+                <div className="sticky bottom-0 z-30 flex flex-col gap-3 rounded-b-2xl border-t border-slate-200 bg-white/95 px-5 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <Badge tone={enteredCount === students.length ? "green" : enteredCount ? "gold" : "slate"} dot>
+                      {enteredCount}/{students.length} entered
+                    </Badge>
+                    <span className="hidden sm:inline">Totals and grades refresh after saving.</span>
+                  </div>
+                  <SubmitButton
+                    className={buttonClasses({ variant: "primary", className: "w-full sm:w-auto" })}
+                    pendingText="Saving…"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Save className="h-4 w-4" aria-hidden="true" />
+                      Save all scores
+                    </span>
+                  </SubmitButton>
+                </div>
+              ) : null}
+            </Card>
+          </form>
+
+          <p className="text-xs text-slate-500">
             Totals and grades shown above refresh after saving. Grades come from the grading scale in{" "}
-            <Link className="font-semibold text-brand-green hover:underline" href="/admin/academics/config">
+            <Link className="gf-link" href="/admin/academics/config">
               Config
             </Link>
             .
-          </div>
+          </p>
         </>
-      ) : null}
+      ) : (
+        <Card>
+          <EmptyState
+            icon={FileSpreadsheet}
+            title="No sheet open"
+            description="Choose a class, subject and term above, then open the sheet to start entering scores."
+          />
+        </Card>
+      )}
     </div>
   );
 }
-

@@ -1,6 +1,17 @@
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { CircleCheck, ClipboardList, Lock, LockOpen, Users } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/submit-button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { StatCard } from "@/components/ui/stat-card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import UrlToast from "@/components/url-toast";
+import { AttemptStatusBadge } from "../../_components/status-badges";
 
 type AttemptRow = {
   attempt_id: string;
@@ -19,10 +30,50 @@ type AttemptRow = {
   submitted_at: string | null;
 };
 
+const STAFF_ROLES = new Set(["super_admin", "admin", "teacher", "front_desk", "nurse"]);
+
+type ServerClient = NonNullable<ReturnType<typeof getSupabaseServerClient>>;
+
+// Staff, or a conductor linked to this user and assigned to this session. Module-level so the
+// inline server actions can call it.
+async function canConductSession(supabase: ServerClient, sessionId: string): Promise<{ allowed: boolean; userId: string | null }> {
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) return { allowed: false, userId: null };
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  const role = (profile as { role?: string | null } | null)?.role ?? null;
+  if (role && STAFF_ROLES.has(role)) return { allowed: true, userId: user.id };
+
+  const { data: link } = await supabase
+    .from("exam_conductor_user_links")
+    .select("conductor_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const conductorId = (link as { conductor_id?: string } | null)?.conductor_id;
+  if (!conductorId) return { allowed: false, userId: user.id };
+
+  const { data: assignment } = await supabase
+    .from("exam_session_conductors")
+    .select("session_id")
+    .eq("session_id", sessionId)
+    .eq("conductor_id", conductorId)
+    .maybeSingle();
+  return { allowed: !!assignment, userId: user.id };
+}
+
+function failWithToast(sessionId: string, message: string): never {
+  redirect(`/conductor/sessions/${sessionId}?toast=${encodeURIComponent(message)}&toast_type=error`);
+}
+
 export default async function ConductorSessionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
+
+  const access = await canConductSession(supabase, id);
+  if (!access.allowed) redirect("/conductor/unauthorized");
 
   const { data: attemptsData } = await supabase
     .from("exam_attempt_list_v")
@@ -41,14 +92,14 @@ export default async function ConductorSessionDetailPage({ params }: { params: P
     const attemptId = String(formData.get("attempt_id") ?? "").trim();
     const note = String(formData.get("unlock_note") ?? "").trim();
 
-    if (!attemptId) return;
+    if (!attemptId) failWithToast(id, "Attempt not found.");
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast(id, "Database is not configured.");
 
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
+    const access = await canConductSession(supabase, id);
+    if (!access.allowed) redirect("/conductor/unauthorized");
+    const user = access.userId ? { id: access.userId } : null;
 
     await supabase
       .from("exam_attempts")
@@ -59,7 +110,8 @@ export default async function ConductorSessionDetailPage({ params }: { params: P
         unlocked_by: user?.id ?? null,
         unlock_note: note.length ? note : null
       })
-      .eq("id", attemptId);
+      .eq("id", attemptId)
+      .eq("session_id", id);
 
     await supabase.from("exam_malpractice_events").insert({
       attempt_id: attemptId,
@@ -74,14 +126,14 @@ export default async function ConductorSessionDetailPage({ params }: { params: P
     "use server";
 
     const note = String(formData.get("unlock_note") ?? "").trim();
-    if (!note) return;
+    if (!note) failWithToast(id, "Enter a reason for the bulk unlock.");
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast(id, "Database is not configured.");
 
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
+    const access = await canConductSession(supabase, id);
+    if (!access.allowed) redirect("/conductor/unauthorized");
+    const user = access.userId ? { id: access.userId } : null;
 
     const { data: lockedAttempts } = await supabase
       .from("exam_attempts")
@@ -90,7 +142,7 @@ export default async function ConductorSessionDetailPage({ params }: { params: P
       .not("locked_at", "is", null);
 
     const ids = (lockedAttempts ?? []).map((r) => (r as { id: string }).id).filter((v) => v.length);
-    if (!ids.length) return;
+    if (!ids.length) failWithToast(id, "No locked attempts to unlock.");
 
     await supabase
       .from("exam_attempts")
@@ -110,87 +162,106 @@ export default async function ConductorSessionDetailPage({ params }: { params: P
     revalidatePath(`/conductor/sessions/${id}`);
   }
 
+  const lockedCount = attempts.filter((a) => !!a.locked_at).length;
+  const submittedCount = attempts.filter((a) => !!a.submitted_at).length;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Conductor</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Session</h1>
-        <p className="mt-2 text-sm text-slate-600">Unlock students if their exam is locked.</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link
-            href="/conductor/sessions"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-          >
-            Back
-          </Link>
-        </div>
+      <UrlToast />
+      <PageHeader
+        back={{ href: "/conductor/sessions", label: "Back" }}
+        eyebrow="Conductor"
+        title="Session"
+        description="Unlock students if their exam is locked."
+      />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Attempts" value={attempts.length} hint="Students who started" icon={Users} tone="blue" />
+        <StatCard label="Submitted" value={submittedCount} hint="Finished and handed in" icon={CircleCheck} tone="green" />
+        <StatCard label="Locked" value={lockedCount} hint="Waiting to be unlocked" icon={Lock} tone="rose" />
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="text-sm font-semibold text-slate-900">Bulk unlock (outage)</div>
-        <p className="mt-1 text-sm text-slate-600">Unlock all locked attempts for this session. Note is required.</p>
-        <form action={bulkUnlock} className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <input
-            className="w-full flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-            name="unlock_note"
-            placeholder="e.g. Power outage"
-            required
-          />
-          <button
-            className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-            type="submit"
-          >
-            Bulk unlock
-          </button>
-        </form>
-      </div>
+      <form action={bulkUnlock}>
+        <FormSection
+          title="Bulk unlock (outage)"
+          description="Unlock all locked attempts for this session. Note is required."
+          footer={
+            <SubmitButton variant="primary" pendingText="Unlocking…">
+              <LockOpen className="h-4 w-4" aria-hidden="true" />
+              Bulk unlock
+            </SubmitButton>
+          }
+        >
+          <Field label="Reason" htmlFor="bulk-unlock-note" required>
+            <input id="bulk-unlock-note" className="gf-input" name="unlock_note" placeholder="e.g. Power outage" required />
+          </Field>
+        </FormSection>
+      </form>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-4">Student</div>
-          <div className="col-span-2">Adm no</div>
-          <div className="col-span-2">Status</div>
-          <div className="col-span-4">Action</div>
-        </div>
-        <div>
-          {attempts.length ? (
-            attempts.map((a) => (
-              <div key={a.attempt_id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                <div className="col-span-4 font-semibold text-slate-900">
-                  {a.first_name} {a.last_name}
-                </div>
-                <div className="col-span-2 text-slate-700">{a.admission_number ?? "—"}</div>
-                <div className="col-span-2 text-xs font-semibold text-slate-700">
-                  {a.status}
-                  {a.locked_at ? ` • locked(${a.lock_count ?? 0})` : ""}
-                </div>
-                <div className="col-span-4">
-                  {a.locked_at ? (
-                    <form action={unlockAttempt} className="grid grid-cols-12 gap-2">
-                      <input type="hidden" name="attempt_id" value={a.attempt_id} />
-                      <input
-                        className="col-span-8 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                        name="unlock_note"
-                        placeholder="(optional note)"
-                      />
-                      <button
-                        className="col-span-4 inline-flex items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95"
-                        type="submit"
-                      >
-                        Unlock
-                      </button>
-                    </form>
-                  ) : (
-                    <div className="text-sm text-slate-600">—</div>
-                  )}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No attempts yet.</div>
-          )}
-        </div>
-      </div>
+      <Card>
+        <CardHeader title="Students" description={`${attempts.length} attempt${attempts.length === 1 ? "" : "s"} · ${lockedCount} locked`} />
+        {attempts.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[720px]">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Adm no</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attempts.map((a) => (
+                  <tr key={a.attempt_id} className={a.locked_at ? "bg-red-50/40" : undefined}>
+                    <td>
+                      <div className="flex items-center gap-3">
+                        <Avatar name={`${a.first_name} ${a.last_name}`} size="sm" />
+                        <span className="font-semibold text-slate-900">
+                          {a.first_name} {a.last_name}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="text-slate-600">{a.admission_number ?? "—"}</td>
+                    <td>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <AttemptStatusBadge status={a.status} />
+                        {a.locked_at ? (
+                          <Badge tone="red">
+                            <Lock className="h-3 w-3" aria-hidden="true" />
+                            locked({a.lock_count ?? 0})
+                          </Badge>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td>
+                      {a.locked_at ? (
+                        <form action={unlockAttempt} className="flex items-center gap-2">
+                          <input type="hidden" name="attempt_id" value={a.attempt_id} />
+                          <input
+                            aria-label={`Unlock note for ${a.first_name} ${a.last_name}`}
+                            className="gf-input min-w-[10rem] flex-1 py-2"
+                            name="unlock_note"
+                            placeholder="(optional note)"
+                          />
+                          <SubmitButton variant="primary" size="sm" pendingText="Unlocking…">
+                            <LockOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                            Unlock
+                          </SubmitButton>
+                        </form>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={ClipboardList} title="No attempts yet." description="Students appear here once they start the exam." />
+        )}
+      </Card>
     </div>
   );
 }

@@ -2,10 +2,37 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  CalendarDays,
+  CircleCheck,
+  ClipboardList,
+  Eye,
+  EyeOff,
+  Info,
+  KeyRound,
+  Lock,
+  Pencil,
+  PencilLine,
+  Plus,
+  Search,
+  Users,
+  X
+} from "lucide-react";
 import SubmitButton from "@/components/submit-button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { StatCard } from "@/components/ui/stat-card";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
+import { Pagination, SessionStatusBadge } from "../_components/exam-ui";
 import AdminSessionsDebugLogger from "./AdminSessionsDebugLogger";
 import UrlToast from "@/components/url-toast";
+import { safeFilterTerm } from "@/lib/postgrest";
 import { formatLagosDate, lagosEndOfDayIso, lagosStartOfDayIso, sessionVisibility } from "@/lib/lagos-dates";
+import { failWithToast, NO_DB_MESSAGE } from "../_components/feedback";
 
 type TestRow = { id: string; name: string };
 type ClassRow = { id: string; level: string; name: string };
@@ -133,7 +160,7 @@ export default async function AdminExamSessionsPage({
       const { data: matchedTests } = await supabase
         .from("exam_tests")
         .select("id")
-        .ilike("name", `%${search}%`);
+        .ilike("name", `%${safeFilterTerm(search)}%`);
       matchTestIds = matchedTests?.map((t) => t.id) ?? [];
     }
 
@@ -203,15 +230,15 @@ export default async function AdminExamSessionsPage({
     const requiresSecretCode = String(formData.get("requires_secret_code") ?? "").trim() === "on";
     const secretCode = String(formData.get("secret_code") ?? "").trim();
 
-    if (!testId) return;
+    if (!testId) failWithToast("/admin/exams/sessions", "Select a test.");
     if (startDate && endDate && endDate < startDate) {
       redirect(`/admin/exams/sessions?toast=${encodeURIComponent("End date cannot be before the start date")}&toast_type=error`);
     }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast("/admin/exams/sessions", NO_DB_MESSAGE);
 
-    await supabase.from("exam_test_sessions").insert({
+    const { error: insertError } = await supabase.from("exam_test_sessions").insert({
       test_id: testId,
       class_id: classIdRaw.length ? classIdRaw : null,
       academic_year_id: yearIdRaw.length ? yearIdRaw : null,
@@ -222,6 +249,12 @@ export default async function AdminExamSessionsPage({
       requires_secret_code: requiresSecretCode,
       secret_code: requiresSecretCode && secretCode.length ? secretCode : null
     });
+
+    if (insertError) {
+      redirect(
+        `/admin/exams/sessions?toast=${encodeURIComponent(`Could not schedule the session: ${insertError.message}`)}&toast_type=error`
+      );
+    }
 
     revalidatePath("/admin/exams/sessions");
     redirect(`/admin/exams/sessions?toast=${encodeURIComponent("Session scheduled")}&toast_type=success`);
@@ -243,444 +276,274 @@ export default async function AdminExamSessionsPage({
     redirect(queryString.length ? `/admin/exams/sessions?${queryString}` : "/admin/exams/sessions");
   }
 
+  const pageSuffix = `${search ? `&search=${encodeURIComponent(search)}` : ""}${classFilter ? `&class_id=${classFilter}` : ""}${statusFilter ? `&status=${statusFilter}` : ""}`;
+
   return (
     <div className="space-y-6">
       {debug ? <AdminSessionsDebugLogger enabled={debug} loadErrorMsg={loadErrorMsg} sessions={sessionRows} /> : null}
       <UrlToast />
 
-      {/* Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-slate-400">Admin</div>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">Sessions</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {totalSessionsCount} session{totalSessionsCount !== 1 ? "s" : ""} scheduled total · {activeSessionsCount} active
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
-          <Link
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
-            href="/admin/exams"
-          >
-            Back to exams
-          </Link>
-        </div>
+      <PageHeader
+        back={{ href: "/admin/exams", label: "Back to exams" }}
+        eyebrow="Exams"
+        title="Sessions"
+        description={`${totalSessionsCount} session${totalSessionsCount !== 1 ? "s" : ""} scheduled total · ${activeSessionsCount} active`}
+        actions={
+          <a href="#new-session" className={buttonClasses({ variant: "primary" })}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            New session
+          </a>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Total sessions" value={totalSessionsCount} hint="All scheduled exam instances" icon={CalendarDays} tone="slate" />
+        <StatCard label="Active" value={activeSessionsCount} hint="Currently live and open to students" icon={CircleCheck} tone="green" />
+        <StatCard label="Draft" value={draftSessionsCount} hint="Unpublished planning templates" icon={PencilLine} tone="gold" />
+        <StatCard label="Closed" value={closedSessionsCount} hint="Concluded exam papers" icon={Lock} tone="slate" />
       </div>
 
-      {/* Metrics Cards Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Sessions */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Sessions</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-              <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+      <Card>
+        <CardBody>
+          <form action={filterSessions} className="flex flex-col gap-3 xl:flex-row xl:items-end">
+            <div className="grid flex-1 gap-3 sm:grid-cols-3">
+              <Field label="Search" htmlFor="filter-search">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                  <input
+                    id="filter-search"
+                    className="gf-input pl-9"
+                    name="search"
+                    placeholder="Search by test name..."
+                    defaultValue={search}
+                  />
+                </div>
+              </Field>
+              <Field label="Class" htmlFor="filter-class">
+                <select id="filter-class" className="gf-select" name="class_id" defaultValue={classFilter}>
+                  <option value="">All classes</option>
+                  {classRows.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.level} - {c.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Status" htmlFor="filter-status">
+                <select id="filter-status" className="gf-select" name="status" defaultValue={statusFilter}>
+                  <option value="">All statuses</option>
+                  <option value="draft">Draft</option>
+                  <option value="active">Active</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </Field>
             </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-slate-900">{totalSessionsCount}</div>
-          <div className="mt-1 text-xs text-slate-500">All scheduled exam instances</div>
-        </div>
 
-        {/* Active Sessions */}
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Active</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
-              <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <div className="flex shrink-0 gap-2">
+              <SubmitButton variant="primary" pendingText="Filtering…">
+                Filter
+              </SubmitButton>
+              {isFiltered ? (
+                <a href="/admin/exams/sessions" className={buttonClasses({ variant: "secondary" })}>
+                  <X className="h-4 w-4" aria-hidden="true" />
+                  Clear
+                </a>
+              ) : null}
             </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-emerald-800">{activeSessionsCount}</div>
-          <div className="mt-1 text-xs text-emerald-700">Currently live and open to students</div>
-        </div>
+          </form>
 
-        {/* Draft Sessions */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Draft</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-              <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
+          {isFiltered ? (
+            <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+              <Info className="h-3.5 w-3.5" aria-hidden="true" />
+              Showing {totalCount} result{totalCount !== 1 ? "s" : ""}
+              {search ? <span>for &ldquo;<strong>{search}</strong>&rdquo;</span> : null}
             </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-slate-900">{draftSessionsCount}</div>
-          <div className="mt-1 text-xs text-slate-500">Unpublished planning templates</div>
-        </div>
+          ) : null}
+        </CardBody>
+      </Card>
 
-        {/* Closed Sessions */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Closed</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-              <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-slate-900">{closedSessionsCount}</div>
-          <div className="mt-1 text-xs text-slate-500">Concluded exam papers</div>
-        </div>
-      </div>
-
-      {/* Filters form */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <form action={filterSessions} className="flex flex-col gap-3 xl:flex-row xl:items-end">
-          <div className="grid flex-1 gap-3 sm:grid-cols-3">
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Search</label>
-              <div className="relative mt-1">
-                <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                  name="search"
-                  placeholder="Search by test name..."
-                  defaultValue={search}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Class</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                name="class_id"
-                defaultValue={classFilter}
-              >
-                <option value="">All classes</option>
+      <form action={createSession}>
+        <FormSection
+          id="new-session"
+          title="New session"
+          description="Schedule a test for a class. Students see it between the start and end dates while it is active."
+          footer={
+            <SubmitButton variant="primary" pendingText="Creating…">
+              Create session
+            </SubmitButton>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Test" htmlFor="new-test" required>
+              <select id="new-test" className="gf-select" name="test_id" defaultValue="" required>
+                <option value="">Select test</option>
+                {testRows.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Class (optional)" htmlFor="new-class">
+              <select id="new-class" className="gf-select" name="class_id" defaultValue="">
+                <option value="">—</option>
                 {classRows.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.level} - {c.name}
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Status</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                name="status"
-                defaultValue={statusFilter}
-              >
-                <option value="">All statuses</option>
-                <option value="draft">Draft</option>
-                <option value="active">Active</option>
-                <option value="closed">Closed</option>
+            </Field>
+            <Field label="Academic year (optional)" htmlFor="new-year">
+              <select id="new-year" className="gf-select" name="academic_year_id" defaultValue="">
+                <option value="">—</option>
+                {yearRows.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.name}
+                  </option>
+                ))}
               </select>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 gap-2">
-            <SubmitButton
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white hover:brightness-95 transition-all"
-              pendingText="Filtering…"
+            </Field>
+            <Field label="Academic term (optional)" htmlFor="new-term">
+              <select id="new-term" className="gf-select" name="academic_term_id" defaultValue="">
+                <option value="">—</option>
+                {termRows.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Start date (optional)" htmlFor="new-start" hint="Students can see the exam from the start of this day.">
+              <input id="new-start" className="gf-input" name="start_date" type="date" />
+            </Field>
+            <Field
+              label="End date (optional)"
+              htmlFor="new-end"
+              hint={<>Open until the end of this day. The time allowed comes from the test&apos;s duration.</>}
             >
-              Filter
-            </SubmitButton>
-            {isFiltered ? (
-              <a
-                href="/admin/exams/sessions"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Clear
-              </a>
-            ) : null}
+              <input id="new-end" className="gf-input" name="end_date" type="date" />
+            </Field>
+            <Field label="Status" htmlFor="new-status">
+              <select id="new-status" className="gf-select" name="status" defaultValue="active">
+                <option value="active">active (students can take it within the dates)</option>
+                <option value="draft">draft (hidden from students)</option>
+                <option value="closed">closed</option>
+              </select>
+            </Field>
+            <Field label="Secret code (optional)" htmlFor="new-secret">
+              <input id="new-secret" className="gf-input" name="secret_code" placeholder="Only if required" />
+              <label className="mt-2 flex items-center gap-2 text-sm text-slate-700">
+                <input className="gf-checkbox" name="requires_secret_code" type="checkbox" />
+                Require secret code to start
+              </label>
+            </Field>
           </div>
-        </form>
-
-        {isFiltered ? (
-          <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Showing {totalCount} result{totalCount !== 1 ? "s" : ""}
-            {search ? <span>for &ldquo;<strong>{search}</strong>&rdquo;</span> : null}
-          </div>
-        ) : null}
-      </div>
-
-      {/* New Session setup form */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">New session</h2>
-        <form action={createSession} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Test</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="test_id"
-              defaultValue=""
-              required
-            >
-              <option value="">Select test</option>
-              {testRows.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Class (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="class_id"
-              defaultValue=""
-            >
-              <option value="">—</option>
-              {classRows.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.level} - {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic year (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_year_id"
-              defaultValue=""
-            >
-              <option value="">—</option>
-              {yearRows.map((y) => (
-                <option key={y.id} value={y.id}>
-                  {y.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic term (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_term_id"
-              defaultValue=""
-            >
-              <option value="">—</option>
-              {termRows.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Start date (optional)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="start_date"
-              type="date"
-            />
-            <p className="mt-1 text-xs text-slate-500">Students can see the exam from the start of this day.</p>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">End date (optional)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="end_date"
-              type="date"
-            />
-            <p className="mt-1 text-xs text-slate-500">Open until the end of this day. The time allowed comes from the test&apos;s duration.</p>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Status</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="status"
-              defaultValue="active"
-            >
-              <option value="active">active (students can take it within the dates)</option>
-              <option value="draft">draft (hidden from students)</option>
-              <option value="closed">closed</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Secret code (optional)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="secret_code"
-              placeholder="Only if required"
-            />
-            <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <input className="h-4 w-4" name="requires_secret_code" type="checkbox" />
-              Require secret code to start
-            </label>
-          </div>
-          <div className="flex items-end sm:col-span-2">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Creating…"
-            >
-              Create session
-            </SubmitButton>
-          </div>
-        </form>
-      </div>
+        </FormSection>
+      </form>
 
       {loadErrorMsg ? (
-        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-8 text-amber-900 shadow-sm">
-          <div className="text-sm font-semibold">Sessions temporarily unavailable</div>
-          <div className="mt-2 text-sm">{loadErrorMsg}</div>
-        </div>
+        <Alert tone="warning" title="Sessions temporarily unavailable">
+          {loadErrorMsg}
+        </Alert>
       ) : null}
 
-      {/* Sessions Table */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-4">Test</div>
-          <div className="col-span-3">Class</div>
-          <div className="col-span-3">Dates / student access</div>
-          <div className="col-span-2 text-right">Actions</div>
-        </div>
-        <div className="divide-y divide-slate-100">
-          {sessionRows.length ? (
-            sessionRows.map((s) => {
-              const test = testsById.get(s.test_id) ?? null;
-              const cls = s.class_id ? (classesById.get(s.class_id) ?? null) : null;
-              const windowLabel =
-                s.starts_at || s.ends_at
-                  ? `${s.starts_at ? formatLagosDate(s.starts_at) : "Any time"} → ${s.ends_at ? formatLagosDate(s.ends_at) : "no end"}`
-                  : "No date limit";
-              const visibility = sessionVisibility(s);
-              return (
-                <div
-                  key={s.id}
-                  className="grid grid-cols-12 gap-0 px-6 py-4 text-sm text-slate-700 items-center hover:bg-slate-50/50"
-                >
-                  <div className="col-span-4 font-semibold text-slate-900">
-                    <Link href={`/admin/exams/sessions/${s.id}`} className="hover:text-brand-green hover:underline">
-                      {test?.name ?? s.test_id}
-                    </Link>
-                  </div>
-                  <div className="col-span-3">{cls ? `${cls.level} - ${cls.name}` : "—"}</div>
-                  <div className="col-span-3 text-xs text-slate-600">
-                    <div>{windowLabel}</div>
-                    <div className={`mt-1 font-semibold ${visibility.visible ? "text-emerald-700" : "text-amber-700"}`}>
-                      {visibility.visible ? "● " : "○ "}
-                      {visibility.reason}
-                    </div>
-                  </div>
-                  <div className="col-span-2 flex flex-col items-end gap-1">
-                    <div className="text-[11px] font-semibold text-slate-500">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${
-                        s.status === 'active' ? 'bg-emerald-50 text-emerald-700' :
-                        s.status === 'draft' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-700'
-                      }`}>
-                        {s.status}
-                      </span>
-                      {s.requires_secret_code ? " • code" : ""}
-                    </div>
-                    <div className="flex flex-wrap justify-end gap-2 mt-1">
-                      <Link
-                        className="text-xs font-semibold text-brand-green hover:underline"
-                        href={`/admin/exams/sessions/${s.id}`}
-                      >
-                        Edit
-                      </Link>
-                      <span className="text-slate-300">|</span>
-                      <Link className="text-xs font-semibold text-brand-green hover:underline" href={`/admin/exams/sessions/${s.id}/attempts`}>
-                        Attempts
-                      </Link>
-                      <span className="text-slate-300">|</span>
-                      <Link
-                        className="text-xs font-semibold text-brand-green hover:underline"
-                        href={`/admin/exams/sessions/${s.id}/conductors`}
-                      >
-                        Conductors
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No sessions match query.</div>
-          )}
-        </div>
-
-        {/* Pagination controls */}
-        {totalCount > pageSize && (
-          <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4">
-            <div className="flex flex-1 justify-between sm:hidden">
-              {page > 1 ? (
-                <Link
-                  href={`/admin/exams/sessions?page=${page - 1}${search ? `&search=${encodeURIComponent(search)}` : ""}${classFilter ? `&class_id=${classFilter}` : ""}${statusFilter ? `&status=${statusFilter}` : ""}`}
-                  className="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Previous
-                </Link>
-              ) : (
-                <span className="relative inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400">
-                  Previous
-                </span>
-              )}
-              {offset + sessionRows.length < totalCount ? (
-                <Link
-                  href={`/admin/exams/sessions?page=${page + 1}${search ? `&search=${encodeURIComponent(search)}` : ""}${classFilter ? `&class_id=${classFilter}` : ""}${statusFilter ? `&status=${statusFilter}` : ""}`}
-                  className="relative ml-3 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Next
-                </Link>
-              ) : (
-                <span className="relative ml-3 inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400">
-                  Next
-                </span>
-              )}
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-slate-700">
-                  Showing <span className="font-semibold">{offset + 1}</span> to{" "}
-                  <span className="font-semibold">{Math.min(offset + pageSize, totalCount)}</span> of{" "}
-                  <span className="font-semibold">{totalCount}</span> results
-                </p>
-              </div>
-              <div className="flex items-center gap-1">
-                {page > 1 && (
-                  <Link
-                    href={`/admin/exams/sessions?page=${page - 1}${search ? `&search=${encodeURIComponent(search)}` : ""}${classFilter ? `&class_id=${classFilter}` : ""}${statusFilter ? `&status=${statusFilter}` : ""}`}
-                    className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    Previous
-                  </Link>
-                )}
-                {Array.from({ length: Math.ceil(totalCount / pageSize) }).map((_, i) => {
-                  const p = i + 1;
-                  const isCurrent = p === page;
+      <Card>
+        <CardHeader title="Scheduled sessions" description={`${totalCount} session${totalCount !== 1 ? "s" : ""}${isFiltered ? " match your filters" : ""}`} />
+        {sessionRows.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[820px]">
+              <thead>
+                <tr>
+                  <th>Test</th>
+                  <th>Class</th>
+                  <th>Dates / student access</th>
+                  <th>Status</th>
+                  <th className="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessionRows.map((s) => {
+                  const test = testsById.get(s.test_id) ?? null;
+                  const cls = s.class_id ? (classesById.get(s.class_id) ?? null) : null;
+                  const windowLabel =
+                    s.starts_at || s.ends_at
+                      ? `${s.starts_at ? formatLagosDate(s.starts_at) : "Any time"} → ${s.ends_at ? formatLagosDate(s.ends_at) : "no end"}`
+                      : "No date limit";
+                  const visibility = sessionVisibility(s);
                   return (
-                    <Link
-                      key={p}
-                      href={`/admin/exams/sessions?page=${p}${search ? `&search=${encodeURIComponent(search)}` : ""}${classFilter ? `&class_id=${classFilter}` : ""}${statusFilter ? `&status=${statusFilter}` : ""}`}
-                      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-semibold transition-all ${
-                        isCurrent
-                          ? "border-brand-green bg-brand-green text-white"
-                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      {p}
-                    </Link>
+                    <tr key={s.id}>
+                      <td>
+                        <Link href={`/admin/exams/sessions/${s.id}`} className="font-semibold text-slate-900 hover:text-brand-green hover:underline">
+                          {test?.name ?? s.test_id}
+                        </Link>
+                      </td>
+                      <td>{cls ? `${cls.level} - ${cls.name}` : "—"}</td>
+                      <td>
+                        <div className="text-slate-700">{windowLabel}</div>
+                        <div
+                          className={`mt-1 inline-flex items-center gap-1.5 text-xs font-semibold ${
+                            visibility.visible ? "text-brand-green-700" : "text-brand-gold-800"
+                          }`}
+                        >
+                          {visibility.visible ? (
+                            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                          ) : (
+                            <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                          )}
+                          {visibility.reason}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <SessionStatusBadge status={s.status} />
+                          {s.requires_secret_code ? (
+                            <Badge tone="violet">
+                              <KeyRound className="h-3 w-3" aria-hidden="true" />
+                              code
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={`/admin/exams/sessions/${s.id}`}>
+                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                            Edit
+                          </Link>
+                          <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={`/admin/exams/sessions/${s.id}/attempts`}>
+                            <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />
+                            Attempts
+                          </Link>
+                          <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={`/admin/exams/sessions/${s.id}/conductors`}>
+                            <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                            Conductors
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })}
-                {offset + sessionRows.length < totalCount && (
-                  <Link
-                    href={`/admin/exams/sessions?page=${page + 1}${search ? `&search=${encodeURIComponent(search)}` : ""}${classFilter ? `&class_id=${classFilter}` : ""}${statusFilter ? `&status=${statusFilter}` : ""}`}
-                    className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    Next
-                  </Link>
-                )}
-              </div>
-            </div>
+              </tbody>
+            </table>
           </div>
+        ) : (
+          <EmptyState
+            icon={CalendarDays}
+            title="No sessions match query."
+            description={isFiltered ? "Try a different search or clear the filters." : "Schedule your first session using the form above."}
+          />
         )}
-      </div>
+
+        <Pagination
+          basePath="/admin/exams/sessions"
+          suffix={pageSuffix}
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          hasNext={offset + sessionRows.length < totalCount}
+        />
+      </Card>
     </div>
   );
 }

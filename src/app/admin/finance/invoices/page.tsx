@@ -1,5 +1,11 @@
 import Link from "next/link";
+import { FileText, Plus } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FinanceStatusBadge, fmtDate, fmtMoney } from "../_components/finance-ui";
 
 type InvoiceBalanceRow = {
   invoice_id: string;
@@ -34,57 +40,74 @@ export default async function AdminFinanceInvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Finance</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Invoices</h1>
-        <p className="mt-2 text-sm text-slate-600">Most recent invoices and balances.</p>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance">
-            Back to finance
-          </Link>
-          <Link
-            className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-            href="/admin/finance/invoices/new"
-          >
+      <PageHeader
+        back={{ href: "/admin/finance", label: "Back to finance" }}
+        eyebrow="Finance"
+        title="Invoices"
+        description="Most recent invoices and balances."
+        actions={
+          <ButtonLink href="/admin/finance/invoices/new">
+            <Plus className="h-4 w-4" aria-hidden="true" />
             New invoice
-          </Link>
-        </div>
-      </div>
+          </ButtonLink>
+        }
+      />
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-3">Invoice</div>
-          <div className="col-span-2">Issued</div>
-          <div className="col-span-2">Due</div>
-          <div className="col-span-1">Status</div>
-          <div className="col-span-2 text-right">Total</div>
-          <div className="col-span-2 text-right">Balance</div>
-        </div>
-        <div>
-          {invoices.length ? (
-            invoices.map((inv) => (
-              <Link
-                key={inv.invoice_id}
-                href={`/admin/finance/invoices/${inv.invoice_id}`}
-                className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm text-slate-700 hover:bg-slate-50"
-              >
-                <div className="col-span-3 font-semibold text-slate-900">{inv.invoice_no}</div>
-                <div className="col-span-2">{inv.issue_date}</div>
-                <div className="col-span-2">{inv.due_date ?? "—"}</div>
-                <div className="col-span-1">{inv.status}</div>
-                <div className="col-span-2 text-right">
-                  {inv.currency} {Number(inv.invoice_total ?? 0).toLocaleString()}
-                </div>
-                <div className="col-span-2 text-right">
-                  {inv.currency} {Number(inv.balance ?? 0).toLocaleString()}
-                </div>
-              </Link>
-            ))
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No invoices yet.</div>
-          )}
-        </div>
-      </div>
+      <Card>
+        <CardHeader title="Recent invoices" description={`${invoices.length} shown (latest 200)`} />
+        {invoices.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[720px]">
+              <thead>
+                <tr>
+                  <th>Invoice</th>
+                  <th>Issued</th>
+                  <th>Due</th>
+                  <th>Status</th>
+                  <th className="text-right">Total</th>
+                  <th className="text-right">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map((inv) => (
+                  <tr key={inv.invoice_id}>
+                    <td>
+                      <Link href={`/admin/finance/invoices/${inv.invoice_id}`} className="gf-link">
+                        {inv.invoice_no}
+                      </Link>
+                    </td>
+                    <td className="whitespace-nowrap">{fmtDate(inv.issue_date)}</td>
+                    <td className="whitespace-nowrap">{inv.due_date ? fmtDate(inv.due_date) : "—"}</td>
+                    <td>
+                      <FinanceStatusBadge status={inv.status} />
+                    </td>
+                    <td className="whitespace-nowrap text-right tabular-nums">{fmtMoney(inv.invoice_total, inv.currency)}</td>
+                    <td
+                      className={
+                        "whitespace-nowrap text-right font-semibold tabular-nums " +
+                        (Number(inv.balance ?? 0) > 0 ? "text-slate-900" : "text-slate-400")
+                      }
+                    >
+                      {fmtMoney(inv.balance, inv.currency)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={FileText}
+            title="No invoices yet"
+            description="Invoices you create for guardians and students will appear here."
+            action={
+              <ButtonLink href="/admin/finance/invoices/new" size="sm">
+                New invoice
+              </ButtonLink>
+            }
+          />
+        )}
+      </Card>
     </div>
   );
 }

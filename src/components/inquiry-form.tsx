@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { buttonClasses } from "@/components/ui/button";
+import Link from "next/link";
 
 type FormState =
   | { status: "idle" }
@@ -49,11 +51,12 @@ export function InquiryForm() {
   }
 
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
+    <form className="space-y-4" onSubmit={onSubmit} aria-live="polite">
       <div>
-        <label className="text-sm font-semibold text-slate-900">Full name</label>
+        <label htmlFor="inquiry-name" className="gf-label">Full name</label>
         <input
-          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+          id="inquiry-name"
+          className="gf-input"
           name="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -63,9 +66,10 @@ export function InquiryForm() {
         />
       </div>
       <div>
-        <label className="text-sm font-semibold text-slate-900">Email</label>
+        <label htmlFor="inquiry-email" className="gf-label">Email</label>
         <input
-          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+          id="inquiry-email"
+          className="gf-input"
           name="email"
           type="email"
           value={email}
@@ -76,9 +80,10 @@ export function InquiryForm() {
         />
       </div>
       <div>
-        <label className="text-sm font-semibold text-slate-900">Message</label>
+        <label htmlFor="inquiry-message" className="gf-label">Message</label>
         <textarea
-          className="mt-1 min-h-[120px] w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+          id="inquiry-message"
+          className="gf-input min-h-[120px]"
           name="message"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -102,13 +107,17 @@ export function InquiryForm() {
       <button
         type="submit"
         disabled={!canSubmit || state.status === "submitting"}
-        className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+        className={buttonClasses({ size: "lg", className: "w-full" })}
       >
-        {state.status === "submitting" ? "Sending…" : "Submit Inquiry"}
+        {state.status === "submitting" ? "Sending…" : "Send enquiry"}
       </button>
 
       <p className="text-xs text-slate-500">
-        Your enquiry will be saved and our team will contact you.
+        We&apos;ll use your details only to reply to your enquiry. See our{" "}
+        <Link href="/privacy" className="font-medium text-brand-green underline underline-offset-2">
+          privacy policy
+        </Link>
+        .
       </p>
     </form>
   );

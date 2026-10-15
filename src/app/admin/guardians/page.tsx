@@ -2,6 +2,15 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import UrlToast from "@/components/url-toast";
+import { redirect } from "next/navigation";
+import { ChevronRight, UserPlus, Users } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Avatar } from "@/components/ui/avatar";
+import { buttonClasses } from "@/components/ui/button";
 
 type GuardianRow = {
   id: string;
@@ -31,90 +40,117 @@ export default async function AdminGuardiansPage() {
     const email = String(formData.get("email") ?? "").trim();
     const phone = String(formData.get("phone") ?? "").trim();
 
-    if (!fullName) return;
+    if (!fullName) redirect(guardiansToast("Full name is required"));
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(guardiansToast("Server error — Supabase is not configured"));
 
-    await supabase.from("guardians").insert({
+    const { error } = await supabase.from("guardians").insert({
       full_name: fullName,
       email: email.length ? email : null,
       phone: phone.length ? phone : null
     });
+    if (error) redirect(guardiansToast(error.message));
 
     revalidatePath("/admin/guardians");
   }
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Admin</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Guardians</h1>
-        <p className="mt-2 text-sm text-slate-600">Manage parents/guardians and link them to students.</p>
-      </div>
+      <UrlToast />
+      <PageHeader
+        eyebrow="Admin"
+        title="Guardians"
+        description="Manage parents/guardians and link them to students."
+        actions={
+          <a href="#add-guardian" className={buttonClasses({ variant: "primary" })}>
+            <UserPlus className="h-4 w-4" aria-hidden="true" />
+            Add guardian
+          </a>
+        }
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Add guardian</h2>
-        <form action={createGuardian} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label className="text-sm font-semibold text-slate-900">Full name</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="full_name"
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Email</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="email"
-              type="email"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Phone</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="phone"
-              type="tel"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Creating…"
-            >
-              Create guardian
-            </SubmitButton>
-          </div>
-        </form>
-      </div>
-
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-5">Name</div>
-          <div className="col-span-4">Email</div>
-          <div className="col-span-3">Phone</div>
-        </div>
-        <div>
+      <div className="grid items-start gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-2">
+          <CardHeader
+            title="All guardians"
+            description={`${guardians.length} guardian${guardians.length === 1 ? "" : "s"}`}
+          />
           {guardians.length ? (
-            guardians.map((g) => (
-              <Link
-                key={g.id}
-                href={`/admin/guardians/${g.id}`}
-                className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm text-slate-700 hover:bg-slate-50"
-              >
-                <div className="col-span-5 font-semibold text-slate-900">{g.full_name}</div>
-                <div className="col-span-4">{g.email ?? "—"}</div>
-                <div className="col-span-3">{g.phone ?? "—"}</div>
-              </Link>
-            ))
+            <div className="gf-table-wrap">
+              <table className="gf-table min-w-[560px]">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th className="w-10">
+                      <span className="sr-only">Open</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {guardians.map((g) => (
+                    <tr key={g.id} className="group">
+                      <td>
+                        <Link href={`/admin/guardians/${g.id}`} className="flex items-center gap-3 font-semibold text-slate-900 hover:text-brand-green">
+                          <Avatar name={g.full_name} size="sm" />
+                          {g.full_name}
+                        </Link>
+                      </td>
+                      <td>{g.email ?? "—"}</td>
+                      <td className="whitespace-nowrap">{g.phone ?? "—"}</td>
+                      <td className="text-right">
+                        <Link
+                          href={`/admin/guardians/${g.id}`}
+                          aria-label={`Open ${g.full_name}`}
+                          className="inline-flex text-slate-300 transition group-hover:text-brand-green"
+                        >
+                          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No guardians yet.</div>
+            <EmptyState
+              icon={Users}
+              title="No guardians yet."
+              description="Add a parent or guardian using the form, then link them to their children."
+            />
           )}
-        </div>
+        </Card>
+
+        <form action={createGuardian} id="add-guardian" className="scroll-mt-24">
+          <FormSection
+            title="Add guardian"
+            description="Email and phone are optional."
+            footer={
+              <SubmitButton variant="primary" pendingText="Creating…">
+                Create guardian
+              </SubmitButton>
+            }
+          >
+            <div className="grid gap-4">
+              <Field label="Full name" htmlFor="guardian-full-name" required>
+                <input id="guardian-full-name" className="gf-input" name="full_name" required />
+              </Field>
+              <Field label="Email" htmlFor="guardian-email">
+                <input id="guardian-email" className="gf-input" name="email" type="email" />
+              </Field>
+              <Field label="Phone" htmlFor="guardian-phone">
+                <input id="guardian-phone" className="gf-input" name="phone" type="tel" />
+              </Field>
+            </div>
+          </FormSection>
+        </form>
       </div>
     </div>
   );
+}
+
+function guardiansToast(message: string, type: "error" | "success" = "error") {
+  return `/admin/guardians?toast=${encodeURIComponent(message)}&toast_type=${type}`;
 }

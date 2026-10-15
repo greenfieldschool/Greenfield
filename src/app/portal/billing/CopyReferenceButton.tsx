@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Check, Copy } from "lucide-react";
+import { buttonClasses } from "@/components/ui/button";
 
 export default function CopyReferenceButton({ value }: { value: string }) {
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
@@ -17,12 +19,13 @@ export default function CopyReferenceButton({ value }: { value: string }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={copy}
-      className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-50"
-    >
-      {status === "copied" ? "Copied" : status === "failed" ? "Copy failed" : "Copy"}
+    <button type="button" onClick={copy} className={buttonClasses({ variant: "secondary", size: "md" })} aria-live="polite">
+      {status === "copied" ? (
+        <Check className="h-4 w-4 text-brand-green-600" aria-hidden="true" />
+      ) : (
+        <Copy className="h-4 w-4" aria-hidden="true" />
+      )}
+      {status === "copied" ? "Copied" : status === "failed" ? "Copy failed" : "Copy reference"}
     </button>
   );
 }

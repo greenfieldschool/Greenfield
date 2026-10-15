@@ -1,12 +1,21 @@
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import SubmitButton from "@/components/submit-button";
+import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import GuardianPhotoUploader from "./GuardianPhotoUploader";
 import UrlToast from "@/components/url-toast";
 import PasswordInput from "@/components/password-input";
+import { Mail, Phone, UserX, Users } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
 
 type GuardianRow = {
   id: string;
@@ -55,13 +64,20 @@ export default async function AdminGuardianDetailPage({
 
   if (!guardian) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Guardian not found</h1>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-slate-900 hover:text-slate-700" href="/admin/guardians">
-            Back to guardians
-          </Link>
-        </div>
+      <div className="space-y-6">
+        <PageHeader back={{ href: "/admin/guardians", label: "Back to guardians" }} title="Guardian not found" />
+        <Card>
+          <EmptyState
+            icon={UserX}
+            title="We couldn't find this guardian"
+            description="They may have been removed, or the link is wrong."
+            action={
+              <ButtonLink href="/admin/guardians" variant="secondary" size="sm">
+                Back to guardians
+              </ButtonLink>
+            }
+          />
+        </Card>
       </div>
     );
   }
@@ -120,7 +136,7 @@ export default async function AdminGuardianDetailPage({
   async function updateGuardianProfile(formData: FormData) {
     "use server";
 
-    if (!isAdmin) return;
+    if (!isAdmin) redirect(guardianToast(guardianId, "You do not have permission to edit guardian profiles"));
 
     const photoUrlRaw = String(formData.get("profile_photo_url") ?? "").trim();
     const interestsRaw = String(formData.get("interests") ?? "").trim();
@@ -134,12 +150,13 @@ export default async function AdminGuardianDetailPage({
       : [];
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(guardianToast(guardianId, "Server error — Supabase is not configured"));
 
-    await supabase
+    const { error } = await supabase
       .from("guardians")
       .update({ profile_photo_url: profilePhotoUrl, interests })
       .eq("id", guardianId);
+    if (error) redirect(guardianToast(guardianId, error.message));
 
     revalidatePath(`/admin/guardians/${guardianId}`);
     revalidatePath("/admin/guardians");
@@ -148,15 +165,16 @@ export default async function AdminGuardianDetailPage({
   async function saveGuardianPhoto(formData: FormData) {
     "use server";
 
-    if (!isAdmin) return;
+    if (!isAdmin) redirect(guardianToast(guardianId, "You do not have permission to change guardian photos"));
 
     const photoUrlRaw = String(formData.get("profile_photo_url") ?? "").trim();
     const profilePhotoUrl = photoUrlRaw.length ? photoUrlRaw : null;
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(guardianToast(guardianId, "Server error — Supabase is not configured"));
 
-    await supabase.from("guardians").update({ profile_photo_url: profilePhotoUrl }).eq("id", guardianId);
+    const { error } = await supabase.from("guardians").update({ profile_photo_url: profilePhotoUrl }).eq("id", guardianId);
+    if (error) redirect(guardianToast(guardianId, error.message));
 
     revalidatePath(`/admin/guardians/${guardianId}`);
     revalidatePath("/admin/guardians");
@@ -169,17 +187,22 @@ export default async function AdminGuardianDetailPage({
     const relationship = String(formData.get("relationship") ?? "").trim();
     const isPrimary = formData.get("is_primary") === "on";
 
-    if (!studentId) return;
+    if (!studentId) redirect(guardianToast(guardianId, "Pick a student to link"));
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(guardianToast(guardianId, "Server error — Supabase is not configured"));
 
-    await supabase.from("student_guardians").insert({
+    if (!(await hasStaffRole(supabase))) {
+      redirect(guardianToast(guardianId, "You do not have permission to link students"));
+    }
+
+    const { error } = await supabase.from("student_guardians").insert({
       student_id: studentId,
       guardian_id: guardianId,
       relationship: relationship.length ? relationship : null,
       is_primary: isPrimary
     });
+    if (error) redirect(guardianToast(guardianId, error.message));
 
     revalidatePath(`/admin/guardians/${guardianId}`);
   }
@@ -195,7 +218,7 @@ export default async function AdminGuardianDetailPage({
     }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(guardianToast(guardianId, "Server error — Supabase is not configured"));
 
     const {
       data: { user }
@@ -255,7 +278,7 @@ export default async function AdminGuardianDetailPage({
     }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(guardianToast(guardianId, "Server error — Supabase is not configured"));
 
     const {
       data: { user }
@@ -289,31 +312,32 @@ export default async function AdminGuardianDetailPage({
     "use server";
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(guardianToast(guardianId, "Server error — Supabase is not configured"));
 
     const {
       data: { user }
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) redirect(guardianToast(guardianId, "You must be logged in"));
 
     const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
     const role = (me?.role ?? null) as string | null;
     const isAllowed = role === "super_admin" || role === "admin";
-    if (!isAllowed) return;
+    if (!isAllowed) redirect(guardianToast(guardianId, "You do not have permission to edit guardians"));
 
     const fullName = String(formData.get("full_name") ?? "").trim();
     const emailRaw = String(formData.get("email") ?? "").trim();
     const phoneRaw = String(formData.get("phone") ?? "").trim();
 
-    if (!fullName) return;
+    if (!fullName) redirect(guardianToast(guardianId, "Full name is required"));
 
     const email = emailRaw.length ? emailRaw : null;
     const phone = phoneRaw.length ? phoneRaw : null;
 
-    await supabase
+    const { error } = await supabase
       .from("guardians")
       .update({ full_name: fullName, email, phone })
       .eq("id", guardianId);
+    if (error) redirect(guardianToast(guardianId, error.message));
 
     revalidatePath(`/admin/guardians/${guardianId}`);
     revalidatePath("/admin/guardians");
@@ -324,16 +348,21 @@ export default async function AdminGuardianDetailPage({
     "use server";
 
     const studentId = String(formData.get("student_id") ?? "").trim();
-    if (!studentId) return;
+    if (!studentId) redirect(guardianToast(guardianId, "Missing student — reload and try again"));
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(guardianToast(guardianId, "Server error — Supabase is not configured"));
 
-    await supabase
+    if (!(await hasStaffRole(supabase))) {
+      redirect(guardianToast(guardianId, "You do not have permission to unlink students"));
+    }
+
+    const { error } = await supabase
       .from("student_guardians")
       .delete()
       .eq("student_id", studentId)
       .eq("guardian_id", guardianId);
+    if (error) redirect(guardianToast(guardianId, error.message));
 
     revalidatePath(`/admin/guardians/${guardianId}`);
   }
@@ -341,258 +370,325 @@ export default async function AdminGuardianDetailPage({
   return (
     <div className="space-y-6">
       <UrlToast />
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Guardian</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">{guardianFullName}</h1>
-        {isAdmin ? (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-            <h2 className="text-base font-semibold text-slate-900">Edit guardian</h2>
-            <form action={updateGuardianBasics} className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Full name</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="full_name"
-                  defaultValue={guardian.full_name}
-                  required
-                />
+      <PageHeader
+        back={{ href: "/admin/guardians", label: "Back to guardians" }}
+        eyebrow="Guardian"
+        title={guardianFullName}
+        description={[guardianEmail, guardian.phone].filter(Boolean).join(" · ") || undefined}
+      />
+
+      <div className="grid items-start gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <CardHeader
+              title="Linked students"
+              description={`${linked.length} student${linked.length === 1 ? "" : "s"} linked to this guardian`}
+            />
+            {linked.length ? (
+              <div className="gf-table-wrap">
+                <table className="gf-table min-w-[620px]">
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Level</th>
+                      <th>Status</th>
+                      <th>Relationship</th>
+                      <th className="text-right">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {linked.map((s) => (
+                      <tr key={s.id}>
+                        <td>
+                          <div className="flex items-center gap-3">
+                            <Avatar name={`${s.first_name} ${s.last_name}`} size="sm" />
+                            <span className="font-semibold text-slate-900">
+                              {s.first_name} {s.last_name}
+                            </span>
+                            {s.is_primary ? <Badge tone="gold">Primary</Badge> : null}
+                          </div>
+                        </td>
+                        <td className="capitalize">{s.level}</td>
+                        <td>
+                          <Badge tone={statusTone(s.status)}>{s.status}</Badge>
+                        </td>
+                        <td>{s.relationship ?? "—"}</td>
+                        <td className="text-right">
+                          <form action={unlinkStudent}>
+                            <input type="hidden" name="student_id" value={s.id} />
+                            <ConfirmSubmitButton
+                              className={buttonClasses({
+                                variant: "secondary",
+                                size: "sm",
+                                className: "text-red-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                              })}
+                              confirmMessage={`Unlink ${s.first_name} ${s.last_name} from ${guardianFullName}?`}
+                            >
+                              Unlink
+                            </ConfirmSubmitButton>
+                          </form>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Email</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="email"
-                  type="email"
-                  defaultValue={guardian.email ?? ""}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Phone</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="phone"
-                  type="tel"
-                  defaultValue={guardian.phone ?? ""}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <SubmitButton
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                  pendingText="Saving…"
-                >
-                  Save changes
+            ) : (
+              <EmptyState
+                icon={Users}
+                title="No students linked yet."
+                description="Use the form below to connect this guardian to their children."
+              />
+            )}
+          </Card>
+
+          <form action={linkStudent}>
+            <FormSection
+              title="Link a student"
+              description="Connect this guardian to a child so they appear on the parent portal."
+              footer={
+                <SubmitButton variant="primary" pendingText="Linking…" disabled={!availableStudents.length}>
+                  Link student
                 </SubmitButton>
+              }
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Student" htmlFor="link-student" required>
+                  <select
+                    id="link-student"
+                    className="gf-select"
+                    name="student_id"
+                    required
+                    defaultValue=""
+                    disabled={!availableStudents.length}
+                  >
+                    <option value="" disabled>
+                      {availableStudents.length ? "Select a student" : "No available students"}
+                    </option>
+                    {availableStudents.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.first_name} {s.last_name} ({s.level})
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Relationship" htmlFor="link-relationship">
+                  <input
+                    id="link-relationship"
+                    className="gf-input"
+                    name="relationship"
+                    placeholder="e.g. Mother, Father, Guardian"
+                  />
+                </Field>
+                <label htmlFor="is_primary" className="flex items-center gap-3 text-sm font-medium text-slate-700 sm:col-span-2">
+                  <input className="gf-checkbox" name="is_primary" type="checkbox" id="is_primary" />
+                  Primary guardian
+                </label>
               </div>
+            </FormSection>
+          </form>
+
+          {isAdmin ? (
+            <form action={updateGuardianBasics}>
+              <FormSection
+                title="Edit guardian"
+                description="Name and contact details."
+                footer={
+                  <SubmitButton variant="primary" pendingText="Saving…">
+                    Save changes
+                  </SubmitButton>
+                }
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Full name" htmlFor="guardian-full-name" required className="sm:col-span-2">
+                    <input
+                      id="guardian-full-name"
+                      className="gf-input"
+                      name="full_name"
+                      defaultValue={guardian.full_name}
+                      required
+                    />
+                  </Field>
+                  <Field label="Email" htmlFor="guardian-email">
+                    <input
+                      id="guardian-email"
+                      className="gf-input"
+                      name="email"
+                      type="email"
+                      defaultValue={guardian.email ?? ""}
+                    />
+                  </Field>
+                  <Field label="Phone" htmlFor="guardian-phone">
+                    <input
+                      id="guardian-phone"
+                      className="gf-input"
+                      name="phone"
+                      type="tel"
+                      defaultValue={guardian.phone ?? ""}
+                    />
+                  </Field>
+                </div>
+              </FormSection>
             </form>
-          </div>
-        ) : null}
-        {isAdmin ? (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-            <h2 className="text-base font-semibold text-slate-900">Profile</h2>
-            <p className="mt-1 text-sm text-slate-600">Profile enrichment fields (admin-managed).</p>
-            <div className="mt-4">
+          ) : null}
+
+          {isAdmin ? (
+            <FormSection title="Profile" description="Profile enrichment fields (admin-managed).">
               <GuardianPhotoUploader
                 guardianId={guardianId}
                 initialUrl={guardian.profile_photo_url ?? null}
                 saveAction={saveGuardianPhoto}
               />
-            </div>
-            <form action={updateGuardianProfile} className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Profile photo URL (optional)</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="profile_photo_url"
-                  defaultValue={guardian.profile_photo_url ?? ""}
-                  placeholder="https://..."
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Interests (comma separated)</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="interests"
-                  defaultValue={(guardian.interests ?? []).join(", ")}
-                  placeholder="e.g. PTA, Volunteering, Reading"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <SubmitButton
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                  pendingText="Saving…"
-                >
-                  Save profile
-                </SubmitButton>
-              </div>
-            </form>
-          </div>
-        ) : null}
-        <div className="mt-4 text-sm text-slate-700">
-          <div>{guardianEmail ?? "—"}</div>
-          <div className="mt-1">{guardian.phone ?? "—"}</div>
-        </div>
-        <div className="mt-6">
-          <Link className="text-sm font-semibold text-slate-900 hover:text-slate-700" href="/admin/guardians">
-            Back to guardians
-          </Link>
-        </div>
-      </div>
-
-      {isAdmin ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Portal access</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Create a parent portal account and set/reset the password (for printing). Parents cannot reset passwords themselves.
-          </p>
-
-          {!guardianEmail ? (
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-              Add an email address for this guardian before creating portal access.
-            </div>
-          ) : null}
-
-          {portalUserId ? (
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <div className="text-sm font-semibold text-slate-900">Account exists</div>
-              <div className="mt-1 text-sm text-slate-700">User ID: {portalUserId}</div>
-
-              <form action={resetPortalPassword} className="mt-4 grid gap-4 sm:grid-cols-2">
-                <input type="hidden" name="user_id" value={portalUserId} />
-                <PasswordInput
-                  label="New password"
-                  name="password"
-                  minLength={8}
-                  required
-                  containerClassName="sm:col-span-2"
-                />
-                <div className="sm:col-span-2">
-                  <SubmitButton
-                    className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    pendingText="Saving…"
-                    showSpinner={false}
-                  >
-                    Reset password
+              <form action={updateGuardianProfile} className="mt-6 grid gap-4 border-t border-slate-100 pt-5">
+                <Field label="Profile photo URL (optional)" htmlFor="guardian-photo-url">
+                  <input
+                    id="guardian-photo-url"
+                    className="gf-input"
+                    name="profile_photo_url"
+                    defaultValue={guardian.profile_photo_url ?? ""}
+                    placeholder="https://..."
+                  />
+                </Field>
+                <Field label="Interests (comma separated)" htmlFor="guardian-interests">
+                  <input
+                    id="guardian-interests"
+                    className="gf-input"
+                    name="interests"
+                    defaultValue={(guardian.interests ?? []).join(", ")}
+                    placeholder="e.g. PTA, Volunteering, Reading"
+                  />
+                </Field>
+                <div className="flex justify-end">
+                  <SubmitButton variant="primary" pendingText="Saving…">
+                    Save profile
                   </SubmitButton>
                 </div>
               </form>
-            </div>
-          ) : (
-            <form action={createPortalAccount} className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Email</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="email"
-                  type="email"
-                  defaultValue={guardianEmail ?? ""}
-                  required
-                />
-              </div>
-              <PasswordInput
-                label="Initial password"
-                name="password"
-                minLength={8}
-                required
-                containerClassName="sm:col-span-2"
-              />
-              <div className="sm:col-span-2">
-                <SubmitButton
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                  pendingText="Creating…"
-                  disabled={!guardianEmail}
-                >
-                  Create portal account
-                </SubmitButton>
-              </div>
-            </form>
-          )}
+            </FormSection>
+          ) : null}
         </div>
-      ) : null}
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Linked students</h2>
-        <div className="mt-4 space-y-3">
-          {linked.length ? (
-            linked.map((s) => (
-              <div
-                key={s.id}
-                className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:flex-row sm:items-center sm:justify-between"
-              >
+        <div className="space-y-6">
+          <Card>
+            <CardBody>
+              <div className="flex items-center gap-4">
+                <Avatar name={guardianFullName} src={guardian.profile_photo_url} size="lg" />
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-900">
-                    {s.first_name} {s.last_name}
-                  </div>
-                  <div className="mt-1 text-sm text-slate-600">
-                    {s.level} • {s.status}
-                    {s.relationship ? ` • Relationship: ${s.relationship}` : ""}
-                    {s.is_primary ? " • Primary" : ""}
-                  </div>
+                  <div className="truncate text-base font-semibold text-slate-900">{guardianFullName}</div>
+                  <div className="text-sm text-slate-500">Guardian</div>
                 </div>
-                <form action={unlinkStudent}>
-                  <input type="hidden" name="student_id" value={s.id} />
-                  <SubmitButton
-                    className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    pendingText="Removing…"
-                    showSpinner={false}
-                  >
-                    Unlink
-                  </SubmitButton>
-                </form>
               </div>
-            ))
-          ) : (
-            <div className="text-sm text-slate-600">No students linked yet.</div>
-          )}
-        </div>
-      </div>
+              <dl className="mt-5 space-y-3 text-sm">
+                <div className="flex items-center gap-3">
+                  <dt>
+                    <Mail className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                    <span className="sr-only">Email</span>
+                  </dt>
+                  <dd className="min-w-0 truncate text-slate-700">{guardianEmail ?? "—"}</dd>
+                </div>
+                <div className="flex items-center gap-3">
+                  <dt>
+                    <Phone className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                    <span className="sr-only">Phone</span>
+                  </dt>
+                  <dd className="text-slate-700">{guardian.phone ?? "—"}</dd>
+                </div>
+              </dl>
+              {(guardian.interests ?? []).length ? (
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {(guardian.interests ?? []).map((it) => (
+                    <Badge key={it} tone="slate">
+                      {it}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+            </CardBody>
+          </Card>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Link a student</h2>
-        <form action={linkStudent} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Student</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="student_id"
-              required
-              defaultValue=""
-              disabled={!availableStudents.length}
-            >
-              <option value="" disabled>
-                {availableStudents.length ? "Select a student" : "No available students"}
-              </option>
-              {availableStudents.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.first_name} {s.last_name} ({s.level})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Relationship</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="relationship"
-              placeholder="e.g. Mother, Father, Guardian"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <input className="h-4 w-4 rounded border-slate-300" name="is_primary" type="checkbox" id="is_primary" />
-            <label htmlFor="is_primary" className="text-sm font-semibold text-slate-900">
-              Primary guardian
-            </label>
-          </div>
-          <div className="flex items-end">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Linking…"
-              disabled={!availableStudents.length}
-            >
-              Link student
-            </SubmitButton>
-          </div>
-        </form>
+          {isAdmin ? (
+            <Card>
+              <CardHeader
+                title="Portal access"
+                description="Create a parent portal account and set/reset the password (for printing). Parents cannot reset passwords themselves."
+                action={portalUserId ? <Badge tone="green" dot>Active</Badge> : <Badge tone="slate">None</Badge>}
+              />
+              <CardBody className="space-y-4">
+                {!guardianEmail ? (
+                  <Alert tone="warning">Add an email address for this guardian before creating portal access.</Alert>
+                ) : null}
+
+                {portalUserId ? (
+                  <>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="text-sm font-semibold text-slate-900">Account exists</div>
+                      <div className="mt-0.5 break-all font-mono text-xs text-slate-600">User ID: {portalUserId}</div>
+                    </div>
+                    <form action={resetPortalPassword} className="space-y-4">
+                      <input type="hidden" name="user_id" value={portalUserId} />
+                      <PasswordInput id="guardian-reset-password" label="New password" name="password" minLength={8} required />
+                      <SubmitButton
+                        className={buttonClasses({ variant: "secondary", className: "w-full" })}
+                        pendingText="Saving…"
+                        showSpinner={false}
+                      >
+                        Reset password
+                      </SubmitButton>
+                    </form>
+                  </>
+                ) : (
+                  <form action={createPortalAccount} className="space-y-4">
+                    <Field label="Email" htmlFor="guardian-portal-email" required>
+                      <input
+                        id="guardian-portal-email"
+                        className="gf-input"
+                        name="email"
+                        type="email"
+                        defaultValue={guardianEmail ?? ""}
+                        required
+                      />
+                    </Field>
+                    <PasswordInput id="guardian-portal-password" label="Initial password" name="password" minLength={8} required />
+                    <SubmitButton
+                      className={buttonClasses({ variant: "primary", className: "w-full" })}
+                      pendingText="Creating…"
+                      disabled={!guardianEmail}
+                    >
+                      Create portal account
+                    </SubmitButton>
+                  </form>
+                )}
+              </CardBody>
+            </Card>
+          ) : null}
+        </div>
       </div>
     </div>
   );
+}
+
+const STAFF_ROLES = new Set(["super_admin", "admin", "teacher", "front_desk", "nurse"]);
+
+function guardianToast(guardianId: string, message: string, type: "error" | "success" = "error") {
+  return `/admin/guardians/${guardianId}?toast=${encodeURIComponent(message)}&toast_type=${type}`;
+}
+
+// Server-side check for the link/unlink actions: any staff role that can open this page may use them.
+async function hasStaffRole(supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>) {
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  const { data } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  const role = (data as { role?: string | null } | null)?.role ?? null;
+  return role !== null && STAFF_ROLES.has(role);
+}
+
+function statusTone(status: string): BadgeTone {
+  if (status === "active" || status === "enrolled" || status === "graduated") return "green";
+  if (status === "applied") return "gold";
+  if (status === "withdrawn") return "red";
+  return "slate";
 }

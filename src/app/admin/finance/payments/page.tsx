@@ -5,6 +5,15 @@ import { firstOrNull } from "@/lib/relations";
 import { lagosEndOfDayIso, lagosStartOfDayIso } from "@/lib/lagos-dates";
 import { classLabel, loadStudentsByClass } from "@/lib/student-classes";
 import { fetchAllRows } from "@/lib/fetch-all";
+import { Banknote, Filter, Pencil, Plus, Receipt, Search, UserX, Users, Wallet } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Field } from "@/components/ui/form-section";
+import { StatCard } from "@/components/ui/stat-card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
+import { FinanceStatusBadge, currencyPrefix, fmtDateTime } from "../_components/finance-ui";
 
 type InvoiceRef = { student_id: string | null };
 type AllocationRef = { finance_invoices: InvoiceRef | InvoiceRef[] | null };
@@ -121,198 +130,243 @@ export default async function AdminFinancePaymentsPage({
     return qs ? `/admin/finance/payments?${qs}` : "/admin/finance/payments";
   };
 
-  const inputClass =
-    "mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20";
-
   return (
     <div className="space-y-6">
       <UrlToast />
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Finance</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Payments</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Payments with the student and class they belong to. Click a payment to edit or delete it.
-        </p>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex gap-4">
-            <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance">
-              Back to finance
-            </Link>
-            <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/debtors">
+      <PageHeader
+        back={{ href: "/admin/finance", label: "Back to finance" }}
+        eyebrow="Finance"
+        title="Payments"
+        description="Payments with the student and class they belong to. Click a payment to edit or delete it."
+        actions={
+          <>
+            <ButtonLink href="/admin/finance/debtors" variant="secondary">
+              <UserX className="h-4 w-4" aria-hidden="true" />
               Debtors by class
-            </Link>
-          </div>
-          <Link
-            className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-            href="/admin/finance/payments/new"
-          >
-            Record payment
-          </Link>
-        </div>
-      </div>
+            </ButtonLink>
+            <ButtonLink href="/admin/finance/payments/new">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Record payment
+            </ButtonLink>
+          </>
+        }
+      />
 
       {/* Filters (plain GET form so the URL can be bookmarked or shared) */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <form method="get" action="/admin/finance/payments" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
-          <div>
-            <label className="text-xs font-semibold text-slate-500">Class</label>
-            <select className={inputClass} name="class_id" defaultValue={classFilter}>
-              <option value="">All classes</option>
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {classLabel(c)}
-                </option>
-              ))}
-              <option value={NO_CLASS}>No student / class</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-slate-500">From</label>
-            <input className={inputClass} type="date" name="from" defaultValue={fromDate} />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-slate-500">To</label>
-            <input className={inputClass} type="date" name="to" defaultValue={toDate} />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-slate-500">Student or reference</label>
-            <input className={inputClass} name="q" defaultValue={str(sp.q)} placeholder="Name, adm. no, reference…" />
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              className="inline-flex flex-1 items-center justify-center rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white hover:brightness-95"
-            >
-              Filter
-            </button>
-            {isFiltered ? (
-              <Link
-                href="/admin/finance/payments"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-              >
-                Clear
-              </Link>
-            ) : null}
-          </div>
-        </form>
-      </div>
+      <Card>
+        <CardBody>
+          <form method="get" action="/admin/finance/payments" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+            <Field label="Class" htmlFor="pay-class">
+              <select id="pay-class" className="gf-select" name="class_id" defaultValue={classFilter}>
+                <option value="">All classes</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {classLabel(c)}
+                  </option>
+                ))}
+                <option value={NO_CLASS}>No student / class</option>
+              </select>
+            </Field>
+            <Field label="From" htmlFor="pay-from">
+              <input id="pay-from" className="gf-input" type="date" name="from" defaultValue={fromDate} />
+            </Field>
+            <Field label="To" htmlFor="pay-to">
+              <input id="pay-to" className="gf-input" type="date" name="to" defaultValue={toDate} />
+            </Field>
+            <Field label="Student or reference" htmlFor="pay-q">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                <input
+                  id="pay-q"
+                  className="gf-input pl-9"
+                  name="q"
+                  defaultValue={str(sp.q)}
+                  placeholder="Name, adm. no, reference…"
+                />
+              </div>
+            </Field>
+            <div className="flex gap-2">
+              <button type="submit" className={buttonClasses({ className: "flex-1" })}>
+                <Filter className="h-4 w-4" aria-hidden="true" />
+                Filter
+              </button>
+              {isFiltered ? (
+                <ButtonLink href="/admin/finance/payments" variant="secondary">
+                  Clear
+                </ButtonLink>
+              ) : null}
+            </div>
+          </form>
+        </CardBody>
+      </Card>
 
       {/* Summary */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Total collected</div>
-          <div className="mt-2 text-2xl font-bold text-emerald-900">NGN {money(totalCollected)}</div>
-          <div className="mt-1 text-xs text-emerald-800">
-            {classFilter
-              ? classFilter === NO_CLASS
-                ? "Payments not linked to a student"
-                : classLabel(classById.get(classFilter))
-              : "All classes"}
-            {fromDate || toDate ? ` · ${fromDate || "start"} to ${toDate || "today"}` : ""}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Payments</div>
-          <div className="mt-2 text-2xl font-bold text-slate-900">{counted.length}</div>
-          <div className="mt-1 text-xs text-slate-500">Posted payments (void ones are excluded)</div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Students who paid</div>
-          <div className="mt-2 text-2xl font-bold text-slate-900">{studentsPaid}</div>
-          <div className="mt-1 text-xs text-slate-500">Distinct students in these payments</div>
-        </div>
+        <StatCard
+          label="Total collected"
+          value={<span className="tabular-nums">₦{money(totalCollected)}</span>}
+          hint={
+            <>
+              {classFilter
+                ? classFilter === NO_CLASS
+                  ? "Payments not linked to a student"
+                  : classLabel(classById.get(classFilter))
+                : "All classes"}
+              {fromDate || toDate ? ` · ${fromDate || "start"} to ${toDate || "today"}` : ""}
+            </>
+          }
+          icon={Banknote}
+          tone="green"
+        />
+        <StatCard
+          label="Payments"
+          value={<span className="tabular-nums">{counted.length.toLocaleString("en-NG")}</span>}
+          hint="Posted payments (void ones are excluded)"
+          icon={Receipt}
+          tone="blue"
+        />
+        <StatCard
+          label="Students who paid"
+          value={<span className="tabular-nums">{studentsPaid.toLocaleString("en-NG")}</span>}
+          hint="Distinct students in these payments"
+          icon={Users}
+          tone="gold"
+        />
       </div>
 
       {/* Totals per class */}
       {classTotals.length && !query ? (
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-6 py-4">
-            <div className="font-semibold text-slate-900">Amount collected per class</div>
-            <div className="text-xs text-slate-500">Click a class to see its payments. Based on each student&apos;s current class.</div>
+        <Card>
+          <CardHeader
+            title="Amount collected per class"
+            description="Click a class to see its payments. Based on each student's current class."
+          />
+          <div className="gf-table-wrap">
+            <table className="gf-table">
+              <thead>
+                <tr>
+                  <th>Class</th>
+                  <th className="text-right">Payments</th>
+                  <th className="text-right">Collected</th>
+                </tr>
+              </thead>
+              <tbody>
+                {classTotals.map(([key, c]) => (
+                  <tr key={key} className={classFilter === key ? "bg-brand-green-50/60" : undefined}>
+                    <td>
+                      <Link href={linkWith({ class_id: key })} className="gf-link">
+                        {c.label}
+                      </Link>
+                      {classFilter === key ? (
+                        <Badge tone="green" className="ml-2">
+                          Selected
+                        </Badge>
+                      ) : null}
+                    </td>
+                    <td className="text-right tabular-nums">
+                      {c.count} payment{c.count === 1 ? "" : "s"}
+                    </td>
+                    <td className="whitespace-nowrap text-right font-semibold tabular-nums text-slate-900">₦{money(c.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="divide-y divide-slate-100">
-            {classTotals.map(([key, c]) => (
-              <Link
-                key={key}
-                href={linkWith({ class_id: key })}
-                className={`flex items-center justify-between px-6 py-3 text-sm hover:bg-slate-50 ${
-                  classFilter === key ? "bg-emerald-50/60" : ""
-                }`}
-              >
-                <span className="font-semibold text-slate-900">{c.label}</span>
-                <span className="text-slate-700">
-                  {c.count} payment{c.count === 1 ? "" : "s"} ·{" "}
-                  <span className="font-semibold text-slate-900">NGN {money(c.total)}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
+        </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
-              <tr>
-                <th className="px-6 py-3 text-left">Date</th>
-                <th className="px-3 py-3 text-left">Student</th>
-                <th className="px-3 py-3 text-left">Class</th>
-                <th className="px-3 py-3 text-left">Method</th>
-                <th className="px-3 py-3 text-left">Reference</th>
-                <th className="px-3 py-3 text-right">Amount</th>
-                <th className="px-6 py-3 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length ? (
-                filtered.slice(0, DISPLAY_LIMIT).map((p) => (
-                  <tr
-                    key={p.id}
-                    className={`border-t border-slate-200 ${p.status === "void" ? "text-slate-400 line-through" : "text-slate-700"}`}
-                  >
-                    <td className="whitespace-nowrap px-6 py-3">{new Date(p.paid_at).toLocaleString()}</td>
-                    <td className="px-3 py-3">
+      <Card>
+        <CardHeader
+          title="Payment records"
+          description={`${filtered.length.toLocaleString("en-NG")} payment${filtered.length === 1 ? "" : "s"}${isFiltered ? " match these filters" : ""}`}
+        />
+        {filtered.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[860px]">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Student</th>
+                  <th>Class</th>
+                  <th>Method</th>
+                  <th>Reference</th>
+                  <th>Status</th>
+                  <th className="text-right">Amount</th>
+                  <th className="text-right">
+                    <span className="sr-only">Action</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.slice(0, DISPLAY_LIMIT).map((p) => (
+                  <tr key={p.id} className={p.status === "void" ? "text-slate-400 line-through" : undefined}>
+                    <td className="whitespace-nowrap">{fmtDateTime(p.paid_at)}</td>
+                    <td>
                       {p.student ? (
                         <span className="font-semibold text-slate-900">
                           {p.student.last_name} {p.student.first_name}
                         </span>
                       ) : (
-                        <span className="text-amber-700">Not linked</span>
+                        <Badge tone="gold">Not linked</Badge>
                       )}
                     </td>
-                    <td className="px-3 py-3">{p.cls ? classLabel(p.cls) : "—"}</td>
-                    <td className="px-3 py-3">{p.method ?? "—"}</td>
-                    <td className="max-w-[180px] truncate px-3 py-3" title={p.reference ?? ""}>
+                    <td className="whitespace-nowrap">{p.cls ? classLabel(p.cls) : "—"}</td>
+                    <td className="capitalize">{p.method ?? "—"}</td>
+                    <td className="max-w-[180px] truncate" title={p.reference ?? ""}>
                       {p.reference ?? "—"}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-right">
-                      {p.direction === "outflow" ? "−" : ""}
-                      {p.currency} {money(p.amount)}
+                    <td>
+                      <FinanceStatusBadge status={p.status} />
                     </td>
-                    <td className="px-6 py-3 text-right">
-                      <Link className="text-xs font-semibold text-brand-green hover:underline" href={`/admin/finance/payments/${p.id}`}>
+                    <td
+                      className={
+                        "whitespace-nowrap text-right font-semibold tabular-nums " +
+                        (p.status === "void" ? "" : p.direction === "outflow" ? "text-red-600" : "text-slate-900")
+                      }
+                    >
+                      {p.direction === "outflow" ? "−" : ""}
+                      {currencyPrefix(p.currency)}
+                      {money(p.amount)}
+                    </td>
+                    <td className="text-right">
+                      <Link
+                        className={buttonClasses({ variant: "ghost", size: "sm" })}
+                        href={`/admin/finance/payments/${p.id}`}
+                        aria-label={`Edit payment${p.student ? ` from ${p.student.first_name} ${p.student.last_name}` : ""}`}
+                      >
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                         Edit
                       </Link>
                     </td>
                   </tr>
-                ))
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={Wallet}
+            title={isFiltered ? "No payments match these filters" : "No payments yet"}
+            description={isFiltered ? "Try a different class, date range or search term." : "Recorded payments will appear here."}
+            action={
+              isFiltered ? (
+                <ButtonLink href="/admin/finance/payments" variant="secondary" size="sm">
+                  Clear filters
+                </ButtonLink>
               ) : (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-sm text-slate-600">
-                    {isFiltered ? "No payments match these filters." : "No payments yet."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                <ButtonLink href="/admin/finance/payments/new" size="sm">
+                  Record payment
+                </ButtonLink>
+              )
+            }
+          />
+        )}
         {filtered.length > DISPLAY_LIMIT ? (
-          <div className="border-t border-slate-200 px-6 py-3 text-xs text-slate-500">
+          <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500 sm:px-6">
             Showing the latest {DISPLAY_LIMIT} of {filtered.length} payments. Totals above include all of them.
           </div>
         ) : null}
-      </div>
+      </Card>
     </div>
   );
 }

@@ -1,6 +1,17 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import ConfirmSubmitButton from "@/components/confirm-submit-button";
+import UrlToast from "@/components/url-toast";
+import { fetchAllRows } from "@/lib/fetch-all";
+import { AlertTriangle, CalendarDays, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { StatCard } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SeverityBadge, deleteLinkClasses, shortDate, welfareBack } from "../_ui";
+import { buttonClasses } from "@/components/ui/button";
 
 type StudentRow = { id: string; first_name: string; last_name: string };
 type YearRow = { id: string; name: string };
@@ -20,12 +31,14 @@ export default async function AdminWelfareDisciplinePage() {
   if (!supabase) return null;
 
   const [{ data: studentsData }, { data: years }, { data: terms }, { data: records }] = await Promise.all([
-    supabase
-      .from("students")
-      .select("id, first_name, last_name")
-      .order("last_name", { ascending: true })
-      .order("first_name", { ascending: true })
-      .limit(500),
+    fetchAllRows<StudentRow>(() =>
+      supabase
+        .from("students")
+        .select("id, first_name, last_name")
+        .order("last_name", { ascending: true })
+        .order("first_name", { ascending: true })
+        .order("id", { ascending: true })
+    ).then((data) => ({ data })),
     supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
     supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false }),
     supabase
@@ -44,6 +57,7 @@ export default async function AdminWelfareDisciplinePage() {
 
   async function createRecord(formData: FormData) {
     "use server";
+    const PATH = "/admin/welfare/discipline";
 
     const studentId = String(formData.get("student_id") ?? "").trim();
     const yearIdRaw = String(formData.get("academic_year_id") ?? "").trim();
@@ -52,13 +66,15 @@ export default async function AdminWelfareDisciplinePage() {
     const description = String(formData.get("description") ?? "").trim();
     const severity = Number(String(formData.get("severity") ?? "1").trim() || "1");
 
-    if (!studentId || !description) return;
-    if (!Number.isFinite(severity) || severity < 1 || severity > 5) return;
+    if (!studentId || !description) welfareBack(PATH, "Choose a student and enter a description", "error");
+    if (!Number.isFinite(severity) || severity < 1 || severity > 5) {
+      welfareBack(PATH, "Severity must be between 1 and 5", "error");
+    }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) welfareBack(PATH, "Database is not configured", "error");
 
-    await supabase.from("welfare_discipline_records").insert({
+    const { error } = await supabase.from("welfare_discipline_records").insert({
       student_id: studentId,
       academic_year_id: yearIdRaw.length ? yearIdRaw : null,
       academic_term_id: termIdRaw.length ? termIdRaw : null,
@@ -67,164 +83,167 @@ export default async function AdminWelfareDisciplinePage() {
       severity
     });
 
-    revalidatePath("/admin/welfare/discipline");
+    revalidatePath(PATH);
+    if (error) welfareBack(PATH, error.message, "error");
+    welfareBack(PATH, "Record created");
   }
 
   async function deleteRecord(formData: FormData) {
     "use server";
+    const PATH = "/admin/welfare/discipline";
 
     const id = String(formData.get("id") ?? "").trim();
-    if (!id) return;
+    if (!id) welfareBack(PATH, "Missing record", "error");
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) welfareBack(PATH, "Database is not configured", "error");
 
-    await supabase.from("welfare_discipline_records").delete().eq("id", id);
-    revalidatePath("/admin/welfare/discipline");
+    const { error } = await supabase.from("welfare_discipline_records").delete().eq("id", id);
+    revalidatePath(PATH);
+    if (error) welfareBack(PATH, error.message, "error");
+    welfareBack(PATH, "Record deleted");
   }
+
+  const seriousCount = disciplineRows.filter((r) => r.severity >= 4).length;
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const monthCount = disciplineRows.filter((r) => String(r.occurred_at).slice(0, 7) === thisMonth).length;
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Welfare</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Discipline</h1>
-        <p className="mt-2 text-sm text-slate-600">Record discipline cases and sanctions.</p>
+      <UrlToast />
+      <PageHeader
+        eyebrow="Welfare"
+        title="Discipline"
+        description="Record discipline cases and sanctions."
+        actions={
+          <a href="#new-record" className={buttonClasses({ variant: "primary" })}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            New record
+          </a>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Records" value={disciplineRows.length} hint="Most recent 200" icon={ShieldAlert} tone="slate" />
+        <StatCard label="This month" value={monthCount} hint="Recorded this calendar month" icon={CalendarDays} tone="blue" />
+        <StatCard label="Serious (4–5)" value={seriousCount} hint="High-severity cases" icon={AlertTriangle} tone="rose" />
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">New record</h2>
-        <form action={createRecord} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Student</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="student_id"
-              defaultValue=""
-              required
-            >
-              <option value="">Select student</option>
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.first_name} {s.last_name}
-                </option>
-              ))}
-            </select>
+      <Card>
+        <CardHeader title="Recent records" description="Newest first." />
+        {disciplineRows.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[760px]">
+              <thead>
+                <tr>
+                  <th scope="col">Student</th>
+                  <th scope="col">Category</th>
+                  <th scope="col">Severity</th>
+                  <th scope="col">Date</th>
+                  <th scope="col">Notes</th>
+                  <th scope="col" className="text-right">
+                    <span className="sr-only">Delete</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {disciplineRows.map((r) => {
+                  const s = studentById.get(r.student_id) ?? null;
+                  return (
+                    <tr key={r.id}>
+                      <td className="font-semibold text-slate-900">{s ? `${s.first_name} ${s.last_name}` : r.student_id}</td>
+                      <td>{r.category ?? "—"}</td>
+                      <td>
+                        <SeverityBadge severity={r.severity} />
+                      </td>
+                      <td className="whitespace-nowrap">{shortDate(r.occurred_at)}</td>
+                      <td className="max-w-xs">
+                        <p className="line-clamp-2 text-slate-600" title={r.description}>
+                          {r.description}
+                        </p>
+                      </td>
+                      <td className="text-right">
+                        <form action={deleteRecord}>
+                          <input type="hidden" name="id" value={r.id} />
+                          <ConfirmSubmitButton className={deleteLinkClasses} confirmMessage="Delete this discipline record? This cannot be undone.">
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            Delete
+                          </ConfirmSubmitButton>
+                        </form>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Category (optional)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="category"
-              placeholder="Late-coming, Fighting..."
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic year (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_year_id"
-              defaultValue=""
-            >
-              <option value="">—</option>
-              {yearRows.map((y) => (
-                <option key={y.id} value={y.id}>
-                  {y.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic term (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_term_id"
-              defaultValue=""
-            >
-              <option value="">—</option>
-              {termRows.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label className="text-sm font-semibold text-slate-900">Description</label>
-            <textarea
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="description"
-              rows={4}
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Severity (1-5)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="severity"
-              type="number"
-              min={1}
-              max={5}
-              defaultValue={1}
-              required
-            />
-          </div>
+        ) : (
+          <EmptyState icon={ShieldAlert} title="No discipline records yet" description="Records you create below will appear here." />
+        )}
+      </Card>
 
-          <div className="flex items-end">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Creating…"
-            >
+      <form action={createRecord} id="new-record" className="scroll-mt-24">
+        <FormSection
+          title="New record"
+          description="Log a discipline case for a student."
+          footer={
+            <SubmitButton variant="primary" pendingText="Creating…">
               Create record
             </SubmitButton>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Student" htmlFor="dis-student" required>
+              <select id="dis-student" className="gf-select" name="student_id" defaultValue="" required>
+                <option value="">Select student</option>
+                {students.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.first_name} {s.last_name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Category" htmlFor="dis-category" hint="Optional">
+              <input id="dis-category" className="gf-input" name="category" placeholder="Late-coming, Fighting..." />
+            </Field>
+            <Field label="Academic year" htmlFor="dis-year" hint="Optional">
+              <select id="dis-year" className="gf-select" name="academic_year_id" defaultValue="">
+                <option value="">—</option>
+                {yearRows.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Academic term" htmlFor="dis-term" hint="Optional">
+              <select id="dis-term" className="gf-select" name="academic_term_id" defaultValue="">
+                <option value="">—</option>
+                {termRows.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Description" htmlFor="dis-description" required className="sm:col-span-2">
+              <textarea id="dis-description" className="gf-input" name="description" rows={4} required />
+            </Field>
+            <Field label="Severity" htmlFor="dis-severity" hint="1 = minor, 5 = very serious" required>
+              <input
+                id="dis-severity"
+                className="gf-input"
+                name="severity"
+                type="number"
+                min={1}
+                max={5}
+                defaultValue={1}
+                required
+              />
+            </Field>
           </div>
-        </form>
-      </div>
-
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-4">Student</div>
-          <div className="col-span-3">Category</div>
-          <div className="col-span-1">Sev</div>
-          <div className="col-span-2">Date</div>
-          <div className="col-span-1">Notes</div>
-          <div className="col-span-1">Delete</div>
-        </div>
-        <div>
-          {disciplineRows.length ? (
-            disciplineRows.map((r) => {
-              const s = studentById.get(r.student_id) ?? null;
-              return (
-                <div key={r.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                  <div className="col-span-4 font-semibold text-slate-900">
-                    {s ? `${s.first_name} ${s.last_name}` : r.student_id}
-                  </div>
-                  <div className="col-span-3 text-slate-700">{r.category ?? "—"}</div>
-                  <div className="col-span-1 text-slate-700">{r.severity}</div>
-                  <div className="col-span-2 text-slate-700">{String(r.occurred_at).slice(0, 10)}</div>
-                  <div className="col-span-1 text-slate-700 truncate" title={r.description}>
-                    {r.description}
-                  </div>
-                  <div className="col-span-1">
-                    <form action={deleteRecord}>
-                      <input type="hidden" name="id" value={r.id} />
-                      <SubmitButton
-                        className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-60"
-                        pendingText="Deleting…"
-                        showSpinner={false}
-                      >
-                        Delete
-                      </SubmitButton>
-                    </form>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No discipline records yet.</div>
-          )}
-        </div>
-      </div>
+        </FormSection>
+      </form>
     </div>
   );
 }

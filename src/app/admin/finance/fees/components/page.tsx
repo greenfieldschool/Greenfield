@@ -1,7 +1,16 @@
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { firstOrNull } from "@/lib/relations";
 import SubmitButton from "@/components/submit-button";
+import { redirect } from "next/navigation";
+import { toastUrl } from "../../_components/finance-server";
+import UrlToast from "@/components/url-toast";
+import { Layers, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type RevenueCategoryRow = {
   id: string;
@@ -18,8 +27,8 @@ type FeeComponentRow = {
   name: string;
   description: string | null;
   active: boolean;
-  revenue_categories: RevenueCategoryRow | null;
-  expense_categories: ExpenseCategoryRow | null;
+  revenue_categories: RevenueCategoryRow | RevenueCategoryRow[] | null;
+  expense_categories: ExpenseCategoryRow | ExpenseCategoryRow[] | null;
 };
 
 export default async function AdminFeeComponentsPage() {
@@ -50,12 +59,12 @@ export default async function AdminFeeComponentsPage() {
     const expenseCategoryId = String(formData.get("expense_category_id") ?? "").trim();
     const active = String(formData.get("active") ?? "").trim() === "on";
 
-    if (!name) return;
+    if (!name) redirect(toastUrl("/admin/finance/fees/components", "Enter a name", "error"));
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl("/admin/finance/fees/components", "Database is not configured", "error"));
 
-    await supabase.from("fee_components").insert({
+    const { error } = await supabase.from("fee_components").insert({
       name,
       description: description.length ? description : null,
       revenue_category_id: revenueCategoryId.length ? revenueCategoryId : null,
@@ -63,7 +72,9 @@ export default async function AdminFeeComponentsPage() {
       active
     });
 
+    if (error) redirect(toastUrl("/admin/finance/fees/components", error.message, "error"));
     revalidatePath("/admin/finance/fees/components");
+    redirect(toastUrl("/admin/finance/fees/components", "Fee component created"));
   }
 
   async function toggleActive(formData: FormData) {
@@ -72,137 +83,117 @@ export default async function AdminFeeComponentsPage() {
     const id = String(formData.get("id") ?? "").trim();
     const active = String(formData.get("active") ?? "").trim() === "true";
 
-    if (!id) return;
+    if (!id) redirect(toastUrl("/admin/finance/fees/components", "Missing fee component", "error"));
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl("/admin/finance/fees/components", "Database is not configured", "error"));
 
-    await supabase.from("fee_components").update({ active: !active }).eq("id", id);
+    const { error } = await supabase.from("fee_components").update({ active: !active }).eq("id", id);
+    if (error) redirect(toastUrl("/admin/finance/fees/components", error.message, "error"));
     revalidatePath("/admin/finance/fees/components");
+    redirect(toastUrl("/admin/finance/fees/components", active ? "Component deactivated" : "Component activated"));
   }
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Finance</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Fee components</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Define the breakdown items for school fees (Tuition, Books, Transport…) and map them to revenue categories.
-          Optional: also map to an expense/budget category (sector).
-        </p>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
-            Back to fee setup
-          </Link>
-        </div>
-      </div>
+      <UrlToast />
+      <PageHeader
+        back={{ href: "/admin/finance/fees", label: "Back to fee setup" }}
+        eyebrow="Finance"
+        title="Fee components"
+        description="Define the breakdown items for school fees (Tuition, Books, Transport…) and map them to revenue categories. Optional: also map to an expense/budget category (sector)."
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Add fee component</h2>
-        <form action={createComponent} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Name</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="name"
-              placeholder="Tuition"
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Revenue category</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="revenue_category_id"
-              defaultValue=""
-            >
-              <option value="">(optional)</option>
-              {revenueCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Budget sector (expense category)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="expense_category_id"
-              defaultValue=""
-            >
-              <option value="">(optional)</option>
-              {expenseCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Description</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="description"
-              placeholder="(optional)"
-            />
-            <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <input className="h-4 w-4" name="active" type="checkbox" defaultChecked />
+      <form action={createComponent}>
+        <FormSection
+          title="Add fee component"
+          footer={
+            <SubmitButton variant="primary" pendingText="Creating…">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Create component
+            </SubmitButton>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Name" htmlFor="name" required>
+              <input id="name" className="gf-input" name="name" placeholder="Tuition" required />
+            </Field>
+            <Field label="Revenue category" htmlFor="revenue_category_id">
+              <select id="revenue_category_id" className="gf-select" name="revenue_category_id" defaultValue="">
+                <option value="">(optional)</option>
+                {revenueCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Budget sector (expense category)" htmlFor="expense_category_id">
+              <select id="expense_category_id" className="gf-select" name="expense_category_id" defaultValue="">
+                <option value="">(optional)</option>
+                {expenseCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Description" htmlFor="description">
+              <input id="description" className="gf-input" name="description" placeholder="(optional)" />
+            </Field>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 sm:col-span-2">
+              <input className="gf-checkbox" name="active" type="checkbox" defaultChecked />
               Active
             </label>
           </div>
+        </FormSection>
+      </form>
 
-          <div className="flex items-end sm:col-span-2">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Creating…"
-            >
-              Create component
-            </SubmitButton>
+      <Card>
+        <CardHeader title="All components" description={`${feeComponents.length} total`} />
+        {feeComponents.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[640px]">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Revenue category</th>
+                  <th>Budget sector</th>
+                  <th>Status</th>
+                  <th className="text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {feeComponents.map((c) => (
+                  <tr key={c.id}>
+                    <td className="font-semibold text-slate-900">{c.name}</td>
+                    <td>{firstOrNull(c.revenue_categories)?.name ?? "—"}</td>
+                    <td>{firstOrNull(c.expense_categories)?.name ?? "—"}</td>
+                    <td>
+                      <Badge tone={c.active ? "green" : "slate"} dot>
+                        {c.active ? "Active" : "Inactive"}
+                      </Badge>
+                    </td>
+                    <td className="text-right">
+                      <form action={toggleActive} className="inline">
+                        <input type="hidden" name="id" value={c.id} />
+                        <input type="hidden" name="active" value={String(c.active)} />
+                        <SubmitButton variant="ghost" size="sm" pendingText="Saving…" showSpinner={false}>
+                          {c.active ? "Deactivate" : "Activate"}
+                        </SubmitButton>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </form>
-      </div>
-
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-4">Name</div>
-          <div className="col-span-3">Revenue category</div>
-          <div className="col-span-3">Budget sector</div>
-          <div className="col-span-2">Status</div>
-        </div>
-        <div>
-          {feeComponents.length ? (
-            feeComponents.map((c) => (
-              <div key={c.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                <div className="col-span-4 font-semibold text-slate-900">{c.name}</div>
-                <div className="col-span-3 text-slate-700">{c.revenue_categories?.name ?? "—"}</div>
-                <div className="col-span-3 text-slate-700">{c.expense_categories?.name ?? "—"}</div>
-                <div className="col-span-2">
-                  <form action={toggleActive}>
-                    <input type="hidden" name="id" value={c.id} />
-                    <input type="hidden" name="active" value={String(c.active)} />
-                    <SubmitButton
-                      className="text-xs font-semibold text-brand-green hover:underline disabled:opacity-60"
-                      pendingText="Saving…"
-                      showSpinner={false}
-                    >
-                      {c.active ? "Active" : "Inactive"}
-                    </SubmitButton>
-                  </form>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No components yet.</div>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <a className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
-          Back to fee setup
-        </a>
-      </div>
+        ) : (
+          <EmptyState icon={Layers} title="No components yet" description="Use the form above to add Tuition, Books, Transport…" />
+        )}
+      </Card>
     </div>
   );
 }

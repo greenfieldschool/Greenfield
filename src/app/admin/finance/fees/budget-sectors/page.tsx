@@ -1,7 +1,14 @@
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import { redirect } from "next/navigation";
+import { toastUrl } from "../../_components/finance-server";
+import UrlToast from "@/components/url-toast";
+import { Plus, PieChart } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type ExpenseCategoryRow = {
   id: string;
@@ -22,90 +29,78 @@ export default async function AdminBudgetSectorsPage() {
     const name = String(formData.get("name") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
 
-    if (!name) return;
+    if (!name) redirect(toastUrl("/admin/finance/fees/budget-sectors", "Enter a name", "error"));
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl("/admin/finance/fees/budget-sectors", "Database is not configured", "error"));
 
-    await supabase.from("expense_categories").insert({
+    const { error } = await supabase.from("expense_categories").insert({
       name,
       description: description.length ? description : null
     });
 
+    if (error) redirect(toastUrl("/admin/finance/fees/budget-sectors", error.message, "error"));
+
     revalidatePath("/admin/finance/fees/budget-sectors");
+    redirect(toastUrl("/admin/finance/fees/budget-sectors", "Sector created"));
   }
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Finance</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Budget sectors</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Define budget sectors (expense categories) used to categorize expenses and optionally link fee components to a
-          sector.
-        </p>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
-            Back to fee setup
-          </Link>
-        </div>
-      </div>
+      <UrlToast />
+      <PageHeader
+        back={{ href: "/admin/finance/fees", label: "Back to fee setup" }}
+        eyebrow="Finance"
+        title="Budget sectors"
+        description="Define budget sectors (expense categories) used to categorize expenses and optionally link fee components to a sector."
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Add sector</h2>
-        <form action={createSector} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Name</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="name"
-              placeholder="Staff salaries"
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Description</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="description"
-              placeholder="(optional)"
-            />
-          </div>
-          <div className="flex items-end sm:col-span-2">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Creating…"
-            >
+      <form action={createSector}>
+        <FormSection
+          title="Add sector"
+          footer={
+            <SubmitButton variant="primary" pendingText="Creating…">
+              <Plus className="h-4 w-4" aria-hidden="true" />
               Create sector
             </SubmitButton>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Name" htmlFor="name" required>
+              <input id="name" className="gf-input" name="name" placeholder="Staff salaries" required />
+            </Field>
+            <Field label="Description" htmlFor="description">
+              <input id="description" className="gf-input" name="description" placeholder="(optional)" />
+            </Field>
           </div>
-        </form>
-      </div>
+        </FormSection>
+      </form>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-4">Name</div>
-          <div className="col-span-8">Description</div>
-        </div>
-        <div>
-          {sectors.length ? (
-            sectors.map((c) => (
-              <div key={c.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                <div className="col-span-4 font-semibold text-slate-900">{c.name}</div>
-                <div className="col-span-8 text-slate-700">{c.description ?? "—"}</div>
-              </div>
-            ))
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No sectors yet.</div>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
-          Back to fee setup
-        </Link>
-      </div>
+      <Card>
+        <CardHeader title="All sectors" description={`${sectors.length} total`} />
+        {sectors.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table">
+              <thead>
+                <tr>
+                  <th className="w-1/3">Name</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sectors.map((c) => (
+                  <tr key={c.id}>
+                    <td className="font-semibold text-slate-900">{c.name}</td>
+                    <td>{c.description ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={PieChart} title="No sectors yet" description="Use the form above to add the first one." />
+        )}
+      </Card>
     </div>
   );
 }

@@ -1,5 +1,11 @@
 import Link from "next/link";
+import { CalendarClock, ChevronRight, UserRoundX } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
+import { SessionStatusBadge } from "../_components/status-badges";
 
 type SessionRow = {
   id: string;
@@ -48,10 +54,15 @@ export default async function ConductorSessionsPage() {
   const link = (linkData ?? null) as ConductorLinkRow | null;
   if (!link) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Conductor</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">No conductor profile linked</h1>
-        <p className="mt-2 text-sm text-slate-600">Ask an admin to link your user account to a conductor.</p>
+      <div className="space-y-6">
+        <PageHeader eyebrow="Conductor" title="My sessions" />
+        <Card>
+          <EmptyState
+            icon={UserRoundX}
+            title="No conductor profile linked"
+            description="Ask an admin to link your user account to a conductor."
+          />
+        </Card>
       </div>
     );
   }
@@ -70,40 +81,63 @@ export default async function ConductorSessionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Conductor</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">My sessions</h1>
-        <p className="mt-2 text-sm text-slate-600">Sessions you are assigned to conduct.</p>
-      </div>
+      <PageHeader
+        back={{ href: "/conductor", label: "Dashboard" }}
+        eyebrow="Conductor"
+        title="My sessions"
+        description="Sessions you are assigned to conduct."
+      />
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-6">Test</div>
-          <div className="col-span-4">Class</div>
-          <div className="col-span-2">Status</div>
-        </div>
-        <div>
-          {sessions.length ? (
-            sessions.map((s) => {
-              const test = firstOrNull(s.exam_tests);
-              const cls = firstOrNull(s.classes);
-              return (
-                <Link
-                  key={s.id}
-                  href={`/conductor/sessions/${s.id}`}
-                  className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  <div className="col-span-6 font-semibold text-slate-900">{test?.name ?? s.test_id}</div>
-                  <div className="col-span-4">{cls ? `${cls.level} - ${cls.name}` : "—"}</div>
-                  <div className="col-span-2 text-xs font-semibold text-slate-700">{s.status}</div>
-                </Link>
-              );
-            })
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No sessions assigned yet.</div>
-          )}
-        </div>
-      </div>
+      <Card>
+        <CardHeader title="Assigned sessions" description={`${sessions.length} session${sessions.length === 1 ? "" : "s"}`} />
+        {sessions.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[560px]">
+              <thead>
+                <tr>
+                  <th>Test</th>
+                  <th>Class</th>
+                  <th>Status</th>
+                  <th className="text-right">
+                    <span className="sr-only">Open</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.map((s) => {
+                  const test = firstOrNull(s.exam_tests);
+                  const cls = firstOrNull(s.classes);
+                  return (
+                    <tr key={s.id}>
+                      <td>
+                        <Link href={`/conductor/sessions/${s.id}`} className="font-semibold text-slate-900 hover:text-brand-green hover:underline">
+                          {test?.name ?? s.test_id}
+                        </Link>
+                      </td>
+                      <td>{cls ? `${cls.level} - ${cls.name}` : "—"}</td>
+                      <td>
+                        <SessionStatusBadge status={s.status} />
+                      </td>
+                      <td className="text-right">
+                        <Link href={`/conductor/sessions/${s.id}`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
+                          Open
+                          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={CalendarClock}
+            title="No sessions assigned yet."
+            description="Sessions appear here once an admin assigns you to them."
+          />
+        )}
+      </Card>
     </div>
   );
 }

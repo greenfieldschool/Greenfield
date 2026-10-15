@@ -4,6 +4,15 @@ import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 import UrlToast from "@/components/url-toast";
+import { BookOpen, Copy, MousePointerClick, School } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 
 type ClassRow = { id: string; level: string; name: string };
 type SubjectRow = { id: string; name: string; level: string | null; active: boolean };
@@ -24,7 +33,7 @@ async function saveClassSubjects(formData: FormData) {
   "use server";
 
   const classId = String(formData.get("class_id") ?? "").trim();
-  if (!classId) return;
+  if (!classId) back("", "Choose a class first", "error");
   const wanted = new Set(
     formData
       .getAll("subject_id")
@@ -33,7 +42,7 @@ async function saveClassSubjects(formData: FormData) {
   );
 
   const supabase = getSupabaseServerClient();
-  if (!supabase) return;
+  if (!supabase) back(classId, "Database is not configured", "error");
 
   const { data: current, error: readError } = await supabase
     .from("class_subjects")
@@ -71,11 +80,11 @@ async function copyFromClass(formData: FormData) {
 
   const classId = String(formData.get("class_id") ?? "").trim();
   const fromClassId = String(formData.get("from_class_id") ?? "").trim();
-  if (!classId) return;
+  if (!classId) back("", "Choose a class first", "error");
   if (!fromClassId || fromClassId === classId) back(classId, "Choose another class to copy from", "error");
 
   const supabase = getSupabaseServerClient();
-  if (!supabase) return;
+  if (!supabase) back(classId, "Database is not configured", "error");
 
   const { data: source } = await supabase.from("class_subjects").select("subject_id").eq("class_id", fromClassId);
   const rows = ((source ?? []) as Array<{ subject_id: string }>).map((r) => ({
@@ -124,134 +133,156 @@ export default async function AdminClassSubjectsPage({
   const forLevel = selectable.filter((s) => !cls || !s.level || s.level === cls.level);
   const otherLevel = selectable.filter((s) => cls && s.level && s.level !== cls.level);
 
-  const selectClass =
-    "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green";
-
   const subjectCheckbox = (s: SubjectRow) => (
     <label
       key={s.id}
-      className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-emerald-300 has-[:checked]:bg-emerald-50"
+      className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm transition hover:border-slate-300 hover:bg-slate-50 has-[:checked]:border-brand-green-300 has-[:checked]:bg-brand-green-50"
     >
-      <input className="h-4 w-4" type="checkbox" name="subject_id" value={s.id} defaultChecked={assigned.has(s.id)} />
-      <span className="font-medium text-slate-900">{s.name}</span>
+      <input className="gf-checkbox" type="checkbox" name="subject_id" value={s.id} defaultChecked={assigned.has(s.id)} />
+      <span className="min-w-0 flex-1 truncate font-medium text-slate-900">{s.name}</span>
       {s.level ? <span className="text-xs text-slate-500">{s.level}</span> : null}
-      {!s.active ? <span className="text-xs text-amber-700">inactive</span> : null}
+      {!s.active ? <Badge tone="gold">inactive</Badge> : null}
     </label>
   );
 
   return (
     <div className="space-y-6">
       <UrlToast />
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Academics</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Class subjects</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Choose the subjects each class takes. The result sheet only offers a class&apos;s own subjects, so teachers
-          can&apos;t enter results under the wrong or duplicate subject. New subjects are added on the{" "}
-          <Link className="font-semibold text-brand-green hover:underline" href="/admin/academics/subjects">
-            Subjects
-          </Link>{" "}
-          page.
-        </p>
-        {assignmentsError ? (
-          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            Class subjects are not set up in the database yet. Run docs/migrations/20261009_subject_management.sql in
-            Supabase. ({assignmentsError.message})
-          </div>
-        ) : null}
-      </div>
+      <PageHeader
+        eyebrow="Academics"
+        title="Class subjects"
+        description={
+          <>
+            Choose the subjects each class takes. The result sheet only offers a class&apos;s own subjects, so teachers
+            can&apos;t enter results under the wrong or duplicate subject. New subjects are added on the{" "}
+            <Link className="gf-link" href="/admin/academics/subjects">
+              Subjects
+            </Link>{" "}
+            page.
+          </>
+        }
+        actions={
+          <ButtonLink href="/admin/academics/subjects" variant="secondary">
+            <BookOpen className="h-4 w-4" aria-hidden="true" />
+            Manage subjects
+          </ButtonLink>
+        }
+      />
+
+      {assignmentsError ? (
+        <Alert tone="danger" title="Class subjects are not set up in the database yet">
+          Run docs/migrations/20261009_subject_management.sql in Supabase. ({assignmentsError.message})
+        </Alert>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">Classes</div>
+        <Card className="h-fit lg:sticky lg:top-24">
+          <CardHeader title="Classes" description={`${classRows.length} active`} />
           {classRows.length ? (
-            classRows.map((c) => {
-              const n = countByClass.get(c.id) ?? 0;
-              const isSelected = c.id === classId;
-              return (
-                <Link
-                  key={c.id}
-                  href={`/admin/academics/class-subjects?class_id=${c.id}`}
-                  className={`flex items-center justify-between border-t border-slate-200 px-6 py-3 text-sm first:border-t-0 ${
-                    isSelected ? "bg-emerald-50 font-semibold text-slate-900" : "text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  <span>
-                    {c.level} - {c.name}
-                  </span>
-                  <span className={`text-xs ${n ? "text-slate-500" : "font-semibold text-amber-700"}`}>
-                    {n ? `${n} subject${n === 1 ? "" : "s"}` : "none yet"}
-                  </span>
-                </Link>
-              );
-            })
+            <nav aria-label="Classes" className="max-h-[70vh] divide-y divide-slate-100 overflow-y-auto">
+              {classRows.map((c) => {
+                const n = countByClass.get(c.id) ?? 0;
+                const isSelected = c.id === classId;
+                return (
+                  <Link
+                    key={c.id}
+                    href={`/admin/academics/class-subjects?class_id=${c.id}`}
+                    aria-current={isSelected ? "page" : undefined}
+                    className={cn(
+                      "flex items-center justify-between gap-3 border-l-2 px-5 py-3 text-sm transition last:rounded-b-2xl sm:px-6",
+                      isSelected
+                        ? "border-l-brand-green bg-brand-green-50 font-semibold text-slate-900"
+                        : "border-l-transparent text-slate-700 hover:bg-slate-50"
+                    )}
+                  >
+                    <span className="min-w-0 truncate">
+                      {c.level} - {c.name}
+                    </span>
+                    {n ? (
+                      <Badge tone="slate">{`${n} subject${n === 1 ? "" : "s"}`}</Badge>
+                    ) : (
+                      <Badge tone="gold">none yet</Badge>
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
           ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No active classes.</div>
+            <EmptyState icon={School} title="No active classes" />
           )}
-        </div>
+        </Card>
 
         <div className="space-y-6 lg:col-span-2">
           {cls ? (
             <>
-              <form action={saveClassSubjects} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <form action={saveClassSubjects}>
                 <input type="hidden" name="class_id" value={cls.id} />
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">
-                      {cls.level} - {cls.name}
-                    </h2>
-                    <p className="text-sm text-slate-600">Tick every subject this class takes, then save.</p>
-                  </div>
-                  <SubmitButton
-                    className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-60"
-                    pendingText="Saving…"
-                  >
-                    Save subjects
-                  </SubmitButton>
-                </div>
-                {selectable.length ? (
-                  <>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2">{forLevel.map(subjectCheckbox)}</div>
-                    {otherLevel.length ? (
-                      <>
-                        <div className="mt-6 text-xs font-semibold text-slate-500">Subjects set to another level</div>
-                        <div className="mt-2 grid gap-2 sm:grid-cols-2">{otherLevel.map(subjectCheckbox)}</div>
-                      </>
-                    ) : null}
-                  </>
-                ) : (
-                  <div className="mt-4 text-sm text-slate-600">No active subjects. Add some on the Subjects page first.</div>
-                )}
+                <FormSection
+                  title={`${cls.level} - ${cls.name}`}
+                  description="Tick every subject this class takes, then save."
+                  footer={
+                    <SubmitButton variant="primary" pendingText="Saving…">
+                      Save subjects
+                    </SubmitButton>
+                  }
+                >
+                  {selectable.length ? (
+                    <div className="space-y-6">
+                      <div className="grid gap-2 sm:grid-cols-2">{forLevel.map(subjectCheckbox)}</div>
+                      {otherLevel.length ? (
+                        <div>
+                          <div className="text-xs font-medium text-slate-500">Subjects set to another level</div>
+                          <div className="mt-2 grid gap-2 sm:grid-cols-2">{otherLevel.map(subjectCheckbox)}</div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      icon={BookOpen}
+                      title="No active subjects"
+                      description="No active subjects. Add some on the Subjects page first."
+                    />
+                  )}
+                </FormSection>
               </form>
 
-              <form action={copyFromClass} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <form action={copyFromClass}>
                 <input type="hidden" name="class_id" value={cls.id} />
-                <div className="text-sm font-semibold text-slate-900">Copy subjects from another class</div>
-                <p className="mt-1 text-xs text-slate-600">Adds that class&apos;s subjects to this one. Nothing is removed.</p>
-                <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-                  <select className={selectClass} name="from_class_id" defaultValue="" required>
-                    <option value="">Select class</option>
-                    {classRows
-                      .filter((c) => c.id !== cls.id && (countByClass.get(c.id) ?? 0) > 0)
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.level} - {c.name} ({countByClass.get(c.id)} subjects)
-                        </option>
-                      ))}
-                  </select>
-                  <SubmitButton
-                    className="inline-flex shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60"
-                    pendingText="Copying…"
-                  >
-                    Copy subjects
-                  </SubmitButton>
-                </div>
+                <FormSection
+                  title="Copy subjects from another class"
+                  description="Adds that class's subjects to this one. Nothing is removed."
+                  footer={
+                    <SubmitButton variant="secondary" pendingText="Copying…">
+                      <span className="inline-flex items-center gap-2">
+                        <Copy className="h-4 w-4" aria-hidden="true" />
+                        Copy subjects
+                      </span>
+                    </SubmitButton>
+                  }
+                >
+                  <Field label="Copy from" htmlFor="copy-from-class">
+                    <select id="copy-from-class" className="gf-select" name="from_class_id" defaultValue="" required>
+                      <option value="">Select class</option>
+                      {classRows
+                        .filter((c) => c.id !== cls.id && (countByClass.get(c.id) ?? 0) > 0)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.level} - {c.name} ({countByClass.get(c.id)} subjects)
+                          </option>
+                        ))}
+                    </select>
+                  </Field>
+                </FormSection>
               </form>
             </>
           ) : (
-            <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-600">
-              Pick a class on the left to choose its subjects.
-            </div>
+            <Card>
+              <EmptyState
+                icon={MousePointerClick}
+                title="Pick a class"
+                description="Pick a class on the left to choose its subjects."
+              />
+            </Card>
           )}
         </div>
       </div>

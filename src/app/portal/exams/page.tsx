@@ -1,7 +1,18 @@
 import Link from "next/link";
+import { ArrowRight, CalendarClock, Clock, FileText, KeyRound, Timer } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import PortalDebugLogger from "./PortalDebugLogger";
 import { formatLagosDate } from "@/lib/lagos-dates";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
+import { PortalPageHeader } from "../_components/portal-ui";
+
+function classText(c: ClassRow | null) {
+  return c ? `${c.level.charAt(0).toUpperCase()}${c.level.slice(1)} · ${c.name}` : null;
+}
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
   return (await Promise.race([
@@ -203,86 +214,92 @@ export default async function PortalExamsPage({
   return (
     <div className="space-y-6">
       <PortalDebugLogger enabled={debug} />
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Portal</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Exams</h1>
-        <p className="mt-2 text-sm text-slate-600">Available exam sessions.</p>
+      <PortalPageHeader
+        title="Exams"
+        description="Exams open for you right now. Make sure you have enough time before you start."
+        actions={
+          <Link href="/portal/exams/results" className={buttonClasses({ variant: "secondary" })}>
+            My results
+          </Link>
+        }
+      />
 
-        {examsErrorMsg ? (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-            <div className="text-sm font-semibold">Exams temporarily unavailable</div>
-            <div className="mt-2 text-xs opacity-80">{examsErrorMsg}</div>
+      {examsErrorMsg ? (
+        <Alert tone="warning" title="Exams temporarily unavailable">
+          <span className="text-xs">{examsErrorMsg}</span>
+        </Alert>
+      ) : null}
+
+      {role === "student" ? (
+        student ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+            <Badge tone="slate">{student.admission_number ?? "Student"}</Badge>
+            <Badge tone="green">{classText(cls) ?? (student.class_id ? "Class —" : "No class yet")}</Badge>
+            <span className="text-xs text-slate-500">
+              Exams appear here on their start date. Ask your teacher if one is missing.
+            </span>
           </div>
-        ) : null}
+        ) : (
+          <Alert tone="info" title="Your account isn't linked yet">
+            No student record is linked to this account yet. Ask the school office to link your portal account to
+            your admission number.
+          </Alert>
+        )
+      ) : null}
 
-        {role === "student" ? (
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-700">
-            <div className="text-xs font-semibold text-slate-500">Student access</div>
-            <div className="mt-2">
-              {student ? (
-                <div>
-                  <div className="font-semibold text-slate-900">{student.admission_number ?? "Student"}</div>
-                  <div className="mt-1 text-xs text-slate-600">
-                    Class: {cls ? `${cls.level} - ${cls.name}` : student.class_id ? "—" : "not assigned"}
-                  </div>
-                  <div className="mt-2 text-xs text-slate-600">
-                    Exams appear here on their start date when they are set for your class. Ask your teacher if one is missing.
-                  </div>
-                </div>
-              ) : (
-                <div className="text-sm text-slate-700">
-                  No student record is linked to this account yet. Ask an admin to link your portal account to admission
-                  number.
-                </div>
-              )}
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <div className="min-w-[640px]">
-            <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-              <div className="col-span-6">Test</div>
-              <div className="col-span-4">Class</div>
-              <div className="col-span-2">Action</div>
-            </div>
-            <div>
-              {sessions.length ? (
-                sessions.map((s) => {
-                  const test = testsById.get(s.test_id) ?? null;
-                  const rowClassId = typeof s.class_id === "string" ? s.class_id : null;
-                  const rowClass = rowClassId ? classesById.get(rowClassId) ?? null : null;
-                  return (
-                    <div key={s.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                      <div className="col-span-6">
-                        <div className="font-semibold text-slate-900">{test?.name ?? s.test_id}</div>
-                        <div className="mt-1 text-xs text-slate-600">
-                          {test?.duration_minutes ? `${test.duration_minutes} minutes` : "No time limit set"}
-                          {s.ends_at ? ` • open until ${formatLagosDate(s.ends_at)}` : ""}
-                          {s.requires_secret_code ? " • code required" : ""}
-                        </div>
-                      </div>
-                      <div className="col-span-4 text-slate-700">{rowClass ? `${rowClass.level} - ${rowClass.name}` : "—"}</div>
-                      <div className="col-span-2">
-                        <Link
-                          href={`/portal/exams/${s.id}`}
-                          className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-xs font-semibold text-white hover:brightness-95 active:scale-95 transition-all"
-                        >
-                          Open
-                        </Link>
+      <Card>
+        <CardHeader title="Open now" description={sessions.length ? `${sessions.length} exam${sessions.length === 1 ? "" : "s"} available` : undefined} />
+        {sessions.length ? (
+          <ul className="divide-y divide-slate-100">
+            {sessions.map((s) => {
+              const test = testsById.get(s.test_id) ?? null;
+              const rowClassId = typeof s.class_id === "string" ? s.class_id : null;
+              const rowClass = rowClassId ? classesById.get(rowClassId) ?? null : null;
+              return (
+                <li key={s.id} className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:px-6">
+                  <div className="flex min-w-0 flex-1 items-start gap-4">
+                    <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-gold-50 text-brand-gold-700">
+                      <Timer className="h-6 w-6" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-base font-semibold text-slate-900">{test?.name ?? s.test_id}</div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-slate-500">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock className="h-4 w-4" aria-hidden="true" />
+                          {test?.duration_minutes ? `${test.duration_minutes} minutes` : "No time limit"}
+                        </span>
+                        {s.ends_at ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <CalendarClock className="h-4 w-4" aria-hidden="true" />
+                            Open until {formatLagosDate(s.ends_at)}
+                          </span>
+                        ) : null}
+                        {rowClass ? <span>{classText(rowClass)}</span> : null}
+                        {s.requires_secret_code ? (
+                          <Badge tone="gold">
+                            <KeyRound className="h-3 w-3" aria-hidden="true" />
+                            Code needed
+                          </Badge>
+                        ) : null}
                       </div>
                     </div>
-                  );
-                })
-              ) : (
-                <div className="px-6 py-8 text-sm text-slate-600">No exams are open for you right now.</div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+                  </div>
+                  <Link href={`/portal/exams/${s.id}`} className={buttonClasses({ size: "lg", className: "w-full sm:w-auto" })}>
+                    Open exam
+                    <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <EmptyState
+            icon={FileText}
+            title="No exams open right now"
+            description="When your teacher opens an exam for your class, it appears here."
+          />
+        )}
+      </Card>
     </div>
   );
 }

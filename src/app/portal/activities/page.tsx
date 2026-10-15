@@ -1,6 +1,11 @@
-import Link from "next/link";
+import { Sparkles, Star } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { firstOrNull } from "@/lib/relations";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PillLinks, PortalPageHeader, statusBadge, PortalNotice, portalMessages } from "../_components/portal-ui";
 
 type StudentGuardianRow = { student_id: string };
 
@@ -61,7 +66,7 @@ export default async function PortalActivitiesPage({
     } | null;
 
     role = identity?.role ?? null;
-    if (role !== "student" && role !== "parent") return null;
+    if (role !== "student" && role !== "parent") return <PortalNotice title="Clubs & activities" message={portalMessages.notPortal} />;
 
     const sp = (await searchParams) ?? {};
     const selectedStudentIdRaw = sp.student_id;
@@ -75,7 +80,7 @@ export default async function PortalActivitiesPage({
 
     if (role === "parent") {
       const guardianId = identity?.guardian_id ?? null;
-      if (!guardianId) return null;
+      if (!guardianId) return <PortalNotice title="Clubs & activities" message={portalMessages.noGuardian} />;
 
       const { data: links } = await withTimeout(
         supabase.from("student_guardians").select("student_id").eq("guardian_id", guardianId),
@@ -86,7 +91,7 @@ export default async function PortalActivitiesPage({
         ?.map((r) => r.student_id)
         .filter((v): v is string => typeof v === "string" && v.length > 0) ?? [];
 
-      if (!studentIds.length) return null;
+      if (!studentIds.length) return <PortalNotice title="Clubs & activities" message={portalMessages.noChildren} />;
 
       const { data: studentsData } = await withTimeout(
         supabase
@@ -108,7 +113,13 @@ export default async function PortalActivitiesPage({
     }
   }
 
-  if (!studentId) return null;
+  if (!studentId)
+    return (
+      <PortalNotice
+        title="Clubs & activities"
+        message={role === "parent" ? portalMessages.noChildren : portalMessages.noStudent}
+      />
+    );
 
   let enrollments: EnrollmentRow[] = [];
   let availableActivities: ActivityRow[] = [];
@@ -171,89 +182,93 @@ export default async function PortalActivitiesPage({
 
   const enrolledActivityIds = new Set(enrollments.flatMap((e) => e.activities.map((a) => a.id)));
 
+  const otherActivities = availableActivities.filter((a) => !enrolledActivityIds.has(a.id));
+  const childName =
+    role === "parent" ? parentStudents.find((st) => st.id === studentId) : null;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Portal</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Activities</h1>
-        {role === "parent" && parentStudents.length > 1 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {parentStudents.map((st) => {
-              const active = st.id === studentId;
+      <PortalPageHeader
+        title="Clubs & activities"
+        description={
+          childName
+            ? `Clubs and activities ${childName.first_name} takes part in.`
+            : "The clubs and activities you take part in, and others you could join."
+        }
+      />
+
+      {role === "parent" && parentStudents.length > 1 ? (
+        <PillLinks
+          label="Choose a child"
+          items={parentStudents.map((st) => ({
+            key: st.id,
+            href: `/portal/activities?student_id=${st.id}`,
+            label: `${st.first_name} ${st.last_name}`,
+            active: st.id === studentId
+          }))}
+        />
+      ) : null}
+
+      {errorMsg ? (
+        <Alert tone="warning" title="Activities temporarily unavailable">
+          <span className="text-xs">{errorMsg}</span>
+        </Alert>
+      ) : null}
+
+      <Card>
+        <CardHeader title="Enrolled" description="Activities and clubs currently joined." />
+        {enrollments.length ? (
+          <ul className="divide-y divide-slate-100">
+            {enrollments.map((e) => {
+              const activity = firstOrNull(e.activities);
+              const badge = statusBadge(e.status);
               return (
-                <Link
-                  key={st.id}
-                  href={`/portal/activities?student_id=${st.id}`}
-                  className={
-                    "rounded-xl border px-3 py-1.5 text-xs font-semibold transition " +
-                    (active
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
-                  }
-                >
-                  {st.first_name} {st.last_name}
-                </Link>
+                <li key={e.id} className="flex items-start gap-4 px-5 py-4 sm:px-6">
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                    <Star className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-slate-900">{activity?.name ?? "Activity"}</span>
+                      <Badge tone={badge.tone} dot>
+                        {badge.label}
+                      </Badge>
+                    </div>
+                    {activity?.description ? (
+                      <p className="mt-1 text-sm text-slate-600">{activity.description}</p>
+                    ) : null}
+                  </div>
+                </li>
               );
             })}
-          </div>
-        ) : null}
-        <p className="mt-2 text-sm text-slate-600">View enrolled activities and clubs.</p>
+          </ul>
+        ) : (
+          <EmptyState
+            icon={Star}
+            title="Not enrolled in any activities yet"
+            description="Speak to the school office or a class teacher to join a club."
+          />
+        )}
+      </Card>
 
-        {errorMsg ? (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-            <div className="text-sm font-semibold">Activities temporarily unavailable</div>
-            <div className="mt-2 text-xs opacity-80">{errorMsg}</div>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Enrolled activities</h2>
-        <p className="mt-1 text-sm text-slate-600">Activities and clubs you are currently enrolled in.</p>
-
-        <div className="mt-4 space-y-3">
-          {enrollments.length ? (
-            enrollments.map((e) => {
-              const activity = firstOrNull(e.activities);
-              return (
-                <div key={e.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className="font-semibold text-slate-900">{activity?.name ?? "Activity"}</div>
-                      {activity?.description ? (
-                        <div className="mt-1 text-sm text-slate-600">{activity.description}</div>
-                      ) : null}
-                    </div>
-                    <div className="text-xs font-semibold text-slate-700">Status: {e.status}</div>
-                  </div>
+      <Card>
+        <CardHeader title="Other activities at school" description="Clubs and activities available to join." />
+        {otherActivities.length ? (
+          <div className="grid gap-3 p-5 sm:grid-cols-2 sm:p-6">
+            {otherActivities.map((a) => (
+              <div key={a.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="flex items-center gap-2 font-semibold text-slate-900">
+                  <Sparkles className="h-4 w-4 text-brand-gold-600" aria-hidden="true" />
+                  {a.name}
                 </div>
-              );
-            })
-          ) : (
-            <div className="text-sm text-slate-600">No activities enrolled yet.</div>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Available activities</h2>
-        <p className="mt-1 text-sm text-slate-600">Other activities and clubs available at the school.</p>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {availableActivities.filter((a) => !enrolledActivityIds.has(a.id)).length ? (
-            availableActivities
-              .filter((a) => !enrolledActivityIds.has(a.id))
-              .map((a) => (
-                <div key={a.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <div className="font-semibold text-slate-900">{a.name}</div>
-                  {a.description ? <div className="mt-1 text-sm text-slate-600">{a.description}</div> : null}
-                </div>
-              ))
-          ) : (
-            <div className="text-sm text-slate-600 sm:col-span-2">No other activities available.</div>
-          )}
-        </div>
-      </div>
+                {a.description ? <p className="mt-1 text-sm text-slate-600">{a.description}</p> : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState icon={Sparkles} title="No other activities right now" />
+        )}
+      </Card>
     </div>
   );
 }

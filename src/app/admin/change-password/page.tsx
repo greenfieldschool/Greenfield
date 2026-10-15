@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { PageHeader } from "@/components/ui/page-header";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { Alert } from "@/components/ui/alert";
+import { buttonClasses } from "@/components/ui/button";
 
 type FormState =
   | { status: "idle" }
@@ -107,106 +112,124 @@ export default function AdminChangePasswordPage() {
     router.refresh();
   }
 
+  const mismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
+
   return (
-    <div className="mx-auto max-w-md px-6 py-16">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">{roleLabel}</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Change password</h1>
-        <p className="mt-2 text-sm text-slate-600">Update the password for your staff account.</p>
+    <div className="space-y-6">
+      <PageHeader eyebrow={roleLabel} title="Change password" description="Update the password for your staff account." />
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Email</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none"
-              value={email}
-              readOnly
-              type="email"
+      <form onSubmit={onSubmit} className="max-w-2xl">
+        <FormSection
+          title="Password"
+          description="Confirm your current password, then choose a new one."
+          footer={
+            <button
+              type="submit"
+              disabled={!canSubmit || state.status === "submitting"}
+              aria-busy={state.status === "submitting"}
+              className={buttonClasses({ variant: "primary" })}
+            >
+              {state.status === "submitting" ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <KeyRound className="h-4 w-4" aria-hidden="true" />
+              )}
+              {state.status === "submitting" ? "Saving…" : state.status === "success" ? "Saved" : "Change password"}
+            </button>
+          }
+        >
+          <div className="space-y-4">
+            <Field label="Email" htmlFor="cp-email">
+              <input id="cp-email" className="gf-input bg-slate-50 text-slate-600" value={email} readOnly type="email" />
+            </Field>
+
+            <PasswordField
+              id="cp-current"
+              label="Current password"
+              name="current_password"
+              value={currentPassword}
+              onChange={setCurrentPassword}
+              show={showCurrentPassword}
+              onToggle={() => setShowCurrentPassword((v) => !v)}
+              autoComplete="current-password"
             />
-          </div>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Current password</label>
-            <div className="mt-1 flex overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:ring-2 focus-within:ring-brand-green">
-              <input
-                className="w-full bg-white px-4 py-3 text-sm outline-none"
-                name="current_password"
-                type={showCurrentPassword ? "text" : "password"}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowCurrentPassword((v) => !v)}
-                className="px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                {showCurrentPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">New password</label>
-            <div className="mt-1 flex overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:ring-2 focus-within:ring-brand-green">
-              <input
-                className="w-full bg-white px-4 py-3 text-sm outline-none"
+            <div className="grid gap-4 sm:grid-cols-2">
+              <PasswordField
+                id="cp-new"
+                label="New password"
                 name="new_password"
-                type={showNewPassword ? "text" : "password"}
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                onChange={setNewPassword}
+                show={showNewPassword}
+                onToggle={() => setShowNewPassword((v) => !v)}
                 autoComplete="new-password"
-                required
+                hint="Minimum 8 characters."
               />
-              <button
-                type="button"
-                onClick={() => setShowNewPassword((v) => !v)}
-                className="px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                {showNewPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-            <div className="mt-1 text-xs font-semibold text-slate-500">Minimum 8 characters.</div>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Confirm new password</label>
-            <div className="mt-1 flex overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:ring-2 focus-within:ring-brand-green">
-              <input
-                className="w-full bg-white px-4 py-3 text-sm outline-none"
+              <PasswordField
+                id="cp-confirm"
+                label="Confirm new password"
                 name="confirm_password"
-                type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={setConfirmPassword}
+                show={showConfirmPassword}
+                onToggle={() => setShowConfirmPassword((v) => !v)}
                 autoComplete="new-password"
-                required
+                hint={mismatch ? <span className="text-red-600">Passwords don&apos;t match yet.</span> : undefined}
               />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword((v) => !v)}
-                className="px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                {showConfirmPassword ? "Hide" : "Show"}
-              </button>
             </div>
+
+            {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
           </div>
-
-          {state.status === "error" ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-              {state.message}
-            </div>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={!canSubmit || state.status === "submitting"}
-            className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {state.status === "submitting" ? "Saving…" : state.status === "success" ? "Saved" : "Change password"}
-          </button>
-        </form>
-      </div>
+        </FormSection>
+      </form>
     </div>
+  );
+}
+
+function PasswordField({
+  id,
+  label,
+  name,
+  value,
+  onChange,
+  show,
+  onToggle,
+  autoComplete,
+  hint
+}: {
+  id: string;
+  label: string;
+  name: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggle: () => void;
+  autoComplete: string;
+  hint?: ReactNode;
+}) {
+  return (
+    <Field label={label} htmlFor={id} hint={hint}>
+      <div className="relative">
+        <input
+          id={id}
+          className="gf-input pr-12"
+          name={name}
+          type={show ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          autoComplete={autoComplete}
+          required
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute inset-y-0 right-0 flex items-center rounded-r-xl px-3.5 text-slate-400 hover:text-slate-600"
+          aria-label={show ? "Hide password" : "Show password"}
+        >
+          {show ? <EyeOff className="h-5 w-5" aria-hidden="true" /> : <Eye className="h-5 w-5" aria-hidden="true" />}
+        </button>
+      </div>
+    </Field>
   );
 }

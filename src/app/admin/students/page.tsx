@@ -1,7 +1,18 @@
 import Link from "next/link";
+import { AlertTriangle, ChevronRight, FileText, Layers, Plus, Search, UserCheck, Users, X } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import SubmitButton from "@/components/submit-button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Avatar } from "@/components/ui/avatar";
+import { ButtonLink } from "@/components/ui/button";
+import { Field } from "@/components/ui/form-section";
+import { formatLagosDate } from "@/lib/lagos-dates";
+import { safeFilterTerm } from "@/lib/postgrest";
 
 type StudentRow = {
   id: string;
@@ -14,55 +25,38 @@ type StudentRow = {
   date_of_birth: string | null;
 };
 
-function getStatusStyle(status: string) {
+function statusTone(status: string): BadgeTone {
   switch (status) {
     case "active":
-      return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
+      return "green";
     case "enrolled":
-      return "bg-blue-50 text-blue-700 ring-1 ring-blue-200";
+      return "blue";
     case "applied":
-      return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
+      return "gold";
     case "graduated":
-      return "bg-purple-50 text-purple-700 ring-1 ring-purple-200";
+      return "violet";
     case "withdrawn":
-      return "bg-red-50 text-red-700 ring-1 ring-red-200";
-    case "transferred":
-      return "bg-slate-50 text-slate-600 ring-1 ring-slate-200";
+      return "red";
     default:
-      return "bg-slate-50 text-slate-500 ring-1 ring-slate-200";
+      return "slate";
   }
 }
 
-function getLevelStyle(level: string) {
+function levelTone(level: string): BadgeTone {
   switch (level) {
     case "creche":
-      return "bg-pink-50 text-pink-700";
+      return "gold";
     case "primary":
-      return "bg-sky-50 text-sky-700";
+      return "blue";
     case "secondary":
-      return "bg-indigo-50 text-indigo-700";
+      return "violet";
     default:
-      return "bg-slate-50 text-slate-600";
+      return "slate";
   }
 }
 
-function getInitials(first: string, last: string) {
-  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
-}
-
-function getAvatarColor(name: string) {
-  const colors = [
-    "bg-rose-100 text-rose-700",
-    "bg-orange-100 text-orange-700",
-    "bg-amber-100 text-amber-700",
-    "bg-emerald-100 text-emerald-700",
-    "bg-teal-100 text-teal-700",
-    "bg-sky-100 text-sky-700",
-    "bg-indigo-100 text-indigo-700",
-    "bg-violet-100 text-violet-700",
-  ];
-  const idx = name.charCodeAt(0) % colors.length;
-  return colors[idx];
+function capitalize(v: string) {
+  return v ? v.charAt(0).toUpperCase() + v.slice(1) : v;
 }
 
 export default async function AdminStudentsPage({
@@ -112,8 +106,11 @@ export default async function AdminStudentsPage({
     .from("students")
     .select("id, first_name, last_name, admission_number, level, class_id, status, date_of_birth");
 
-  if (query.length > 0) {
-    studentQuery = studentQuery.or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,admission_number.ilike.%${query}%`);
+  const searchTerm = safeFilterTerm(query);
+  if (searchTerm.length > 0) {
+    studentQuery = studentQuery.or(
+      `first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,admission_number.ilike.%${searchTerm}%`
+    );
   }
   if (levelFilter.length > 0) studentQuery = studentQuery.eq("level", levelFilter);
   if (classFilter.length > 0) studentQuery = studentQuery.eq("class_id", classFilter);
@@ -160,337 +157,241 @@ export default async function AdminStudentsPage({
     redirect(queryString.length ? `/admin/students?${queryString}` : "/admin/students");
   }
 
+  const unlinkedCount = unlinkedStudentAccounts.length;
+
   return (
     <div className="space-y-6">
+      <PageHeader
+        eyebrow="Admin"
+        title="Students"
+        description={`${totalStudents} student${totalStudents !== 1 ? "s" : ""} total · ${activeCount + enrolledCount} active/enrolled`}
+        actions={
+          <>
+            <ButtonLink href="/admin/students/applications" variant="secondary">
+              <FileText className="h-4 w-4" aria-hidden="true" />
+              View applications
+            </ButtonLink>
+            <ButtonLink href="/admin/students/applications/new">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              New application
+            </ButtonLink>
+          </>
+        }
+      />
 
-      {/* Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-slate-400">Admin</div>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">Students</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {totalStudents} student{totalStudents !== 1 ? "s" : ""} total · {activeCount + enrolledCount} active/enrolled
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
-          <Link
-            href="/admin/students/applications/new"
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-95 transition-all"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            New application
-          </Link>
-          <Link
-            href="/admin/students/applications"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
-          >
-            <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            View applications
-          </Link>
-        </div>
-      </div>
-
-      {/* Metrics Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-              <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Total" value={totalStudents} hint="All enrolled students" icon={Users} tone="slate" />
+        <StatCard
+          label="Active"
+          value={activeCount}
+          hint={`${enrolledCount} enrolled · ${appliedCount} applied`}
+          icon={UserCheck}
+          tone="green"
+        />
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-sm font-medium text-slate-500">By level</div>
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+              <Layers className="h-[18px] w-[18px]" aria-hidden="true" />
+            </span>
           </div>
-          <div className="mt-3 text-3xl font-bold text-slate-900">{totalStudents}</div>
-          <div className="mt-1 text-xs text-slate-500">All enrolled students</div>
-        </div>
-
-        {/* Active/Enrolled */}
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Active</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
-              <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-emerald-800">{activeCount}</div>
-          <div className="mt-1 text-xs text-emerald-700">{enrolledCount} enrolled · {appliedCount} applied</div>
-        </div>
-
-        {/* By Level */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">By Level</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50">
-              <svg className="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-3 space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-pink-600 font-medium">Creche</span>
-              <span className="font-bold text-slate-800">{crecheCount}</span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-sky-600 font-medium">Primary</span>
-              <span className="font-bold text-slate-800">{primaryCount}</span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-indigo-600 font-medium">Secondary</span>
-              <span className="font-bold text-slate-800">{secondaryCount}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Portal Alerts */}
-        <div className={`rounded-2xl border p-5 shadow-sm ${unlinkedStudentAccounts.length > 0 ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
-          <div className="flex items-center justify-between">
-            <div className={`text-xs font-semibold uppercase tracking-wide ${unlinkedStudentAccounts.length > 0 ? "text-amber-600" : "text-slate-400"}`}>
-              Portal
-            </div>
-            <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${unlinkedStudentAccounts.length > 0 ? "bg-amber-100" : "bg-slate-100"}`}>
-              <svg className={`h-4 w-4 ${unlinkedStudentAccounts.length > 0 ? "text-amber-600" : "text-slate-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-          </div>
-          {unlinkedStudentAccounts.length > 0 ? (
-            <>
-              <div className="mt-3 text-3xl font-bold text-amber-800">{unlinkedStudentAccounts.length}</div>
-              <div className="mt-1 text-xs text-amber-700">
-                Unlinked portal account{unlinkedStudentAccounts.length !== 1 ? "s" : ""} —{" "}
-                <a href="/admin/users?role=student" className="underline font-semibold">Fix now</a>
+          <dl className="mt-2 space-y-1.5 text-sm">
+            {[
+              { label: "Creche", value: crecheCount },
+              { label: "Primary", value: primaryCount },
+              { label: "Secondary", value: secondaryCount }
+            ].map((r) => (
+              <div key={r.label} className="flex items-center justify-between">
+                <dt className="text-slate-600">{r.label}</dt>
+                <dd className="font-semibold text-slate-900">{r.value}</dd>
               </div>
-            </>
-          ) : (
-            <>
-              <div className="mt-3 text-3xl font-bold text-slate-400">—</div>
-              <div className="mt-1 text-xs text-slate-400">All portal accounts linked</div>
-            </>
-          )}
+            ))}
+          </dl>
         </div>
+        {unlinkedCount > 0 ? (
+          <StatCard
+            label="Portal"
+            value={unlinkedCount}
+            hint={`Unlinked portal account${unlinkedCount !== 1 ? "s" : ""} — fix now`}
+            icon={AlertTriangle}
+            tone="gold"
+            href="/admin/users?role=student"
+          />
+        ) : (
+          <StatCard label="Portal" value="—" hint="All portal accounts linked" icon={AlertTriangle} tone="slate" />
+        )}
       </div>
 
-      {/* Filters */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <form action={filterStudents} className="flex flex-col gap-3 xl:flex-row xl:items-end">
-          <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Search</label>
-              <div className="relative mt-1">
-                <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                  name="q"
-                  placeholder="Name or admission no..."
-                  defaultValue={query}
-                />
-              </div>
+      <Card>
+        <CardBody>
+          <form action={filterStudents} className="flex flex-col gap-4 xl:flex-row xl:items-end">
+            <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Field label="Search" htmlFor="students-q">
+                <div className="relative">
+                  <Search
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="students-q"
+                    className="gf-input pl-9"
+                    name="q"
+                    placeholder="Name or admission no..."
+                    defaultValue={query}
+                  />
+                </div>
+              </Field>
+              <Field label="Level" htmlFor="students-level">
+                <select id="students-level" className="gf-select" name="level" defaultValue={levelFilter}>
+                  <option value="">All levels</option>
+                  <option value="creche">Creche</option>
+                  <option value="primary">Primary</option>
+                  <option value="secondary">Secondary</option>
+                </select>
+              </Field>
+              <Field label="Class" htmlFor="students-class">
+                <select id="students-class" className="gf-select" name="class_id" defaultValue={classFilter}>
+                  <option value="">All classes</option>
+                  {classOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.level} - {c.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Status" htmlFor="students-status">
+                <select id="students-status" className="gf-select" name="status" defaultValue={statusFilter}>
+                  <option value="">All statuses</option>
+                  <option value="applied">Applied</option>
+                  <option value="enrolled">Enrolled</option>
+                  <option value="active">Active</option>
+                  <option value="graduated">Graduated</option>
+                  <option value="withdrawn">Withdrawn</option>
+                  <option value="transferred">Transferred</option>
+                </select>
+              </Field>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Level</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                name="level"
-                defaultValue={levelFilter}
-              >
-                <option value="">All levels</option>
-                <option value="creche">Creche</option>
-                <option value="primary">Primary</option>
-                <option value="secondary">Secondary</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Class</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                name="class_id"
-                defaultValue={classFilter}
-              >
-                <option value="">All classes</option>
-                {classOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.level} - {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Status</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                name="status"
-                defaultValue={statusFilter}
-              >
-                <option value="">All statuses</option>
-                <option value="applied">Applied</option>
-                <option value="enrolled">Enrolled</option>
-                <option value="active">Active</option>
-                <option value="graduated">Graduated</option>
-                <option value="withdrawn">Withdrawn</option>
-                <option value="transferred">Transferred</option>
-              </select>
-            </div>
-          </div>
 
-          <div className="flex shrink-0 gap-2">
-            <SubmitButton
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white hover:brightness-95 transition-all"
-              pendingText="Filtering…"
-            >
-              Filter
-            </SubmitButton>
-            {isFiltered ? (
-              <a
-                href="/admin/students"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Clear
-              </a>
-            ) : null}
-          </div>
-        </form>
+            <div className="flex shrink-0 gap-2">
+              <SubmitButton variant="primary" pendingText="Filtering…">
+                Filter
+              </SubmitButton>
+              {isFiltered ? (
+                <ButtonLink href="/admin/students" variant="secondary">
+                  <X className="h-4 w-4" aria-hidden="true" />
+                  Clear
+                </ButtonLink>
+              ) : null}
+            </div>
+          </form>
+        </CardBody>
+      </Card>
 
-        {isFiltered ? (
-          <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Showing {students.length} result{students.length !== 1 ? "s" : ""}
-            {query ? <span>for &ldquo;<strong>{query}</strong>&rdquo;</span> : null}
-          </div>
-        ) : null}
-      </div>
-
-      {/* Student Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {/* Table header */}
-        <div className="border-b border-slate-100 bg-slate-50 px-6 py-3">
-          <div className="grid grid-cols-12 text-xs font-bold uppercase tracking-wider text-slate-400">
-            <div className="col-span-5">Student</div>
-            <div className="col-span-2 hidden sm:block">Adm. No</div>
-            <div className="col-span-2 hidden md:block">Level · Class</div>
-            <div className="col-span-3 text-right md:col-span-3">Status</div>
-          </div>
-        </div>
+      <Card>
+        <CardHeader
+          title="Student list"
+          description={
+            isFiltered ? (
+              <>
+                Showing {students.length} result{students.length !== 1 ? "s" : ""}
+                {query ? (
+                  <>
+                    {" "}
+                    for &ldquo;<strong className="font-semibold text-slate-700">{query}</strong>&rdquo;
+                  </>
+                ) : null}
+              </>
+            ) : (
+              `Showing ${students.length} of ${totalStudents} student${totalStudents !== 1 ? "s" : ""}`
+            )
+          }
+        />
 
         {students.length ? (
-          <div className="divide-y divide-slate-100">
-            {students.map((s) => {
-              const cls = s.class_id ? classById.get(s.class_id) : null;
-              const initials = getInitials(s.first_name, s.last_name);
-              const avatarColor = getAvatarColor(s.last_name);
-              return (
-                <Link
-                  key={s.id}
-                  href={`/admin/students/${s.id}`}
-                  className="group grid grid-cols-12 items-center px-6 py-4 text-sm hover:bg-slate-50 transition-colors"
-                >
-                  {/* Name + avatar */}
-                  <div className="col-span-5 flex items-center gap-3">
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${avatarColor}`}>
-                      {initials}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate font-semibold text-slate-900 group-hover:text-brand-green transition-colors">
-                        {s.first_name} {s.last_name}
-                      </div>
-                      {s.date_of_birth ? (
-                        <div className="mt-0.5 text-xs text-slate-400">{s.date_of_birth}</div>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {/* Admission number */}
-                  <div className="col-span-2 hidden sm:block">
-                    {s.admission_number ? (
-                      <span className="font-mono text-xs font-medium text-slate-600">{s.admission_number}</span>
-                    ) : (
-                      <span className="text-xs text-slate-300">—</span>
-                    )}
-                  </div>
-
-                  {/* Level · Class */}
-                  <div className="col-span-2 hidden items-center gap-1.5 md:flex">
-                    <span className={`inline-flex rounded-md px-1.5 py-0.5 text-[11px] font-semibold capitalize ${getLevelStyle(s.level)}`}>
-                      {s.level}
-                    </span>
-                    {cls ? (
-                      <span className="text-xs text-slate-500">{cls.name}</span>
-                    ) : (
-                      <span className="text-xs text-slate-300">No class</span>
-                    )}
-                  </div>
-
-                  {/* Status */}
-                  <div className="col-span-7 flex justify-end gap-2 sm:col-span-3 md:col-span-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${getStatusStyle(s.status)}`}>
-                      {s.status}
-                    </span>
-                    <svg className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-brand-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </Link>
-              );
-            })}
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[720px]">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Adm. no</th>
+                  <th>Level</th>
+                  <th>Class</th>
+                  <th>Status</th>
+                  <th className="w-10">
+                    <span className="sr-only">Open</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((s) => {
+                  const cls = s.class_id ? classById.get(s.class_id) : null;
+                  const href = `/admin/students/${s.id}`;
+                  return (
+                    <tr key={s.id} className="group">
+                      <td>
+                        <Link href={href} className="flex items-center gap-3">
+                          <Avatar name={`${s.first_name} ${s.last_name}`} size="sm" />
+                          <span className="min-w-0">
+                            <span className="block truncate font-semibold text-slate-900 transition group-hover:text-brand-green">
+                              {s.first_name} {s.last_name}
+                            </span>
+                            {s.date_of_birth ? (
+                              <span className="block text-xs text-slate-500">Born {formatLagosDate(s.date_of_birth)}</span>
+                            ) : null}
+                          </span>
+                        </Link>
+                      </td>
+                      <td>
+                        {s.admission_number ? (
+                          <span className="font-mono text-xs font-medium text-slate-600">{s.admission_number}</span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td>
+                        <Badge tone={levelTone(s.level)}>{capitalize(s.level)}</Badge>
+                      </td>
+                      <td>{cls ? cls.name : <span className="text-slate-400">No class</span>}</td>
+                      <td>
+                        <Badge tone={statusTone(s.status)} dot>
+                          {capitalize(s.status)}
+                        </Badge>
+                      </td>
+                      <td className="text-right">
+                        <Link
+                          href={href}
+                          aria-label={`Open ${s.first_name} ${s.last_name}`}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-brand-green"
+                        >
+                          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
-              <svg className="h-7 w-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <h3 className="mt-4 text-sm font-semibold text-slate-800">
-              {isFiltered ? "No students match your filters" : "No students yet"}
-            </h3>
-            <p className="mt-1 text-sm text-slate-400">
-              {isFiltered
-                ? "Try clearing filters or adjusting your search."
-                : "Create a new application to get started."}
-            </p>
-            {isFiltered ? (
-              <a
-                href="/admin/students"
-                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Clear all filters
-              </a>
-            ) : (
-              <Link
-                href="/admin/students/applications/new"
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                New application
-              </Link>
-            )}
-          </div>
+          <EmptyState
+            icon={Users}
+            title={isFiltered ? "No students match your filters" : "No students yet"}
+            description={isFiltered ? "Try clearing filters or adjusting your search." : "Create a new application to get started."}
+            action={
+              isFiltered ? (
+                <ButtonLink href="/admin/students" variant="secondary" size="sm">
+                  Clear all filters
+                </ButtonLink>
+              ) : (
+                <ButtonLink href="/admin/students/applications/new" size="sm">
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  New application
+                </ButtonLink>
+              )
+            }
+          />
         )}
-
-        {/* Footer count */}
-        {students.length > 0 ? (
-          <div className="border-t border-slate-100 bg-slate-50 px-6 py-3 text-xs text-slate-400">
-            Showing {students.length} of {totalStudents} student{totalStudents !== 1 ? "s" : ""}
-          </div>
-        ) : null}
-      </div>
+      </Card>
     </div>
   );
 }

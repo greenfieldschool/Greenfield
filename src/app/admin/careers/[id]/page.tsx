@@ -1,28 +1,33 @@
-import Link from "next/link";
+import { ExternalLink } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { ButtonLink } from "@/components/ui/button";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { AdminCareerJobEditor } from "./ui";
 
 type Props = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export default async function AdminCareerJobEditPage({ params }: Props) {
+  const { id } = await params;
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8">
-        <div className="text-sm font-semibold text-slate-900">Careers</div>
-        <p className="mt-2 text-sm text-slate-600">Supabase is not configured.</p>
+      <div className="space-y-6">
+        <PageHeader back={{ href: "/admin/careers", label: "Back" }} eyebrow="Careers" title="Careers" />
+        <Alert tone="warning">Supabase is not configured.</Alert>
       </div>
     );
   }
 
-  const isNew = params.id === "new";
+  const isNew = id === "new";
 
   const { data: job } = isNew
     ? ({ data: null } as const)
-    : await supabase.from("career_jobs").select("*").eq("id", params.id).maybeSingle();
+    : await supabase.from("career_jobs").select("*").eq("id", id).maybeSingle();
 
   const initialJob = {
     slug: String(job?.slug ?? ""),
@@ -44,37 +49,35 @@ export default async function AdminCareerJobEditPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-slate-500">Careers</div>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-900">
-              {isNew ? "New job" : job?.title ?? "Edit job"}
-            </h1>
-            <p className="mt-2 text-sm text-slate-600">Update the job details and publish when ready.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/admin/careers"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-            >
-              Back
-            </Link>
-            {!isNew && job?.published && job?.slug ? (
-              <Link
-                href={`/careers/${job.slug}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-              >
-                View
-              </Link>
+      <PageHeader
+        back={{ href: "/admin/careers", label: "Back" }}
+        eyebrow="Careers"
+        title={
+          <span className="inline-flex flex-wrap items-center gap-3">
+            {isNew ? "New job" : job?.title ?? "Edit job"}
+            {!isNew ? (
+              job?.published ? (
+                <Badge tone="green" dot>
+                  Published
+                </Badge>
+              ) : (
+                <Badge tone="slate">Draft</Badge>
+              )
             ) : null}
-          </div>
-        </div>
-      </div>
+          </span>
+        }
+        description="Update the job details and publish when ready."
+        actions={
+          !isNew && job?.published && job?.slug ? (
+            <ButtonLink href={`/careers/${job.slug}`} target="_blank" rel="noreferrer" variant="secondary">
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              View
+            </ButtonLink>
+          ) : null
+        }
+      />
 
-      <AdminCareerJobEditor id={params.id} initialJob={initialJob} />
+      <AdminCareerJobEditor id={id} initialJob={initialJob} />
     </div>
   );
 }

@@ -1,5 +1,17 @@
-import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { formatLagosDate } from "@/lib/lagos-dates";
+import { Card } from "@/components/ui/card";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PillLinks, PortalPageHeader, PortalNotice, portalMessages } from "../_components/portal-ui";
+
+function severityTone(severity: number): BadgeTone {
+  if (severity >= 4) return "red";
+  if (severity >= 2) return "gold";
+  return "slate";
+}
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
   return (await Promise.race([
@@ -50,7 +62,7 @@ export default async function PortalDisciplinePage({
   } | null;
 
   const role = identity?.role ?? null;
-  if (role !== "student" && role !== "parent") return null;
+  if (role !== "student" && role !== "parent") return <PortalNotice title="Discipline" message={portalMessages.notPortal} />;
 
   const sp = (await searchParams) ?? {};
   const selectedStudentIdRaw = sp.student_id;
@@ -67,7 +79,7 @@ export default async function PortalDisciplinePage({
 
   if (role === "parent") {
     const guardianId = identity?.guardian_id ?? null;
-    if (!guardianId) return null;
+    if (!guardianId) return <PortalNotice title="Discipline" message={portalMessages.noGuardian} />;
 
     const { data: links } = await supabase
       .from("student_guardians")
@@ -78,7 +90,7 @@ export default async function PortalDisciplinePage({
       ?.map((r) => r.student_id)
       .filter((v): v is string => typeof v === "string" && v.length > 0) ?? [];
 
-    if (!studentIds.length) return null;
+    if (!studentIds.length) return <PortalNotice title="Discipline" message={portalMessages.noChildren} />;
 
     const { data: studentsData } = await supabase
       .from("students")
@@ -92,7 +104,13 @@ export default async function PortalDisciplinePage({
     studentId = selectedStudentId.length ? selectedStudentId : fallbackId;
   }
 
-  if (!studentId) return null;
+  if (!studentId)
+    return (
+      <PortalNotice
+        title="Discipline"
+        message={role === "parent" ? portalMessages.noChildren : portalMessages.noStudent}
+      />
+    );
 
   let rows: DisciplineRow[] = [];
   try {
@@ -117,66 +135,52 @@ export default async function PortalDisciplinePage({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Portal</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Discipline records</h1>
-        {role === "parent" ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {parentStudents.map((st) => {
-              const active = st.id === studentId;
-              return (
-                <Link
-                  key={st.id}
-                  href={`/portal/discipline?student_id=${st.id}`}
-                  className={
-                    "rounded-xl border px-3 py-1.5 text-xs font-semibold transition " +
-                    (active
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
-                  }
-                >
-                  {st.first_name} {st.last_name}
-                </Link>
-              );
-            })}
-          </div>
-        ) : null}
-        <p className="mt-2 text-sm text-slate-600">Recent discipline records.</p>
+      <PortalPageHeader title="Discipline" description="Behaviour records shared by the school." />
 
-        {errorMsg ? (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-            <div className="text-sm font-semibold">Discipline records temporarily unavailable</div>
-            <div className="mt-2 text-xs opacity-80">{errorMsg}</div>
-          </div>
-        ) : null}
-      </div>
+      {role === "parent" && parentStudents.length > 1 ? (
+        <PillLinks
+          label="Choose a child"
+          items={parentStudents.map((st) => ({
+            key: st.id,
+            href: `/portal/discipline?student_id=${st.id}`,
+            label: `${st.first_name} ${st.last_name}`,
+            active: st.id === studentId
+          }))}
+        />
+      ) : null}
 
-      <div className="space-y-4">
-        {rows.length ? (
-          rows.map((r) => (
-            <div key={r.id} className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+      {errorMsg ? (
+        <Alert tone="warning" title="Discipline records temporarily unavailable">
+          <span className="text-xs">{errorMsg}</span>
+        </Alert>
+      ) : null}
+
+      {rows.length ? (
+        <div className="space-y-4">
+          {rows.map((r) => (
+            <Card key={r.id} className="p-5 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-slate-900">{r.category ?? "Discipline"}</div>
-                  <div className="mt-1 text-xs font-semibold text-slate-500">{String(r.occurred_at).slice(0, 10)}</div>
+                  <div className="font-semibold text-slate-900">{r.category ?? "Discipline"}</div>
+                  <div className="mt-0.5 text-sm text-slate-500">{formatLagosDate(r.occurred_at)}</div>
                 </div>
-                <div className="text-xs font-semibold text-slate-700">Severity: {r.severity}</div>
+                <Badge tone={severityTone(Number(r.severity ?? 0))}>Severity {r.severity}</Badge>
               </div>
-              <div className="mt-4 whitespace-pre-wrap text-sm text-slate-700">{r.description}</div>
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{r.description}</p>
               {r.sanction ? (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-xs font-semibold text-slate-500">Sanction</div>
-                  <div className="mt-2 whitespace-pre-wrap text-sm text-slate-800">{r.sanction}</div>
+                <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3">
+                  <div className="text-xs font-medium text-slate-500">Action taken</div>
+                  <div className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{r.sanction}</div>
                 </div>
               ) : null}
-            </div>
-          ))
-        ) : (
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm">
-            No discipline records yet.
-          </div>
-        )}
-      </div>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <EmptyState icon={ShieldCheck} title="No discipline records" description="Nothing has been recorded. Keep it up!" />
+        </Card>
+      )}
     </div>
   );
 }

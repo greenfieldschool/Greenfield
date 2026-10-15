@@ -1,7 +1,17 @@
 import { revalidatePath } from "next/cache";
-import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { firstOrNull } from "@/lib/relations";
 import SubmitButton from "@/components/submit-button";
+import UrlToast from "@/components/url-toast";
+import { ListPlus, Save, SearchX, Trash2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink } from "@/components/ui/button";
+import { fmtMoney } from "../../../_components/finance-ui";
+import { toastUrl } from "../../../_components/finance-server";
 
 type ScheduleRow = {
   id: string;
@@ -18,12 +28,8 @@ type ComponentRow = {
 type LineRow = {
   id: string;
   amount: number;
-  fee_components: { id: string; name: string } | null;
+  fee_components: { id: string; name: string } | Array<{ id: string; name: string }> | null;
 };
-
-function asMoney(n: number) {
-  return Number(n ?? 0).toLocaleString();
-}
 
 export default async function AdminFeeScheduleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -44,13 +50,20 @@ export default async function AdminFeeScheduleDetailPage({ params }: { params: P
   const scheduleRow = schedule as ScheduleRow | null;
   if (!scheduleRow) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Schedule not found</h1>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees/schedules">
-            Back
-          </Link>
-        </div>
+      <div className="space-y-6">
+        <PageHeader back={{ href: "/admin/finance/fees/schedules", label: "Back" }} eyebrow="Fee schedule" title="Schedule not found" />
+        <Card>
+          <EmptyState
+            icon={SearchX}
+            title="Schedule not found"
+            description="It may have been removed. Go back to the list of schedules."
+            action={
+              <ButtonLink href="/admin/finance/fees/schedules" variant="secondary" size="sm">
+                Back to schedules
+              </ButtonLink>
+            }
+          />
+        </Card>
       </div>
     );
   }
@@ -63,130 +76,150 @@ export default async function AdminFeeScheduleDetailPage({ params }: { params: P
   async function addLine(formData: FormData) {
     "use server";
 
+    const back = `/admin/finance/fees/schedules/${id}`;
     const feeComponentId = String(formData.get("fee_component_id") ?? "").trim();
-    const amount = Number(String(formData.get("amount") ?? "0").trim() || "0");
+    const amount = Number(String(formData.get("amount") ?? "0").replace(/,/g, "").trim() || "0");
 
-    if (!feeComponentId) return;
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    if (!feeComponentId) redirect(toastUrl(back, "Choose a fee component", "error"));
+    if (!Number.isFinite(amount) || amount <= 0) redirect(toastUrl(back, "Enter an amount greater than zero", "error"));
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl(back, "Database is not configured", "error"));
 
-    await supabase.from("fee_schedule_lines").upsert({
-      fee_schedule_id: id,
-      fee_component_id: feeComponentId,
-      amount
-    });
+    // fee_schedule_lines has unique (fee_schedule_id, fee_component_id): saving an existing component updates it.
+    const { error } = await supabase.from("fee_schedule_lines").upsert(
+      {
+        fee_schedule_id: id,
+        fee_component_id: feeComponentId,
+        amount
+      },
+      { onConflict: "fee_schedule_id,fee_component_id" }
+    );
 
-    revalidatePath(`/admin/finance/fees/schedules/${id}`);
+    if (error) redirect(toastUrl(back, error.message, "error"));
+
+    revalidatePath(back);
+    redirect(toastUrl(back, "Line saved"));
   }
 
   async function removeLine(formData: FormData) {
     "use server";
 
+    const back = `/admin/finance/fees/schedules/${id}`;
     const lineId = String(formData.get("line_id") ?? "").trim();
-    if (!lineId) return;
+    if (!lineId) redirect(toastUrl(back, "Missing line", "error"));
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl(back, "Database is not configured", "error"));
 
-    await supabase.from("fee_schedule_lines").delete().eq("id", lineId);
-    revalidatePath(`/admin/finance/fees/schedules/${id}`);
+    const { error } = await supabase.from("fee_schedule_lines").delete().eq("id", lineId);
+    if (error) redirect(toastUrl(back, error.message, "error"));
+
+    revalidatePath(back);
+    redirect(toastUrl(back, "Line removed"));
   }
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Fee schedule</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">{scheduleRow.name}</h1>
-        <div className="mt-2 text-sm text-slate-700">
-          Total: <span className="font-semibold">{scheduleRow.currency} {asMoney(total)}</span>
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Add / update line</h2>
-        <form action={addLine} className="mt-4 grid gap-4 sm:grid-cols-3">
-          <div className="sm:col-span-2">
-            <label className="text-sm font-semibold text-slate-900">Fee component</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="fee_component_id"
-              required
-              defaultValue=""
-            >
-              <option value="" disabled>
-                Select component
-              </option>
-              {componentRows.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+      <UrlToast />
+      <PageHeader
+        back={{ href: "/admin/finance/fees/schedules", label: "Back to schedules" }}
+        eyebrow="Fee schedule"
+        title={scheduleRow.name}
+        actions={
+          <div className="text-right">
+            <div className="text-xs font-medium text-slate-500">Total</div>
+            <div className="text-xl font-bold tabular-nums text-slate-900">{fmtMoney(total, scheduleRow.currency)}</div>
           </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Amount</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="amount"
-              type="number"
-              step="0.01"
-              min="0"
-              required
-            />
-          </div>
+        }
+      />
 
-          <div className="flex items-end sm:col-span-3">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Saving…"
-            >
+      <form action={addLine}>
+        <FormSection
+          title="Add / update line"
+          footer={
+            <SubmitButton variant="primary" pendingText="Saving…">
+              <Save className="h-4 w-4" aria-hidden="true" />
               Save line
             </SubmitButton>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Fee component" htmlFor="fee_component_id" required className="sm:col-span-2">
+              <select id="fee_component_id" className="gf-select" name="fee_component_id" required defaultValue="">
+                <option value="" disabled>
+                  Select component
+                </option>
+                {componentRows.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Amount" htmlFor="amount" required>
+              <input
+                id="amount"
+                className="gf-input text-right tabular-nums"
+                name="amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                required
+              />
+            </Field>
           </div>
-        </form>
-      </div>
+        </FormSection>
+      </form>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-8">Component</div>
-          <div className="col-span-3 text-right">Amount</div>
-          <div className="col-span-1">Remove</div>
-        </div>
-        <div>
-          {lineRows.length ? (
-            lineRows.map((l) => (
-              <div key={l.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                <div className="col-span-8 font-semibold text-slate-900">{l.fee_components?.name ?? "—"}</div>
-                <div className="col-span-3 text-right text-slate-700">
-                  {scheduleRow.currency} {asMoney(l.amount)}
-                </div>
-                <div className="col-span-1">
-                  <form action={removeLine}>
-                    <input type="hidden" name="line_id" value={l.id} />
-                    <SubmitButton
-                      className="text-xs font-semibold text-rose-700 hover:underline disabled:opacity-60"
-                      pendingText="Removing…"
-                      showSpinner={false}
-                    >
-                      Remove
-                    </SubmitButton>
-                  </form>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No lines yet.</div>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees/schedules">
-          Back to schedules
-        </Link>
-      </div>
+      <Card>
+        <CardHeader title="Fee lines" description={`${lineRows.length} line${lineRows.length === 1 ? "" : "s"}`} />
+        {lineRows.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[420px]">
+              <thead>
+                <tr>
+                  <th>Component</th>
+                  <th className="text-right">Amount</th>
+                  <th className="text-right">
+                    <span className="sr-only">Remove</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {lineRows.map((l) => (
+                  <tr key={l.id}>
+                    <td className="font-semibold text-slate-900">{firstOrNull(l.fee_components)?.name ?? "—"}</td>
+                    <td className="whitespace-nowrap text-right tabular-nums">{fmtMoney(l.amount, scheduleRow.currency)}</td>
+                    <td className="w-px text-right">
+                      <form action={removeLine} className="inline">
+                        <input type="hidden" name="line_id" value={l.id} />
+                        <SubmitButton
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                          pendingText="Removing…"
+                          showSpinner={false}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          Remove
+                        </SubmitButton>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-slate-200 bg-slate-50/80 font-semibold text-slate-900">
+                  <td className="px-4 py-3 pl-5 sm:pl-6">Total</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{fmtMoney(total, scheduleRow.currency)}</td>
+                  <td className="px-4 py-3 pr-5 sm:pr-6" />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={ListPlus} title="No lines yet" description="Add fee components and amounts using the form above." />
+        )}
+      </Card>
     </div>
   );
 }

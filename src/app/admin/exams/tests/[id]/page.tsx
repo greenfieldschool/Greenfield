@@ -2,7 +2,16 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { Braces, ChevronDown, Clock, Copy, Eye, ListChecks, Pencil, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import SubmitButton from "@/components/submit-button";
+import ConfirmActionButton from "@/components/confirm-action-button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
 import { formatDescriptionWithTargets, parseDescriptionAndTargets } from "@/lib/exam-targets";
 import UrlToast from "@/components/url-toast";
 
@@ -36,6 +45,15 @@ const questionTypes = [
   "short_answer",
   "essay"
 ] as const;
+
+const questionTypeTones: Record<string, BadgeTone> = {
+  mcq_single: "blue",
+  mcq_multi: "violet",
+  true_false: "gold",
+  fill_blank: "green",
+  short_answer: "slate",
+  essay: "slate"
+};
 
 function questionTypeLabel(t: string) {
   switch (t) {
@@ -115,6 +133,14 @@ function getCorrectFillBlank(v: unknown): string {
   return safeString(asObj.value).trim();
 }
 
+// Send the admin back to the test editor with an error toast (usable from inline server actions).
+function failTo(testId: string, message: string): never {
+  redirect(`/admin/exams/tests/${testId}?toast=${encodeURIComponent(message)}&toast_type=error`);
+}
+
+const FROZEN_MESSAGE = "Students have already sat this test, so its questions are locked.";
+const NO_DB_MESSAGE = "Database is not configured.";
+
 async function checkTestFrozen(supabase: ReturnType<typeof getSupabaseServerClient>, testId: string): Promise<boolean> {
   if (!supabase) return false;
   const { data: sessionRows } = await supabase
@@ -147,24 +173,30 @@ export default async function AdminExamTestDetailPage({
   // Check if test is frozen (taken by students)
   const isFrozen = await checkTestFrozen(supabase, id);
 
-  const [{ data: testData }, { data: questionsData }, { data: solutionsData }] = await Promise.all([
+  const [{ data: testData }, { data: questionsData }] = await Promise.all([
     supabase.from("exam_tests").select("id, name, description, duration_minutes").eq("id", id).maybeSingle(),
     supabase
       .from("exam_questions")
       .select("id, question_type, prompt, marks, options, active")
       .eq("test_id", id)
       .order("created_at", { ascending: false })
-    ,
-    supabase
-      .from("exam_question_solutions")
-      .select("question_id, correct_answer, explanation")
   ]);
 
   const test = (testData ?? null) as TestRow | null;
   if (!test) return null;
 
   const questions = (questionsData ?? []) as QuestionRow[];
-  const solutions = (solutionsData ?? []) as SolutionRow[];
+
+  // Only this test's solutions.
+  const questionIds = questions.map((q) => q.id);
+  let solutions: SolutionRow[] = [];
+  if (questionIds.length) {
+    const { data: solutionsData } = await supabase
+      .from("exam_question_solutions")
+      .select("question_id, correct_answer, explanation")
+      .in("question_id", questionIds);
+    solutions = (solutionsData ?? []) as SolutionRow[];
+  }
   const solutionByQuestionId = new Map(solutions.map((s) => [s.question_id, s] as const));
 
   // Parse description and targets
@@ -199,9 +231,9 @@ export default async function AdminExamTestDetailPage({
     "use server";
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failTo(id, NO_DB_MESSAGE);
 
-    if (await checkTestFrozen(supabase, id)) return;
+    if (await checkTestFrozen(supabase, id)) failTo(id, FROZEN_MESSAGE);
 
     const { data: currentTest } = await supabase
       .from("exam_tests")
@@ -209,7 +241,7 @@ export default async function AdminExamTestDetailPage({
       .eq("id", id)
       .maybeSingle();
 
-    if (!currentTest) return;
+    if (!currentTest) failTo(id, "Test not found.");
 
     const { description: cleanDesc } = parseDescriptionAndTargets(currentTest.description);
 
@@ -241,7 +273,7 @@ export default async function AdminExamTestDetailPage({
     }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failTo(id, NO_DB_MESSAGE);
 
     await supabase
       .from("exam_tests")
@@ -258,16 +290,16 @@ export default async function AdminExamTestDetailPage({
     "use server";
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failTo(id, NO_DB_MESSAGE);
 
-    if (await checkTestFrozen(supabase, id)) return;
+    if (await checkTestFrozen(supabase, id)) failTo(id, FROZEN_MESSAGE);
 
     const questionType = String(formData.get("question_type") ?? "").trim();
     const prompt = String(formData.get("prompt") ?? "").trim();
     const marks = Number(String(formData.get("marks") ?? "1").trim() || "1");
 
-    if (!questionType || !prompt) return;
-    if (!Number.isFinite(marks) || marks <= 0) return;
+    if (!questionType || !prompt) failTo(id, "Choose a question type and enter the prompt.");
+    if (!Number.isFinite(marks) || marks <= 0) failTo(id, "Marks must be above 0.");
 
     await supabase.from("exam_questions").insert({
       test_id: id,
@@ -283,9 +315,9 @@ export default async function AdminExamTestDetailPage({
     "use server";
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failTo(id, NO_DB_MESSAGE);
 
-    if (await checkTestFrozen(supabase, id)) return;
+    if (await checkTestFrozen(supabase, id)) failTo(id, FROZEN_MESSAGE);
 
     const questionId = String(formData.get("question_id") ?? "").trim();
     const questionType = String(formData.get("question_type") ?? "").trim();
@@ -296,9 +328,9 @@ export default async function AdminExamTestDetailPage({
     const correctRaw = String(formData.get("correct_answer") ?? "").trim();
     const active = String(formData.get("active") ?? "").trim() === "on";
 
-    if (!questionId) return;
-    if (!prompt) return;
-    if (!Number.isFinite(marks) || marks <= 0) return;
+    if (!questionId) failTo(id, "Question not found.");
+    if (!prompt) failTo(id, "Enter the question prompt.");
+    if (!Number.isFinite(marks) || marks <= 0) failTo(id, "Marks must be above 0.");
 
     let options: unknown = null;
     let correctAnswer: unknown = null;
@@ -323,10 +355,10 @@ export default async function AdminExamTestDetailPage({
       options = o.length ? o : null;
 
       if (questionType === "mcq_single") {
-        if (!correctSingle.length) return;
+        if (!correctSingle.length) failTo(id, "Choose the correct option.");
         correctAnswer = { value: correctSingle };
       } else {
-        if (!correctMulti.length) return;
+        if (!correctMulti.length) failTo(id, "Tick at least one correct option.");
         correctAnswer = { values: correctMulti };
       }
     } else if (questionType === "true_false" && (correctTf === "true" || correctTf === "false")) {
@@ -338,12 +370,12 @@ export default async function AdminExamTestDetailPage({
     } else if (questionType === "fill_blank" && correctBlank.length) {
       correctAnswer = { value: correctBlank };
     } else if (questionType === "true_false" || questionType === "fill_blank") {
-      return;
+      failTo(id, "Set the correct answer.");
     } else if (optionsRaw.length) {
       try {
         options = JSON.parse(optionsRaw);
       } catch {
-        return;
+        failTo(id, "Options (JSON) is not valid JSON.");
       }
     }
 
@@ -351,7 +383,7 @@ export default async function AdminExamTestDetailPage({
       try {
         correctAnswer = JSON.parse(correctRaw);
       } catch {
-        return;
+        failTo(id, "Correct answer (JSON) is not valid JSON.");
       }
     }
 
@@ -384,14 +416,14 @@ export default async function AdminExamTestDetailPage({
     "use server";
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failTo(id, NO_DB_MESSAGE);
 
     if (await checkTestFrozen(supabase, id)) {
       redirect(`/admin/exams/tests/${id}?error=cannot_delete_taken_question`);
     }
 
     const questionId = String(formData.get("question_id") ?? "").trim();
-    if (!questionId) return;
+    if (!questionId) failTo(id, "Question not found.");
 
     // Delete question cascades to Solutions automatically
     await supabase.from("exam_questions").delete().eq("id", questionId).eq("test_id", id);
@@ -403,12 +435,12 @@ export default async function AdminExamTestDetailPage({
     "use server";
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failTo(id, NO_DB_MESSAGE);
 
-    if (await checkTestFrozen(supabase, id)) return;
+    if (await checkTestFrozen(supabase, id)) failTo(id, FROZEN_MESSAGE);
 
     const questionId = String(formData.get("question_id") ?? "").trim();
-    if (!questionId) return;
+    if (!questionId) failTo(id, "Question not found.");
 
     // 1. Fetch original question
     const { data: qData } = await supabase
@@ -417,7 +449,7 @@ export default async function AdminExamTestDetailPage({
       .eq("id", questionId)
       .maybeSingle();
 
-    if (!qData) return;
+    if (!qData) failTo(id, "Question not found.");
 
     // 2. Insert duplicated question
     const { data: newQ, error: newQErr } = await supabase
@@ -432,7 +464,7 @@ export default async function AdminExamTestDetailPage({
       .select("id")
       .maybeSingle();
 
-    if (newQErr || !newQ) return;
+    if (newQErr || !newQ) failTo(id, newQErr?.message ?? "Could not duplicate the question.");
 
     // 3. Fetch original solution
     const { data: solData } = await supabase
@@ -453,200 +485,230 @@ export default async function AdminExamTestDetailPage({
     revalidatePath(`/admin/exams/tests/${id}`);
   }
 
+  const totalMarks = questions.reduce((sum, q) => sum + (Number(q.marks) || 0), 0);
+  const overallPercent = totalTarget > 0 ? Math.min(100, Math.round((totalSet / totalTarget) * 100)) : 0;
+
   return (
     <div className="space-y-6">
       <UrlToast />
+
+      <PageHeader
+        back={{ href: "/admin/exams/tests", label: "Back to tests" }}
+        eyebrow="Exams"
+        title={test.name}
+        description={displayDescription || undefined}
+        actions={
+          <Link href={`/admin/exams/tests/${id}/preview`} className={buttonClasses({ variant: "secondary" })}>
+            <Eye className="h-4 w-4" aria-hidden="true" />
+            Preview
+          </Link>
+        }
+      />
+
       {isFrozen && (
-        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-950 shadow-sm flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
-            <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
-          <div>
-            <div className="font-semibold text-amber-900">Exam record frozen</div>
-            <p className="mt-1 text-sm opacity-90">
-              This exam has already been administered to classes and has recorded student attempts. Questions have been locked to preserve the absolute integrity of historical exam records and grades.
-            </p>
-          </div>
-        </div>
+        <Alert tone="warning" title="Exam record frozen">
+          This exam has already been administered to classes and has recorded student attempts. Questions have been locked to
+          preserve the absolute integrity of historical exam records and grades.
+        </Alert>
       )}
 
       {error === "cannot_delete_taken_question" ? (
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-950 shadow-sm flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
-            <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <div>
-            <div className="font-semibold">Cannot delete question</div>
-            <p className="mt-1 text-sm opacity-90">
-              Students have already taken this exam and submitted answers for this question. Deleting it would corrupt their grades. If you no longer want this question to be active, uncheck the <strong className="font-semibold">&quot;Active&quot;</strong> checkbox and save instead.
-            </p>
-          </div>
-        </div>
+        <Alert tone="danger" title="Cannot delete question">
+          Students have already taken this exam and submitted answers for this question. Deleting it would corrupt their grades.
+          If you no longer want this question to be active, uncheck the <strong className="font-semibold">&quot;Active&quot;</strong>{" "}
+          checkbox and save instead.
+        </Alert>
       ) : null}
 
-      {/* Main header block */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Exams</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">{test.name}</h1>
-        {displayDescription && <p className="mt-1 text-sm text-slate-500">{displayDescription}</p>}
-        <p className="mt-2 text-sm text-slate-600">Duration: {test.duration_minutes} minutes</p>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/exams/tests">
-            Back to tests
-          </Link>
-          <span className="mx-2 text-slate-300">|</span>
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href={`/admin/exams/tests/${id}/preview`}>
-            Preview
-          </Link>
-        </div>
-        <details className="mt-4 border-t border-slate-100 pt-4">
-          <summary className="cursor-pointer text-xs font-semibold text-slate-700 hover:text-brand-green">
-            Edit test name and duration
-          </summary>
-          <form action={updateTestDetails} className="mt-4 grid gap-4 sm:grid-cols-3">
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold text-slate-600">Test name</label>
-              <input
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="name"
-                defaultValue={test.name}
-                required
-              />
+      {/* Test details */}
+      <Card>
+        <CardHeader
+          title="Test details"
+          description="Name and time allowed for this paper."
+          action={
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Badge tone="blue">
+                <Clock className="h-3 w-3" aria-hidden="true" />
+                Duration: {test.duration_minutes} minutes
+              </Badge>
+              <Badge tone="slate">
+                {questions.length} question{questions.length === 1 ? "" : "s"} · {totalMarks} mark{totalMarks === 1 ? "" : "s"}
+              </Badge>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600">Duration (minutes)</label>
-              <input
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="duration_minutes"
-                type="number"
-                min={1}
-                defaultValue={test.duration_minutes}
-                required
-              />
-            </div>
-            <div className="sm:col-span-3 flex justify-end">
-              <SubmitButton
-                className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
-                pendingText="Saving…"
-              >
-                Save details
-              </SubmitButton>
-            </div>
-          </form>
-        </details>
-      </div>
-
-      {/* Live Targets and Tracker Panel */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Question Targets &amp; Quota</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Specify and track how many questions of each type you need to set.</p>
-          </div>
-          {totalTarget > 0 && (
-            <div className={`rounded-xl px-4 py-2 text-sm font-semibold ${totalSet >= totalTarget ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' : 'bg-amber-50 text-amber-800 border border-amber-100'}`}>
-              {totalSet < totalTarget ? (
-                <span>
-                  Quota remaining: {totalTarget - totalSet} question{totalTarget - totalSet > 1 ? 's' : ''} left to set (
-                  {leftToSet.map(item => `${item.count} ${questionTypeLabel(item.type).split(' ')[0]}`).join(', ')}
-                  )
-                </span>
-              ) : (
-                <span>🎉 All targets met! You set {totalSet} / {totalTarget} questions.</span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Progress Grid */}
-        {totalTarget > 0 && (
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-            {questionTypes.map((type) => {
-              const target = targets[type] ?? 0;
-              if (target === 0) return null;
-              const actual = actualCounts[type] ?? 0;
-              const percent = Math.min(100, Math.round((actual / target) * 100));
-              return (
-                <div key={type} className="rounded-2xl border border-slate-100 p-4 bg-slate-50/50">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-slate-600 truncate mr-2" title={questionTypeLabel(type)}>
-                      {questionTypeLabel(type)}
-                    </span>
-                    <span className="text-slate-900 shrink-0">{actual} / {target}</span>
-                  </div>
-                  <div className="mt-2 h-2 w-full rounded-full bg-slate-200 overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-300 ${percent === 100 ? 'bg-emerald-500' : percent > 50 ? 'bg-amber-500' : 'bg-brand-green'}`}
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Form to update targets (only if not frozen) */}
-        {!isFrozen && (
-          <details className="mt-6 border-t border-slate-100 pt-4">
-            <summary className="cursor-pointer text-xs font-semibold text-slate-700 hover:text-brand-green">
-              Configure Question Targets
+          }
+        />
+        <CardBody>
+          <details className="group">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-brand-green-700 hover:text-brand-green [&::-webkit-details-marker]:hidden">
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              Edit test name and duration
+              <ChevronDown className="h-4 w-4 transition group-open:rotate-180" aria-hidden="true" />
             </summary>
-            <form action={updateQuestionTargets} className="mt-4 grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-              {questionTypes.map((type) => (
-                <div key={type}>
-                  <label className="text-xs font-semibold text-slate-600 block whitespace-nowrap" title={questionTypeLabel(type)}>
-                    {questionTypeShortLabel(type)}
-                  </label>
-                  <input
-                    type="number"
-                    name={`target_${type}`}
-                    min={0}
-                    defaultValue={targets[type] ?? 0}
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  />
-                </div>
-              ))}
-              <div className="sm:col-span-3 md:col-span-6 flex justify-end">
-                <SubmitButton
-                  className="rounded-xl bg-slate-900 text-white px-4 py-2 text-xs font-semibold hover:bg-slate-800 transition-all"
-                  pendingText="Updating Targets..."
-                >
-                  Save Targets
+            <form action={updateTestDetails} className="mt-4 grid gap-4 sm:grid-cols-3">
+              <Field label="Test name" htmlFor="test-name" className="sm:col-span-2">
+                <input id="test-name" className="gf-input" name="name" defaultValue={test.name} required />
+              </Field>
+              <Field label="Duration (minutes)" htmlFor="test-duration">
+                <input
+                  id="test-duration"
+                  className="gf-input"
+                  name="duration_minutes"
+                  type="number"
+                  min={1}
+                  defaultValue={test.duration_minutes}
+                  required
+                />
+              </Field>
+              <div className="flex justify-end sm:col-span-3">
+                <SubmitButton variant="primary" size="sm" pendingText="Saving…">
+                  Save details
                 </SubmitButton>
               </div>
             </form>
           </details>
-        )}
-      </div>
+        </CardBody>
+      </Card>
+
+      {/* Question targets tracker */}
+      <Card>
+        <CardHeader
+          title="Question targets"
+          description="Specify and track how many questions of each type you need to set."
+          action={
+            totalTarget > 0 ? (
+              <Badge tone={totalSet >= totalTarget ? "green" : "gold"}>
+                {totalSet} / {totalTarget} set
+              </Badge>
+            ) : null
+          }
+        />
+        <CardBody className="space-y-5">
+          {totalTarget > 0 ? (
+            <>
+              <div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-slate-700">Overall progress</span>
+                  <span className="font-semibold text-slate-900">{overallPercent}%</span>
+                </div>
+                <div
+                  className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-100"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={overallPercent}
+                  aria-label="Overall question target progress"
+                >
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${overallPercent === 100 ? "bg-brand-green-500" : "bg-brand-gold"}`}
+                    style={{ width: `${overallPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              {totalSet < totalTarget ? (
+                <Alert tone="warning">
+                  Quota remaining: {totalTarget - totalSet} question{totalTarget - totalSet > 1 ? "s" : ""} left to set (
+                  {leftToSet.map((item) => `${item.count} ${questionTypeShortLabel(item.type)}`).join(", ")})
+                </Alert>
+              ) : (
+                <Alert tone="success">
+                  All targets met! You set {totalSet} / {totalTarget} questions.
+                </Alert>
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {questionTypes.map((type) => {
+                  const target = targets[type] ?? 0;
+                  if (target === 0) return null;
+                  const actual = actualCounts[type] ?? 0;
+                  const percent = Math.min(100, Math.round((actual / target) * 100));
+                  return (
+                    <div key={type} className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="truncate font-medium text-slate-700" title={questionTypeLabel(type)}>
+                          {questionTypeLabel(type)}
+                        </span>
+                        <span className="shrink-0 font-semibold text-slate-900">
+                          {actual} / {target}
+                        </span>
+                      </div>
+                      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            percent === 100 ? "bg-brand-green-500" : percent > 50 ? "bg-brand-gold" : "bg-brand-green-300"
+                          }`}
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-slate-500">No targets set yet. Add how many questions of each type this paper needs.</p>
+          )}
+
+          {!isFrozen && (
+            <details className="group border-t border-slate-100 pt-4">
+              <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-brand-green-700 hover:text-brand-green [&::-webkit-details-marker]:hidden">
+                <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                Configure question targets
+                <ChevronDown className="h-4 w-4 transition group-open:rotate-180" aria-hidden="true" />
+              </summary>
+              <form action={updateQuestionTargets} className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                {questionTypes.map((type) => (
+                  <div key={type}>
+                    <label htmlFor={`target-${type}`} className="gf-label whitespace-nowrap" title={questionTypeLabel(type)}>
+                      {questionTypeShortLabel(type)}
+                    </label>
+                    <input
+                      id={`target-${type}`}
+                      type="number"
+                      name={`target_${type}`}
+                      min={0}
+                      defaultValue={targets[type] ?? 0}
+                      className="gf-input"
+                    />
+                  </div>
+                ))}
+                <div className="col-span-2 flex justify-end sm:col-span-3 lg:col-span-6">
+                  <SubmitButton variant="primary" size="sm" pendingText="Updating Targets...">
+                    Save targets
+                  </SubmitButton>
+                </div>
+              </form>
+            </details>
+          )}
+        </CardBody>
+      </Card>
 
       {!isFrozen && (
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Add question</h2>
-          <form action={createQuestion} className="mt-4 grid gap-4 sm:grid-cols-2">
+        <form action={createQuestion}>
+          <FormSection
+            title="Add question"
+            description="Create the question here, then set its options and correct answer in the list below."
+            footer={
+              <SubmitButton variant="primary" pendingText="Creating…">
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Create question
+              </SubmitButton>
+            }
+          >
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Type</label>
-                <select
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="question_type"
-                  defaultValue={questionTypes[0]}
-                >
+              <Field label="Type" htmlFor="new-question-type">
+                <select id="new-question-type" className="gf-select" name="question_type" defaultValue={questionTypes[0]}>
                   {questionTypes.map((t) => (
                     <option key={t} value={t}>
                       {questionTypeLabel(t)}
                     </option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Marks</label>
+              </Field>
+              <Field label="Marks" htmlFor="new-question-marks" required>
                 <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                  id="new-question-marks"
+                  className="gf-input"
                   name="marks"
                   type="number"
                   step="0.01"
@@ -654,163 +716,124 @@ export default async function AdminExamTestDetailPage({
                   defaultValue={1}
                   required
                 />
-              </div>
+              </Field>
+              <Field label="Prompt" htmlFor="new-question-prompt" required className="sm:col-span-2">
+                <textarea id="new-question-prompt" className="gf-input" name="prompt" rows={5} required />
+              </Field>
             </div>
-
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Prompt</label>
-              <textarea
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="prompt"
-                rows={5}
-                required
-              />
-            </div>
-
-            <div>
-              <SubmitButton
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white transition-all duration-150 hover:brightness-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-                pendingText="Creating…"
-              >
-                Create question
-              </SubmitButton>
-            </div>
-          </form>
-        </div>
+          </FormSection>
+        </form>
       )}
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-2">Type</div>
-          <div className="col-span-8">{isFrozen ? "Question (Read-only)" : "Question"}</div>
-          <div className="col-span-2">Actions</div>
+      {/* Existing questions */}
+      <section aria-labelledby="questions-heading" className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="questions-heading" className="text-base font-semibold text-slate-900">
+            {isFrozen ? "Questions (read-only)" : "Questions"}
+          </h2>
+          <span className="text-sm text-slate-500">
+            {questions.length} question{questions.length === 1 ? "" : "s"}
+          </span>
         </div>
-        <div>
-          {questions.length ? (
-            questions.map((q) => (
-              <div key={q.id} className="border-t border-slate-200 px-6 py-4">
-                <div className="grid grid-cols-12 gap-3">
-                  <div className="col-span-12 sm:col-span-2">
-                    <div className="text-xs font-semibold text-slate-600">{questionTypeLabel(q.question_type)}</div>
+
+        {questions.length ? (
+          questions.map((q, index) => {
+            const sol = solutionByQuestionId.get(q.id) ?? null;
+            const number = questions.length - index;
+            const fid = `q-${q.id}`;
+            return (
+              <Card key={q.id} className={q.active ? undefined : "opacity-90"}>
+                <form action={updateQuestion}>
+                  <input type="hidden" name="question_id" value={q.id} />
+                  <input type="hidden" name="question_type" value={q.question_type} />
+                  <input type="hidden" name="_sol_present" value={sol ? "1" : "0"} />
+
+                  <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-5 py-3.5 sm:px-6">
+                    <span className="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg bg-brand-green-50 px-2 text-xs font-bold text-brand-green-700">
+                      Q{number}
+                    </span>
+                    <Badge tone={questionTypeTones[q.question_type] ?? "slate"}>{questionTypeLabel(q.question_type)}</Badge>
+                    <Badge tone="slate">
+                      {q.marks} mark{Number(q.marks) === 1 ? "" : "s"}
+                    </Badge>
+                    {!q.active ? <Badge tone="red">Inactive</Badge> : null}
                   </div>
 
-                  <div className="col-span-12 sm:col-span-10">
-                    <form action={updateQuestion} className="grid gap-3">
-                      <input type="hidden" name="question_id" value={q.id} />
-                      <input type="hidden" name="question_type" value={q.question_type} />
+                  <div className="grid gap-4 px-5 py-5 sm:px-6">
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <Field label="Prompt" htmlFor={`${fid}-prompt`} className="sm:col-span-2">
+                        <textarea
+                          id={`${fid}-prompt`}
+                          className="gf-input"
+                          name="prompt"
+                          defaultValue={q.prompt}
+                          rows={3}
+                          required
+                          disabled={isFrozen}
+                        />
+                      </Field>
+                      <Field label="Marks" htmlFor={`${fid}-marks`}>
+                        <input
+                          id={`${fid}-marks`}
+                          className="gf-input"
+                          name="marks"
+                          type="number"
+                          step="0.01"
+                          min={0.01}
+                          defaultValue={String(q.marks)}
+                          required
+                          disabled={isFrozen}
+                        />
+                        <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+                          <input className="gf-checkbox" name="active" type="checkbox" defaultChecked={q.active} disabled={isFrozen} />
+                          Active
+                        </label>
+                      </Field>
+                    </div>
 
-                      {(() => {
-                        const sol = solutionByQuestionId.get(q.id) ?? null;
-                        return (
-                          <>
-                            <input
-                              type="hidden"
-                              name="_sol_present"
-                              value={sol ? "1" : "0"}
-                            />
-                          </>
-                        );
-                      })()}
+                    {q.question_type === "mcq_single" ||
+                    q.question_type === "mcq_multi" ||
+                    q.question_type === "true_false" ||
+                    q.question_type === "fill_blank" ? (
+                      <div className="grid gap-4">
+                        {(() => {
+                          const options = getMcqOptions(q.options);
+                          const correctKeys = getCorrectMcqKeys(sol?.correct_answer ?? null);
+                          const correctBool = getCorrectBoolean(sol?.correct_answer ?? null);
+                          const correctBlank = getCorrectFillBlank(sol?.correct_answer ?? null);
 
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="sm:col-span-2">
-                          <label className="text-xs font-semibold text-slate-600">Prompt</label>
-                          <textarea
-                            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
-                            name="prompt"
-                            defaultValue={q.prompt}
-                            rows={3}
-                            required
-                            disabled={isFrozen}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-slate-600">Marks</label>
-                          <input
-                            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
-                            name="marks"
-                            type="number"
-                            step="0.01"
-                            min={0.01}
-                            defaultValue={String(q.marks)}
-                            required
-                            disabled={isFrozen}
-                          />
-                          <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-700">
-                            <input className="h-4 w-4" name="active" type="checkbox" defaultChecked={q.active} disabled={isFrozen} />
-                            Active
-                          </label>
-                        </div>
-                      </div>
+                          const optionByKey = new Map(options.map((o) => [o.key, o.label] as const));
 
-                      {q.question_type === "mcq_single" ||
-                      q.question_type === "mcq_multi" ||
-                      q.question_type === "true_false" ||
-                      q.question_type === "fill_blank" ? (
-                        <div className="grid gap-3">
-                          {(() => {
-                            const sol = solutionByQuestionId.get(q.id) ?? null;
-                            const options = getMcqOptions(q.options);
-                            const correctKeys = getCorrectMcqKeys(sol?.correct_answer ?? null);
-                            const correctBool = getCorrectBoolean(sol?.correct_answer ?? null);
-                            const correctBlank = getCorrectFillBlank(sol?.correct_answer ?? null);
-
-                            const optionByKey = new Map(options.map((o) => [o.key, o.label] as const));
-
-                            if (q.question_type === "mcq_single" || q.question_type === "mcq_multi") {
-                              return (
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                  <div className="sm:col-span-2">
-                                    <div className="text-xs font-semibold text-slate-600">Options</div>
-                                    <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                                      <div>
-                                        <label className="text-xs font-semibold text-slate-600">Option A</label>
+                          if (q.question_type === "mcq_single" || q.question_type === "mcq_multi") {
+                            return (
+                              <div className="grid gap-4 rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+                                <div>
+                                  <div className="text-sm font-semibold text-slate-900">Options</div>
+                                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                    {(["A", "B", "C", "D"] as const).map((k) => (
+                                      <div key={k}>
+                                        <label htmlFor={`${fid}-option-${k}`} className="gf-label">
+                                          Option {k}
+                                        </label>
                                         <input
-                                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
-                                          name="option_a"
-                                          defaultValue={optionByKey.get("A") ?? ""}
+                                          id={`${fid}-option-${k}`}
+                                          className="gf-input"
+                                          name={`option_${k.toLowerCase()}`}
+                                          defaultValue={optionByKey.get(k) ?? ""}
                                           placeholder="(optional)"
                                           disabled={isFrozen}
                                         />
                                       </div>
-                                      <div>
-                                        <label className="text-xs font-semibold text-slate-600">Option B</label>
-                                        <input
-                                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
-                                          name="option_b"
-                                          defaultValue={optionByKey.get("B") ?? ""}
-                                          placeholder="(optional)"
-                                          disabled={isFrozen}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-semibold text-slate-600">Option C</label>
-                                        <input
-                                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
-                                          name="option_c"
-                                          defaultValue={optionByKey.get("C") ?? ""}
-                                          placeholder="(optional)"
-                                          disabled={isFrozen}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-semibold text-slate-600">Option D</label>
-                                        <input
-                                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
-                                          name="option_d"
-                                          defaultValue={optionByKey.get("D") ?? ""}
-                                          placeholder="(optional)"
-                                          disabled={isFrozen}
-                                        />
-                                      </div>
-                                    </div>
+                                    ))}
                                   </div>
+                                </div>
 
-                                  <div className="sm:col-span-2">
-                                    <label className="text-xs font-semibold text-slate-600">Correct answer</label>
-                                    {q.question_type === "mcq_single" ? (
+                                <div>
+                                  {q.question_type === "mcq_single" ? (
+                                    <Field label="Correct answer" htmlFor={`${fid}-correct`} className="sm:max-w-xs">
                                       <select
-                                        className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
+                                        id={`${fid}-correct`}
+                                        className="gf-select"
                                         name="correct_single"
                                         defaultValue={correctKeys[0] ?? ""}
                                         required
@@ -823,12 +846,18 @@ export default async function AdminExamTestDetailPage({
                                           </option>
                                         ))}
                                       </select>
-                                    ) : (
-                                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                    </Field>
+                                  ) : (
+                                    <fieldset>
+                                      <legend className="gf-label">Correct answer</legend>
+                                      <div className="flex flex-wrap gap-2">
                                         {["A", "B", "C", "D"].map((k) => (
-                                          <label key={k} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                          <label
+                                            key={k}
+                                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                          >
                                             <input
-                                              className="h-4 w-4"
+                                              className="gf-checkbox"
                                               type="checkbox"
                                               name="correct_multi"
                                               value={k}
@@ -839,134 +868,137 @@ export default async function AdminExamTestDetailPage({
                                           </label>
                                         ))}
                                       </div>
-                                    )}
-                                  </div>
+                                    </fieldset>
+                                  )}
                                 </div>
-                              );
-                            }
+                              </div>
+                            );
+                          }
 
-                            if (q.question_type === "true_false") {
-                              return (
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                  <div>
-                                    <label className="text-xs font-semibold text-slate-600">Correct answer</label>
-                                    <select
-                                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
-                                      name="correct_tf"
-                                      defaultValue={correctBool === null ? "" : correctBool ? "true" : "false"}
-                                      required
-                                      disabled={isFrozen}
-                                    >
-                                      <option value="">—</option>
-                                      <option value="true">True</option>
-                                      <option value="false">False</option>
-                                    </select>
-                                  </div>
-                                </div>
-                              );
-                            }
+                          if (q.question_type === "true_false") {
+                            return (
+                              <Field label="Correct answer" htmlFor={`${fid}-correct`} className="sm:max-w-xs">
+                                <select
+                                  id={`${fid}-correct`}
+                                  className="gf-select"
+                                  name="correct_tf"
+                                  defaultValue={correctBool === null ? "" : correctBool ? "true" : "false"}
+                                  required
+                                  disabled={isFrozen}
+                                >
+                                  <option value="">—</option>
+                                  <option value="true">True</option>
+                                  <option value="false">False</option>
+                                </select>
+                              </Field>
+                            );
+                          }
 
-                            if (q.question_type === "fill_blank") {
-                              return (
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                  <div className="sm:col-span-2">
-                                    <label className="text-xs font-semibold text-slate-600">Correct answer</label>
-                                    <input
-                                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
-                                      name="correct_blank"
-                                      defaultValue={correctBlank}
-                                      placeholder="Type the exact answer"
-                                      required
-                                      disabled={isFrozen}
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            }
-
-                            return null;
-                          })()}
-
-                          <details className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                            <summary className="cursor-pointer text-xs font-semibold text-slate-700">Advanced (JSON)</summary>
-                            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                              <div>
-                                <label className="text-xs font-semibold text-slate-600">Options (JSON)</label>
-                                <textarea
-                                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-mono text-xs outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
-                                  name="options"
-                                  defaultValue={q.options ? JSON.stringify(q.options, null, 2) : ""}
-                                  rows={6}
-                                  placeholder='e.g. [{"key":"A","label":"Option A"}]'
+                          if (q.question_type === "fill_blank") {
+                            return (
+                              <Field label="Correct answer" htmlFor={`${fid}-correct`}>
+                                <input
+                                  id={`${fid}-correct`}
+                                  className="gf-input"
+                                  name="correct_blank"
+                                  defaultValue={correctBlank}
+                                  placeholder="Type the exact answer"
+                                  required
                                   disabled={isFrozen}
                                 />
-                              </div>
-                              <div>
-                                <label className="text-xs font-semibold text-slate-600">Correct answer (JSON)</label>
-                                <textarea
-                                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-mono text-xs outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
-                                  name="correct_answer"
-                                  defaultValue={
-                                    (solutionByQuestionId.get(q.id)?.correct_answer ?? null)
-                                      ? JSON.stringify(solutionByQuestionId.get(q.id)?.correct_answer, null, 2)
-                                      : ""
-                                  }
-                                  rows={6}
-                                  placeholder='e.g. {"value":"A"}'
-                                  disabled={isFrozen}
-                                />
-                              </div>
-                            </div>
-                          </details>
-                        </div>
-                      ) : null}
+                              </Field>
+                            );
+                          }
 
-                      <div>
-                        <label className="text-xs font-semibold text-slate-600">Explanation (optional)</label>
-                        <textarea
-                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green disabled:bg-slate-50 disabled:text-slate-500"
-                          name="explanation"
-                          defaultValue={solutionByQuestionId.get(q.id)?.explanation ?? ""}
-                          rows={3}
-                          placeholder="Shown after grading/release"
-                          disabled={isFrozen}
-                        />
-                      </div>
+                          return null;
+                        })()}
 
-                      {!isFrozen && (
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                          <button
-                            formAction={deleteQuestion}
-                            className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 active:scale-[0.98] transition-all"
-                          >
-                            Delete
-                          </button>
-                          <div className="flex items-center gap-3">
-                            <button
-                              formAction={duplicateQuestion}
-                              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition-all"
-                            >
-                              Duplicate
-                            </button>
-                            <SubmitButton
-                              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:brightness-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-                              pendingText="Saving…"
-                            >
-                              Save question
-                            </SubmitButton>
+                        <details className="group rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
+                          <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 [&::-webkit-details-marker]:hidden">
+                            <Braces className="h-3.5 w-3.5" aria-hidden="true" />
+                            Advanced (JSON)
+                            <ChevronDown className="h-3.5 w-3.5 transition group-open:rotate-180" aria-hidden="true" />
+                          </summary>
+                          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                            <Field label="Options (JSON)" htmlFor={`${fid}-options-json`}>
+                              <textarea
+                                id={`${fid}-options-json`}
+                                className="gf-input font-mono text-xs"
+                                name="options"
+                                defaultValue={q.options ? JSON.stringify(q.options, null, 2) : ""}
+                                rows={6}
+                                placeholder='e.g. [{"key":"A","label":"Option A"}]'
+                                disabled={isFrozen}
+                              />
+                            </Field>
+                            <Field label="Correct answer (JSON)" htmlFor={`${fid}-correct-json`}>
+                              <textarea
+                                id={`${fid}-correct-json`}
+                                className="gf-input font-mono text-xs"
+                                name="correct_answer"
+                                defaultValue={(sol?.correct_answer ?? null) ? JSON.stringify(sol?.correct_answer, null, 2) : ""}
+                                rows={6}
+                                placeholder='e.g. {"value":"A"}'
+                                disabled={isFrozen}
+                              />
+                            </Field>
                           </div>
-                        </div>
-                      )}
-                    </form>
+                        </details>
+                      </div>
+                    ) : null}
+
+                    <Field label="Explanation (optional)" htmlFor={`${fid}-explanation`}>
+                      <textarea
+                        id={`${fid}-explanation`}
+                        className="gf-input"
+                        name="explanation"
+                        defaultValue={sol?.explanation ?? ""}
+                        rows={3}
+                        placeholder="Shown after grading/release"
+                        disabled={isFrozen}
+                      />
+                    </Field>
                   </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No questions yet.</div>
-          )}
-        </div>
-      </div>
+
+                  {!isFrozen && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50/60 px-5 py-3.5 sm:px-6">
+                      <ConfirmActionButton
+                        formAction={deleteQuestion}
+                        confirmMessage="Delete this question? This cannot be undone."
+                        className={buttonClasses({
+                          variant: "ghost",
+                          size: "sm",
+                          className: "text-red-600 hover:bg-red-50 hover:text-red-700"
+                        })}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        Delete
+                      </ConfirmActionButton>
+                      <div className="flex items-center gap-2">
+                        <button formAction={duplicateQuestion} className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                          <Copy className="h-4 w-4" aria-hidden="true" />
+                          Duplicate
+                        </button>
+                        <SubmitButton variant="primary" size="sm" pendingText="Saving…">
+                          Save question
+                        </SubmitButton>
+                      </div>
+                    </div>
+                  )}
+                </form>
+              </Card>
+            );
+          })
+        ) : (
+          <Card>
+            <EmptyState
+              icon={ListChecks}
+              title="No questions yet."
+              description={isFrozen ? undefined : "Use the form above to add the first question to this test."}
+            />
+          </Card>
+        )}
+      </section>
     </div>
   );
 }

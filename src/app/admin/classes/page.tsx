@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/fetch-all";
+import { ChevronRight, School, Settings2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 
 type ClassRow = { id: string; level: string; name: string; active: boolean };
 type StudentRow = { class_id: string | null; status: string };
@@ -38,29 +46,37 @@ export default async function AdminClassesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Core</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Classes</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Open a class to see the children in it and correct anything that was registered wrongly (name, admission
-          number, class or status).
-        </p>
-        <div className="mt-4 flex flex-wrap gap-4 text-sm">
-          <Link className="font-semibold text-brand-green hover:underline" href="/admin/finance/fees/classes">
+      <PageHeader
+        eyebrow="Core"
+        title="Classes"
+        description="Open a class to see the children in it and correct anything that was registered wrongly (name, admission number, class or status)."
+        actions={
+          <ButtonLink href="/admin/finance/fees/classes" variant="secondary">
+            <Settings2 className="h-4 w-4" aria-hidden="true" />
             Add or deactivate classes
-          </Link>
-          {unassigned > 0 ? (
-            <Link className="font-semibold text-amber-700 hover:underline" href="/admin/classes/unassigned">
-              {unassigned} current student{unassigned === 1 ? " has" : "s have"} no class
+          </ButtonLink>
+        }
+      />
+
+      {unassigned > 0 ? (
+        <Alert
+          tone="warning"
+          action={
+            <Link className="text-sm font-semibold underline-offset-4 hover:underline" href="/admin/classes/unassigned">
+              Review
             </Link>
-          ) : null}
-        </div>
-      </div>
+          }
+        >
+          <Link className="font-semibold hover:underline" href="/admin/classes/unassigned">
+            {unassigned} current student{unassigned === 1 ? " has" : "s have"} no class
+          </Link>
+        </Alert>
+      ) : null}
 
       {levels.map((level) => (
-        <div key={level} className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{level}</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <section key={level} className="space-y-3">
+          <h2 className="text-sm font-semibold capitalize text-slate-900">{level}</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {classes
               .filter((c) => c.level === level)
               .map((c) => {
@@ -69,17 +85,28 @@ export default async function AdminClassesPage() {
                   <Link
                     key={c.id}
                     href={`/admin/classes/${c.id}`}
-                    className={`rounded-2xl border bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-green/40 hover:shadow-md ${
-                      c.active ? "border-slate-200" : "border-dashed border-slate-300 opacity-70"
-                    }`}
+                    className={cn(
+                      "group block rounded-2xl border bg-white p-5 shadow-card transition hover:-translate-y-0.5 hover:border-brand-green-200 hover:shadow-lift",
+                      c.active ? "border-slate-200/80" : "border-dashed border-slate-300 opacity-70"
+                    )}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="font-semibold text-slate-900">{c.name}</div>
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-green-50 text-brand-green-600">
+                          <School className="h-[18px] w-[18px]" aria-hidden="true" />
+                        </span>
+                        <div className="font-semibold text-slate-900">{c.name}</div>
+                      </div>
                       {!c.active ? (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Inactive</span>
-                      ) : null}
+                        <Badge tone="slate">Inactive</Badge>
+                      ) : (
+                        <ChevronRight
+                          className="h-4 w-4 text-slate-300 transition group-hover:text-brand-green"
+                          aria-hidden="true"
+                        />
+                      )}
                     </div>
-                    <div className="mt-3 text-3xl font-bold text-slate-900">{n.current}</div>
+                    <div className="mt-4 text-[1.65rem] font-bold leading-tight tracking-tight text-slate-900">{n.current}</div>
                     <div className="text-xs text-slate-500">
                       current student{n.current === 1 ? "" : "s"}
                       {n.total > n.current ? ` · ${n.total - n.current} past/other` : ""}
@@ -88,13 +115,22 @@ export default async function AdminClassesPage() {
                 );
               })}
           </div>
-        </div>
+        </section>
       ))}
 
       {!classes.length ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm">
-          No classes yet. Create them under Finance → Fees → Classes.
-        </div>
+        <Card>
+          <EmptyState
+            icon={School}
+            title="No classes yet"
+            description="Create them under Finance → Fees → Classes."
+            action={
+              <ButtonLink href="/admin/finance/fees/classes" size="sm">
+                Go to classes setup
+              </ButtonLink>
+            }
+          />
+        </Card>
       ) : null}
     </div>
   );

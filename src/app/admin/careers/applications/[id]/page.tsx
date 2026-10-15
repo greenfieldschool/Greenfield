@@ -1,45 +1,79 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import SubmitButton from "@/components/submit-button";
+import { Download, MessageCircle, SearchX } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
+
+const statusTones: Record<string, BadgeTone> = {
+  new: "blue",
+  reviewing: "gold",
+  shortlisted: "violet",
+  interview: "violet",
+  hired: "green",
+  rejected: "red"
+};
 
 function field(label: string, value: unknown) {
   const text = typeof value === "string" && value.trim() ? value.trim() : value ? String(value) : "—";
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-2 text-sm font-semibold text-slate-900 break-words">{text}</div>
+    <div className="min-w-0">
+      <dt className="text-xs font-medium text-slate-500">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-semibold text-slate-900">{text}</dd>
     </div>
   );
 }
 
-export default async function AdminCareerApplicationDetailPage({ params }: { params: { id: string } }) {
+function fmtDateTime(value: unknown) {
+  if (!value) return "—";
+  const d = new Date(String(value));
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Africa/Lagos"
+  });
+}
+
+export default async function AdminCareerApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8">
-        <div className="text-sm font-semibold text-slate-900">Career application</div>
-        <p className="mt-2 text-sm text-slate-600">Supabase is not configured.</p>
+      <div className="space-y-6">
+        <PageHeader back={{ href: "/admin/careers/applications", label: "Back" }} eyebrow="Careers" title="Career application" />
+        <Alert tone="warning">Supabase is not configured.</Alert>
       </div>
     );
   }
 
-  const { data: row } = await supabase.from("career_applications").select("*").eq("id", params.id).maybeSingle();
+  const { data: row } = await supabase.from("career_applications").select("*").eq("id", id).maybeSingle();
 
   if (!row) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8">
-        <div className="text-sm font-semibold text-slate-900">Application not found</div>
-        <div className="mt-4">
-          <Link
-            href="/admin/careers/applications"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-          >
-            Back
-          </Link>
-        </div>
+      <div className="space-y-6">
+        <PageHeader back={{ href: "/admin/careers/applications", label: "Back" }} eyebrow="Career application" title="Application not found" />
+        <Card>
+          <EmptyState
+            icon={SearchX}
+            title="Application not found"
+            description="It may have been removed."
+            action={
+              <ButtonLink href="/admin/careers/applications" variant="secondary" size="sm">
+                Back to applications
+              </ButtonLink>
+            }
+          />
+        </Card>
       </div>
     );
   }
@@ -70,101 +104,106 @@ export default async function AdminCareerApplicationDetailPage({ params }: { par
     const supabaseAction = getSupabaseServerClient();
     if (!supabaseAction) return;
 
-    await supabaseAction.from("career_applications").update({ status: nextStatus }).eq("id", params.id);
+    await supabaseAction.from("career_applications").update({ status: nextStatus }).eq("id", id);
 
-    redirect(`/admin/careers/applications/${params.id}`);
+    redirect(`/admin/careers/applications/${id}`);
   }
+
+  const status = String(row.status ?? "");
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-slate-500">Career application</div>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-900">{row.applicant_name}</h1>
-            <p className="mt-2 text-sm text-slate-600">
-              Role: <span className="font-semibold text-slate-900">{row.job_title ?? row.job_slug ?? "—"}</span>
-            </p>
-            <p className="mt-2 text-sm text-slate-600">
-              Submitted {new Date(row.created_at as string).toLocaleString()}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/admin/careers/applications"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-            >
-              Back
-            </Link>
+      <PageHeader
+        back={{ href: "/admin/careers/applications", label: "Back" }}
+        eyebrow="Career application"
+        title={
+          <span className="inline-flex flex-wrap items-center gap-3">
+            {row.applicant_name}
+            {status ? (
+              <Badge tone={statusTones[status.toLowerCase()] ?? "slate"} className="capitalize">
+                {status}
+              </Badge>
+            ) : null}
+          </span>
+        }
+        description={
+          <>
+            Role: <span className="font-semibold text-slate-900">{row.job_title ?? row.job_slug ?? "—"}</span>
+            <span className="mx-2 text-slate-300">·</span>
+            Submitted {fmtDateTime(row.created_at)}
+          </>
+        }
+        actions={
+          <>
+            {row.cv_path ? (
+              <form action={downloadCv}>
+                <SubmitButton variant="secondary" pendingText="Preparing…" showSpinner={false}>
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                  Download CV
+                </SubmitButton>
+              </form>
+            ) : null}
             {row.applicant_phone ? (
               <a
                 href={`https://wa.me/${String(row.applicant_phone).replace(/\D/g, "")}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center rounded-xl bg-[#25D366] px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+                className={buttonClasses({ className: "bg-[#25D366] hover:bg-[#1fb857]" })}
               >
+                <MessageCircle className="h-4 w-4" aria-hidden="true" />
                 WhatsApp
               </a>
             ) : null}
-          </div>
+          </>
+        }
+      />
+
+      <div className="grid items-start gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <CardHeader title="Applicant details" />
+            <CardBody>
+              <dl className="grid gap-5 sm:grid-cols-3">
+                {field("Status", row.status)}
+                {field("Email", row.applicant_email)}
+                {field("Phone", row.applicant_phone)}
+                {field("CV filename", row.cv_filename)}
+                {field("CV content type", row.cv_content_type)}
+              </dl>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title="Message" />
+            <CardBody>
+              <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{String(row.message ?? "—")}</div>
+            </CardBody>
+          </Card>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {field("Status", row.status)}
-          {field("Email", row.applicant_email)}
-          {field("Phone", row.applicant_phone)}
-        </div>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {field("CV filename", row.cv_filename)}
-          {field("CV content type", row.cv_content_type)}
-        </div>
-
-        <div className="mt-6 grid gap-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Message</div>
-            <div className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{String(row.message ?? "—")}</div>
-          </div>
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-end gap-3">
-          <form action={updateStatus} className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Update status</label>
-              <select
-                name="status"
-                defaultValue={String(row.status ?? "new")}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              >
-                <option value="new">new</option>
-                <option value="reviewing">reviewing</option>
-                <option value="shortlisted">shortlisted</option>
-                <option value="interview">interview</option>
-                <option value="hired">hired</option>
-                <option value="rejected">rejected</option>
+        <form action={updateStatus}>
+          <Card>
+            <CardHeader title="Update status" description="Track where this applicant is in the hiring process." />
+            <CardBody>
+              <label htmlFor="status" className="gf-label">
+                Status
+              </label>
+              <select id="status" name="status" defaultValue={String(row.status ?? "new")} className="gf-select">
+                <option value="new">New</option>
+                <option value="reviewing">Reviewing</option>
+                <option value="shortlisted">Shortlisted</option>
+                <option value="interview">Interview</option>
+                <option value="hired">Hired</option>
+                <option value="rejected">Rejected</option>
               </select>
-            </div>
-            <SubmitButton
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Saving…"
-            >
-              Save
-            </SubmitButton>
-          </form>
-
-          {row.cv_path ? (
-            <form action={downloadCv}>
-              <SubmitButton
-                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                pendingText="Preparing…"
-                showSpinner={false}
-              >
-                Download CV
+            </CardBody>
+            <div className="flex justify-end rounded-b-2xl border-t border-slate-100 bg-slate-50/60 px-5 py-3.5 sm:px-6">
+              <SubmitButton variant="primary" pendingText="Saving…">
+                Save
               </SubmitButton>
-            </form>
-          ) : null}
-        </div>
+            </div>
+          </Card>
+        </form>
       </div>
     </div>
   );

@@ -1,7 +1,18 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { ClipboardList, UserRoundX } from "lucide-react";
 import SubmitButton from "@/components/submit-button";
+import UrlToast from "@/components/url-toast";
+import { PageHeader } from "@/components/ui/page-header";
+import { FormSection } from "@/components/ui/form-section";
+import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
+import { SessionStatusBadge } from "../../../_components/exam-ui";
+import { failWithToast, NO_DB_MESSAGE, successPath } from "../../../_components/feedback";
 
 type ConductorRow = {
   id: string;
@@ -58,7 +69,7 @@ export default async function AdminExamSessionConductorsPage({
     const selectedSet = new Set(selected);
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast(`/admin/exams/sessions/${id}/conductors`, NO_DB_MESSAGE);
 
     const { data: existing } = await supabase
       .from("exam_session_conductors")
@@ -69,7 +80,14 @@ export default async function AdminExamSessionConductorsPage({
     const existingSet = new Set(existingIds);
 
     const toAdd = selected.filter((cid) => !existingSet.has(cid));
-    const toRemove = existingIds.filter((cid) => !selectedSet.has(cid));
+    // Inactive conductors render as disabled checkboxes (never submitted), so keep their existing
+    // assignments instead of treating them as unticked.
+    const { data: inactiveRows } = existingIds.length
+      ? await supabase.from("exam_conductors").select("id").in("id", existingIds).eq("active", false)
+      : { data: [] as Array<{ id: string }> };
+    const inactiveSet = new Set((inactiveRows ?? []).map((r) => (r as { id: string }).id));
+
+    const toRemove = existingIds.filter((cid) => !selectedSet.has(cid) && !inactiveSet.has(cid));
 
     if (toAdd.length) {
       await supabase.from("exam_session_conductors").insert(toAdd.map((cid) => ({ session_id: id, conductor_id: cid })));
@@ -82,76 +100,89 @@ export default async function AdminExamSessionConductorsPage({
     revalidatePath(`/admin/exams/sessions/${id}/conductors`);
     revalidatePath(`/admin/exams/sessions/${id}/attempts`);
     revalidatePath("/conductor/sessions");
+    redirect(successPath(`/admin/exams/sessions/${id}/conductors`, "Assignments saved"));
   }
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Exams</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Assign conductors</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          {summary
+      <UrlToast />
+      <PageHeader
+        back={{ href: "/admin/exams/sessions", label: "Back to sessions" }}
+        eyebrow="Exams"
+        title="Assign conductors"
+        description={
+          summary
             ? `${summary.test_name} • ${summary.class_level ?? ""}${summary.class_name ? ` - ${summary.class_name}` : ""}`
-            : "Session"}
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link
-            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-            href="/admin/exams/sessions"
-          >
-            Back to sessions
-          </Link>
-          <Link
-            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-            href={`/admin/exams/sessions/${id}/attempts`}
-          >
-            View attempts
-          </Link>
-        </div>
-      </div>
+            : "Session"
+        }
+        actions={
+          <>
+            {summary ? <SessionStatusBadge status={summary.status} /> : null}
+            <Link className={buttonClasses({ variant: "secondary" })} href={`/admin/exams/sessions/${id}/attempts`}>
+              <ClipboardList className="h-4 w-4" aria-hidden="true" />
+              View attempts
+            </Link>
+          </>
+        }
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Conductors</h2>
-        <p className="mt-2 text-sm text-slate-600">Only assigned conductors can unlock students in this session.</p>
-
-        <form action={updateAssignments} className="mt-6 space-y-4">
-          <div className="space-y-2">
-            {conductors.length ? (
-              conductors.map((c) => (
-                <label
-                  key={c.id}
-                  className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-slate-900">{c.full_name}</div>
-                    <div className="mt-1 text-xs text-slate-600">
-                      {c.email ?? "—"} {c.phone ? ` • ${c.phone}` : ""}
+      <form action={updateAssignments}>
+        <FormSection
+          title="Conductors"
+          description="Only assigned conductors can unlock students in this session."
+          footer={
+            <SubmitButton variant="primary" pendingText="Saving…" disabled={!conductors.length}>
+              Save assignments
+            </SubmitButton>
+          }
+        >
+          {conductors.length ? (
+            <ul className="space-y-2">
+              {conductors.map((c) => (
+                <li key={c.id}>
+                  <label
+                    htmlFor={`conductor-${c.id}`}
+                    className={`flex items-center gap-4 rounded-xl border border-slate-200 px-4 py-3 transition ${
+                      c.active ? "cursor-pointer bg-white hover:border-brand-green-200 hover:bg-brand-green-50/40" : "bg-slate-50"
+                    }`}
+                  >
+                    <Avatar name={c.full_name} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-slate-900">{c.full_name}</span>
+                        {!c.active ? <Badge tone="slate">Inactive</Badge> : null}
+                        {assignedSet.has(c.id) ? <Badge tone="green">Assigned</Badge> : null}
+                      </div>
+                      <div className="mt-0.5 text-xs text-slate-500">
+                        {c.email ?? "—"} {c.phone ? ` • ${c.phone}` : ""}
+                      </div>
                     </div>
-                  </div>
-                  <input
-                    className="h-5 w-5"
-                    type="checkbox"
-                    name="conductor_id"
-                    value={c.id}
-                    defaultChecked={assignedSet.has(c.id)}
-                    disabled={!c.active}
-                  />
-                </label>
-              ))
-            ) : (
-              <div className="text-sm text-slate-600">No conductors available yet. Create one first.</div>
-            )}
-          </div>
-
-          <SubmitButton
-            className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-            pendingText="Saving…"
-            disabled={!conductors.length}
-          >
-            Save assignments
-          </SubmitButton>
-        </form>
-      </div>
+                    <input
+                      id={`conductor-${c.id}`}
+                      className="gf-checkbox h-5 w-5"
+                      type="checkbox"
+                      name="conductor_id"
+                      value={c.id}
+                      defaultChecked={assignedSet.has(c.id)}
+                      disabled={!c.active}
+                    />
+                  </label>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              icon={UserRoundX}
+              title="No conductors available yet. Create one first."
+              action={
+                <Link className={buttonClasses({ variant: "secondary", size: "sm" })} href="/admin/exams/conductors">
+                  Manage conductors
+                </Link>
+              }
+            />
+          )}
+        </FormSection>
+      </form>
     </div>
   );
 }

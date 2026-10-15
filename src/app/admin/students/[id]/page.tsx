@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExternalLink, KeyRound, UserMinus, Users } from "lucide-react";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -7,7 +8,59 @@ import SubmitButton from "@/components/submit-button";
 import StudentPhotoUploader from "./StudentPhotoUploader";
 import UrlToast from "@/components/url-toast";
 import PasswordInput from "@/components/password-input";
+import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import { firstOrNull } from "@/lib/relations";
+import { formatLagosDate } from "@/lib/lagos-dates";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
+import { DetailList } from "../../applications/_ui";
+
+function studentStatusTone(status: string): BadgeTone {
+  switch (status) {
+    case "active":
+      return "green";
+    case "enrolled":
+      return "blue";
+    case "applied":
+      return "gold";
+    case "graduated":
+      return "violet";
+    case "withdrawn":
+      return "red";
+    default:
+      return "slate";
+  }
+}
+
+function capitalize(v: string) {
+  return v ? v.charAt(0).toUpperCase() + v.slice(1) : v;
+}
+
+const BACK = { href: "/admin/students", label: "Back to students" };
+
+function toastUrl(studentId: string, message: string, type: "success" | "error" = "error") {
+  return `/admin/students/${studentId}?toast=${encodeURIComponent(message)}&toast_type=${type}`;
+}
+
+const NO_DB = "Database is not configured — nothing was saved";
+
+const STAFF_ROLES = ["super_admin", "admin", "teacher", "front_desk", "nurse"];
+
+// Server-side guard for actions any staff member may take on a student (mirrors middleware).
+async function isStaffUser(supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>) {
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  const { data } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  return STAFF_ROLES.includes(String(data?.role ?? ""));
+}
 
 function admissionNumberToEmail(admissionNumberRaw: string) {
   const admissionNumber = admissionNumberRaw.trim().toLowerCase();
@@ -74,10 +127,14 @@ type StudentGuardianRow = {
 };
 
 export default async function AdminStudentDetailPage({
-  params
+  params,
+  searchParams
 }: {
   params: { id: string };
+  searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  // Re-mount UrlToast whenever a new toast arrives (redirects back to this same page keep client state).
+  const toastKey = typeof searchParams?.toast === "string" ? searchParams.toast : "none";
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
@@ -167,7 +224,7 @@ export default async function AdminStudentDetailPage({
     }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl(studentId, NO_DB));
 
     const {
       data: { user }
@@ -231,7 +288,7 @@ export default async function AdminStudentDetailPage({
     }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl(studentId, NO_DB));
 
     const {
       data: { user }
@@ -265,17 +322,17 @@ export default async function AdminStudentDetailPage({
     "use server";
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl(studentId, NO_DB));
 
     const {
       data: { user }
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) redirect(toastUrl(studentId, "You must be logged in"));
 
     const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
     const role = (me?.role ?? null) as string | null;
     const isAllowed = role === "super_admin" || role === "admin";
-    if (!isAllowed) return;
+    if (!isAllowed) redirect(toastUrl(studentId, "Only admins can edit student details"));
 
     const firstName = String(formData.get("first_name") ?? "").trim();
     const middleName = String(formData.get("middle_name") ?? "").trim();
@@ -286,7 +343,9 @@ export default async function AdminStudentDetailPage({
     const classIdRaw = String(formData.get("class_id") ?? "").trim();
     const status = String(formData.get("status") ?? "").trim();
 
-    if (!firstName || !lastName || !level || !status) return;
+    if (!firstName || !lastName || !level || !status) {
+      redirect(toastUrl(studentId, "First name, last name, level and status are required"));
+    }
 
     const classId = classIdRaw.length ? classIdRaw : null;
     const dateOfBirth = dateOfBirthRaw.length ? dateOfBirthRaw : null;
@@ -303,7 +362,7 @@ export default async function AdminStudentDetailPage({
       }
     }
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("students")
       .update({
         first_name: firstName,
@@ -317,6 +376,8 @@ export default async function AdminStudentDetailPage({
       })
       .eq("id", studentId);
 
+    if (updateError) redirect(toastUrl(studentId, `Could not save student: ${updateError.message}`));
+
     revalidatePath(`/admin/students/${studentId}`);
     revalidatePath("/admin/students");
     redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Student details saved")}&toast_type=success`);
@@ -325,24 +386,30 @@ export default async function AdminStudentDetailPage({
   async function saveStudentPhoto(formData: FormData) {
     "use server";
 
-    if (!isAdmin) return;
+    if (!isAdmin) redirect(toastUrl(studentId, "Only admins can change the student photo"));
 
     const photoUrlRaw = String(formData.get("profile_photo_url") ?? "").trim();
     const profilePhotoUrl = photoUrlRaw.length ? photoUrlRaw : null;
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl(studentId, NO_DB));
 
-    await supabase.from("students").update({ profile_photo_url: profilePhotoUrl }).eq("id", studentId);
+    const { error: photoError } = await supabase
+      .from("students")
+      .update({ profile_photo_url: profilePhotoUrl })
+      .eq("id", studentId);
+
+    if (photoError) redirect(toastUrl(studentId, `Could not save photo: ${photoError.message}`));
 
     revalidatePath(`/admin/students/${studentId}`);
     revalidatePath("/admin/students");
+    redirect(toastUrl(studentId, profilePhotoUrl ? "Photo saved" : "Photo removed", "success"));
   }
 
   async function updateStudentProfile(formData: FormData) {
     "use server";
 
-    if (!isAdmin) return;
+    if (!isAdmin) redirect(toastUrl(studentId, "Only admins can edit the profile"));
 
     const photoUrlRaw = String(formData.get("profile_photo_url") ?? "").trim();
     const hobbiesRaw = String(formData.get("hobbies") ?? "").trim();
@@ -356,15 +423,18 @@ export default async function AdminStudentDetailPage({
       : [];
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl(studentId, NO_DB));
 
-    await supabase
+    const { error: profileError } = await supabase
       .from("students")
       .update({ profile_photo_url: profilePhotoUrl, hobbies })
       .eq("id", studentId);
 
+    if (profileError) redirect(toastUrl(studentId, `Could not save profile: ${profileError.message}`));
+
     revalidatePath(`/admin/students/${studentId}`);
     revalidatePath("/admin/students");
+    redirect(toastUrl(studentId, "Profile saved", "success"));
   }
 
   async function addGuardian(formData: FormData) {
@@ -374,17 +444,20 @@ export default async function AdminStudentDetailPage({
     const relationship = String(formData.get("relationship") ?? "").trim();
     const isPrimary = formData.get("is_primary") === "on";
 
-    if (!guardianId) return;
+    if (!guardianId) redirect(toastUrl(studentId, "Choose a guardian to link"));
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl(studentId, NO_DB));
+    if (!(await isStaffUser(supabase))) redirect(toastUrl(studentId, "You don't have permission to change guardians"));
 
-    await supabase.from("student_guardians").insert({
+    const { error: linkError } = await supabase.from("student_guardians").insert({
       student_id: studentId,
       guardian_id: guardianId,
       relationship: relationship.length ? relationship : null,
       is_primary: isPrimary
     });
+
+    if (linkError) redirect(toastUrl(studentId, `Could not link guardian: ${linkError.message}`));
 
     revalidatePath(`/admin/students/${studentId}`);
     redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Guardian linked")}&toast_type=success`);
@@ -394,16 +467,19 @@ export default async function AdminStudentDetailPage({
     "use server";
 
     const guardianId = String(formData.get("guardian_id") ?? "").trim();
-    if (!guardianId) return;
+    if (!guardianId) redirect(toastUrl(studentId, "No guardian selected"));
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl(studentId, NO_DB));
+    if (!(await isStaffUser(supabase))) redirect(toastUrl(studentId, "You don't have permission to change guardians"));
 
-    await supabase
+    const { error: unlinkError } = await supabase
       .from("student_guardians")
       .delete()
       .eq("student_id", studentId)
       .eq("guardian_id", guardianId);
+
+    if (unlinkError) redirect(toastUrl(studentId, `Could not remove guardian: ${unlinkError.message}`));
 
     revalidatePath(`/admin/students/${studentId}`);
     redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Guardian removed")}&toast_type=success`);
@@ -411,297 +487,87 @@ export default async function AdminStudentDetailPage({
 
   if (!student) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Student not found</h1>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-slate-900 hover:text-slate-700" href="/admin/students">
-            Back to students
-          </Link>
-        </div>
+      <div className="space-y-6">
+        <PageHeader back={BACK} eyebrow="Student" title="Student not found" />
+        <Alert tone="warning" title="We couldn't find this student.">
+          They may have been removed, or the link is incorrect.
+        </Alert>
       </div>
     );
   }
 
-  return (
+  // `select("*")` doesn't embed `classes`, so fall back to the already-loaded class list for display.
+  const currentClassName =
+    firstOrNull(student.classes)?.name ?? classOptions.find((c) => c.id === student.class_id)?.name ?? null;
+  const fullName = `${student.first_name} ${student.last_name}`;
+  const app = admissionsApplication;
+
+  const mainColumn = (
     <div className="space-y-6">
-      <UrlToast />
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Student</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">
-          {student.first_name} {student.last_name}
-        </h1>
-        {isAdmin ? (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-            <h2 className="text-base font-semibold text-slate-900">Portal account</h2>
-            <p className="mt-1 text-sm text-slate-600">Students sign in using admission number and password.</p>
-
-            {existingPortalUserId ? (
-              <form action={resetPortalPassword} className="mt-4 grid gap-4 sm:grid-cols-2">
-                <input type="hidden" name="user_id" value={existingPortalUserId} />
-                <PasswordInput
-                  label="New password"
-                  name="password"
-                  minLength={8}
-                  required
-                  containerClassName="sm:col-span-2"
-                />
-                <div className="flex items-end">
-                  <SubmitButton
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                    pendingText="Saving…"
-                  >
-                    Reset portal password
-                  </SubmitButton>
-                </div>
-              </form>
-            ) : (
-              <form action={createPortalAccount} className="mt-4 grid gap-4 sm:grid-cols-2">
-                <input type="hidden" name="student_first_name" value={student.first_name} />
-                <input type="hidden" name="student_last_name" value={student.last_name} />
-                <div>
-                  <label className="text-sm font-semibold text-slate-900">Admission number</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                    name="admission_number"
-                    defaultValue={student.admission_number ?? ""}
-                    required
-                  />
-                </div>
-                <PasswordInput
-                  label="Password"
-                  name="password"
-                  minLength={8}
-                  required
-                />
-                <div className="flex items-end">
-                  <SubmitButton
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                    pendingText="Creating…"
-                  >
-                    Create portal account
-                  </SubmitButton>
-                </div>
-              </form>
-            )}
-          </div>
-        ) : null}
-        {isAdmin ? (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-            <h2 className="text-base font-semibold text-slate-900">Profile</h2>
-            <p className="mt-1 text-sm text-slate-600">Profile enrichment fields (admin-managed).</p>
-            <div className="mt-4">
-              <StudentPhotoUploader studentId={studentId} initialUrl={student.profile_photo_url ?? null} saveAction={saveStudentPhoto} />
-            </div>
-            <form action={updateStudentProfile} className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Profile photo URL (optional)</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="profile_photo_url"
-                  defaultValue={student.profile_photo_url ?? ""}
-                  placeholder="https://..."
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="text-sm font-semibold text-slate-900">Hobbies (comma separated)</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                  name="hobbies"
-                  defaultValue={(student.hobbies ?? []).join(", ")}
-                  placeholder="e.g. Chess, Reading, Football"
-                />
-              </div>
-              <div className="flex items-end">
-                <SubmitButton
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                  pendingText="Saving…"
-                >
-                  Save profile
-                </SubmitButton>
-              </div>
-            </form>
-          </div>
-        ) : null}
-
-        {isAdmin && admissionsApplication ? (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">Admissions bio</h2>
-                <p className="mt-1 text-sm text-slate-600">Pulled from the original application.</p>
-              </div>
-              <Link
-                className="text-sm font-semibold text-brand-green hover:underline"
-                href={`/admin/students/applications/${admissionsApplication.id}`}
-              >
-                View application
-              </Link>
-            </div>
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div>
-                <div className="text-xs font-semibold text-slate-500">Student name</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
-                  {String(admissionsApplication.data.first_name ?? student.first_name)} {String(admissionsApplication.data.middle_name ?? student.middle_name ?? "")} {String(admissionsApplication.data.last_name ?? student.last_name)}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-500">DOB</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
-                  {String(admissionsApplication.data.dob ?? student.date_of_birth ?? "—")}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-500">Sex</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
-                  {String(admissionsApplication.data.sex ?? student.sex ?? "—")}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-500">Religion</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
-                  {String(admissionsApplication.data.religion ?? student.religion ?? "—")}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-500">Seeking admission into</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
-                  {String(admissionsApplication.data.seeking_class ?? "—")}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-500">Passport photo URL</div>
-                <div className="mt-1 break-words text-sm font-semibold text-slate-900">
-                  {String(admissionsApplication.data.passport_photo_url ?? "—")}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-500">Favorite sports</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
-                  {String(admissionsApplication.data.favorite_sports ?? "—")}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-500">Future aspiration</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
-                  {String(admissionsApplication.data.future_aspiration ?? "—")}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-500">Hobbies</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">{String(admissionsApplication.data.hobbies ?? "—")}</div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-500">Child is with</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">{String(admissionsApplication.data.child_with ?? "—")}</div>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Referral</div>
-                <div className="mt-2 text-sm font-semibold text-slate-900">{String(admissionsApplication.data.referred ?? "—")}</div>
-                <div className="mt-2 text-sm text-slate-700">
-                  {String(admissionsApplication.data.referrer_name ?? "—")} • {String(admissionsApplication.data.referrer_ref ?? "—")}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Discovery</div>
-                <div className="mt-2 text-sm font-semibold text-slate-900">
-                  {String(admissionsApplication.data.discovery_source ?? "—")}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 md:col-span-2">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pickup details</div>
-                <div className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                  {String(admissionsApplication.data.pickup_details ?? "—")}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Student signature</div>
-                <div className="mt-2 text-sm font-semibold text-slate-900">
-                  {String(admissionsApplication.data.student_signature_name ?? "—")}
-                </div>
-                <div className="mt-1 text-xs text-slate-600">{String(admissionsApplication.data.student_signature_date ?? "—")}</div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Parent signature</div>
-                <div className="mt-2 text-sm font-semibold text-slate-900">
-                  {String(admissionsApplication.data.parent_signature_name ?? "—")}
-                </div>
-                <div className="mt-1 text-xs text-slate-600">{String(admissionsApplication.data.parent_signature_date ?? "—")}</div>
-              </div>
-            </div>
-          </div>
-        ) : null}
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-          <h2 className="text-base font-semibold text-slate-900">Edit student</h2>
-          <form action={updateStudent} className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="text-sm font-semibold text-slate-900">First name</label>
+      {isAdmin ? (
+      <form action={updateStudent}>
+        <FormSection
+          title="Edit student"
+          description={`Current class: ${currentClassName ?? "—"}. Choosing a class also updates the level to match.`}
+          footer={
+            <SubmitButton variant="primary" pendingText="Saving…">
+              Save changes
+            </SubmitButton>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="First name" htmlFor="student-first_name" required>
+              <input id="student-first_name" className="gf-input" name="first_name" defaultValue={student.first_name} required />
+            </Field>
+            <Field label="Middle name" htmlFor="student-middle_name">
               <input
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="first_name"
-                defaultValue={student.first_name}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Middle name</label>
-              <input
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                id="student-middle_name"
+                className="gf-input"
                 name="middle_name"
                 defaultValue={student.middle_name ?? ""}
                 placeholder="(optional)"
               />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Last name</label>
+            </Field>
+            <Field label="Last name" htmlFor="student-last_name" required>
+              <input id="student-last_name" className="gf-input" name="last_name" defaultValue={student.last_name} required />
+            </Field>
+            <Field label="Date of birth" htmlFor="student-date_of_birth">
               <input
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="last_name"
-                defaultValue={student.last_name}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Date of birth</label>
-              <input
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                id="student-date_of_birth"
+                className="gf-input"
                 name="date_of_birth"
                 type="date"
                 defaultValue={student.date_of_birth ?? ""}
               />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Admission number</label>
+            </Field>
+            <Field label="Admission number" htmlFor="student-admission_number">
               <input
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+                id="student-admission_number"
+                className="gf-input"
                 name="admission_number"
                 defaultValue={student.admission_number ?? ""}
                 placeholder="(optional)"
               />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Level</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="level"
-                required
-                defaultValue={student.level}
-              >
-                <option value="creche">creche</option>
-                <option value="primary">primary</option>
-                <option value="secondary">secondary</option>
+            </Field>
+            <Field label="Status" htmlFor="student-status" required>
+              <select id="student-status" className="gf-select" name="status" required defaultValue={student.status}>
+                <option value="applied">Applied</option>
+                <option value="enrolled">Enrolled</option>
+                <option value="active">Active</option>
+                <option value="graduated">Graduated</option>
+                <option value="withdrawn">Withdrawn</option>
+                <option value="transferred">Transferred</option>
               </select>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Class</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="class_id"
-                defaultValue={student.class_id ?? ""}
-              >
+            </Field>
+            <Field label="Level" htmlFor="student-level" required>
+              <select id="student-level" className="gf-select" name="level" required defaultValue={student.level}>
+                <option value="creche">Creche</option>
+                <option value="primary">Primary</option>
+                <option value="secondary">Secondary</option>
+              </select>
+            </Field>
+            <Field label="Class" htmlFor="student-class_id">
+              <select id="student-class_id" className="gf-select" name="class_id" defaultValue={student.class_id ?? ""}>
                 <option value="">(none)</option>
                 {classOptions.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -709,150 +575,339 @@ export default async function AdminStudentDetailPage({
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Status</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="status"
-                required
-                defaultValue={student.status}
-              >
-                <option value="applied">applied</option>
-                <option value="enrolled">enrolled</option>
-                <option value="active">active</option>
-                <option value="graduated">graduated</option>
-                <option value="withdrawn">withdrawn</option>
-                <option value="transferred">transferred</option>
-              </select>
-            </div>
-            <div className="flex items-end">
-              <SubmitButton
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                pendingText="Saving…"
-              >
-                Save changes
-              </SubmitButton>
-            </div>
-          </form>
-          <div className="mt-3 text-xs text-slate-600">
-            Current class: {firstOrNull(student.classes)?.name ?? "—"}
+            </Field>
           </div>
-        </div>
-        <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Level</div>
-            <div className="mt-1 font-semibold text-slate-900">{student.level}</div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Admission number</div>
-            <div className="mt-1 font-semibold text-slate-900">{student.admission_number ?? "—"}</div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Status</div>
-            <div className="mt-1 font-semibold text-slate-900">{student.status}</div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Date of birth</div>
-            <div className="mt-1 font-semibold text-slate-900">{student.date_of_birth ?? "—"}</div>
-          </div>
-        </div>
-        <div className="mt-6">
-          <Link className="text-sm font-semibold text-slate-900 hover:text-slate-700" href="/admin/students">
-            Back to students
-          </Link>
-        </div>
-      </div>
+        </FormSection>
+      </form>
+      ) : (
+        <Card>
+          <CardHeader title="Student details" />
+          <CardBody className="space-y-5">
+            <Alert tone="info">Only admins can edit student details.</Alert>
+            <DetailList
+              items={[
+                { label: "First name", value: student.first_name },
+                { label: "Middle name", value: student.middle_name },
+                { label: "Last name", value: student.last_name },
+                { label: "Date of birth", value: student.date_of_birth ? formatLagosDate(student.date_of_birth) : null },
+                { label: "Admission number", value: student.admission_number },
+                { label: "Status", value: capitalize(student.status) },
+                { label: "Level", value: capitalize(student.level) },
+                { label: "Class", value: currentClassName }
+              ]}
+            />
+          </CardBody>
+        </Card>
+      )}
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Linked guardians</h2>
-        <div className="mt-4 space-y-3">
-          {linked.length ? (
-            linked.map((g) => (
-              <div
-                key={g.id}
-                className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-900">{g.full_name}</div>
-                  <div className="mt-1 text-sm text-slate-600">
-                    {g.relationship ? `Relationship: ${g.relationship}` : "Relationship: —"}
-                    {g.is_primary ? " • Primary" : ""}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    {g.email ?? "—"} {g.phone ? ` • ${g.phone}` : ""}
+      <Card>
+        <CardHeader title="Linked guardians" description="Parents and guardians connected to this student." />
+        {linked.length ? (
+          <ul className="divide-y divide-slate-100">
+            {linked.map((g) => (
+              <li key={g.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar name={g.full_name} size="md" />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-sm font-semibold text-slate-900">{g.full_name}</span>
+                      {g.is_primary ? <Badge tone="green">Primary</Badge> : null}
+                    </div>
+                    <div className="mt-0.5 text-sm text-slate-600">
+                      {g.relationship ? `Relationship: ${g.relationship}` : "Relationship: —"}
+                    </div>
+                    <div className="mt-0.5 break-words text-xs text-slate-500">
+                      {g.email ?? "—"} {g.phone ? ` • ${g.phone}` : ""}
+                    </div>
                   </div>
                 </div>
-                <form action={removeGuardian}>
+                <form action={removeGuardian} className="shrink-0">
                   <input type="hidden" name="guardian_id" value={g.id} />
-                  <SubmitButton
-                    className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    pendingText="Removing…"
-                    showSpinner={false}
+                  <ConfirmSubmitButton
+                    confirmMessage={`Unlink ${g.full_name} from ${student.first_name} ${student.last_name}?`}
+                    className={buttonClasses({
+                      variant: "secondary",
+                      size: "sm",
+                      className: "text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                    })}
                   >
+                    <UserMinus className="h-4 w-4" aria-hidden="true" />
                     Remove
-                  </SubmitButton>
+                  </ConfirmSubmitButton>
                 </form>
-              </div>
-            ))
-          ) : (
-            <div className="text-sm text-slate-600">No guardians linked yet.</div>
-          )}
-        </div>
-      </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState
+            icon={Users}
+            title="No guardians linked yet"
+            description="Link a parent or guardian below so they appear on this student's record."
+          />
+        )}
+      </Card>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Link a guardian</h2>
-        <form action={addGuardian} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Guardian</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="guardian_id"
-              required
-              defaultValue=""
-              disabled={!availableGuardians.length}
-            >
-              <option value="" disabled>
-                {availableGuardians.length ? "Select a guardian" : "No available guardians"}
-              </option>
-              {availableGuardians.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.full_name}
+      <form action={addGuardian}>
+        <FormSection
+          title="Link a guardian"
+          description="Choose an existing guardian record to connect to this student."
+          footer={
+            <SubmitButton variant="primary" pendingText="Linking…" disabled={!availableGuardians.length}>
+              Link guardian
+            </SubmitButton>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Guardian" htmlFor="guardian_id">
+              <select
+                id="guardian_id"
+                className="gf-select"
+                name="guardian_id"
+                required
+                defaultValue=""
+                disabled={!availableGuardians.length}
+              >
+                <option value="" disabled>
+                  {availableGuardians.length ? "Select a guardian" : "No available guardians"}
                 </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Relationship</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="relationship"
-              placeholder="e.g. Mother, Father, Guardian"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <input
-              className="h-4 w-4 rounded border-slate-300"
-              name="is_primary"
-              type="checkbox"
-              id="is_primary"
-            />
-            <label htmlFor="is_primary" className="text-sm font-semibold text-slate-900">
+                {availableGuardians.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.full_name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Relationship" htmlFor="relationship">
+              <input id="relationship" className="gf-input" name="relationship" placeholder="e.g. Mother, Father, Guardian" />
+            </Field>
+            <label htmlFor="is_primary" className="flex items-center gap-2.5 text-sm font-medium text-slate-700 sm:col-span-2">
+              <input className="gf-checkbox" name="is_primary" type="checkbox" id="is_primary" />
               Primary guardian
             </label>
           </div>
-          <div className="flex items-end">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Linking…"
-              disabled={!availableGuardians.length}
-            >
-              Link guardian
-            </SubmitButton>
-          </div>
+        </FormSection>
+      </form>
+
+      {isAdmin && app ? (
+        <Card>
+          <CardHeader
+            title="Admissions bio"
+            description="Pulled from the original application."
+            action={
+              <Link className="gf-link inline-flex items-center gap-1 text-sm" href={`/admin/students/applications/${app.id}`}>
+                View application
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            }
+          />
+          <CardBody className="space-y-6">
+            <DetailList
+              items={[
+                {
+                  label: "Student name",
+                  value: `${String(app.data.first_name ?? student.first_name)} ${String(app.data.middle_name ?? student.middle_name ?? "")} ${String(app.data.last_name ?? student.last_name)}`
+                },
+                { label: "DOB", value: String(app.data.dob ?? student.date_of_birth ?? "—") },
+                { label: "Sex", value: String(app.data.sex ?? student.sex ?? "—") },
+                { label: "Religion", value: String(app.data.religion ?? student.religion ?? "—") },
+                { label: "Seeking admission into", value: String(app.data.seeking_class ?? "—") },
+                { label: "Passport photo URL", value: String(app.data.passport_photo_url ?? "—") },
+                { label: "Favorite sports", value: String(app.data.favorite_sports ?? "—") },
+                { label: "Future aspiration", value: String(app.data.future_aspiration ?? "—") },
+                { label: "Hobbies", value: String(app.data.hobbies ?? "—") },
+                { label: "Child is with", value: String(app.data.child_with ?? "—") }
+              ]}
+            />
+            <div className="border-t border-slate-100 pt-6">
+              <DetailList
+                items={[
+                  {
+                    label: "Referral",
+                    node: (
+                      <>
+                        <span className="block">{String(app.data.referred ?? "—")}</span>
+                        <span className="block font-normal text-slate-600">
+                          {String(app.data.referrer_name ?? "—")} • {String(app.data.referrer_ref ?? "—")}
+                        </span>
+                      </>
+                    )
+                  },
+                  { label: "Discovery", value: String(app.data.discovery_source ?? "—") },
+                  { label: "Pickup details", value: String(app.data.pickup_details ?? "—"), wide: true, multiline: true },
+                  {
+                    label: "Student signature",
+                    node: (
+                      <>
+                        <span className="block">{String(app.data.student_signature_name ?? "—")}</span>
+                        <span className="block text-xs font-normal text-slate-500">
+                          {String(app.data.student_signature_date ?? "—")}
+                        </span>
+                      </>
+                    )
+                  },
+                  {
+                    label: "Parent signature",
+                    node: (
+                      <>
+                        <span className="block">{String(app.data.parent_signature_name ?? "—")}</span>
+                        <span className="block text-xs font-normal text-slate-500">
+                          {String(app.data.parent_signature_date ?? "—")}
+                        </span>
+                      </>
+                    )
+                  }
+                ]}
+              />
+            </div>
+          </CardBody>
+        </Card>
+      ) : null}
+    </div>
+  );
+
+  const sideColumn = isAdmin ? (
+    <div className="space-y-6">
+      {existingPortalUserId ? (
+        <form action={resetPortalPassword}>
+          <input type="hidden" name="user_id" value={existingPortalUserId} />
+          <FormSection
+            title="Portal account"
+            description="Students sign in using admission number and password."
+            footer={
+              <SubmitButton variant="primary" pendingText="Saving…">
+                <KeyRound className="h-4 w-4" aria-hidden="true" />
+                Reset portal password
+              </SubmitButton>
+            }
+          >
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <Badge tone="green" dot>
+                  Active
+                </Badge>
+                Portal account exists
+              </div>
+              <PasswordInput id="portal-new-password" label="New password" name="password" minLength={8} required />
+              <p className="gf-hint">At least 8 characters.</p>
+            </div>
+          </FormSection>
         </form>
-      </div>
+      ) : (
+        <form action={createPortalAccount}>
+          <input type="hidden" name="student_first_name" value={student.first_name} />
+          <input type="hidden" name="student_last_name" value={student.last_name} />
+          <FormSection
+            title="Portal account"
+            description="Students sign in using admission number and password."
+            footer={
+              <SubmitButton variant="primary" pendingText="Creating…">
+                Create portal account
+              </SubmitButton>
+            }
+          >
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <Badge tone="slate">Not set up</Badge>
+                No portal account yet
+              </div>
+              <Field label="Admission number" htmlFor="portal-admission_number">
+                <input
+                  id="portal-admission_number"
+                  className="gf-input"
+                  name="admission_number"
+                  defaultValue={student.admission_number ?? ""}
+                  required
+                />
+              </Field>
+              <div>
+                <PasswordInput id="portal-password" label="Password" name="password" minLength={8} required />
+                <p className="gf-hint">At least 8 characters.</p>
+              </div>
+            </div>
+          </FormSection>
+        </form>
+      )}
+
+      <FormSection title="Profile" description="Profile enrichment fields (admin-managed).">
+        <div className="space-y-5">
+          <StudentPhotoUploader studentId={studentId} initialUrl={student.profile_photo_url ?? null} saveAction={saveStudentPhoto} />
+          <form action={updateStudentProfile} className="space-y-4 border-t border-slate-100 pt-5">
+            <Field label="Profile photo URL (optional)" htmlFor="profile_photo_url">
+              <input
+                id="profile_photo_url"
+                className="gf-input"
+                name="profile_photo_url"
+                defaultValue={student.profile_photo_url ?? ""}
+                placeholder="https://..."
+              />
+            </Field>
+            <Field label="Hobbies" htmlFor="hobbies" hint="Separate with commas.">
+              <input
+                id="hobbies"
+                className="gf-input"
+                name="hobbies"
+                defaultValue={(student.hobbies ?? []).join(", ")}
+                placeholder="e.g. Chess, Reading, Football"
+              />
+            </Field>
+            <div className="flex justify-end">
+              <SubmitButton variant="secondary" pendingText="Saving…">
+                Save profile
+              </SubmitButton>
+            </div>
+          </form>
+        </div>
+      </FormSection>
+    </div>
+  ) : null;
+
+  return (
+    <div className="space-y-6">
+      <UrlToast key={toastKey} />
+      <PageHeader back={BACK} eyebrow="Student" title={fullName} />
+
+      <Card>
+        <CardBody className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <Avatar name={fullName} src={student.profile_photo_url} size="xl" />
+          <dl className="grid flex-1 grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-5">
+            <div>
+              <dt className="text-xs font-medium text-slate-500">Status</dt>
+              <dd className="mt-1">
+                <Badge tone={studentStatusTone(student.status)} dot>
+                  {capitalize(student.status)}
+                </Badge>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-slate-500">Level</dt>
+              <dd className="mt-0.5 text-sm font-semibold text-slate-900">{capitalize(student.level)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-slate-500">Class</dt>
+              <dd className="mt-0.5 text-sm font-semibold text-slate-900">{currentClassName ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-slate-500">Admission number</dt>
+              <dd className="mt-0.5 font-mono text-sm font-semibold text-slate-900">{student.admission_number ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-slate-500">Date of birth</dt>
+              <dd className="mt-0.5 text-sm font-semibold text-slate-900">
+                {student.date_of_birth ? formatLagosDate(student.date_of_birth) : "—"}
+              </dd>
+            </div>
+          </dl>
+        </CardBody>
+      </Card>
+
+      {sideColumn ? (
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">{mainColumn}</div>
+          <div>{sideColumn}</div>
+        </div>
+      ) : (
+        mainColumn
+      )}
     </div>
   );
 }

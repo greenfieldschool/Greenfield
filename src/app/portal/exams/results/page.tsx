@@ -1,6 +1,19 @@
 import Link from "next/link";
+import { BarChart3, ChevronRight } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { firstOrNull } from "@/lib/relations";
+import { formatLagosDate } from "@/lib/lagos-dates";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PortalPageHeader, portalMessages } from "../../_components/portal-ui";
+
+function percentTone(p: number): BadgeTone {
+  if (p >= 70) return "green";
+  if (p >= 50) return "gold";
+  return "red";
+}
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
   return (await Promise.race([
@@ -77,66 +90,65 @@ export default async function PortalExamResultsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Portal</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Exam results</h1>
-        <p className="mt-2 text-sm text-slate-600">Only results released by staff are shown here.</p>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/portal/exams">
-            Back to exams
-          </Link>
-        </div>
+      <PortalPageHeader
+        back={{ href: "/portal/exams", label: "Exams" }}
+        title="Exam results"
+        description="Results appear here once your teachers release them."
+      />
 
-        {errorMsg ? (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-            <div className="text-sm font-semibold">Results temporarily unavailable</div>
-            <div className="mt-2 text-xs opacity-80">{errorMsg}</div>
-          </div>
-        ) : null}
+      {errorMsg ? (
+        <Alert tone="warning" title="Results temporarily unavailable">
+          <span className="text-xs">{errorMsg}</span>
+        </Alert>
+      ) : null}
 
-        {!studentId && !errorMsg ? (
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-700">
-            No student record is linked to this account yet.
-          </div>
-        ) : null}
-      </div>
+      {!studentId && !errorMsg ? <Alert tone="info">{portalMessages.noStudent}</Alert> : null}
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-6">Test</div>
-          <div className="col-span-2">Score</div>
-          <div className="col-span-2">%</div>
-          <div className="col-span-2">Action</div>
-        </div>
-        <div>
-          {released.length ? (
-            released.map((a) => {
+      <Card>
+        <CardHeader title="Released results" />
+        {released.length ? (
+          <ul className="divide-y divide-slate-100">
+            {released.map((a) => {
               const session = firstOrNull(a.exam_test_sessions);
               const test = firstOrNull(session?.exam_tests);
-
+              const pct = Number(a.percent ?? 0);
               return (
-                <div key={a.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                  <div className="col-span-6 font-semibold text-slate-900">{test?.name ?? a.session_id}</div>
-                  <div className="col-span-2 text-slate-700">
-                    {Number(a.obtained_marks ?? 0).toFixed(2)} / {Number(a.max_marks ?? 0).toFixed(2)}
-                  </div>
-                  <div className="col-span-2 text-slate-700">{Number(a.percent ?? 0).toFixed(2)}%</div>
-                  <div className="col-span-2">
-                    <Link
-                      className="text-xs font-semibold text-brand-green hover:underline"
-                      href={`/portal/exams/results/${a.id}`}
-                    >
-                      View
-                    </Link>
-                  </div>
-                </div>
+                <li key={a.id}>
+                  <Link
+                    href={`/portal/exams/results/${a.id}`}
+                    className="group flex items-center gap-4 px-5 py-4 transition hover:bg-slate-50 sm:px-6"
+                  >
+                    <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                      <BarChart3 className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-semibold text-slate-900">{test?.name ?? a.session_id}</div>
+                      <div className="mt-0.5 text-sm text-slate-500">
+                        {Number(a.obtained_marks ?? 0).toFixed(2)} / {Number(a.max_marks ?? 0).toFixed(2)} marks
+                        {a.submitted_at ? ` · ${formatLagosDate(a.submitted_at)}` : ""}
+                      </div>
+                    </div>
+                    <Badge tone={percentTone(pct)} className="text-sm">
+                      {pct.toFixed(0)}%
+                    </Badge>
+                    <ChevronRight
+                      className="h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500"
+                      aria-hidden="true"
+                    />
+                    <span className="sr-only">View result</span>
+                  </Link>
+                </li>
               );
-            })
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No released results yet.</div>
-          )}
-        </div>
-      </div>
+            })}
+          </ul>
+        ) : (
+          <EmptyState
+            icon={BarChart3}
+            title="No results released yet"
+            description="Once your teacher marks an exam and releases the results, you'll see your score here."
+          />
+        )}
+      </Card>
     </div>
   );
 }

@@ -1,14 +1,35 @@
 import Link from "next/link";
+import { Briefcase, ExternalLink, Inbox, Pencil, Plus } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
+
+function fmtDateTime(value: unknown) {
+  if (!value) return "—";
+  const d = new Date(String(value));
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Africa/Lagos"
+  });
+}
 
 export default async function AdminCareersPage() {
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8">
-        <div className="text-sm font-semibold text-slate-900">Careers</div>
-        <p className="mt-2 text-sm text-slate-600">Supabase is not configured.</p>
+      <div className="space-y-6">
+        <PageHeader eyebrow="Admin" title="Careers" />
+        <Alert tone="warning">Supabase is not configured.</Alert>
       </div>
     );
   }
@@ -18,95 +39,102 @@ export default async function AdminCareersPage() {
     .select("id, slug, title, location, employment_type, published, updated_at")
     .order("updated_at", { ascending: false });
 
+  const jobs = rows ?? [];
+
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-slate-500">Admin</div>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-900">Careers</h1>
-            <p className="mt-2 text-sm text-slate-600">Create, update, and publish job listings.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/admin/careers/new"
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
-            >
+      <PageHeader
+        eyebrow="Admin"
+        title="Careers"
+        description="Create, update, and publish job listings."
+        actions={
+          <>
+            <ButtonLink href="/admin/careers/applications" variant="secondary">
+              <Inbox className="h-4 w-4" aria-hidden="true" />
+              Applications
+            </ButtonLink>
+            <ButtonLink href="/admin/careers/new">
+              <Plus className="h-4 w-4" aria-hidden="true" />
               New job
-            </Link>
-          </div>
-        </div>
-      </div>
+            </ButtonLink>
+          </>
+        }
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <div className="text-sm font-semibold text-slate-900">Job listings</div>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th className="py-3 pr-4">Title</th>
-                <th className="py-3 pr-4">Slug</th>
-                <th className="py-3 pr-4">Location</th>
-                <th className="py-3 pr-4">Type</th>
-                <th className="py-3 pr-4">Status</th>
-                <th className="py-3 pr-4">Updated</th>
-                <th className="py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(rows ?? []).map((job) => (
-                <tr key={job.id} className="border-b border-slate-100">
-                  <td className="py-4 pr-4 font-semibold text-slate-900">{job.title}</td>
-                  <td className="py-4 pr-4 text-slate-600">{job.slug}</td>
-                  <td className="py-4 pr-4 text-slate-600">{job.location}</td>
-                  <td className="py-4 pr-4 text-slate-600">{job.employment_type}</td>
-                  <td className="py-4 pr-4">
-                    {job.published ? (
-                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                        Published
-                      </span>
-                    ) : (
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-                        Draft
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-4 pr-4 text-slate-600">
-                    {job.updated_at ? new Date(String(job.updated_at)).toLocaleString() : "—"}
-                  </td>
-                  <td className="py-4">
-                    <div className="flex flex-wrap gap-2">
-                      <Link
-                        href={`/admin/careers/${job.id}`}
-                        className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-50"
-                      >
-                        Edit
-                      </Link>
-                      {job.published ? (
-                        <Link
-                          href={`/careers/${job.slug}`}
-                          className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-50"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          View
-                        </Link>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {(rows ?? []).length === 0 ? (
+      <Card>
+        <CardHeader title="Job listings" description={`${jobs.length} job${jobs.length === 1 ? "" : "s"}`} />
+        {jobs.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[820px]">
+              <thead>
                 <tr>
-                  <td className="py-6 text-slate-600" colSpan={7}>
-                    No jobs yet. Click “New job” to create one.
-                  </td>
+                  <th>Title</th>
+                  <th>Slug</th>
+                  <th>Location</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                  <th className="text-right">Actions</th>
                 </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody>
+                {jobs.map((job) => (
+                  <tr key={job.id}>
+                    <td>
+                      <Link href={`/admin/careers/${job.id}`} className="gf-link">
+                        {job.title}
+                      </Link>
+                    </td>
+                    <td className="font-mono text-xs text-slate-500">{job.slug}</td>
+                    <td>{job.location}</td>
+                    <td>{job.employment_type}</td>
+                    <td>
+                      {job.published ? (
+                        <Badge tone="green" dot>
+                          Published
+                        </Badge>
+                      ) : (
+                        <Badge tone="slate">Draft</Badge>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap text-slate-500">{fmtDateTime(job.updated_at)}</td>
+                    <td>
+                      <div className="flex justify-end gap-2">
+                        <Link href={`/admin/careers/${job.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
+                          Edit
+                        </Link>
+                        {job.published ? (
+                          <Link
+                            href={`/careers/${job.slug}`}
+                            className={buttonClasses({ variant: "ghost", size: "sm" })}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                            View
+                          </Link>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={Briefcase}
+            title="No jobs yet"
+            description="Click “New job” to create one."
+            action={
+              <ButtonLink href="/admin/careers/new" size="sm">
+                New job
+              </ButtonLink>
+            }
+          />
+        )}
+      </Card>
     </div>
   );
 }

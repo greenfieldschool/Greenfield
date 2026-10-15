@@ -1,5 +1,11 @@
 import Link from "next/link";
+import { Clock, ListChecks } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
 
 type TestRow = {
   id: string;
@@ -86,87 +92,93 @@ export default async function AdminExamTestPreviewPage({ params }: { params: Pro
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Exams</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Preview: {test.name}</h1>
-        <p className="mt-2 text-sm text-slate-600">This is a read-only preview of how questions will appear to students.</p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href={`/admin/exams/tests/${id}`}>
-            Back to editor
-          </Link>
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/exams/tests">
-            Back to tests
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        back={{ href: `/admin/exams/tests/${id}`, label: "Back to editor" }}
+        eyebrow="Exams"
+        title={`Preview: ${test.name}`}
+        description="This is a read-only preview of how questions will appear to students."
+        actions={
+          <>
+            <Badge tone="blue">
+              <Clock className="h-3 w-3" aria-hidden="true" />
+              {test.duration_minutes} minutes
+            </Badge>
+            <Link className={buttonClasses({ variant: "secondary" })} href="/admin/exams/tests">
+              Back to tests
+            </Link>
+          </>
+        }
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-900">Questions</div>
-        <div className="mt-1 text-xs text-slate-600">Showing {questions.length} question(s).</div>
+      <Card>
+        <CardHeader title="Questions" description={`Showing ${questions.length} question(s).`} />
 
-        <div className="mt-6 space-y-5">
-          {questions.map((q, idx) => {
-            const mcqOptions = q.question_type === "mcq_single" ? parseMcqOptions(q.options) : [];
+        {questions.length ? (
+          <CardBody className="space-y-4">
+            {questions.map((q, idx) => {
+              const isMcq = q.question_type === "mcq_single" || q.question_type === "mcq_multi";
+              const mcqOptions = isMcq ? parseMcqOptions(q.options) : [];
 
-            return (
-              <div key={q.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="text-xs font-semibold text-slate-500">
-                  Q{idx + 1} • {questionTypeLabel(q.question_type)} • {q.marks} mark(s)
-                  {q.active ? "" : " • inactive"}
-                </div>
-                <div className="mt-2 whitespace-pre-wrap text-sm font-semibold text-slate-900">{q.prompt}</div>
+              return (
+                <div key={q.id} className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg bg-brand-green-50 px-2 text-xs font-bold text-brand-green-700">
+                      Q{idx + 1}
+                    </span>
+                    <Badge tone="blue">{questionTypeLabel(q.question_type)}</Badge>
+                    <Badge tone="slate">{q.marks} mark(s)</Badge>
+                    {q.active ? null : <Badge tone="red">inactive</Badge>}
+                  </div>
+                  <div className="mt-3 whitespace-pre-wrap text-sm font-semibold text-slate-900">{q.prompt}</div>
 
-                <div className="mt-4">
-                  {q.question_type === "true_false" ? (
-                    <select
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none"
-                      disabled
-                      defaultValue=""
-                    >
-                      <option value="">Select</option>
-                      <option value="true">True</option>
-                      <option value="false">False</option>
-                    </select>
-                  ) : q.question_type === "fill_blank" ? (
-                    <input
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none"
-                      disabled
-                      placeholder="Type your answer"
-                    />
-                  ) : q.question_type === "mcq_single" ? (
-                    mcqOptions.length ? (
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {mcqOptions.map((opt) => (
-                          <button
-                            key={opt.key}
-                            type="button"
-                            disabled
-                            className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800"
-                          >
-                            <div className="text-xs font-semibold text-slate-500">{opt.key}</div>
-                            <div className="mt-1 whitespace-pre-wrap">{opt.label}</div>
-                          </button>
-                        ))}
-                      </div>
+                  <div className="mt-4">
+                    {q.question_type === "true_false" ? (
+                      <select className="gf-select" disabled defaultValue="" aria-label="Answer">
+                        <option value="">Select</option>
+                        <option value="true">True</option>
+                        <option value="false">False</option>
+                      </select>
+                    ) : q.question_type === "fill_blank" ? (
+                      <input className="gf-input" disabled placeholder="Type your answer" aria-label="Answer" />
+                    ) : isMcq ? (
+                      mcqOptions.length ? (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {q.question_type === "mcq_multi" ? (
+                            <p className="text-xs font-medium text-slate-500 sm:col-span-2">Select all that apply.</p>
+                          ) : null}
+                          {mcqOptions.map((opt) => (
+                            <button
+                              key={opt.key}
+                              type="button"
+                              disabled
+                              className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-800"
+                            >
+                              <span
+                                className={`inline-flex h-6 w-6 shrink-0 items-center justify-center bg-slate-100 text-xs font-semibold text-slate-600 ${
+                                  q.question_type === "mcq_multi" ? "rounded-md border border-slate-300" : "rounded-full"
+                                }`}
+                              >
+                                {opt.key}
+                              </span>
+                              <span className="whitespace-pre-wrap">{opt.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-slate-500">No options set yet.</div>
+                      )
                     ) : (
-                      <div className="text-sm text-slate-600">No options set yet.</div>
-                    )
-                  ) : (
-                    <textarea
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none"
-                      rows={4}
-                      disabled
-                      placeholder="Type your answer"
-                    />
-                  )}
+                      <textarea className="gf-input" rows={4} disabled placeholder="Type your answer" aria-label="Answer" />
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-
-          {!questions.length ? <div className="text-sm text-slate-600">No questions yet.</div> : null}
-        </div>
-      </div>
+              );
+            })}
+          </CardBody>
+        ) : (
+          <EmptyState icon={ListChecks} title="No questions yet." description="Add questions in the editor to see them here." />
+        )}
+      </Card>
     </div>
   );
 }

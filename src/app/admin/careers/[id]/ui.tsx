@@ -2,6 +2,10 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2, Save } from "lucide-react";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { Alert } from "@/components/ui/alert";
+import { buttonClasses } from "@/components/ui/button";
 
 type Job = {
   id?: string;
@@ -91,169 +95,152 @@ export function AdminCareerJobEditor({ id, initialJob }: Props) {
   }
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-      <form
-        className="space-y-6"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const fd = new FormData(e.currentTarget);
-          startTransition(() => save(fd));
-        }}
-      >
+    <form
+      className="space-y-6"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        startTransition(() => save(fd));
+      }}
+    >
+      <FormSection title="Role" description="The basics candidates see first.">
         <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Title</label>
+          <Field label="Title" htmlFor="job-title">
             <input
+              id="job-title"
               name="title"
               defaultValue={defaults.title}
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              className="gf-input"
               placeholder="e.g. Primary Class Teacher"
             />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Slug</label>
+          </Field>
+          <Field label="Slug" htmlFor="job-slug" hint="Used in the URL: /careers/slug">
             <input
+              id="job-slug"
               name="slug"
               defaultValue={defaults.slug}
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              className="gf-input font-mono"
               placeholder="e.g. primary-class-teacher"
             />
-            <div className="mt-1 text-xs text-slate-500">Used in the URL: /careers/slug</div>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Location</label>
+          </Field>
+          <Field label="Location" htmlFor="job-location">
             <input
+              id="job-location"
               name="location"
               defaultValue={defaults.location}
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              className="gf-input"
               placeholder="e.g. Lekki, Lagos"
             />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Employment type</label>
+          </Field>
+          <Field label="Employment type" htmlFor="job-type">
             <input
+              id="job-type"
               name="employment_type"
               defaultValue={defaults.employment_type}
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              className="gf-input"
               placeholder="e.g. Full-time"
             />
-          </div>
-        </div>
-
-        <div>
-          <label className="text-sm font-semibold text-slate-900">Summary</label>
-          <textarea
-            name="summary"
-            defaultValue={defaults.summary}
-            className="mt-1 min-h-[120px] w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-            placeholder="1–3 sentences. What is this role and why should a great candidate apply?"
-          />
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Responsibilities (one per line)</label>
+          </Field>
+          <Field label="Summary" htmlFor="job-summary" className="md:col-span-2">
             <textarea
+              id="job-summary"
+              name="summary"
+              defaultValue={defaults.summary}
+              className="gf-input min-h-[120px]"
+              placeholder="1–3 sentences. What is this role and why should a great candidate apply?"
+            />
+          </Field>
+        </div>
+      </FormSection>
+
+      <FormSection title="Details" description="One item per line.">
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Responsibilities (one per line)" htmlFor="job-responsibilities">
+            <textarea
+              id="job-responsibilities"
               name="responsibilities"
               defaultValue={joinLines(defaults.responsibilities)}
-              className="mt-1 min-h-[160px] w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              className="gf-input min-h-[160px]"
             />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Requirements (one per line)</label>
+          </Field>
+          <Field label="Requirements (one per line)" htmlFor="job-requirements">
             <textarea
+              id="job-requirements"
               name="requirements"
               defaultValue={joinLines(defaults.requirements)}
-              className="mt-1 min-h-[160px] w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              className="gf-input min-h-[160px]"
             />
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Reports to (optional)</label>
+          </Field>
+          <Field label="Reports to (optional)" htmlFor="job-reports-to">
+            <input id="job-reports-to" name="reports_to" defaultValue={defaults.reports_to ?? ""} className="gf-input" />
+          </Field>
+          <Field label="Compensation (optional)" htmlFor="job-compensation">
             <input
-              name="reports_to"
-              defaultValue={defaults.reports_to ?? ""}
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Compensation (optional)</label>
-            <input
+              id="job-compensation"
               name="compensation"
               defaultValue={defaults.compensation ?? ""}
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              className="gf-input"
             />
-          </div>
+          </Field>
         </div>
+      </FormSection>
 
+      <FormSection title="How to apply" description="Optional extra ways for candidates to apply.">
         <div className="grid gap-4 md:grid-cols-3">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Apply email (optional)</label>
+          <Field label="Apply email (optional)" htmlFor="job-apply-email">
             <input
+              id="job-apply-email"
               name="apply_email"
               defaultValue={defaults.apply_email ?? ""}
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              className="gf-input"
               placeholder="e.g. hr@greenfieldschool.ng"
             />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Apply WhatsApp (optional)</label>
+          </Field>
+          <Field label="Apply WhatsApp (optional)" htmlFor="job-apply-whatsapp">
             <input
+              id="job-apply-whatsapp"
               name="apply_whatsapp"
               defaultValue={defaults.apply_whatsapp ?? ""}
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              className="gf-input"
               placeholder="e.g. https://wa.me/234..."
             />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Apply link (optional)</label>
+          </Field>
+          <Field label="Apply link (optional)" htmlFor="job-apply-link">
             <input
+              id="job-apply-link"
               name="apply_link"
               defaultValue={defaults.apply_link ?? ""}
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
+              className="gf-input"
               placeholder="e.g. Google Form URL"
             />
-          </div>
+          </Field>
         </div>
+      </FormSection>
 
-        {error ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800 transition">
-            {error}
-          </div>
-        ) : null}
+      {error ? <Alert tone="danger">{error}</Alert> : null}
 
-        {canShowSaved ? (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 transition">
-            Saved at {savedAt}
-          </div>
-        ) : null}
+      {canShowSaved ? <Alert tone="success">Saved at {savedAt}</Alert> : null}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/95 px-5 py-4 shadow-lift backdrop-blur">
+        <div>
           <label className="flex items-center gap-3 text-sm font-semibold text-slate-900">
-            <input
-              type="checkbox"
-              name="published"
-              defaultChecked={Boolean(defaults.published)}
-              className="h-4 w-4 rounded border-slate-300"
-            />
+            <input type="checkbox" name="published" defaultChecked={Boolean(defaults.published)} className="gf-checkbox" />
             Published
           </label>
-
-          <button
-            type="submit"
-            disabled={pending}
-            className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60 sm:w-auto"
-          >
-            <span className={pending ? "animate-pulse" : ""}>{savingLabel}</span>
-          </button>
+          <div className="mt-1 text-xs text-slate-500">
+            {pending ? "Saving your changes…" : "Changes are saved when you click Save."}
+          </div>
         </div>
 
-        <div className="text-xs text-slate-500">
-          {pending ? "Saving your changes…" : "Changes are saved when you click Save."}
-        </div>
-      </form>
-    </div>
+        <button type="submit" disabled={pending} className={buttonClasses({ className: "w-full sm:w-auto" })}>
+          {pending ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <Save className="h-4 w-4" aria-hidden="true" />
+          )}
+          {savingLabel}
+        </button>
+      </div>
+    </form>
   );
 }

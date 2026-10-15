@@ -1,4 +1,13 @@
+import { redirect } from "next/navigation";
+import { Mail, Phone, Users } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { formatLagosDate } from "@/lib/lagos-dates";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PortalNotice, PortalPageHeader, portalMessages } from "../_components/portal-ui";
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
   return (await Promise.race([
@@ -47,27 +56,33 @@ export default async function PortalProfilePage() {
 
   let errorMsg: string | null = null;
 
-  const { data: profile, error: profileError } = await withTimeout(
-    supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
-    6000
-  );
-  if (profileError) {
-    errorMsg = String(profileError.message ?? "");
+  const { data: identityRows, error: identityError } = await withTimeout(supabase.rpc("portal_identity"), 6000);
+  if (identityError) {
+    errorMsg = String(identityError.message ?? "");
   }
 
-  const role = profile?.role as string | null | undefined;
+  const identity = (Array.isArray(identityRows) ? (identityRows[0] ?? null) : identityRows) as {
+    role?: string | null;
+    guardian_id?: string | null;
+  } | null;
+
+  const role = identity?.role ?? null;
+
+  if (role === "student") {
+    redirect("/portal/students");
+  }
 
   if (role !== "parent") {
-    return null;
+    return (
+      <PortalNotice
+        title="My profile"
+        heading={errorMsg ? "Profile temporarily unavailable" : "Nothing to show yet"}
+        message={errorMsg ? "We couldn't load your account details. Please reload the page in a moment." : portalMessages.notPortal}
+      />
+    );
   }
 
-  const { data: guardianLink } = await supabase
-    .from("guardian_user_links")
-    .select("guardian_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const guardianId = (guardianLink?.guardian_id as string | undefined) ?? null;
+  const guardianId = identity?.guardian_id ?? null;
 
   const { data: guardianData } = guardianId
     ? await withTimeout(
@@ -94,97 +109,93 @@ export default async function PortalProfilePage() {
     linkedStudents = (studentLinks ?? []) as unknown as StudentGuardianRow[];
   }
 
+  const interests = guardian?.interests ?? [];
+
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-      <div className="text-sm font-semibold text-slate-500">Portal</div>
-      <h1 className="mt-2 text-2xl font-semibold text-slate-900">My profile</h1>
-      <p className="mt-2 text-sm text-slate-600">Your parent/guardian profile (managed by school admin).</p>
+    <div className="space-y-6">
+      <PortalPageHeader
+        title="My profile"
+        description="Your parent / guardian details. To change anything, please contact the school office."
+      />
 
       {errorMsg ? (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-          <div className="text-sm font-semibold">Profile temporarily unavailable</div>
-          <div className="mt-2 text-xs opacity-80">{errorMsg}</div>
-        </div>
-      ) : null}
-
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-        <div className="flex items-center gap-4">
-          <div className="h-16 w-16 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            {guardian?.profile_photo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className="h-full w-full object-cover" alt="" src={guardian.profile_photo_url} />
-            ) : null}
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-base font-semibold text-slate-900">{guardian?.full_name ?? "—"}</div>
-            <div className="mt-1 text-sm text-slate-600">{guardian?.email ?? user.email ?? "—"}</div>
-            <div className="mt-1 text-sm text-slate-600">{guardian?.phone ?? "—"}</div>
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <div className="text-xs font-semibold text-slate-500">Interests</div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {(guardian?.interests ?? []).length ? (
-              (guardian?.interests ?? []).map((i) => (
-                <span key={i} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
-                  {i}
-                </span>
-              ))
-            ) : (
-              <div className="text-sm text-slate-600">—</div>
-            )}
-          </div>
-        </div>
-
-        {guardian?.created_at ? (
-          <div className="mt-4 text-xs text-slate-500">
-            Member since: {new Date(guardian.created_at).toLocaleDateString()}
-          </div>
-        ) : null}
-      </div>
-
-      {linkedStudents.length > 0 ? (
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold text-slate-900">Linked students</h2>
-          <p className="mt-1 text-sm text-slate-600">Students associated with your guardian account.</p>
-          <div className="mt-4 space-y-3">
-            {linkedStudents.map((link) => {
-              const student = link.students;
-              return (
-                <div
-                  key={link.student_id}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                >
-                  <div>
-                    <div className="font-semibold text-slate-900">
-                      {student?.first_name} {student?.last_name}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-600">
-                      {student?.admission_number ? `Admission: ${student.admission_number} • ` : ""}
-                      Level: {student?.level ?? "—"}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs font-semibold text-slate-700">
-                      {link.relationship ?? "Guardian"}
-                    </div>
-                    {link.is_primary ? (
-                      <div className="mt-1 text-xs text-brand-green font-semibold">Primary contact</div>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <Alert tone="warning" title="Profile temporarily unavailable">
+          <span className="text-xs">{errorMsg}</span>
+        </Alert>
       ) : null}
 
       {!guardianId ? (
-        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-          No guardian record is linked to this account yet.
-        </div>
+        <Alert tone="warning">{portalMessages.noGuardian}</Alert>
       ) : null}
+
+      <Card>
+        <CardBody>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <Avatar name={guardian?.full_name ?? user.email ?? "?"} src={guardian?.profile_photo_url} size="xl" />
+            <div className="min-w-0 flex-1">
+              <div className="font-display text-2xl font-semibold text-slate-900">{guardian?.full_name ?? "—"}</div>
+              <div className="mt-2 flex flex-col gap-1.5 text-sm text-slate-600 sm:flex-row sm:flex-wrap sm:gap-x-5">
+                <span className="inline-flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                  {guardian?.email ?? user.email ?? "—"}
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                  {guardian?.phone ?? "—"}
+                </span>
+              </div>
+              {guardian?.created_at ? (
+                <div className="mt-2 text-xs text-slate-500">Member since {formatLagosDate(guardian.created_at)}</div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="mt-6 border-t border-slate-100 pt-5">
+            <div className="text-sm font-medium text-slate-700">Interests</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {interests.length ? (
+                interests.map((i) => (
+                  <Badge key={i} tone="slate">
+                    {i}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-slate-500">None added</span>
+              )}
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader title="Linked children" description="Children associated with your account." />
+        {linkedStudents.length > 0 ? (
+          <ul className="divide-y divide-slate-100">
+            {linkedStudents.map((link) => {
+              const student = link.students;
+              const name = `${student?.first_name ?? ""} ${student?.last_name ?? ""}`.trim();
+              return (
+                <li key={link.student_id} className="flex items-center gap-4 px-5 py-4 sm:px-6">
+                  <Avatar name={name || "?"} />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-slate-900">{name || "—"}</div>
+                    <div className="mt-0.5 text-xs text-slate-500">
+                      {student?.admission_number ? `${student.admission_number} · ` : ""}
+                      <span className="capitalize">{student?.level ?? "—"}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-sm capitalize text-slate-700">{link.relationship ?? "Guardian"}</span>
+                    {link.is_primary ? <Badge tone="green">Primary contact</Badge> : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <EmptyState icon={Users} title="No children linked yet" description="Ask the school office to link your children." />
+        )}
+      </Card>
     </div>
   );
 }

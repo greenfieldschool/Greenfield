@@ -1,9 +1,17 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CheckCircle2, Clock, EyeOff, FileQuestion, Hourglass, Lock, PlayCircle, Save, Wifi } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import LockOnBlurClient from "./LockOnBlurClient";
 import ExamAnswersClient from "./ExamAnswersClient";
+import SubmitExamButton from "./SubmitExamButton";
 import { firstOrNull } from "@/lib/relations";
+import { Card, CardBody } from "@/components/ui/card";
+import { Alert } from "@/components/ui/alert";
+import { Field } from "@/components/ui/form-section";
+import { StatCard } from "@/components/ui/stat-card";
+import SubmitButton from "@/components/submit-button";
+import { ButtonLink } from "@/components/ui/button";
+import { PortalNotice, PortalPageHeader, portalMessages } from "../../_components/portal-ui";
 
 type SessionRow = {
   id: string;
@@ -37,8 +45,17 @@ type QuestionRow = {
 
 type AnswerRow = { question_id: string; answer: unknown };
 
-export default async function PortalExamRunnerPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PortalExamRunnerPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { id } = await params;
+  const sp = (await searchParams) ?? {};
+  const startErrorRaw = Array.isArray(sp.e) ? sp.e[0] : sp.e;
+  const startError = typeof startErrorRaw === "string" && startErrorRaw.trim().length ? startErrorRaw.trim().slice(0, 300) : null;
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
 
@@ -55,7 +72,8 @@ export default async function PortalExamRunnerPage({ params }: { params: Promise
     .maybeSingle();
 
   const studentId = (studentLink as StudentLinkRow | null)?.student_id ?? null;
-  if (!studentId) return null;
+  if (!studentId)
+    return <PortalNotice back={{ href: "/portal/exams", label: "Exams" }} title="Exam" message={portalMessages.noStudent} />;
 
   const { data: sessionData } = await supabase
     .from("exam_test_sessions")
@@ -64,7 +82,21 @@ export default async function PortalExamRunnerPage({ params }: { params: Promise
     .maybeSingle();
 
   const session = (sessionData ?? null) as unknown as SessionRow | null;
-  if (!session) return null;
+  if (!session)
+    return (
+      <PortalNotice
+        back={{ href: "/portal/exams", label: "Exams" }}
+        title="Exam"
+        heading="This exam isn't available"
+        message="It may have closed, not opened yet, or not be set for your class. Check the exams list or ask your teacher."
+        icon={FileQuestion}
+        action={
+          <ButtonLink href="/portal/exams" variant="secondary">
+            Back to exams
+          </ButtonLink>
+        }
+      />
+    );
 
   const test = firstOrNull(session.exam_tests);
 
@@ -137,80 +169,117 @@ export default async function PortalExamRunnerPage({ params }: { params: Promise
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Exams</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">{test?.name ?? "Exam"}</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Duration: {test?.duration_minutes ?? "—"} minutes • Attempt locks immediately on focus loss.
-        </p>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/portal/exams">
-            Back to exams
-          </Link>
-        </div>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-6">
+      <PortalPageHeader
+        back={{ href: "/portal/exams", label: "Exams" }}
+        title={test?.name ?? "Exam"}
+        description={
+          <span className="inline-flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              {test?.duration_minutes ?? "—"} minutes
+            </span>
+            {questions.length ? (
+              <span>
+                {questions.length} question{questions.length === 1 ? "" : "s"}
+              </span>
+            ) : null}
+          </span>
+        }
+      />
 
       {isLocked ? (
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-red-900 shadow-sm">
-          <div className="text-sm font-semibold">Exam locked</div>
-          <div className="mt-2 text-sm">
-            You navigated away from the exam. Please call the conductor to unlock your exam.
+        <Card className="border-red-200">
+          <div className="flex flex-col items-center px-6 py-10 text-center">
+            <span className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+              <Lock className="h-8 w-8" aria-hidden="true" />
+            </span>
+            <h2 className="mt-4 font-display text-2xl font-semibold text-slate-900">Your exam is locked</h2>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-600">
+              You left the exam page, so it was locked to keep things fair. Please raise your hand and ask the exam
+              supervisor to unlock it.
+            </p>
+            <p className="mt-3 text-xs text-slate-400">Times locked: {attempt?.lock_count ?? 0}</p>
           </div>
-          <div className="mt-2 text-xs">Lock count: {attempt?.lock_count ?? 0}</div>
-        </div>
+        </Card>
       ) : !canRenderExam ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="text-sm font-semibold text-slate-900">Start exam</div>
-          <p className="mt-2 text-sm text-slate-600">
-            {session.requires_secret_code
-              ? "This session requires a secret code. Enter it to start."
-              : "Start your exam session."}
-          </p>
-
-          <form action={startAttempt} className="mt-6 grid gap-3 sm:grid-cols-3">
-            <div className="sm:col-span-2">
-              <input
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="secret_code"
-                placeholder={session.requires_secret_code ? "Enter secret code" : "(optional)"}
-              />
+        <Card>
+          <CardBody className="space-y-6">
+            <div>
+              <h2 className="font-display text-2xl font-semibold text-slate-900">Ready to begin?</h2>
+              <p className="mt-1 text-sm text-slate-600">Read these before you start.</p>
             </div>
-            <button
-              className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-              type="submit"
-            >
-              Start
-            </button>
-          </form>
-        </div>
+            <ul className="space-y-3 text-sm text-slate-700">
+              <li className="flex gap-3">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                  <EyeOff className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span className="pt-2">
+                  <span className="font-semibold text-slate-900">Stay on this page.</span> Switching apps, tabs or
+                  windows locks your exam straight away.
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-green-50 text-brand-green-600">
+                  <Save className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span className="pt-2">Your answers save automatically as you go.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                  <Wifi className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span className="pt-2">Make sure you have a good connection and enough time.</span>
+              </li>
+            </ul>
+
+            <form action={startAttempt} className="space-y-4 border-t border-slate-100 pt-6">
+              {startError ? (
+                <Alert tone="danger" title="We couldn't start your exam">
+                  {startError}
+                </Alert>
+              ) : null}
+              <Field
+                label={session.requires_secret_code ? "Exam code" : "Exam code (optional)"}
+                htmlFor="exam-secret-code"
+                hint={session.requires_secret_code ? "Your supervisor will give you this code." : undefined}
+              >
+                <input
+                  id="exam-secret-code"
+                  className="gf-input h-12 text-base tracking-widest"
+                  name="secret_code"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  placeholder={session.requires_secret_code ? "Enter the code" : "Leave blank if you have none"}
+                />
+              </Field>
+              <SubmitButton variant="primary" size="lg" pendingText="Starting…">
+                <span className="inline-flex items-center gap-2">
+                  <PlayCircle className="h-5 w-5" aria-hidden="true" />
+                  Start exam
+                </span>
+              </SubmitButton>
+            </form>
+          </CardBody>
+        </Card>
       ) : isSubmitted ? (
         <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-            <div className="text-sm font-semibold text-slate-900">Submission received</div>
-            <p className="mt-2 text-sm text-slate-600">Your exam has been submitted. Answers are now read-only.</p>
+          <Alert tone="success" title="Submission received">
+            Well done for finishing! Your answers are saved and can no longer be changed.
+          </Alert>
 
-            {session.results_released_at ? (
-              <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
-                <div>
-                  <div className="text-xs font-semibold text-slate-500">Obtained</div>
-                  <div className="mt-1 font-semibold text-slate-900">{Number(attempt?.obtained_marks ?? 0).toFixed(2)}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-slate-500">Max</div>
-                  <div className="mt-1 font-semibold text-slate-900">{Number(attempt?.max_marks ?? 0).toFixed(2)}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-slate-500">Percent</div>
-                  <div className="mt-1 font-semibold text-slate-900">{Number(attempt?.percent ?? 0).toFixed(2)}%</div>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                Results are awaiting staff release.
-              </div>
-            )}
-          </div>
+          {session.results_released_at ? (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <StatCard label="Marks obtained" value={Number(attempt?.obtained_marks ?? 0).toFixed(2)} icon={CheckCircle2} tone="green" />
+              <StatCard label="Out of" value={Number(attempt?.max_marks ?? 0).toFixed(2)} tone="slate" />
+              <StatCard label="Score" value={`${Number(attempt?.percent ?? 0).toFixed(2)}%`} tone="gold" />
+            </div>
+          ) : (
+            <Alert tone="info" title="Results coming soon">
+              Your teacher will release the results once marking is done.
+            </Alert>
+          )}
 
           {attemptId ? (
             <ExamAnswersClient attemptId={attemptId} questions={questions} initialAnswers={initialAnswers} readOnly />
@@ -220,24 +289,28 @@ export default async function PortalExamRunnerPage({ params }: { params: Promise
         <>
           {attemptId ? <LockOnBlurClient attemptId={attemptId} /> : null}
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-sm font-semibold text-slate-900">Exam controls</div>
-                <div className="mt-1 text-xs text-slate-600">Autosave is enabled.</div>
-              </div>
-              <form action={submitAttempt}>
-                <button
-                  className="inline-flex items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95"
-                  type="submit"
-                >
-                  Submit exam
-                </button>
-              </form>
-            </div>
-          </div>
+          <Alert tone="warning">
+            <span className="font-semibold">Stay on this page</span> until you submit. Leaving it will lock your exam.
+          </Alert>
 
           {attemptId ? <ExamAnswersClient attemptId={attemptId} questions={questions} initialAnswers={initialAnswers} /> : null}
+
+          <Card className="border-brand-green-200">
+            <form action={submitAttempt}>
+              <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-green-50 text-brand-green-600">
+                    <Hourglass className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <div className="font-semibold text-slate-900">Finished?</div>
+                    <div className="mt-0.5 text-sm text-slate-600">Check your answers, then submit when you&apos;re ready.</div>
+                  </div>
+                </div>
+                <SubmitExamButton />
+              </div>
+            </form>
+          </Card>
         </>
       )}
     </div>

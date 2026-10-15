@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -7,6 +6,13 @@ import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
 import { loadStudentsByClass } from "@/lib/student-classes";
 import StudentSelect from "../StudentSelect";
+import { Split, Trash2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { Alert } from "@/components/ui/alert";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
+import { FinanceStatusBadge, currencyPrefix } from "../../_components/finance-ui";
+import { lagosLocalToDate, toLagosDateTimeInput } from "../../_components/finance-server";
 
 type PaymentRow = {
   id: string;
@@ -33,13 +39,6 @@ type InvoiceOptionRow = {
 };
 
 type AllocationRow = { invoice_id: string; amount: number };
-
-// Mirrors how the "Record payment" form parses datetime-local values (server-local time).
-function toInputValue(iso: string) {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 const methods = ["cash", "transfer", "pos", "online"] as const;
 
@@ -109,8 +108,8 @@ export default async function AdminEditPaymentPage({ params }: { params: Promise
       redirect(`/admin/finance/payments/${id}?toast=${encodeURIComponent("Enter a valid amount")}&toast_type=error`);
     }
 
-    const paidAt = paidAtRaw.length ? new Date(paidAtRaw) : null;
-    if (paidAt && Number.isNaN(paidAt.getTime())) {
+    const paidAt = paidAtRaw.length ? lagosLocalToDate(paidAtRaw) : null;
+    if (paidAtRaw.length && !paidAt) {
       redirect(`/admin/finance/payments/${id}?toast=${encodeURIComponent("Enter a valid payment date")}&toast_type=error`);
     }
 
@@ -187,159 +186,179 @@ export default async function AdminEditPaymentPage({ params }: { params: Promise
     redirect(`/admin/finance/payments?toast=${encodeURIComponent("Payment deleted")}&toast_type=success`);
   }
 
-  const inputClass =
-    "mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green";
-
   return (
     <div className="space-y-6">
       <UrlToast />
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Finance</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Edit payment</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Correct a wrongly entered payment. Invoice balances update automatically after saving.
-        </p>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/payments">
-            Back to payments
-          </Link>
-        </div>
-        {payment.provider ? (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            This payment was recorded automatically by {payment.provider}. Only change it if you are sure it is wrong.
+      <PageHeader
+        back={{ href: "/admin/finance/payments", label: "Back to payments" }}
+        eyebrow="Finance"
+        title={
+          <span className="inline-flex flex-wrap items-center gap-3">
+            Edit payment
+            <FinanceStatusBadge status={payment.status} />
+          </span>
+        }
+        description="Correct a wrongly entered payment. Invoice balances update automatically after saving."
+        actions={
+          <div className="text-right">
+            <div className="text-xs font-medium text-slate-500">Amount</div>
+            <div
+              className={
+                "text-xl font-bold tabular-nums " +
+                (payment.status === "void" ? "text-slate-400 line-through" : "text-slate-900")
+              }
+            >
+              {payment.direction === "outflow" ? "−" : ""}
+              {currencyPrefix(payment.currency)}
+              {Number(payment.amount ?? 0).toLocaleString("en-NG", { maximumFractionDigits: 2 })}
+            </div>
           </div>
-        ) : null}
-      </div>
+        }
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <form action={updatePayment} className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label className="text-sm font-semibold text-slate-900">Student (by class)</label>
-            <StudentSelect
-              groups={studentData.groups}
-              defaultValue={payment.student_id ?? ""}
-              className={inputClass}
-            />
-          </div>
+      {payment.provider ? (
+        <Alert tone="warning" title="Recorded automatically">
+          This payment was recorded automatically by {payment.provider}. Only change it if you are sure it is wrong.
+        </Alert>
+      ) : null}
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Guardian (optional)</label>
-            <select className={inputClass} name="guardian_id" defaultValue={payment.guardian_id ?? ""}>
-              <option value="">—</option>
-              {guardianRows.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.full_name}
-                </option>
-              ))}
-            </select>
-          </div>
+      <form action={updatePayment} className="space-y-6">
+        <FormSection title="Who paid" description="The student, guardian and invoice this payment belongs to.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Student (by class)" htmlFor="student_id" className="sm:col-span-2">
+              <StudentSelect
+                id="student_id"
+                groups={studentData.groups}
+                defaultValue={payment.student_id ?? ""}
+                className="gf-select"
+              />
+            </Field>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Invoice (optional)</label>
-            {hasMultipleAllocations ? (
-              <>
-                <input type="hidden" name="keep_allocations" value="1" />
-                <div className="mt-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                  Split across {allocationRows.length} invoices — allocations are kept unchanged.
-                </div>
-              </>
-            ) : (
-              <select className={inputClass} name="invoice_id" defaultValue={currentInvoiceId}>
+            <Field label="Guardian (optional)" htmlFor="guardian_id">
+              <select id="guardian_id" className="gf-select" name="guardian_id" defaultValue={payment.guardian_id ?? ""}>
                 <option value="">—</option>
-                {invoiceRows.map((i) => (
-                  <option key={i.invoice_id} value={i.invoice_id}>
-                    {i.invoice_no ?? i.invoice_id} (bal {i.currency} {Number(i.balance ?? 0).toLocaleString()})
+                {guardianRows.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.full_name}
                   </option>
                 ))}
               </select>
-            )}
-          </div>
+            </Field>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Amount</label>
-            <input
-              className={inputClass}
-              name="amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              defaultValue={String(payment.amount)}
-              required
-            />
+            <Field label="Invoice (optional)" htmlFor={hasMultipleAllocations ? undefined : "invoice_id"}>
+              {hasMultipleAllocations ? (
+                <>
+                  <input type="hidden" name="keep_allocations" value="1" />
+                  <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-700">
+                    <Split className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+                    Split across {allocationRows.length} invoices — allocations are kept unchanged.
+                  </div>
+                </>
+              ) : (
+                <select id="invoice_id" className="gf-select" name="invoice_id" defaultValue={currentInvoiceId}>
+                  <option value="">—</option>
+                  {invoiceRows.map((i) => (
+                    <option key={i.invoice_id} value={i.invoice_id}>
+                      {i.invoice_no ?? i.invoice_id} (bal {currencyPrefix(i.currency)}
+                      {Number(i.balance ?? 0).toLocaleString("en-NG")})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
           </div>
+        </FormSection>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Currency</label>
-            <input className={inputClass} name="currency" defaultValue={payment.currency} />
+        <FormSection
+          title="Payment details"
+          footer={
+            <>
+              <ButtonLink href="/admin/finance/payments" variant="ghost">
+                Cancel
+              </ButtonLink>
+              <SubmitButton variant="primary" pendingText="Saving…">
+                Save changes
+              </SubmitButton>
+            </>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Amount" htmlFor="amount" required>
+              <input
+                id="amount"
+                className="gf-input tabular-nums"
+                name="amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                defaultValue={String(payment.amount)}
+                required
+              />
+            </Field>
+
+            <Field label="Currency" htmlFor="currency">
+              <input id="currency" className="gf-input" name="currency" defaultValue={payment.currency} />
+            </Field>
+
+            <Field label="Method" htmlFor="method">
+              <select id="method" className="gf-select" name="method" defaultValue={payment.method ?? "cash"}>
+                {methods.map((m) => (
+                  <option key={m} value={m}>
+                    {m === "pos" ? "POS" : m.charAt(0).toUpperCase() + m.slice(1)}
+                  </option>
+                ))}
+                {payment.method && !(methods as readonly string[]).includes(payment.method) ? (
+                  <option value={payment.method}>{payment.method}</option>
+                ) : null}
+              </select>
+            </Field>
+
+            <Field label="Reference (optional)" htmlFor="reference">
+              <input id="reference" className="gf-input" name="reference" defaultValue={payment.reference ?? ""} />
+            </Field>
+
+            <Field label="Paid at" htmlFor="paid_at" hint="Lagos time.">
+              <input
+                id="paid_at"
+                className="gf-input"
+                name="paid_at"
+                type="datetime-local"
+                defaultValue={toLagosDateTimeInput(payment.paid_at)}
+              />
+            </Field>
+
+            <Field label="Status" htmlFor="status" hint="Void payments are ignored in balances.">
+              <select id="status" className="gf-select" name="status" defaultValue={payment.status}>
+                <option value="posted">Posted</option>
+                <option value="void">Void (ignored in balances)</option>
+              </select>
+            </Field>
+
+            <Field label="Notes (optional)" htmlFor="notes" className="sm:col-span-2">
+              <input id="notes" className="gf-input" name="notes" defaultValue={payment.notes ?? ""} />
+            </Field>
           </div>
+        </FormSection>
+      </form>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Method</label>
-            <select className={inputClass} name="method" defaultValue={payment.method ?? "cash"}>
-              {methods.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-              {payment.method && !(methods as readonly string[]).includes(payment.method) ? (
-                <option value={payment.method}>{payment.method}</option>
-              ) : null}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Reference (optional)</label>
-            <input className={inputClass} name="reference" defaultValue={payment.reference ?? ""} />
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Paid at</label>
-            <input
-              className={inputClass}
-              name="paid_at"
-              type="datetime-local"
-              defaultValue={toInputValue(payment.paid_at)}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Status</label>
-            <select className={inputClass} name="status" defaultValue={payment.status}>
-              <option value="posted">posted</option>
-              <option value="void">void (ignored in balances)</option>
-            </select>
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className="text-sm font-semibold text-slate-900">Notes (optional)</label>
-            <input className={inputClass} name="notes" defaultValue={payment.notes ?? ""} />
-          </div>
-
-          <div className="sm:col-span-2">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Saving…"
+      <form action={deletePayment}>
+        <FormSection
+          title="Danger zone"
+          description="Removes this payment and its invoice allocations completely. To keep a record, set the status to void instead."
+          className="border-red-200"
+          footer={
+            <ConfirmSubmitButton
+              confirmMessage="Delete this payment permanently? This cannot be undone."
+              className={buttonClasses({ variant: "danger" })}
             >
-              Save changes
-            </SubmitButton>
-          </div>
-        </form>
-      </div>
-
-      <div className="rounded-3xl border border-red-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Delete payment</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Removes this payment and its invoice allocations completely. To keep a record, set the status to void instead.
-        </p>
-        <form action={deletePayment} className="mt-4">
-          <ConfirmSubmitButton
-            confirmMessage="Delete this payment permanently? This cannot be undone."
-            className="inline-flex items-center justify-center rounded-xl border border-red-300 bg-white px-5 py-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
-          >
-            Delete payment
-          </ConfirmSubmitButton>
-        </form>
-      </div>
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              Delete payment
+            </ConfirmSubmitButton>
+          }
+        >
+          <p className="text-sm text-slate-600">Deleting cannot be undone.</p>
+        </FormSection>
+      </form>
     </div>
   );
 }

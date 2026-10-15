@@ -1,4 +1,17 @@
+import { GraduationCap, Sparkles } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { formatLagosDate } from "@/lib/lagos-dates";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { InfoItem, PortalPageHeader, portalMessages, statusBadge } from "../_components/portal-ui";
+
+function cap(v: string | null | undefined) {
+  if (!v) return "—";
+  return v.charAt(0).toUpperCase() + v.slice(1);
+}
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
   return (await Promise.race([
@@ -184,113 +197,121 @@ export default async function PortalStudentsPage() {
   }
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-      <div className="text-sm font-semibold text-slate-500">Portal</div>
-      <h1 className="mt-2 text-2xl font-semibold text-slate-900">
-        {role === "student" ? "My profile" : "My students"}
-      </h1>
-      <p className="mt-2 text-sm text-slate-600">
-        {role === "student" ? "Your student profile." : "Students linked to your parent account."}
-      </p>
+    <div className="space-y-6">
+      <PortalPageHeader
+        title={role === "student" ? "My profile" : "My children"}
+        description={
+          role === "student"
+            ? "Your details as the school has them. Spot a mistake? Tell your class teacher."
+            : "Children linked to your parent account."
+        }
+      />
 
       {errorMsg ? (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-          <div className="text-sm font-semibold">Profile temporarily unavailable</div>
-          <div className="mt-2 text-xs opacity-80">{errorMsg}</div>
-        </div>
+        <Alert tone="warning" title="Profile temporarily unavailable">
+          <span className="text-xs">{errorMsg}</span>
+        </Alert>
       ) : null}
 
-      <div className="mt-6 space-y-4">
-        {students.map((s) => {
-          const enrollments = enrollmentsByStudentId.get(s.id) ?? [];
-          const cls = firstOrNull(s.classes);
-          return (
-            <div key={s.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex min-w-0 items-center gap-4">
-                  <div className="h-14 w-14 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                    {s.profile_photo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img className="h-full w-full object-cover" alt="" src={s.profile_photo_url} />
-                    ) : null}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-base font-semibold text-slate-900">
-                      {s.first_name} {s.middle_name ? `${s.middle_name} ` : ""}{s.last_name}
-                    </div>
-                    <div className="mt-1 text-sm text-slate-600">
-                      {s.level} • {s.status}
-                      {s.date_of_birth ? ` • DOB: ${s.date_of_birth}` : ""}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-600">
-                      {cls ? `Class: ${cls.level} - ${cls.name}` : s.class_id ? "Class: —" : "Class: not assigned"}
-                      {s.admission_number ? ` • Admission: ${s.admission_number}` : ""}
-                      {s.sex ? ` • Sex: ${s.sex}` : ""}
-                      {s.religion ? ` • Religion: ${s.religion}` : ""}
-                    </div>
-                  </div>
+      {students.map((s) => {
+        const enrollments = enrollmentsByStudentId.get(s.id) ?? [];
+        const cls = firstOrNull(s.classes);
+        const fullName = `${s.first_name} ${s.middle_name ? `${s.middle_name} ` : ""}${s.last_name}`;
+        const status = statusBadge(s.status);
+        const hobbies = s.hobbies ?? [];
+        return (
+          <Card key={s.id} className="overflow-hidden">
+            <div className="flex flex-col gap-4 bg-gradient-to-br from-brand-green-50 to-white px-5 py-6 sm:flex-row sm:items-center sm:px-6">
+              <Avatar name={fullName} src={s.profile_photo_url} size="xl" />
+              <div className="min-w-0 flex-1">
+                <div className="font-display text-2xl font-semibold text-slate-900">{fullName}</div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge tone={status.tone} dot>
+                    {status.label}
+                  </Badge>
+                  <Badge tone="green">
+                    {cls ? `${cap(cls.level)} · ${cls.name}` : s.class_id ? "Class —" : "No class yet"}
+                  </Badge>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="space-y-6 px-5 py-5 sm:px-6">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <InfoItem label="Admission number">{s.admission_number ?? "—"}</InfoItem>
+                <InfoItem label="Level">{cap(s.level)}</InfoItem>
+                <InfoItem label="Date of birth">{s.date_of_birth ? formatLagosDate(s.date_of_birth) : "—"}</InfoItem>
+                {s.sex ? <InfoItem label="Sex">{cap(s.sex)}</InfoItem> : null}
+                {s.religion ? <InfoItem label="Religion">{s.religion}</InfoItem> : null}
+                {s.favorite_sports ? <InfoItem label="Favourite sports">{s.favorite_sports}</InfoItem> : null}
+                {s.future_aspiration ? (
+                  <InfoItem label="When I grow up" className="sm:col-span-2 lg:col-span-3">
+                    {s.future_aspiration}
+                  </InfoItem>
+                ) : null}
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
                 <div>
-                  <div className="text-xs font-semibold text-slate-500">Hobbies</div>
+                  <div className="text-sm font-medium text-slate-700">Hobbies</div>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {(s.hobbies ?? []).length ? (
-                      (s.hobbies ?? []).map((h) => (
-                        <span key={h} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
+                    {hobbies.length ? (
+                      hobbies.map((h) => (
+                        <Badge key={h} tone="violet">
                           {h}
-                        </span>
+                        </Badge>
                       ))
                     ) : (
-                      <div className="text-sm text-slate-600">—</div>
+                      <span className="text-sm text-slate-500">None added</span>
                     )}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-slate-500">Clubs / Activities</div>
+                  <div className="text-sm font-medium text-slate-700">Clubs & activities</div>
                   <div className="mt-2 space-y-2">
                     {enrollments.length ? (
-                      enrollments.map((e, idx) => (
-                        <div key={`${e.student_id}-${idx}`} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                          <div className="text-sm font-semibold text-slate-900">
-                            {firstOrNull(e.activities)?.name ?? "Activity"}
+                      enrollments.map((e, idx) => {
+                        const b = statusBadge(e.status);
+                        return (
+                          <div
+                            key={`${e.student_id}-${idx}`}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3"
+                          >
+                            <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                              <Sparkles className="h-4 w-4 text-sky-600" aria-hidden="true" />
+                              {firstOrNull(e.activities)?.name ?? "Activity"}
+                            </span>
+                            <Badge tone={b.tone}>{b.label}</Badge>
                           </div>
-                          <div className="mt-1 text-xs text-slate-600">Status: {e.status}</div>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
-                      <div className="text-sm text-slate-600">—</div>
+                      <span className="text-sm text-slate-500">Not in any clubs yet</span>
                     )}
                   </div>
                 </div>
               </div>
-
-              {(s.favorite_sports || s.future_aspiration) ? (
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  {s.favorite_sports ? (
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500">Favorite sports</div>
-                      <div className="mt-1 text-sm text-slate-700">{s.favorite_sports}</div>
-                    </div>
-                  ) : null}
-                  {s.future_aspiration ? (
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500">Future aspiration</div>
-                      <div className="mt-1 text-sm text-slate-700">{s.future_aspiration}</div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
             </div>
-          );
-        })}
-      </div>
+          </Card>
+        );
+      })}
 
       {!students.length ? (
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-6 text-sm text-slate-600">
-          No students are linked to this account yet.
-        </div>
+        <Card>
+          <EmptyState
+            icon={GraduationCap}
+            title={role === "student" ? "Your record isn't linked yet" : "No children linked yet"}
+            description={
+              role === "student"
+                ? portalMessages.noStudent
+                : role === "parent"
+                  ? portalMessages.noChildren
+                  : errorMsg
+                    ? "We couldn't load your account details. Please reload the page in a moment."
+                    : portalMessages.notPortal
+            }
+          />
+        </Card>
       ) : null}
     </div>
   );

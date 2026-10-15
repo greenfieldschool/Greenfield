@@ -1,7 +1,18 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import ConfirmSubmitButton from "@/components/confirm-submit-button";
+import UrlToast from "@/components/url-toast";
+import { buttonClasses } from "@/components/ui/button";
 import { firstOrNull } from "@/lib/relations";
+import { EyeOff, FileSpreadsheet, Megaphone, Send } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink } from "@/components/ui/button";
 
 type YearRow = { id: string; name: string };
 
@@ -24,6 +35,10 @@ type PublicationRow = {
 };
 
 const scopes = ["term_results"] as const;
+
+function pubBack(message: string, type: "success" | "error" = "success"): never {
+  redirect(`/admin/academics/publications?toast=${encodeURIComponent(message)}&toast_type=${type}`);
+}
 
 export default async function AdminAcademicsPublicationsPage() {
   const supabase = getSupabaseServerClient();
@@ -56,10 +71,12 @@ export default async function AdminAcademicsPublicationsPage() {
     const classId = String(formData.get("class_id") ?? "").trim();
     const notes = String(formData.get("notes") ?? "").trim();
 
-    if (!scope || !academicYearId || !academicTermId || !classId) return;
+    if (!scope || !academicYearId || !academicTermId || !classId) {
+      pubBack("Choose a scope, class, year and term", "error");
+    }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) pubBack("Database is not configured", "error");
 
     const {
       data: { user }
@@ -68,7 +85,7 @@ export default async function AdminAcademicsPublicationsPage() {
     // Looked up here rather than via classRows: inline server actions cannot capture array methods.
     const { data: cls } = await supabase.from("classes").select("level").eq("id", classId).maybeSingle();
 
-    await supabase
+    const { error } = await supabase
       .from("result_publications")
       .upsert(
         {
@@ -86,160 +103,170 @@ export default async function AdminAcademicsPublicationsPage() {
 
     revalidatePath("/admin/academics/publications");
     revalidatePath("/portal/academics");
+    if (error) pubBack(error.message, "error");
+    pubBack("Results published");
   }
 
   async function unpublish(formData: FormData) {
     "use server";
 
     const id = String(formData.get("id") ?? "").trim();
-    if (!id) return;
+    if (!id) pubBack("Missing publication", "error");
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) pubBack("Database is not configured", "error");
 
-    await supabase.from("result_publications").delete().eq("id", id);
+    const { error } = await supabase.from("result_publications").delete().eq("id", id);
 
     revalidatePath("/admin/academics/publications");
     revalidatePath("/portal/academics");
+    if (error) pubBack(error.message, "error");
+    pubBack("Results unpublished");
   }
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Academics</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Result publications</h1>
-        <p className="mt-2 text-sm text-slate-600">Publish or unpublish student results visibility in the portal.</p>
-      </div>
+      <UrlToast />
+      <PageHeader
+        eyebrow="Academics"
+        title="Result publications"
+        description="Publish or unpublish student results visibility in the portal."
+        actions={
+          <ButtonLink href="/admin/academics/results" variant="secondary">
+            <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+            Result sheet
+          </ButtonLink>
+        }
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Publish</h2>
-        <form action={publish} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Scope</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="scope"
-              defaultValue={scopes[0]}
-            >
-              {scopes.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Class</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="class_id"
-              defaultValue=""
-              required
-            >
-              <option value="">Select class</option>
-              {classRows.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.level} - {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic year</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_year_id"
-              defaultValue=""
-              required
-            >
-              <option value="">Select year</option>
-              {yearRows.map((y) => (
-                <option key={y.id} value={y.id}>
-                  {y.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic term</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_term_id"
-              defaultValue=""
-              required
-            >
-              <option value="">Select term</option>
-              {termRows.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className="text-sm font-semibold text-slate-900">Notes (optional)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="notes"
-              placeholder="e.g. Term 2 results published"
-            />
-          </div>
-
-          <div className="flex items-end sm:col-span-2">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Publishing…"
-            >
-              Publish
+      <form action={publish}>
+        <FormSection
+          title="Publish results"
+          description="Students and parents in the chosen class will see that term's results in the portal."
+          footer={
+            <SubmitButton variant="primary" pendingText="Publishing…">
+              <span className="inline-flex items-center gap-2">
+                <Send className="h-4 w-4" aria-hidden="true" />
+                Publish
+              </span>
             </SubmitButton>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Scope" htmlFor="pub-scope">
+              <select id="pub-scope" className="gf-select" name="scope" defaultValue={scopes[0]}>
+                {scopes.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Class" htmlFor="pub-class" required>
+              <select id="pub-class" className="gf-select" name="class_id" defaultValue="" required>
+                <option value="">Select class</option>
+                {classRows.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.level} - {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Academic year" htmlFor="pub-year" required>
+              <select id="pub-year" className="gf-select" name="academic_year_id" defaultValue="" required>
+                <option value="">Select year</option>
+                {yearRows.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Academic term" htmlFor="pub-term" required>
+              <select id="pub-term" className="gf-select" name="academic_term_id" defaultValue="" required>
+                <option value="">Select term</option>
+                {termRows.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Notes" htmlFor="pub-notes" hint="Optional" className="sm:col-span-2">
+              <input id="pub-notes" className="gf-input" name="notes" placeholder="e.g. Term 2 results published" />
+            </Field>
           </div>
-        </form>
-      </div>
+        </FormSection>
+      </form>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-3">Scope</div>
-          <div className="col-span-4">Year / Term</div>
-          <div className="col-span-4">Class</div>
-          <div className="col-span-1">Status</div>
-        </div>
-        <div>
-          {publicationRows.length ? (
-            publicationRows.map((p) => {
-              const year = firstOrNull(p.academic_years);
-              const term = firstOrNull(p.academic_terms);
-              const cls = firstOrNull(p.classes);
-              return (
-                <div key={p.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                  <div className="col-span-3 font-semibold text-slate-900">{p.scope}</div>
-                  <div className="col-span-4 text-slate-700">
-                    {(year?.name ?? "—") + " / " + (term?.name ?? "—")}
-                  </div>
-                  <div className="col-span-4 text-slate-700">{cls ? `${cls.level} - ${cls.name}` : "—"}</div>
-                  <div className="col-span-1">
-                    <form action={unpublish}>
-                      <input type="hidden" name="id" value={p.id} />
-                      <SubmitButton
-                        className="text-xs font-semibold text-brand-green hover:underline disabled:opacity-60"
-                        pendingText="Unpublishing…"
-                        showSpinner={false}
-                      >
-                        Unpublish
-                      </SubmitButton>
-                    </form>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No publications yet.</div>
-          )}
-        </div>
-      </div>
+      <Card>
+        <CardHeader title="Published results" description={`${publicationRows.length} publication${publicationRows.length === 1 ? "" : "s"}`} />
+        {publicationRows.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[720px]">
+              <thead>
+                <tr>
+                  <th scope="col">Scope</th>
+                  <th scope="col">Year / term</th>
+                  <th scope="col">Class</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" className="text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {publicationRows.map((p) => {
+                  const year = firstOrNull(p.academic_years);
+                  const term = firstOrNull(p.academic_terms);
+                  const cls = firstOrNull(p.classes);
+                  return (
+                    <tr key={p.id}>
+                      <td>
+                        <div className="font-semibold text-slate-900">{p.scope}</div>
+                        {p.notes ? <div className="mt-0.5 text-xs text-slate-500">{p.notes}</div> : null}
+                      </td>
+                      <td>{(year?.name ?? "—") + " / " + (term?.name ?? "—")}</td>
+                      <td>{cls ? `${cls.level} - ${cls.name}` : "—"}</td>
+                      <td>
+                        <Badge tone="green" dot>
+                          Published
+                        </Badge>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {new Date(p.published_at).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            timeZone: "Africa/Lagos"
+                          })}
+                        </div>
+                      </td>
+                      <td className="text-right">
+                        <form action={unpublish}>
+                          <input type="hidden" name="id" value={p.id} />
+                          <ConfirmSubmitButton
+                            className={buttonClasses({ variant: "secondary", size: "sm" })}
+                            confirmMessage={`Unpublish ${p.scope} for ${cls ? `${cls.level} - ${cls.name}` : "this class"} (${year?.name ?? "—"} / ${term?.name ?? "—"})? Students and parents will no longer see these results.`}
+                          >
+                            <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                            Unpublish
+                          </ConfirmSubmitButton>
+                        </form>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={Megaphone}
+            title="No publications yet"
+            description="Published results will appear here. Use the form above or the result sheet to publish."
+          />
+        )}
+      </Card>
     </div>
   );
 }

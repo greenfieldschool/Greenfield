@@ -1,5 +1,17 @@
-import Link from "next/link";
+import { HeartPulse } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { formatLagosDate } from "@/lib/lagos-dates";
+import { Card } from "@/components/ui/card";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PillLinks, PortalPageHeader, PortalNotice, portalMessages } from "../_components/portal-ui";
+
+function severityTone(severity: number): BadgeTone {
+  if (severity >= 4) return "red";
+  if (severity >= 2) return "gold";
+  return "slate";
+}
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
   return (await Promise.race([
@@ -50,7 +62,7 @@ export default async function PortalIncidentsPage({
   } | null;
 
   const role = identity?.role ?? null;
-  if (role !== "student" && role !== "parent") return null;
+  if (role !== "student" && role !== "parent") return <PortalNotice title="Health & incidents" message={portalMessages.notPortal} />;
 
   const sp = (await searchParams) ?? {};
   const selectedStudentIdRaw = sp.student_id;
@@ -67,7 +79,7 @@ export default async function PortalIncidentsPage({
 
   if (role === "parent") {
     const guardianId = identity?.guardian_id ?? null;
-    if (!guardianId) return null;
+    if (!guardianId) return <PortalNotice title="Health & incidents" message={portalMessages.noGuardian} />;
 
     const { data: links } = await supabase
       .from("student_guardians")
@@ -78,7 +90,7 @@ export default async function PortalIncidentsPage({
       ?.map((r) => r.student_id)
       .filter((v): v is string => typeof v === "string" && v.length > 0) ?? [];
 
-    if (!studentIds.length) return null;
+    if (!studentIds.length) return <PortalNotice title="Health & incidents" message={portalMessages.noChildren} />;
 
     const { data: studentsData } = await supabase
       .from("students")
@@ -92,7 +104,13 @@ export default async function PortalIncidentsPage({
     studentId = selectedStudentId.length ? selectedStudentId : fallbackId;
   }
 
-  if (!studentId) return null;
+  if (!studentId)
+    return (
+      <PortalNotice
+        title="Health & incidents"
+        message={role === "parent" ? portalMessages.noChildren : portalMessages.noStudent}
+      />
+    );
 
   let rows: IncidentRow[] = [];
   try {
@@ -117,62 +135,56 @@ export default async function PortalIncidentsPage({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Portal</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Incidents / Health</h1>
-        {role === "parent" ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {parentStudents.map((st) => {
-              const active = st.id === studentId;
-              return (
-                <Link
-                  key={st.id}
-                  href={`/portal/incidents?student_id=${st.id}`}
-                  className={
-                    "rounded-xl border px-3 py-1.5 text-xs font-semibold transition " +
-                    (active
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
-                  }
-                >
-                  {st.first_name} {st.last_name}
-                </Link>
-              );
-            })}
-          </div>
-        ) : null}
-        <p className="mt-2 text-sm text-slate-600">Recent incident and health records.</p>
+      <PortalPageHeader title="Health & incidents" description="Health notes and incidents recorded at school." />
 
-        {errorMsg ? (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-            <div className="text-sm font-semibold">Incidents temporarily unavailable</div>
-            <div className="mt-2 text-xs opacity-80">{errorMsg}</div>
-          </div>
-        ) : null}
-      </div>
+      {role === "parent" && parentStudents.length > 1 ? (
+        <PillLinks
+          label="Choose a child"
+          items={parentStudents.map((st) => ({
+            key: st.id,
+            href: `/portal/incidents?student_id=${st.id}`,
+            label: `${st.first_name} ${st.last_name}`,
+            active: st.id === studentId
+          }))}
+        />
+      ) : null}
 
-      <div className="space-y-4">
-        {rows.length ? (
-          rows.map((r) => (
-            <div key={r.id} className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">{r.incident_type}</div>
-                  <div className="mt-1 text-xs font-semibold text-slate-500">{String(r.occurred_at).slice(0, 10)}</div>
+      {errorMsg ? (
+        <Alert tone="warning" title="Incidents temporarily unavailable">
+          <span className="text-xs">{errorMsg}</span>
+        </Alert>
+      ) : null}
+
+      {rows.length ? (
+        <div className="space-y-4">
+          {rows.map((r) => (
+            <Card key={r.id} className="p-5 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                    <HeartPulse className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <div className="font-semibold capitalize text-slate-900">{r.incident_type}</div>
+                    <div className="mt-0.5 text-sm text-slate-500">{formatLagosDate(r.occurred_at)}</div>
+                  </div>
                 </div>
-                <div className="text-xs font-semibold text-slate-700">
-                  Severity: {r.severity} • {r.resolved ? "Resolved" : "Open"}
+                <div className="flex flex-wrap gap-2">
+                  <Badge tone={severityTone(Number(r.severity ?? 0))}>Severity {r.severity}</Badge>
+                  <Badge tone={r.resolved ? "green" : "gold"} dot>
+                    {r.resolved ? "Resolved" : "Open"}
+                  </Badge>
                 </div>
               </div>
-              <div className="mt-4 whitespace-pre-wrap text-sm text-slate-700">{r.description}</div>
-            </div>
-          ))
-        ) : (
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm">
-            No incidents recorded yet.
-          </div>
-        )}
-      </div>
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{r.description}</p>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <EmptyState icon={HeartPulse} title="No incidents recorded" description="Health notes from the school will appear here." />
+        </Card>
+      )}
     </div>
   );
 }

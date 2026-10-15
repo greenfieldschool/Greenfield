@@ -5,6 +5,14 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 import UrlToast from "@/components/url-toast";
 import { firstOrNull } from "@/lib/relations";
+import { ChevronRight, ClipboardList, Plus } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
 
 type YearRow = { id: string; name: string };
 type TermRow = { id: string; name: string };
@@ -76,9 +84,9 @@ export default async function AdminAssessmentsPage() {
 
   const yearRows = (years ?? []) as YearRow[];
   const termRows = (terms ?? []) as TermRow[];
-  const teacherClassRows = (teacherClasses ?? []) as Array<{ classes: ClassRow | null }>;
+  const teacherClassRows = (teacherClasses ?? []) as Array<{ classes: ClassRow | ClassRow[] | null }>;
   const classRows = isTeacher
-    ? teacherClassRows.map((r) => r.classes).filter((c): c is ClassRow => Boolean(c))
+    ? teacherClassRows.map((r) => firstOrNull(r.classes)).filter((c): c is ClassRow => Boolean(c))
     : ((classes ?? []) as ClassRow[]);
   const subjectRows = (subjects ?? []) as SubjectRow[];
   const assessmentRows = (assessments ?? []) as unknown as AssessmentRow[];
@@ -97,13 +105,19 @@ export default async function AdminAssessmentsPage() {
     const maxScore = Number(String(formData.get("max_score") ?? "100").trim() || "100");
     const heldOn = String(formData.get("held_on") ?? "").trim();
 
-    if (!classId || !subjectId || !assessmentType) return;
-    if (!Number.isFinite(maxScore) || maxScore <= 0) return;
+    if (!classId || !subjectId || !assessmentType) {
+      redirect(`/admin/academics/assessments?toast=${encodeURIComponent("Choose a class, subject and type")}&toast_type=error`);
+    }
+    if (!Number.isFinite(maxScore) || maxScore <= 0) {
+      redirect(`/admin/academics/assessments?toast=${encodeURIComponent("Max score must be greater than 0")}&toast_type=error`);
+    }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) {
+      redirect(`/admin/academics/assessments?toast=${encodeURIComponent("Database is not configured")}&toast_type=error`);
+    }
 
-    await supabase.from("academic_assessments").insert({
+    const { error } = await supabase.from("academic_assessments").insert({
       academic_year_id: academicYearId.length ? academicYearId : null,
       academic_term_id: academicTermId.length ? academicTermId : null,
       class_id: classId,
@@ -113,6 +127,9 @@ export default async function AdminAssessmentsPage() {
       max_score: maxScore,
       held_on: heldOn.length ? heldOn : null
     });
+    if (error) {
+      redirect(`/admin/academics/assessments?toast=${encodeURIComponent(error.message)}&toast_type=error`);
+    }
 
     revalidatePath("/admin/academics/assessments");
     redirect(`/admin/academics/assessments?toast=${encodeURIComponent("Assessment created")}&toast_type=success`);
@@ -121,170 +138,158 @@ export default async function AdminAssessmentsPage() {
   return (
     <div className="space-y-6">
       <UrlToast />
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Academics</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Assessments</h1>
-        <p className="mt-2 text-sm text-slate-600">Create assessments and enter scores.</p>
-      </div>
+      <PageHeader
+        eyebrow="Academics"
+        title="Assessments"
+        description="Create assessments and enter scores."
+        actions={
+          <a href="#new-assessment" className={buttonClasses({ variant: "primary" })}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            New assessment
+          </a>
+        }
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">New assessment</h2>
-        {!hasAnyClass ? (
-          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            No classes are assigned to your account yet. Ask an admin to assign you to at least one class.
+      <Card>
+        <CardHeader title="All assessments" description="Most recent first. Open one to enter scores." />
+        {assessmentRows.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[640px]">
+              <thead>
+                <tr>
+                  <th scope="col">Assessment</th>
+                  <th scope="col">Class / subject</th>
+                  <th scope="col">Held on</th>
+                  <th scope="col" className="text-right">
+                    Max
+                  </th>
+                  <th scope="col">
+                    <span className="sr-only">Open</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {assessmentRows.map((a) => {
+                  const cls = firstOrNull(a.classes);
+                  const subj = firstOrNull(a.subjects);
+                  return (
+                    <tr key={a.id}>
+                      <td>
+                        <Link href={`/admin/academics/assessments/${a.id}`} className="font-semibold text-slate-900 hover:text-brand-green">
+                          {a.title ?? a.assessment_type}
+                        </Link>
+                        <div className="mt-1">
+                          <Badge tone="slate">{a.assessment_type}</Badge>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="font-medium text-slate-900">{cls ? `${cls.level} - ${cls.name}` : "—"}</div>
+                        <div className="mt-0.5 text-xs text-slate-500">{subj?.name ?? "—"}</div>
+                      </td>
+                      <td className="whitespace-nowrap">{a.held_on ?? "—"}</td>
+                      <td className="text-right tabular-nums">{a.max_score}</td>
+                      <td className="text-right">
+                        <Link
+                          href={`/admin/academics/assessments/${a.id}`}
+                          className={buttonClasses({ variant: "ghost", size: "sm" })}
+                          aria-label={`Open ${a.title ?? a.assessment_type}`}
+                        >
+                          Scores
+                          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        ) : null}
-        <form action={createAssessment} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Class</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="class_id"
-              defaultValue=""
-              required
-              disabled={!hasAnyClass}
-            >
-              <option value="">Select class</option>
-              {classRows.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.level} - {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Subject</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="subject_id"
-              defaultValue=""
-              required
-            >
-              <option value="">Select subject</option>
-              {subjectRows.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic year (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_year_id"
-              defaultValue=""
-            >
-              <option value="">—</option>
-              {yearRows.map((y) => (
-                <option key={y.id} value={y.id}>
-                  {y.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic term (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_term_id"
-              defaultValue=""
-            >
-              <option value="">—</option>
-              {termRows.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Type</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="assessment_type"
-              defaultValue={assessmentTypes[0]}
-            >
-              {assessmentTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Held on (optional)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="held_on"
-              type="date"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Title (optional)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="title"
-              placeholder="Mid-term test"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Max score</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="max_score"
-              type="number"
-              step="0.01"
-              defaultValue="100"
-              required
-            />
-          </div>
+        ) : (
+          <EmptyState
+            icon={ClipboardList}
+            title="No assessments yet"
+            description="Create your first assessment below, then open it to enter scores."
+          />
+        )}
+      </Card>
 
-          <div className="flex items-end sm:col-span-2">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Creating…"
-            >
+      <form action={createAssessment} id="new-assessment" className="scroll-mt-24">
+        <FormSection
+          title="New assessment"
+          description="Set up a test, assignment or exam for a class and subject."
+          footer={
+            <SubmitButton variant="primary" pendingText="Creating…">
               Create assessment
             </SubmitButton>
+          }
+        >
+          {!hasAnyClass ? (
+            <Alert tone="warning" className="mb-4">
+              No classes are assigned to your account yet. Ask an admin to assign you to at least one class.
+            </Alert>
+          ) : null}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Class" htmlFor="as-class" required>
+              <select id="as-class" className="gf-select" name="class_id" defaultValue="" required disabled={!hasAnyClass}>
+                <option value="">Select class</option>
+                {classRows.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.level} - {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Subject" htmlFor="as-subject" required>
+              <select id="as-subject" className="gf-select" name="subject_id" defaultValue="" required>
+                <option value="">Select subject</option>
+                {subjectRows.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Academic year" htmlFor="as-year" hint="Optional">
+              <select id="as-year" className="gf-select" name="academic_year_id" defaultValue="">
+                <option value="">—</option>
+                {yearRows.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Academic term" htmlFor="as-term" hint="Optional">
+              <select id="as-term" className="gf-select" name="academic_term_id" defaultValue="">
+                <option value="">—</option>
+                {termRows.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Type" htmlFor="as-type">
+              <select id="as-type" className="gf-select" name="assessment_type" defaultValue={assessmentTypes[0]}>
+                {assessmentTypes.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Held on" htmlFor="as-held" hint="Optional">
+              <input id="as-held" className="gf-input" name="held_on" type="date" />
+            </Field>
+            <Field label="Title" htmlFor="as-title" hint="Optional">
+              <input id="as-title" className="gf-input" name="title" placeholder="Mid-term test" />
+            </Field>
+            <Field label="Max score" htmlFor="as-max" required>
+              <input id="as-max" className="gf-input" name="max_score" type="number" step="0.01" defaultValue="100" required />
+            </Field>
           </div>
-        </form>
-      </div>
-
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-5">Assessment</div>
-          <div className="col-span-4">Class / Subject</div>
-          <div className="col-span-3">Held on</div>
-        </div>
-        <div>
-          {assessmentRows.length ? (
-            assessmentRows.map((a) => {
-              const cls = firstOrNull(a.classes);
-              const subj = firstOrNull(a.subjects);
-              return (
-                <Link
-                  key={a.id}
-                  href={`/admin/academics/assessments/${a.id}`}
-                  className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  <div className="col-span-5">
-                    <div className="font-semibold text-slate-900">{a.title ?? a.assessment_type}</div>
-                    <div className="mt-1 text-xs text-slate-600">{a.assessment_type}</div>
-                  </div>
-                  <div className="col-span-4">
-                    <div className="font-semibold text-slate-900">{cls ? `${cls.level} - ${cls.name}` : "—"}</div>
-                    <div className="mt-1 text-xs text-slate-600">{subj?.name ?? "—"}</div>
-                  </div>
-                  <div className="col-span-3">{a.held_on ?? "—"}</div>
-                </Link>
-              );
-            })
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No assessments yet.</div>
-          )}
-        </div>
-      </div>
+        </FormSection>
+      </form>
     </div>
   );
 }

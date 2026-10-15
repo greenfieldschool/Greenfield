@@ -1,6 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useFormStatus } from "react-dom";
+import { buttonClasses, type ButtonSize, type ButtonVariant } from "@/components/ui/button";
 
 export default function SubmitButton({
   children,
@@ -8,11 +10,16 @@ export default function SubmitButton({
   className,
   disabled,
   type,
-  showSpinner
+  showSpinner,
+  variant,
+  size
 }: {
-  children: string;
+  children: ReactNode;
   pendingText?: string;
-  className: string;
+  /** Full class list (legacy). When omitted, the design-system button style is used. */
+  className?: string;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   disabled?: boolean;
   type?: "submit" | "button";
   showSpinner?: boolean;
@@ -26,7 +33,7 @@ export default function SubmitButton({
       type={type ?? "submit"}
       disabled={disabled || pending}
       aria-busy={pending}
-      className={className}
+      className={className ?? buttonClasses({ variant, size })}
     >
       <span className="inline-flex items-center justify-center gap-2">
         {pending && shouldShowSpinner ? (

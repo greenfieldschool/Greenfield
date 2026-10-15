@@ -1,8 +1,15 @@
 import { revalidatePath } from "next/cache";
-import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import UrlToast from "@/components/url-toast";
 import { firstOrNull } from "@/lib/relations";
+import { CalendarDays, ClipboardCheck, Tag, Target, Users } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type AssessmentRow = {
   id: string;
@@ -42,7 +49,7 @@ export default async function AdminAssessmentDetailPage({ params }: { params: Pr
     .maybeSingle();
 
   const assessment = (assessmentData ?? null) as unknown as AssessmentRow | null;
-  if (!assessment) return null;
+  if (!assessment) notFound();
 
   const classId = assessment.class_id;
 
@@ -76,98 +83,142 @@ export default async function AdminAssessmentDetailPage({ params }: { params: Pr
     const remarks = String(formData.get("remarks") ?? "").trim();
     const score = Number(scoreRaw || "0");
 
-    if (!studentId) return;
-    if (!Number.isFinite(score) || score < 0) return;
+    const base = `/admin/academics/assessments/${id}`;
+    if (!studentId) redirect(`${base}?toast=${encodeURIComponent("Missing student")}&toast_type=error`);
+    if (!Number.isFinite(score) || score < 0) {
+      redirect(`${base}?toast=${encodeURIComponent("Enter a score of 0 or more")}&toast_type=error`);
+    }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(`${base}?toast=${encodeURIComponent("Database is not configured")}&toast_type=error`);
 
-    await supabase
-      .from("academic_assessment_scores")
-      .upsert(
-        {
-          assessment_id: id,
-          student_id: studentId,
-          score,
-          remarks: remarks.length ? remarks : null
-        },
-        { onConflict: "assessment_id,student_id" }
-      );
+    const { error } = await supabase.from("academic_assessment_scores").upsert(
+      {
+        assessment_id: id,
+        student_id: studentId,
+        score,
+        remarks: remarks.length ? remarks : null
+      },
+      { onConflict: "assessment_id,student_id" }
+    );
 
-    revalidatePath(`/admin/academics/assessments/${id}`);
+    revalidatePath(base);
+    if (error) redirect(`${base}?toast=${encodeURIComponent(error.message)}&toast_type=error`);
+    redirect(`${base}?toast=${encodeURIComponent("Score saved")}&toast_type=success`);
   }
+
+  const scoredCount = students.filter((st) => scoreByStudentId.has(st.id)).length;
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Academics</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Assessment scores</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          {subj?.name ?? "Subject"} — {assessment.title ?? assessment.assessment_type} ({cls ? `${cls.level} - ${cls.name}` : "No class"})
-        </p>
-        <div className="mt-4 flex gap-4">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/academics/assessments">
-            Back to assessments
-          </Link>
-        </div>
+      <UrlToast />
+      <PageHeader
+        back={{ href: "/admin/academics/assessments", label: "Back to assessments" }}
+        eyebrow="Academics"
+        title="Assessment scores"
+        description={`${subj?.name ?? "Subject"} — ${assessment.title ?? assessment.assessment_type} (${
+          cls ? `${cls.level} - ${cls.name}` : "No class"
+        })`}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Max score" value={assessment.max_score} icon={Target} tone="blue" />
+        <StatCard label="Held on" value={assessment.held_on ?? "—"} icon={CalendarDays} tone="slate" />
+        <StatCard
+          label="Scores entered"
+          value={`${scoredCount}/${students.length}`}
+          hint="Students with a saved score"
+          icon={ClipboardCheck}
+          tone="green"
+        />
+        <StatCard
+          label="Type"
+          value={<span className="text-lg">{assessment.assessment_type}</span>}
+          icon={Tag}
+          tone="violet"
+        />
       </div>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-4">Student</div>
-          <div className="col-span-2">Score</div>
-          <div className="col-span-6">Remarks</div>
-        </div>
-        <div>
-          {students.length ? (
-            students.map((st) => {
-              const existing = scoreByStudentId.get(st.id) ?? null;
-              return (
-                <div key={st.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                  <div className="col-span-4 font-semibold text-slate-900">
-                    {st.first_name} {st.last_name}
-                  </div>
-                  <div className="col-span-8">
-                    <form action={upsertScore} className="grid grid-cols-12 gap-3">
-                      <input type="hidden" name="student_id" value={st.id} />
-                      <div className="col-span-3 sm:col-span-2">
-                        <input
-                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                          name="score"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max={String(assessment.max_score)}
-                          defaultValue={existing ? String(existing.score) : ""}
-                          placeholder={String(assessment.max_score)}
-                        />
-                      </div>
-                      <div className="col-span-7 sm:col-span-8">
-                        <input
-                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                          name="remarks"
-                          defaultValue={existing?.remarks ?? ""}
-                          placeholder="(optional)"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <SubmitButton
-                          className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                          pendingText="Saving…"
-                        >
-                          Save
-                        </SubmitButton>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No students found for this class.</div>
-          )}
-        </div>
-      </div>
+      <Card>
+        <CardHeader title="Scores" description="Enter a score and optional remark, then save each row." />
+        {students.length ? (
+          <div className="max-h-[75vh] overflow-auto">
+            <table className="w-full min-w-[620px] border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr>
+                  <th
+                    scope="col"
+                    className="sticky left-0 top-0 z-30 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 sm:pl-6"
+                  >
+                    Student
+                  </th>
+                  <th
+                    scope="col"
+                    className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 sm:pr-6"
+                  >
+                    Score <span className="font-normal text-slate-400">out of {assessment.max_score}</span>
+                    <span className="mx-2 text-slate-300">·</span>
+                    Remarks
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((st) => {
+                  const existing = scoreByStudentId.get(st.id) ?? null;
+                  return (
+                    <tr key={st.id} className="group">
+                      <th
+                        scope="row"
+                        className="sticky left-0 z-10 border-b border-slate-100 bg-white px-4 py-2 text-left font-semibold text-slate-900 group-hover:bg-slate-50 sm:pl-6"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>
+                            {st.first_name} {st.last_name}
+                          </span>
+                          {existing ? (
+                            <Badge tone="green" className="hidden sm:inline-flex">
+                              Saved
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </th>
+                      <td className="border-b border-slate-100 px-4 py-2 group-hover:bg-slate-50 sm:pr-6">
+                        <form action={upsertScore} className="flex items-center gap-2">
+                          <input type="hidden" name="student_id" value={st.id} />
+                          <input
+                            className="h-9 w-20 shrink-0 rounded-lg border border-slate-300 bg-white px-2 text-center text-sm tabular-nums text-slate-900 shadow-sm outline-none transition focus:border-brand-green-500 focus:ring-4 focus:ring-brand-green-500/15 invalid:border-red-400 invalid:bg-red-50"
+                            name="score"
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="0"
+                            max={String(assessment.max_score)}
+                            defaultValue={existing ? String(existing.score) : ""}
+                            placeholder={String(assessment.max_score)}
+                            aria-label={`Score for ${st.first_name} ${st.last_name}`}
+                          />
+                          <input
+                            className="h-9 min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-green-500 focus:ring-4 focus:ring-brand-green-500/15"
+                            name="remarks"
+                            defaultValue={existing?.remarks ?? ""}
+                            placeholder="Remarks (optional)"
+                            aria-label={`Remarks for ${st.first_name} ${st.last_name}`}
+                          />
+                          <SubmitButton variant="primary" size="sm" pendingText="Saving…">
+                            Save
+                          </SubmitButton>
+                        </form>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={Users} title="No students found" description="No students found for this class." />
+        )}
+      </Card>
     </div>
   );
 }

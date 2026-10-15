@@ -1,5 +1,17 @@
-import Link from "next/link";
+import { CalendarCheck, CalendarX, Clock } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatCard } from "@/components/ui/stat-card";
+import { PillLinks, PortalPageHeader, statusBadge, PortalNotice, portalMessages } from "../_components/portal-ui";
+
+function formatDay(date: string) {
+  const d = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return date;
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
   return (await Promise.race([
@@ -43,7 +55,7 @@ export default async function PortalAttendancePage({
   } | null;
 
   const role = identity?.role ?? null;
-  if (role !== "student" && role !== "parent") return null;
+  if (role !== "student" && role !== "parent") return <PortalNotice title="Attendance" message={portalMessages.notPortal} />;
 
   const sp = (await searchParams) ?? {};
   const selectedStudentIdRaw = sp.student_id;
@@ -60,7 +72,7 @@ export default async function PortalAttendancePage({
 
   if (role === "parent") {
     const guardianId = identity?.guardian_id ?? null;
-    if (!guardianId) return null;
+    if (!guardianId) return <PortalNotice title="Attendance" message={portalMessages.noGuardian} />;
 
     const { data: links } = await supabase
       .from("student_guardians")
@@ -71,7 +83,7 @@ export default async function PortalAttendancePage({
       ?.map((r) => r.student_id)
       .filter((v): v is string => typeof v === "string" && v.length > 0) ?? [];
 
-    if (!studentIds.length) return null;
+    if (!studentIds.length) return <PortalNotice title="Attendance" message={portalMessages.noChildren} />;
 
     const { data: studentsData } = await supabase
       .from("students")
@@ -85,7 +97,13 @@ export default async function PortalAttendancePage({
     studentId = selectedStudentId.length ? selectedStudentId : fallbackId;
   }
 
-  if (!studentId) return null;
+  if (!studentId)
+    return (
+      <PortalNotice
+        title="Attendance"
+        message={role === "parent" ? portalMessages.noChildren : portalMessages.noStudent}
+      />
+    );
 
   let rows: AttendanceRow[] = [];
   try {
@@ -108,60 +126,65 @@ export default async function PortalAttendancePage({
     }
   }
 
+  const count = (status: string) => rows.filter((r) => String(r.status).toLowerCase() === status).length;
+  const presentCount = count("present");
+  const lateCount = count("late");
+  const absentCount = count("absent");
+
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Portal</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Attendance</h1>
-        {role === "parent" ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {parentStudents.map((st) => {
-              const active = st.id === studentId;
+      <PortalPageHeader title="Attendance" description="The most recent school days recorded by class teachers." />
+
+      {role === "parent" && parentStudents.length > 1 ? (
+        <PillLinks
+          label="Choose a child"
+          items={parentStudents.map((st) => ({
+            key: st.id,
+            href: `/portal/attendance?student_id=${st.id}`,
+            label: `${st.first_name} ${st.last_name}`,
+            active: st.id === studentId
+          }))}
+        />
+      ) : null}
+
+      {errorMsg ? (
+        <Alert tone="warning" title="Attendance temporarily unavailable">
+          <span className="text-xs">{errorMsg}</span>
+        </Alert>
+      ) : null}
+
+      {rows.length ? (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard label="Present" value={presentCount} hint={`of the last ${rows.length} days`} icon={CalendarCheck} tone="green" />
+          <StatCard label="Late" value={lateCount} icon={Clock} tone="gold" />
+          <StatCard label="Absent" value={absentCount} icon={CalendarX} tone="rose" />
+        </div>
+      ) : null}
+
+      <Card>
+        <CardHeader title="Daily record" />
+        {rows.length ? (
+          <ul className="divide-y divide-slate-100">
+            {rows.map((r) => {
+              const badge = statusBadge(r.status);
               return (
-                <Link
-                  key={st.id}
-                  href={`/portal/attendance?student_id=${st.id}`}
-                  className={
-                    "rounded-xl border px-3 py-1.5 text-xs font-semibold transition " +
-                    (active
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
-                  }
-                >
-                  {st.first_name} {st.last_name}
-                </Link>
+                <li key={r.id} className="flex items-center justify-between gap-4 px-5 py-3.5 sm:px-6">
+                  <span className="text-sm font-medium text-slate-900">{formatDay(r.date)}</span>
+                  <Badge tone={badge.tone} dot>
+                    {badge.label}
+                  </Badge>
+                </li>
               );
             })}
-          </div>
-        ) : null}
-        <p className="mt-2 text-sm text-slate-600">Recent attendance records.</p>
-
-        {errorMsg ? (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-            <div className="text-sm font-semibold">Attendance temporarily unavailable</div>
-            <div className="mt-2 text-xs opacity-80">{errorMsg}</div>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-4">Date</div>
-          <div className="col-span-8">Status</div>
-        </div>
-        <div>
-          {rows.length ? (
-            rows.map((r) => (
-              <div key={r.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                <div className="col-span-4 font-semibold text-slate-900">{r.date}</div>
-                <div className="col-span-8 text-slate-700">{r.status}</div>
-              </div>
-            ))
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No attendance records yet.</div>
-          )}
-        </div>
-      </div>
+          </ul>
+        ) : (
+          <EmptyState
+            icon={CalendarCheck}
+            title="No attendance recorded yet"
+            description="Attendance appears here once the class teacher marks the register."
+          />
+        )}
+      </Card>
     </div>
   );
 }

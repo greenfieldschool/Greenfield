@@ -2,11 +2,22 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { Ban, BookOpen, CircleCheck, Clock, Copy, FileText, Info, Plus, Search, Trash2, X } from "lucide-react";
 import SubmitButton from "@/components/submit-button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { StatCard } from "@/components/ui/stat-card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
+import { Pagination } from "../_components/exam-ui";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
 import { firstOrNull } from "@/lib/relations";
+import { safeFilterTerm } from "@/lib/postgrest";
 import { formatDescriptionWithTargets, parseDescriptionAndTargets, totalTarget } from "@/lib/exam-targets";
+import { failWithToast, NO_DB_MESSAGE } from "../_components/feedback";
 
 type SubjectRow = { id: string; name: string };
 
@@ -61,7 +72,8 @@ export default async function AdminExamTestsPage({
     .select("id, subject_id, name, description, duration_minutes, active, subjects(id, name)", { count: "exact" });
 
   if (query.length > 0) {
-    testsQuery = testsQuery.or(`name.ilike.%${query}%,description.ilike.%${query}%`);
+    const term = safeFilterTerm(query);
+    if (term.length) testsQuery = testsQuery.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
   }
   if (subjectFilter.length > 0) {
     testsQuery = testsQuery.eq("subject_id", subjectFilter);
@@ -101,11 +113,11 @@ export default async function AdminExamTestsPage({
     const objectiveCount = Math.max(0, Math.floor(Number(String(formData.get("objective_count") ?? "0").trim() || "0")));
     const theoryCount = Math.max(0, Math.floor(Number(String(formData.get("theory_count") ?? "0").trim() || "0")));
 
-    if (!name) return;
-    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) return;
+    if (!name) failWithToast("/admin/exams/tests", "Enter a test name.");
+    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) failWithToast("/admin/exams/tests", "Duration must be above 0 minutes.");
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast("/admin/exams/tests", NO_DB_MESSAGE);
 
     // Number of questions is saved as question targets, tracked on the test page while questions are set.
     const targets: Record<string, number> = {};
@@ -140,10 +152,10 @@ export default async function AdminExamTestsPage({
     "use server";
 
     const testId = String(formData.get("test_id") ?? "").trim();
-    if (!testId) return;
+    if (!testId) failWithToast("/admin/exams/tests", "Test not found.");
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast("/admin/exams/tests", NO_DB_MESSAGE);
 
     // 1. Fetch original test
     const { data: testData } = await supabase
@@ -152,7 +164,7 @@ export default async function AdminExamTestsPage({
       .eq("id", testId)
       .maybeSingle();
 
-    if (!testData) return;
+    if (!testData) failWithToast("/admin/exams/tests", "Test not found.");
 
     // 2. Insert duplicated test
     const { data: newTest, error: testErr } = await supabase
@@ -167,7 +179,7 @@ export default async function AdminExamTestsPage({
       .select("id")
       .maybeSingle();
 
-    if (testErr || !newTest) return;
+    if (testErr || !newTest) failWithToast("/admin/exams/tests", testErr?.message ?? "Could not duplicate the test.");
 
     // 3. Fetch questions
     const { data: questions } = await supabase
@@ -215,10 +227,10 @@ export default async function AdminExamTestsPage({
     "use server";
 
     const testId = String(formData.get("test_id") ?? "").trim();
-    if (!testId) return;
+    if (!testId) failWithToast("/admin/exams/tests", "Test not found.");
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast("/admin/exams/tests", NO_DB_MESSAGE);
 
     // Deleting a test cascades to its sessions and attempts, so refuse when students have already sat it.
     const { data: sessions } = await supabase.from("exam_test_sessions").select("id").eq("test_id", testId);
@@ -265,400 +277,236 @@ export default async function AdminExamTestsPage({
     redirect(queryString.length ? `/admin/exams/tests?${queryString}` : "/admin/exams/tests");
   }
 
+  const pageSuffix = `${query ? `&q=${encodeURIComponent(query)}` : ""}${subjectFilter ? `&subject_id=${subjectFilter}` : ""}${statusFilter ? `&status=${statusFilter}` : ""}`;
+
   return (
     <div className="space-y-6">
       <UrlToast />
-      
-      {/* Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-slate-400">Admin</div>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">Tests</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {totalTests} test{totalTests !== 1 ? "s" : ""} total · {activeCount} active
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
-          <Link
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
-            href="/admin/exams"
-          >
-            Back to exams
-          </Link>
-        </div>
+
+      <PageHeader
+        back={{ href: "/admin/exams", label: "Back to exams" }}
+        eyebrow="Exams"
+        title="Tests"
+        description={`${totalTests} test${totalTests !== 1 ? "s" : ""} total · ${activeCount} active`}
+        actions={
+          <a href="#new-test" className={buttonClasses({ variant: "primary" })}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            New test
+          </a>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Total tests" value={totalTests} hint="All registered exam templates" icon={FileText} tone="slate" />
+        <StatCard label="Active tests" value={activeCount} hint="Available to schedule in sessions" icon={CircleCheck} tone="green" />
+        <StatCard label="Inactive" value={inactiveCount} hint="Draft or retired templates" icon={Ban} tone="gold" />
+        <StatCard label="Subjects represented" value={uniqueSubjectsCount} hint="Active subject categories" icon={BookOpen} tone="violet" />
       </div>
 
-      {/* Metrics Cards Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Tests */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Tests</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-              <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+      <Card>
+        <CardBody>
+          <form action={filterTests} className="flex flex-col gap-3 xl:flex-row xl:items-end">
+            <div className="grid flex-1 gap-3 sm:grid-cols-3">
+              <Field label="Search" htmlFor="filter-q">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                  <input
+                    id="filter-q"
+                    className="gf-input pl-9"
+                    name="q"
+                    placeholder="Test name or description..."
+                    defaultValue={query}
+                  />
+                </div>
+              </Field>
+              <Field label="Subject" htmlFor="filter-subject">
+                <select id="filter-subject" className="gf-select" name="subject_id" defaultValue={subjectFilter}>
+                  <option value="">All subjects</option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Status" htmlFor="filter-status">
+                <select id="filter-status" className="gf-select" name="status" defaultValue={statusFilter}>
+                  <option value="">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </Field>
             </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-slate-900">{totalTests}</div>
-          <div className="mt-1 text-xs text-slate-500">All registered exam templates</div>
-        </div>
 
-        {/* Active Tests */}
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Active Tests</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
-              <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <div className="flex shrink-0 gap-2">
+              <SubmitButton variant="primary" pendingText="Filtering…">
+                Filter
+              </SubmitButton>
+              {isFiltered ? (
+                <a href="/admin/exams/tests" className={buttonClasses({ variant: "secondary" })}>
+                  <X className="h-4 w-4" aria-hidden="true" />
+                  Clear
+                </a>
+              ) : null}
             </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-emerald-800">{activeCount}</div>
-          <div className="mt-1 text-xs text-emerald-700">Available to schedule in sessions</div>
-        </div>
+          </form>
 
-        {/* Inactive Tests */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Inactive</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-              <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-              </svg>
+          {isFiltered ? (
+            <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+              <Info className="h-3.5 w-3.5" aria-hidden="true" />
+              Showing {totalCount} result{totalCount !== 1 ? "s" : ""}
+              {query ? <span>for &ldquo;<strong>{query}</strong>&rdquo;</span> : null}
             </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-slate-900">{inactiveCount}</div>
-          <div className="mt-1 text-xs text-slate-500">Draft or retired templates</div>
-        </div>
+          ) : null}
+        </CardBody>
+      </Card>
 
-        {/* Subjects Linked */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Subjects Represented</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50">
-              <svg className="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-indigo-800">{uniqueSubjectsCount}</div>
-          <div className="mt-1 text-xs text-slate-500">Active subject categories</div>
-        </div>
-      </div>
-
-      {/* Filters form */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <form action={filterTests} className="flex flex-col gap-3 xl:flex-row xl:items-end">
-          <div className="grid flex-1 gap-3 sm:grid-cols-3">
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Search</label>
-              <div className="relative mt-1">
-                <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                  name="q"
-                  placeholder="Test name or description..."
-                  defaultValue={query}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Subject</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                name="subject_id"
-                defaultValue={subjectFilter}
-              >
-                <option value="">All subjects</option>
+      <form action={createTest}>
+        <FormSection
+          id="new-test"
+          title="New test"
+          description="Set up the paper first, then add its questions on the next page."
+          footer={
+            <SubmitButton variant="primary" pendingText="Creating…">
+              Create test
+            </SubmitButton>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Test name" htmlFor="new-name" required className="sm:col-span-2">
+              <input id="new-name" className="gf-input" name="name" placeholder="Mid-term examination" required />
+            </Field>
+            <Field label="Subject (optional)" htmlFor="new-subject">
+              <select id="new-subject" className="gf-select" name="subject_id" defaultValue="">
+                <option value="">—</option>
                 {subjects.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Status</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                name="status"
-                defaultValue={statusFilter}
-              >
-                <option value="">All statuses</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
+            </Field>
+            <Field label="Duration (minutes)" htmlFor="new-duration" required>
+              <input id="new-duration" className="gf-input" name="duration_minutes" type="number" min={1} defaultValue={60} required />
+            </Field>
+            <Field label="Number of objective questions" htmlFor="new-objective">
+              <input id="new-objective" className="gf-input" name="objective_count" type="number" min={0} step={1} placeholder="e.g. 30" />
+            </Field>
+            <Field label="Number of theory questions" htmlFor="new-theory">
+              <input
+                id="new-theory"
+                className="gf-input"
+                name="theory_count"
+                type="number"
+                min={0}
+                step={1}
+                placeholder="e.g. 5 (leave empty if none)"
+              />
+            </Field>
+            <Field label="Description" htmlFor="new-description" className="sm:col-span-2">
+              <input id="new-description" className="gf-input" name="description" placeholder="(optional)" />
+              <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+                <input className="gf-checkbox" name="active" type="checkbox" defaultChecked />
+                Active
+              </label>
+            </Field>
           </div>
+        </FormSection>
+      </form>
 
-          <div className="flex shrink-0 gap-2">
-            <SubmitButton
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white hover:brightness-95 transition-all"
-              pendingText="Filtering…"
-            >
-              Filter
-            </SubmitButton>
-            {isFiltered ? (
-              <a
-                href="/admin/exams/tests"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Clear
-              </a>
-            ) : null}
-          </div>
-        </form>
-
-        {isFiltered ? (
-          <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Showing {totalCount} result{totalCount !== 1 ? "s" : ""}
-            {query ? <span>for &ldquo;<strong>{query}</strong>&rdquo;</span> : null}
-          </div>
-        ) : null}
-      </div>
-
-      {/* Add New Test Form */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">New test</h2>
-        <form action={createTest} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Subject (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="subject_id"
-              defaultValue=""
-            >
-              <option value="">—</option>
-              {subjects.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Duration (minutes)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="duration_minutes"
-              type="number"
-              min={1}
-              defaultValue={60}
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Number of objective questions</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="objective_count"
-              type="number"
-              min={0}
-              step={1}
-              placeholder="e.g. 30"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Number of theory questions</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="theory_count"
-              type="number"
-              min={0}
-              step={1}
-              placeholder="e.g. 5 (leave empty if none)"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="text-sm font-semibold text-slate-900">Test name</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="name"
-              placeholder="Mid-term examination"
-              required
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="text-sm font-semibold text-slate-900">Description</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="description"
-              placeholder="(optional)"
-            />
-            <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <input className="h-4 w-4" name="active" type="checkbox" defaultChecked />
-              Active
-            </label>
-          </div>
-
-          <div className="flex items-end sm:col-span-2">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Creating…"
-            >
-              Create test
-            </SubmitButton>
-          </div>
-        </form>
-      </div>
-
-      {/* Tests Table */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-4">Test</div>
-          <div className="col-span-3">Subject</div>
-          <div className="col-span-2">Duration / questions</div>
-          <div className="col-span-1">Status</div>
-          <div className="col-span-2 text-right">Actions</div>
-        </div>
-        <div className="divide-y divide-slate-200">
-          {tests.length ? (
-            tests.map((t) => (
-              <div
-                key={t.id}
-                className="grid grid-cols-12 gap-0 px-6 py-4 text-sm text-slate-700 hover:bg-slate-50/50 items-center"
-              >
-                <div className="col-span-4 font-semibold text-slate-900">
-                  <Link href={`/admin/exams/tests/${t.id}`} className="hover:text-brand-green hover:underline">
-                    {t.name}
-                  </Link>
-                </div>
-                <div className="col-span-3">{firstOrNull(t.subjects)?.name ?? "—"}</div>
-                <div className="col-span-2">
-                  <div>{t.duration_minutes}m</div>
-                  {(() => {
-                    const planned = totalTarget(parseDescriptionAndTargets(t.description).targets);
-                    const set = questionCountByTest.get(t.id) ?? 0;
-                    return (
-                      <div className={`text-xs ${planned > 0 && set < planned ? "text-amber-700" : "text-slate-500"}`}>
-                        {planned > 0 ? `${set} / ${planned} questions` : `${set} question${set === 1 ? "" : "s"}`}
-                      </div>
-                    );
-                  })()}
-                </div>
-                <div className="col-span-1">
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${t.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>
-                    {t.active ? "Active" : "Inactive"}
-                  </span>
-                </div>
-                <div className="col-span-2 flex items-center justify-end gap-2">
-                  <form action={duplicateTest}>
-                    <input type="hidden" name="test_id" value={t.id} />
-                    <button
-                      type="submit"
-                      title="Duplicate entire test and questions"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 active:scale-95 transition-all shadow-sm"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-                      </svg>
-                    </button>
-                  </form>
-                  <form action={deleteTest}>
-                    <input type="hidden" name="test_id" value={t.id} />
-                    <ConfirmSubmitButton
-                      title="Delete test"
-                      confirmMessage={`Delete "${t.name}" and all its questions? This cannot be undone.`}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-white text-red-500 hover:bg-red-50 hover:text-red-700 active:scale-95 transition-all shadow-sm disabled:opacity-60"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </ConfirmSubmitButton>
-                  </form>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No tests match query.</div>
-          )}
-        </div>
-
-        {/* Pagination controls */}
-        {totalCount > pageSize && (
-          <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4">
-            <div className="flex flex-1 justify-between sm:hidden">
-              {page > 1 ? (
-                <Link
-                  href={`/admin/exams/tests?page=${page - 1}${query ? `&q=${encodeURIComponent(query)}` : ""}${subjectFilter ? `&subject_id=${subjectFilter}` : ""}${statusFilter ? `&status=${statusFilter}` : ""}`}
-                  className="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Previous
-                </Link>
-              ) : (
-                <span className="relative inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400">
-                  Previous
-                </span>
-              )}
-              {offset + tests.length < totalCount ? (
-                <Link
-                  href={`/admin/exams/tests?page=${page + 1}${query ? `&q=${encodeURIComponent(query)}` : ""}${subjectFilter ? `&subject_id=${subjectFilter}` : ""}${statusFilter ? `&status=${statusFilter}` : ""}`}
-                  className="relative ml-3 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Next
-                </Link>
-              ) : (
-                <span className="relative ml-3 inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400">
-                  Next
-                </span>
-              )}
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-slate-700">
-                  Showing <span className="font-semibold">{offset + 1}</span> to{" "}
-                  <span className="font-semibold">{Math.min(offset + pageSize, totalCount)}</span> of{" "}
-                  <span className="font-semibold">{totalCount}</span> results
-                </p>
-              </div>
-              <div className="flex items-center gap-1">
-                {page > 1 && (
-                  <Link
-                    href={`/admin/exams/tests?page=${page - 1}${query ? `&q=${encodeURIComponent(query)}` : ""}${subjectFilter ? `&subject_id=${subjectFilter}` : ""}${statusFilter ? `&status=${statusFilter}` : ""}`}
-                    className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    Previous
-                  </Link>
-                )}
-                {Array.from({ length: Math.ceil(totalCount / pageSize) }).map((_, i) => {
-                  const p = i + 1;
-                  const isCurrent = p === page;
+      <Card>
+        <CardHeader title="All tests" description={`${totalCount} test${totalCount !== 1 ? "s" : ""}${isFiltered ? " match your filters" : ""}`} />
+        {tests.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[760px]">
+              <thead>
+                <tr>
+                  <th>Test</th>
+                  <th>Subject</th>
+                  <th>Duration / questions</th>
+                  <th>Status</th>
+                  <th className="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tests.map((t) => {
+                  const planned = totalTarget(parseDescriptionAndTargets(t.description).targets);
+                  const set = questionCountByTest.get(t.id) ?? 0;
                   return (
-                    <Link
-                      key={p}
-                      href={`/admin/exams/tests?page=${p}${query ? `&q=${encodeURIComponent(query)}` : ""}${subjectFilter ? `&subject_id=${subjectFilter}` : ""}${statusFilter ? `&status=${statusFilter}` : ""}`}
-                      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-semibold transition-all ${
-                        isCurrent
-                          ? "border-brand-green bg-brand-green text-white"
-                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      {p}
-                    </Link>
+                    <tr key={t.id}>
+                      <td>
+                        <Link href={`/admin/exams/tests/${t.id}`} className="font-semibold text-slate-900 hover:text-brand-green hover:underline">
+                          {t.name}
+                        </Link>
+                      </td>
+                      <td>{firstOrNull(t.subjects)?.name ?? "—"}</td>
+                      <td>
+                        <div className="inline-flex items-center gap-1.5 text-slate-700">
+                          <Clock className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                          {t.duration_minutes}m
+                        </div>
+                        <div className={`text-xs ${planned > 0 && set < planned ? "font-semibold text-brand-gold-800" : "text-slate-500"}`}>
+                          {planned > 0 ? `${set} / ${planned} questions` : `${set} question${set === 1 ? "" : "s"}`}
+                        </div>
+                      </td>
+                      <td>
+                        <Badge tone={t.active ? "green" : "slate"} dot>
+                          {t.active ? "Active" : "Inactive"}
+                        </Badge>
+                      </td>
+                      <td>
+                        <div className="flex items-center justify-end gap-2">
+                          <form action={duplicateTest}>
+                            <input type="hidden" name="test_id" value={t.id} />
+                            <button
+                              type="submit"
+                              title="Duplicate entire test and questions"
+                              aria-label={`Duplicate ${t.name}`}
+                              className={buttonClasses({ variant: "secondary", size: "sm", className: "w-9 px-0" })}
+                            >
+                              <Copy className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          </form>
+                          <form action={deleteTest}>
+                            <input type="hidden" name="test_id" value={t.id} />
+                            <ConfirmSubmitButton
+                              title="Delete test"
+                              confirmMessage={`Delete "${t.name}" and all its questions? This cannot be undone.`}
+                              className={buttonClasses({
+                                variant: "secondary",
+                                size: "sm",
+                                className: "w-9 border-red-200 px-0 text-red-600 hover:border-red-300 hover:bg-red-50"
+                              })}
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                              <span className="sr-only">Delete {t.name}</span>
+                            </ConfirmSubmitButton>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })}
-                {offset + tests.length < totalCount && (
-                  <Link
-                    href={`/admin/exams/tests?page=${page + 1}${query ? `&q=${encodeURIComponent(query)}` : ""}${subjectFilter ? `&subject_id=${subjectFilter}` : ""}${statusFilter ? `&status=${statusFilter}` : ""}`}
-                    className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    Next
-                  </Link>
-                )}
-              </div>
-            </div>
+              </tbody>
+            </table>
           </div>
+        ) : (
+          <EmptyState
+            icon={FileText}
+            title="No tests match query."
+            description={isFiltered ? "Try a different search or clear the filters." : "Create your first test using the form above."}
+          />
         )}
-      </div>
+
+        <Pagination
+          basePath="/admin/exams/tests"
+          suffix={pageSuffix}
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          hasNext={offset + tests.length < totalCount}
+        />
+      </Card>
     </div>
   );
 }

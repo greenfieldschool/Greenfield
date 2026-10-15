@@ -1,9 +1,18 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 import UrlToast from "@/components/url-toast";
+import { firstOrNull } from "@/lib/relations";
+import { safeFilterTerm } from "@/lib/postgrest";
+import { CalendarCheck, CheckCircle2, Clock, Filter, Search, Users, X, XCircle } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
 
 type ClassRow = { id: string; level: string; name: string };
 type StudentRow = { id: string; first_name: string; last_name: string; class_id: string | null };
@@ -15,19 +24,95 @@ type AttendanceRow = { student_id: string; date: string; status: string };
 
 const statuses = ["present", "absent", "late", "excused"] as const;
 
-function getStatusStyle(status: string) {
+function statusTone(status: string): BadgeTone {
   switch (status) {
     case "present":
-      return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
+      return "green";
     case "absent":
-      return "bg-red-50 text-red-700 ring-1 ring-red-200";
+      return "red";
     case "late":
-      return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
+      return "gold";
     case "excused":
-      return "bg-blue-50 text-blue-700 ring-1 ring-blue-200";
+      return "blue";
     default:
-      return "bg-slate-50 text-slate-500 ring-1 ring-slate-200";
+      return "slate";
   }
+}
+
+// Selected-state colours for the status segmented control.
+const statusChecked: Record<(typeof statuses)[number], string> = {
+  present: "peer-checked:bg-brand-green peer-checked:text-white peer-checked:shadow-sm",
+  absent: "peer-checked:bg-red-600 peer-checked:text-white peer-checked:shadow-sm",
+  late: "peer-checked:bg-brand-gold peer-checked:text-brand-green-950 peer-checked:shadow-sm",
+  excused: "peer-checked:bg-sky-600 peer-checked:text-white peer-checked:shadow-sm"
+};
+
+// Today's date in Lagos (UTC+1, no daylight saving), as YYYY-MM-DD.
+function lagosToday() {
+  return new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+type AttendanceFilters = { classId: string; date: string; q: string; yearId: string; termId: string };
+
+function attendanceUrl(f: AttendanceFilters, toast?: { message: string; type: "success" | "error" }) {
+  const params = new URLSearchParams();
+  if (f.classId) params.set("class_id", f.classId);
+  if (f.date) params.set("date", f.date);
+  if (f.q) params.set("q", f.q);
+  if (f.yearId) params.set("academic_year_id", f.yearId);
+  if (f.termId) params.set("academic_term_id", f.termId);
+  if (toast) {
+    params.set("toast", toast.message);
+    params.set("toast_type", toast.type);
+  }
+  return `/admin/welfare/attendance?${params.toString()}`;
+}
+
+function filtersFrom(formData: FormData): AttendanceFilters {
+  return {
+    classId: String(formData.get("class_id") ?? "").trim(),
+    date: String(formData.get("date") ?? "").trim(),
+    q: String(formData.get("q") ?? "").trim(),
+    yearId: String(formData.get("academic_year_id") ?? "").trim(),
+    termId: String(formData.get("academic_term_id") ?? "").trim()
+  };
+}
+
+// Server actions live at module level so they cannot capture values from the page render.
+async function markAttendance(formData: FormData) {
+  "use server";
+
+  const filters = filtersFrom(formData);
+  const studentId = String(formData.get("student_id") ?? "").trim();
+  const status = String(formData.get("status") ?? "").trim();
+
+  if (!studentId || !filters.date || !status) {
+    redirect(attendanceUrl(filters, { message: "Choose a student, date and status", type: "error" }));
+  }
+
+  const supabase = getSupabaseServerClient();
+  if (!supabase) redirect(attendanceUrl(filters, { message: "Database is not configured", type: "error" }));
+
+  const { error } = await supabase.from("student_attendance").upsert(
+    {
+      student_id: studentId,
+      class_id: filters.classId.length ? filters.classId : null,
+      academic_year_id: filters.yearId.length ? filters.yearId : null,
+      academic_term_id: filters.termId.length ? filters.termId : null,
+      date: filters.date,
+      status
+    },
+    { onConflict: "student_id,date" }
+  );
+
+  revalidatePath("/admin/welfare/attendance");
+  if (error) redirect(attendanceUrl(filters, { message: error.message, type: "error" }));
+  redirect(attendanceUrl(filters, { message: "Attendance saved", type: "success" }));
+}
+
+async function filterAttendance(formData: FormData) {
+  "use server";
+  redirect(attendanceUrl(filtersFrom(formData)));
 }
 
 export default async function AdminWelfareAttendancePage({
@@ -64,9 +149,9 @@ export default async function AdminWelfareAttendancePage({
     supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false })
   ]);
 
-  const teacherClassRows = (teacherClasses ?? []) as Array<{ classes: ClassRow | null }>;
+  const teacherClassRows = (teacherClasses ?? []) as Array<{ classes: ClassRow | ClassRow[] | null }>;
   const classRows = isTeacher
-    ? teacherClassRows.map((r) => r.classes).filter((c): c is ClassRow => Boolean(c))
+    ? teacherClassRows.map((r) => firstOrNull(r.classes)).filter((c): c is ClassRow => Boolean(c))
     : ((classes ?? []) as ClassRow[]);
   const yearRows = (years ?? []) as YearRow[];
   const termRows = (terms ?? []) as TermRow[];
@@ -81,7 +166,7 @@ export default async function AdminWelfareAttendancePage({
   const selectedClassId = Array.isArray(classIdRaw) ? (classIdRaw[0] ?? "") : (classIdRaw ?? "");
   
   // Default to today's date if not chosen
-  const defaultDateStr = new Date().toISOString().split("T")[0];
+  const defaultDateStr = lagosToday();
   const selectedDate = Array.isArray(dateRaw) ? (dateRaw[0] ?? "") : (dateRaw ?? defaultDateStr);
   
   const selectedYearId = Array.isArray(academicYearIdRaw)
@@ -103,11 +188,12 @@ export default async function AdminWelfareAttendancePage({
     .order("last_name", { ascending: true })
     .order("first_name", { ascending: true });
 
-  if (query.length > 0) {
-    studentsQuery = studentsQuery.or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`);
+  const safeQuery = safeFilterTerm(query);
+  if (safeQuery.length > 0) {
+    studentsQuery = studentsQuery.or(`first_name.ilike.%${safeQuery}%,last_name.ilike.%${safeQuery}%`);
   }
 
-  const [{ data: studentsData }, { data: attendanceData }] = await Promise.all([
+  const [{ data: studentsData }, { data: attendanceData }, { data: classStudentsData }] = await Promise.all([
     effectiveClassId && hasAnyClass
       ? studentsQuery
       : Promise.resolve({ data: [] as unknown[] }),
@@ -117,15 +203,20 @@ export default async function AdminWelfareAttendancePage({
           .select("student_id, date, status")
           .eq("class_id", effectiveClassId)
           .eq("date", selectedDate)
+      : Promise.resolve({ data: [] as unknown[] }),
+    // Whole class (ignores the search box) so the metric tiles all describe the same students.
+    effectiveClassId && hasAnyClass
+      ? supabase.from("students").select("id").eq("class_id", effectiveClassId)
       : Promise.resolve({ data: [] as unknown[] })
   ]);
 
   const students = (studentsData ?? []) as StudentRow[];
-  const attendanceRows = (attendanceData ?? []) as AttendanceRow[];
+  const classStudentIds = new Set(((classStudentsData ?? []) as Array<{ id: string }>).map((r) => r.id));
+  const attendanceRows = ((attendanceData ?? []) as AttendanceRow[]).filter((r) => classStudentIds.has(r.student_id));
   const statusByStudentId = new Map(attendanceRows.map((r) => [r.student_id, r.status] as const));
 
   // Compute metrics for the loaded class/date
-  const totalClassStudents = students.length;
+  const totalClassStudents = classStudentIds.size;
   const presentCount = attendanceRows.filter((r) => r.status === "present").length;
   const absentCount = attendanceRows.filter((r) => r.status === "absent").length;
   const lateCount = attendanceRows.filter((r) => r.status === "late").length;
@@ -133,312 +224,252 @@ export default async function AdminWelfareAttendancePage({
 
   const isFiltered = query.length > 0 || selectedClassId.length > 0 || selectedDate !== defaultDateStr;
 
-  async function markAttendance(formData: FormData) {
-    "use server";
-
-    const studentId = String(formData.get("student_id") ?? "").trim();
-    const classId = String(formData.get("class_id") ?? "").trim();
-    const yearIdRaw = String(formData.get("academic_year_id") ?? "").trim();
-    const termIdRaw = String(formData.get("academic_term_id") ?? "").trim();
-    const date = String(formData.get("date") ?? "").trim();
-    const status = String(formData.get("status") ?? "").trim();
-
-    if (!studentId || !date || !status) return;
-
-    const supabase = getSupabaseServerClient();
-    if (!supabase) return;
-
-    await supabase
-      .from("student_attendance")
-      .upsert(
-        {
-          student_id: studentId,
-          class_id: classId.length ? classId : null,
-          academic_year_id: yearIdRaw.length ? yearIdRaw : null,
-          academic_term_id: termIdRaw.length ? termIdRaw : null,
-          date,
-          status
-        },
-        { onConflict: "student_id,date" }
-      );
-
-    revalidatePath("/admin/welfare/attendance");
-    redirect(`/admin/welfare/attendance?class_id=${encodeURIComponent(classId)}&date=${encodeURIComponent(date)}&toast=${encodeURIComponent("Attendance saved")}&toast_type=success`);
-  }
-
-  async function filterAttendance(formData: FormData) {
-    "use server";
-
-    const classId = String(formData.get("class_id") ?? "").trim();
-    const date = String(formData.get("date") ?? "").trim();
-    const q = String(formData.get("q") ?? "").trim();
-    const yearId = String(formData.get("academic_year_id") ?? "").trim();
-    const termId = String(formData.get("academic_term_id") ?? "").trim();
-
-    const params = new URLSearchParams();
-    if (classId.length) params.set("class_id", classId);
-    if (date.length) params.set("date", date);
-    if (q.length) params.set("q", q);
-    if (yearId.length) params.set("academic_year_id", yearId);
-    if (termId.length) params.set("academic_term_id", termId);
-
-    redirect(`/admin/welfare/attendance?${params.toString()}`);
-  }
+  const dateLabel = selectedDate
+    ? new Date(`${selectedDate}T12:00:00Z`).toLocaleDateString("en-GB", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+      })
+    : "";
+  const markedCount = students.filter((s) => statusByStudentId.has(s.id)).length;
 
   return (
     <div className="space-y-6">
       <UrlToast />
 
-      {/* Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-slate-400">Welfare</div>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">Attendance</h1>
-          <p className="mt-1 text-sm text-slate-500">Record daily attendance by class group</p>
-        </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
-          <Link
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
-            href="/admin"
-          >
-            Back to admin
-          </Link>
-        </div>
+      <PageHeader
+        eyebrow="Welfare"
+        title="Attendance"
+        description="Record daily attendance by class group."
+        back={{ href: "/admin", label: "Back to admin" }}
+      />
+
+      {/* Metrics */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Students in class"
+          value={totalClassStudents}
+          hint={`${totalClassStudents - attendanceRows.length} not yet marked on ${selectedDate}`}
+          icon={Users}
+          tone="slate"
+        />
+        <StatCard
+          label="Present"
+          value={presentCount}
+          hint={`Of ${totalClassStudents} in class, on ${selectedDate}`}
+          icon={CheckCircle2}
+          tone="green"
+        />
+        <StatCard label="Absent" value={absentCount} hint={`Of ${totalClassStudents} in class, on ${selectedDate}`} icon={XCircle} tone="rose" />
+        <StatCard
+          label="Late / excused"
+          value={lateCount + excusedCount}
+          hint={`${lateCount} late · ${excusedCount} excused (whole class)`}
+          icon={Clock}
+          tone="gold"
+        />
       </div>
 
-      {/* Metrics Cards Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total class students */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Class Students</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-              <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-slate-900">{totalClassStudents}</div>
-          <div className="mt-1 text-xs text-slate-500">Students in selected class</div>
-        </div>
-
-        {/* Present count */}
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Present Today</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
-              <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-emerald-800">{presentCount}</div>
-          <div className="mt-1 text-xs text-emerald-700">Marked present on {selectedDate}</div>
-        </div>
-
-        {/* Absent count */}
-        <div className="rounded-2xl border border-red-100 bg-red-50 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-red-600">Absent</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100">
-              <svg className="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-red-800">{absentCount}</div>
-          <div className="mt-1 text-xs text-red-700">Marked absent today</div>
-        </div>
-
-        {/* Late/Excused count */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Late / Excused</div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
-              <svg className="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-3 text-3xl font-bold text-slate-900">{lateCount + excusedCount}</div>
-          <div className="mt-1 text-xs text-slate-500">{lateCount} late · {excusedCount} excused</div>
-        </div>
-      </div>
-
-      {/* Filters form */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        {!hasAnyClass ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            No classes are assigned to your account yet. Ask an admin to assign you to at least one class.
-          </div>
-        ) : null}
-        <form action={filterAttendance} className="flex flex-col gap-3 xl:flex-row xl:items-end">
-          <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Student Name</label>
-              <div className="relative mt-1">
-                <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                  name="q"
-                  placeholder="First or last name..."
-                  defaultValue={query}
-                />
+      {/* Filters */}
+      <Card>
+        <CardBody className="space-y-4">
+          {!hasAnyClass ? (
+            <Alert tone="warning">
+              No classes are assigned to your account yet. Ask an admin to assign you to at least one class.
+            </Alert>
+          ) : null}
+          <form action={filterAttendance} className="flex flex-col gap-4 xl:flex-row xl:items-end">
+            <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div>
+                <label htmlFor="att-q" className="gf-label">
+                  Student name
+                </label>
+                <div className="relative">
+                  <Search
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                    aria-hidden="true"
+                  />
+                  <input id="att-q" className="gf-input pl-9" name="q" placeholder="First or last name…" defaultValue={query} />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="att-class" className="gf-label">
+                  Class
+                </label>
+                <select
+                  id="att-class"
+                  className="gf-select"
+                  name="class_id"
+                  defaultValue={effectiveClassId}
+                  required
+                  disabled={!hasAnyClass}
+                >
+                  {classRows.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.level} - {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="att-date" className="gf-label">
+                  Date
+                </label>
+                <input id="att-date" className="gf-input" name="date" type="date" defaultValue={selectedDate} required />
+              </div>
+              <div>
+                <label htmlFor="att-year" className="gf-label">
+                  Academic year
+                </label>
+                <select id="att-year" className="gf-select" name="academic_year_id" defaultValue={selectedYearId}>
+                  <option value="">—</option>
+                  {yearRows.map((y) => (
+                    <option key={y.id} value={y.id}>
+                      {y.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="att-term" className="gf-label">
+                  Academic term
+                </label>
+                <select id="att-term" className="gf-select" name="academic_term_id" defaultValue={selectedTermId}>
+                  <option value="">—</option>
+                  {termRows.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Class</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all font-medium text-slate-700"
-                name="class_id"
-                defaultValue={effectiveClassId}
-                required
-                disabled={!hasAnyClass}
-              >
-                {classRows.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.level} - {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Date</label>
-              <input
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                name="date"
-                type="date"
-                defaultValue={selectedDate}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Academic year</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                name="academic_year_id"
-                defaultValue={selectedYearId}
-              >
-                <option value="">—</option>
-                {yearRows.map((y) => (
-                  <option key={y.id} value={y.id}>
-                    {y.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Academic term</label>
-              <select
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/20 transition-all"
-                name="academic_term_id"
-                defaultValue={selectedTermId}
-              >
-                <option value="">—</option>
-                {termRows.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
 
-          <div className="flex shrink-0 gap-2">
-            <SubmitButton
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-5 py-2.5 text-sm font-semibold text-white hover:brightness-95 transition-all"
-              pendingText="Loading…"
-            >
-              Filter
-            </SubmitButton>
-            {isFiltered ? (
-              <a
-                href="/admin/welfare/attendance"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Clear
-              </a>
-            ) : null}
-          </div>
-        </form>
-      </div>
+            <div className="flex shrink-0 gap-2">
+              <SubmitButton variant="primary" pendingText="Loading…">
+                <span className="inline-flex items-center gap-2">
+                  <Filter className="h-4 w-4" aria-hidden="true" />
+                  Filter
+                </span>
+              </SubmitButton>
+              {isFiltered ? (
+                <a href="/admin/welfare/attendance" className={buttonClasses({ variant: "secondary" })}>
+                  <X className="h-4 w-4" aria-hidden="true" />
+                  Clear
+                </a>
+              ) : null}
+            </div>
+          </form>
+        </CardBody>
+      </Card>
 
-      {/* Mark attendance Grid */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Mark attendance</h2>
-        <p className="mt-2 text-sm text-slate-600">Select a status and save per student. Existing marks are preloaded.</p>
-
-        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-          <div className="grid grid-cols-12 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-            <div className="col-span-5">Student</div>
-            <div className="col-span-7">Mark</div>
-          </div>
-          {students.length ? (
-            <div className="divide-y divide-slate-100">
-              {students.map((s) => {
-                const currentStatus = statusByStudentId.get(s.id);
-                return (
-                  <div key={s.id} className="grid grid-cols-12 gap-3 px-6 py-4 text-sm items-center hover:bg-slate-50/50">
-                    <div className="col-span-5 flex items-center gap-3">
-                      <div className="min-w-0">
-                        <div className="font-semibold text-slate-900">
-                          {s.first_name} {s.last_name}
-                        </div>
-                        {currentStatus && (
-                          <div className="mt-1">
-                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${getStatusStyle(currentStatus)}`}>
-                              {currentStatus}
-                            </span>
-                          </div>
+      {/* Register */}
+      <Card>
+        <CardHeader
+          title="Mark attendance"
+          description={`Choose a status and save per student. Existing marks are preloaded.${dateLabel ? ` Register for ${dateLabel}.` : ""}`}
+          action={
+            students.length ? (
+              <Badge tone={markedCount === students.length ? "green" : markedCount ? "gold" : "slate"} dot>
+                {markedCount}/{students.length} marked
+              </Badge>
+            ) : null
+          }
+        />
+        {students.length ? (
+          <div className="max-h-[75vh] overflow-auto">
+            <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr>
+                  <th
+                    scope="col"
+                    className="sticky left-0 top-0 z-30 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 sm:pl-6"
+                  >
+                    Student
+                  </th>
+                  <th
+                    scope="col"
+                    className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600"
+                  >
+                    Current
+                  </th>
+                  <th
+                    scope="col"
+                    className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 sm:pr-6"
+                  >
+                    Mark
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((s) => {
+                  const currentStatus = statusByStudentId.get(s.id);
+                  return (
+                    <tr key={s.id} className="group">
+                      <th
+                        scope="row"
+                        className="sticky left-0 z-10 border-b border-slate-100 bg-white px-4 py-2.5 text-left font-semibold text-slate-900 group-hover:bg-slate-50 sm:pl-6"
+                      >
+                        {s.first_name} {s.last_name}
+                      </th>
+                      <td className="border-b border-slate-100 px-4 py-2.5 group-hover:bg-slate-50">
+                        {currentStatus ? (
+                          <Badge tone={statusTone(currentStatus)} dot className="capitalize">
+                            {currentStatus}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-slate-400">Not marked</span>
                         )}
-                      </div>
-                    </div>
-                    <div className="col-span-7">
-                      <form action={markAttendance} className="grid grid-cols-12 gap-2">
-                        <input type="hidden" name="student_id" value={s.id} />
-                        <input type="hidden" name="class_id" value={effectiveClassId} />
-                        <input type="hidden" name="date" value={selectedDate} />
-                        <input type="hidden" name="academic_year_id" value={selectedYearId} />
-                        <input type="hidden" name="academic_term_id" value={selectedTermId} />
-                        <div className="col-span-8">
-                          <select
-                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                            name="status"
-                            defaultValue={currentStatus ?? statuses[0]}
-                          >
+                      </td>
+                      <td className="border-b border-slate-100 px-4 py-2.5 group-hover:bg-slate-50 sm:pr-6">
+                        <form action={markAttendance} className="flex items-center gap-2">
+                          <input type="hidden" name="student_id" value={s.id} />
+                          <input type="hidden" name="class_id" value={effectiveClassId} />
+                          <input type="hidden" name="date" value={selectedDate} />
+                          <input type="hidden" name="academic_year_id" value={selectedYearId} />
+                          <input type="hidden" name="academic_term_id" value={selectedTermId} />
+                          <input type="hidden" name="q" value={query} />
+                          <fieldset className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-0.5">
+                            <legend className="sr-only">
+                              Status for {s.first_name} {s.last_name}
+                            </legend>
                             {statuses.map((st) => (
-                              <option key={st} value={st}>
-                                {st}
-                              </option>
+                              <label key={st} className="cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="status"
+                                  value={st}
+                                  defaultChecked={(currentStatus ?? statuses[0]) === st}
+                                  className="peer sr-only"
+                                />
+                                <span
+                                  className={`inline-flex h-8 items-center rounded-lg px-2.5 text-xs font-semibold capitalize text-slate-600 transition hover:text-slate-900 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-green-500/40 ${statusChecked[st]}`}
+                                >
+                                  {st}
+                                </span>
+                              </label>
                             ))}
-                          </select>
-                        </div>
-                        <div className="col-span-4">
-                          <SubmitButton
-                            className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                            pendingText="Saving…"
-                          >
+                          </fieldset>
+                          <SubmitButton variant="primary" size="sm" pendingText="Saving…">
                             Save
                           </SubmitButton>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="px-6 py-12 text-center text-sm text-slate-600">
-              No students found matching your parameters.
-            </div>
-          )}
-        </div>
-      </div>
+                        </form>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={CalendarCheck}
+            title="No students found"
+            description="No students found matching your parameters."
+          />
+        )}
+      </Card>
     </div>
   );
 }

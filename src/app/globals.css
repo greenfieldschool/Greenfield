@@ -13,8 +13,83 @@ body {
 }
 
 body {
-  background: #f8fafc;
+  background: #f6f7f4;
   color: #0f172a;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #f4da85;
+  color: #062519;
+}
+
+@layer base {
+  :focus-visible {
+    outline: 2px solid #2f8560;
+    outline-offset: 2px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.015em;
+  }
+}
+
+@layer components {
+  /* Shared form controls, so plain inputs across the app look the same. */
+  .gf-input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-green-500 focus:ring-4 focus:ring-brand-green-500/15 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500;
+  }
+
+  .gf-label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+
+  .gf-hint {
+    @apply mt-1.5 text-xs text-slate-500;
+  }
+
+  .gf-select {
+    @apply gf-input appearance-none bg-[length:16px_16px] bg-[right_0.75rem_center] bg-no-repeat pr-10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  .gf-checkbox {
+    @apply h-4 w-4 rounded border-slate-300 text-brand-green accent-brand-green-600 focus:ring-brand-green-500/30;
+  }
+
+  /* Tables: wrap in <div className="gf-table-wrap"> inside a Card for horizontal scroll on phones. */
+  .gf-table-wrap {
+    @apply w-full overflow-x-auto;
+  }
+
+  .gf-table {
+    @apply w-full text-left text-sm;
+  }
+
+  .gf-table thead th {
+    @apply whitespace-nowrap border-b border-slate-200 bg-slate-50/80 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 first:pl-5 last:pr-5 sm:first:pl-6 sm:last:pr-6;
+  }
+
+  .gf-table tbody td {
+    @apply border-b border-slate-100 px-4 py-3.5 align-middle text-slate-700 first:pl-5 last:pr-5 sm:first:pl-6 sm:last:pr-6;
+  }
+
+  .gf-table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .gf-table tbody tr {
+    @apply transition-colors hover:bg-slate-50/70;
+  }
+
+  .gf-link {
+    @apply font-semibold text-brand-green-700 underline-offset-4 hover:text-brand-green hover:underline;
+  }
 }
 
 @keyframes toast-in {
@@ -30,4 +105,26 @@ body {
 
 .animate-toast-in {
   animation: toast-in 0.22s ease-out both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-toast-in {
+    animation: none;
+  }
 }

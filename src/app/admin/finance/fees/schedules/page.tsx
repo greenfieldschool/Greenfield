@@ -1,7 +1,18 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { firstOrNull } from "@/lib/relations";
 import SubmitButton from "@/components/submit-button";
+import { redirect } from "next/navigation";
+import { toastUrl } from "../../_components/finance-server";
+import UrlToast from "@/components/url-toast";
+import { ChevronRight, Plus, TableProperties } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { buttonClasses } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type YearRow = { id: string; name: string };
 type TermRow = { id: string; name: string; academic_year_id: string };
@@ -12,9 +23,9 @@ type ScheduleRow = {
   name: string;
   currency: string;
   active: boolean;
-  academic_years: YearRow;
-  academic_terms: TermRow | null;
-  classes: ClassRow;
+  academic_years: YearRow | YearRow[] | null;
+  academic_terms: TermRow | TermRow[] | null;
+  classes: ClassRow | ClassRow[] | null;
 };
 
 export default async function AdminFeeSchedulesPage() {
@@ -49,14 +60,16 @@ export default async function AdminFeeSchedulesPage() {
     const currency = String(formData.get("currency") ?? "NGN").trim() || "NGN";
     const active = String(formData.get("active") ?? "").trim() === "on";
 
-    if (!name || !academicYearId || !classId) return;
+    if (!name || !academicYearId || !classId) {
+      redirect(toastUrl("/admin/finance/fees/schedules", "Enter a name and choose an academic year and class", "error"));
+    }
 
     const academicTermId = academicTermIdRaw.length ? academicTermIdRaw : null;
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl("/admin/finance/fees/schedules", "Database is not configured", "error"));
 
-    await supabase.from("fee_schedules").insert({
+    const { error } = await supabase.from("fee_schedules").insert({
       name,
       academic_year_id: academicYearId,
       academic_term_id: academicTermId,
@@ -65,148 +78,134 @@ export default async function AdminFeeSchedulesPage() {
       active
     });
 
+    if (error) redirect(toastUrl("/admin/finance/fees/schedules", error.message, "error"));
     revalidatePath("/admin/finance/fees/schedules");
+    redirect(toastUrl("/admin/finance/fees/schedules", "Fee schedule created"));
   }
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Finance</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Fee schedules</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Create schedules for a specific class, either per-term (choose a term) or annual (leave term blank).
-        </p>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
-            Back to fee setup
-          </Link>
-        </div>
-      </div>
+      <UrlToast />
+      <PageHeader
+        back={{ href: "/admin/finance/fees", label: "Back to fee setup" }}
+        eyebrow="Finance"
+        title="Fee schedules"
+        description="Create schedules for a specific class, either per-term (choose a term) or annual (leave term blank)."
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Create schedule</h2>
-        <form action={createSchedule} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label className="text-sm font-semibold text-slate-900">Name</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="name"
-              placeholder="2026 Term 1 - Year 1 Fees"
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic year</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_year_id"
-              required
-              defaultValue=""
-            >
-              <option value="" disabled>
-                Select year
-              </option>
-              {yearRows.map((y) => (
-                <option key={y.id} value={y.id}>
-                  {y.name}
+      <form action={createSchedule}>
+        <FormSection
+          title="Create schedule"
+          footer={
+            <SubmitButton variant="primary" pendingText="Creating…">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Create schedule
+            </SubmitButton>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Name" htmlFor="name" required className="sm:col-span-2">
+              <input id="name" className="gf-input" name="name" placeholder="2026 Term 1 - Year 1 Fees" required />
+            </Field>
+            <Field label="Academic year" htmlFor="academic_year_id" required>
+              <select id="academic_year_id" className="gf-select" name="academic_year_id" required defaultValue="">
+                <option value="" disabled>
+                  Select year
                 </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic term (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_term_id"
-              defaultValue=""
-            >
-              <option value="">(annual)</option>
-              {termRows.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
+                {yearRows.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Academic term (optional)" htmlFor="academic_term_id" hint="Leave as annual for a whole-year schedule.">
+              <select id="academic_term_id" className="gf-select" name="academic_term_id" defaultValue="">
+                <option value="">(annual)</option>
+                {termRows.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Class" htmlFor="class_id" required>
+              <select id="class_id" className="gf-select" name="class_id" required defaultValue="">
+                <option value="" disabled>
+                  Select class
                 </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Class</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="class_id"
-              required
-              defaultValue=""
-            >
-              <option value="" disabled>
-                Select class
-              </option>
-              {classRows.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.level} - {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Currency</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="currency"
-              defaultValue="NGN"
-            />
-            <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <input className="h-4 w-4" name="active" type="checkbox" defaultChecked />
+                {classRows.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.level} - {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Currency" htmlFor="currency">
+              <input id="currency" className="gf-input" name="currency" defaultValue="NGN" />
+            </Field>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 sm:col-span-2">
+              <input className="gf-checkbox" name="active" type="checkbox" defaultChecked />
               Active
             </label>
           </div>
+        </FormSection>
+      </form>
 
-          <div className="flex items-end sm:col-span-2">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Creating…"
-            >
-              Create schedule
-            </SubmitButton>
+      <Card>
+        <CardHeader title="Schedules" description="Most recent 200. Open a schedule to set its fee lines." />
+        {scheduleRows.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[640px]">
+              <thead>
+                <tr>
+                  <th>Schedule</th>
+                  <th>Class</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th className="text-right">
+                    <span className="sr-only">Open</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {scheduleRows.map((s) => (
+                  <tr key={s.id}>
+                    <td>
+                      <Link className="gf-link" href={`/admin/finance/fees/schedules/${s.id}`}>
+                        {s.name}
+                      </Link>
+                      <div className="mt-0.5 text-xs text-slate-500">{firstOrNull(s.academic_years)?.name}</div>
+                    </td>
+                    <td className="whitespace-nowrap">
+                      <span className="capitalize">{firstOrNull(s.classes)?.level}</span> - {firstOrNull(s.classes)?.name}
+                    </td>
+                    <td>
+                      <Badge tone={firstOrNull(s.academic_terms) ? "blue" : "violet"}>{firstOrNull(s.academic_terms) ? "Term" : "Annual"}</Badge>
+                    </td>
+                    <td>
+                      <Badge tone={s.active ? "green" : "slate"} dot>
+                        {s.active ? "Active" : "Inactive"}
+                      </Badge>
+                    </td>
+                    <td className="text-right">
+                      <Link
+                        className={buttonClasses({ variant: "ghost", size: "sm" })}
+                        href={`/admin/finance/fees/schedules/${s.id}`}
+                      >
+                        Open
+                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </form>
-      </div>
-
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-6">Schedule</div>
-          <div className="col-span-3">Class</div>
-          <div className="col-span-2">Type</div>
-          <div className="col-span-1">Open</div>
-        </div>
-        <div>
-          {scheduleRows.length ? (
-            scheduleRows.map((s) => (
-              <div key={s.id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                <div className="col-span-6">
-                  <div className="font-semibold text-slate-900">{s.name}</div>
-                  <div className="mt-1 text-xs text-slate-600">{s.academic_years?.name}</div>
-                </div>
-                <div className="col-span-3 text-slate-700">
-                  {s.classes?.level} - {s.classes?.name}
-                </div>
-                <div className="col-span-2 text-slate-700">{s.academic_terms ? "Term" : "Annual"}</div>
-                <div className="col-span-1">
-                  <Link className="text-xs font-semibold text-brand-green hover:underline" href={`/admin/finance/fees/schedules/${s.id}`}>
-                    Open
-                  </Link>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No schedules yet.</div>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <a className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/fees">
-          Back to fee setup
-        </a>
-      </div>
+        ) : (
+          <EmptyState icon={TableProperties} title="No schedules yet" description="Create one above for a class and term." />
+        )}
+      </Card>
     </div>
   );
 }

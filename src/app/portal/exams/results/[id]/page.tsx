@@ -1,6 +1,42 @@
-import Link from "next/link";
+import { notFound } from "next/navigation";
+import { CheckCircle2, Hourglass, Lightbulb, MinusCircle, XCircle } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { firstOrNull } from "@/lib/relations";
+import { formatLagosDate } from "@/lib/lagos-dates";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink } from "@/components/ui/button";
+import { PortalNotice, PortalPageHeader, ScoreRing, portalMessages } from "../../../_components/portal-ui";
+import { marksLabel, questionTypeLabel } from "../../../_components/exam-labels";
+import { Celebrate } from "@/components/motion/celebrate";
+
+function cheer(p: number) {
+  if (p >= 80) return "Excellent work!";
+  if (p >= 70) return "Great job!";
+  if (p >= 50) return "Good effort — keep going!";
+  return "Keep practising — you've got this.";
+}
+
+function ResultNotice({ icon, title, message }: { icon: typeof Hourglass; title: string; message: string }) {
+  return (
+    <div className="space-y-6">
+      <PortalPageHeader back={{ href: "/portal/exams/results", label: "Results" }} title={title} />
+      <Card>
+        <EmptyState
+          icon={icon}
+          title={title}
+          description={message}
+          action={
+            <ButtonLink href="/portal/exams/results" variant="secondary">
+              Back to results
+            </ButtonLink>
+          }
+        />
+      </Card>
+    </div>
+  );
+}
 
 type AttemptRow = {
   id: string;
@@ -57,7 +93,14 @@ export default async function PortalExamResultDetailPage({ params }: { params: P
     .maybeSingle();
 
   const currentStudentId = (studentLink as StudentLinkRow | null)?.student_id ?? null;
-  if (!currentStudentId) return null;
+  if (!currentStudentId)
+    return (
+      <PortalNotice
+        back={{ href: "/portal/exams/results", label: "Results" }}
+        title="Exam result"
+        message={portalMessages.noStudent}
+      />
+    );
 
   const { data: attemptData } = await supabase
     .from("exam_attempts")
@@ -68,23 +111,10 @@ export default async function PortalExamResultDetailPage({ params }: { params: P
     .maybeSingle();
 
   const attempt = (attemptData ?? null) as unknown as AttemptRow | null;
-  if (!attempt) return null;
+  if (!attempt) notFound();
 
   if (attempt.student_id !== currentStudentId) {
-    return (
-      <div className="space-y-6">
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="text-sm font-semibold text-slate-500">Portal</div>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900">Unauthorized</h1>
-          <p className="mt-2 text-sm text-slate-600">You do not have access to this result.</p>
-          <div className="mt-4">
-            <Link className="text-sm font-semibold text-brand-green hover:underline" href="/portal/exams/results">
-              Back to results
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+    notFound();
   }
 
   const session = firstOrNull(attempt.exam_test_sessions);
@@ -92,18 +122,11 @@ export default async function PortalExamResultDetailPage({ params }: { params: P
 
   if (!releasedAt) {
     return (
-      <div className="space-y-6">
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="text-sm font-semibold text-slate-500">Portal</div>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900">Result not released</h1>
-          <p className="mt-2 text-sm text-slate-600">This result is not yet released by staff.</p>
-          <div className="mt-4">
-            <Link className="text-sm font-semibold text-brand-green hover:underline" href="/portal/exams/results">
-              Back to results
-            </Link>
-          </div>
-        </div>
-      </div>
+      <ResultNotice
+        icon={Hourglass}
+        title="Result not released yet"
+        message="Your teacher hasn't released this result yet. Check back soon."
+      />
     );
   }
 
@@ -127,35 +150,57 @@ export default async function PortalExamResultDetailPage({ params }: { params: P
 
   const test = firstOrNull(session?.exam_tests);
 
+  const percent = Number(attempt.percent ?? 0);
+  const correctCount = answers.filter((a) => a.is_correct === true).length;
+  const wrongCount = answers.filter((a) => a.is_correct === false).length;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Portal</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">{test?.name ?? "Exam"} result</h1>
-        <p className="mt-2 text-sm text-slate-600">Released: {releasedAt}</p>
-        <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Obtained</div>
-            <div className="mt-1 font-semibold text-slate-900">{Number(attempt.obtained_marks ?? 0).toFixed(2)}</div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Max</div>
-            <div className="mt-1 font-semibold text-slate-900">{Number(attempt.max_marks ?? 0).toFixed(2)}</div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">Percent</div>
-            <div className="mt-1 font-semibold text-slate-900">{Number(attempt.percent ?? 0).toFixed(2)}%</div>
+      <PortalPageHeader
+        back={{ href: "/portal/exams/results", label: "Results" }}
+        title={test?.name ?? "Exam result"}
+        description={`Released ${formatLagosDate(releasedAt)}`}
+      />
+
+      <Card className="overflow-hidden">
+        <div
+          data-celebrate={percent}
+          className="relative flex flex-col items-center gap-6 bg-gradient-to-br from-brand-green-50 via-white to-brand-gold-50/60 px-6 py-8 text-center sm:flex-row sm:px-10 sm:text-left"
+        >
+          <Celebrate percent={percent} />
+          <ScoreRing percent={percent} label="score" />
+          <div className="min-w-0 flex-1">
+            <div className="font-display text-2xl font-semibold text-slate-900">{cheer(percent)}</div>
+            <p className="mt-1 text-sm text-slate-600">
+              You scored{" "}
+              <span className="font-semibold text-slate-900">
+                {Number(attempt.obtained_marks ?? 0).toFixed(2)} out of {Number(attempt.max_marks ?? 0).toFixed(2)}
+              </span>{" "}
+              marks ({percent.toFixed(2)}%).
+            </p>
+            {answers.length ? (
+              <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
+                <Badge tone="green" dot>
+                  {correctCount} correct
+                </Badge>
+                <Badge tone="red" dot>
+                  {wrongCount} wrong
+                </Badge>
+                {answers.length - correctCount - wrongCount > 0 ? (
+                  <Badge tone="slate" dot>
+                    {answers.length - correctCount - wrongCount} marked by teacher
+                  </Badge>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
+      </Card>
 
-        <div className="mt-6">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/portal/exams/results">
-            Back to results
-          </Link>
-        </div>
-      </div>
-
-      <div className="space-y-4">
+      <section aria-labelledby="review-heading" className="space-y-4">
+        <h2 id="review-heading" className="text-base font-semibold text-slate-900">
+          Review your answers
+        </h2>
         {answers.length ? (
           answers.map((a, idx) => {
             const q = firstOrNull(a.exam_questions);
@@ -163,47 +208,86 @@ export default async function PortalExamResultDetailPage({ params }: { params: P
 
             const yourAnswer = asValue(a.answer);
             const correct = sol ? asValue(sol.correct_answer) : "";
+            const state = a.is_correct === true ? "correct" : a.is_correct === false ? "wrong" : "marked";
 
             return (
-              <div key={a.question_id} className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                <div className="text-xs font-semibold text-slate-500">
-                  Q{idx + 1} • {q?.question_type ?? "—"} • {q?.marks ?? 0} marks
+              <Card
+                key={a.question_id}
+                className={
+                  "border-l-4 p-5 sm:p-6 " +
+                  (state === "correct" ? "border-l-brand-green-500" : state === "wrong" ? "border-l-rose-400" : "border-l-slate-300")
+                }
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
+                      {idx + 1}
+                    </span>
+                    <span className="text-xs font-medium text-slate-500">
+                      {questionTypeLabel(q?.question_type)} · {marksLabel(q?.marks)}
+                    </span>
+                  </div>
+                  {state === "correct" ? (
+                    <Badge tone="green">
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      Correct
+                    </Badge>
+                  ) : state === "wrong" ? (
+                    <Badge tone="red">
+                      <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                      Not quite
+                    </Badge>
+                  ) : (
+                    <Badge tone="slate">
+                      <MinusCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                      Marked
+                    </Badge>
+                  )}
                 </div>
-                <div className="mt-2 whitespace-pre-wrap text-sm font-semibold text-slate-900">{q?.prompt ?? "—"}</div>
+
+                <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-relaxed text-slate-900">{q?.prompt ?? "—"}</p>
 
                 <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="text-xs font-semibold text-slate-500">Your answer</div>
-                    <div className="mt-1 font-semibold text-slate-900">{yourAnswer || "—"}</div>
+                  <div
+                    className={
+                      "rounded-xl px-4 py-3 " +
+                      (state === "correct" ? "bg-brand-green-50" : state === "wrong" ? "bg-rose-50" : "bg-slate-50")
+                    }
+                  >
+                    <div className="text-xs font-medium text-slate-500">Your answer</div>
+                    <div className="mt-0.5 whitespace-pre-wrap font-semibold text-slate-900">{yourAnswer || "—"}</div>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="text-xs font-semibold text-slate-500">Correct</div>
-                    <div className="mt-1 font-semibold text-slate-900">{correct || "—"}</div>
+                  <div className="rounded-xl bg-slate-50 px-4 py-3">
+                    <div className="text-xs font-medium text-slate-500">Correct answer</div>
+                    <div className="mt-0.5 whitespace-pre-wrap font-semibold text-slate-900">{correct || "—"}</div>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="text-xs font-semibold text-slate-500">Awarded</div>
-                    <div className="mt-1 font-semibold text-slate-900">{Number(a.awarded_marks ?? 0).toFixed(2)}</div>
-                    <div className="mt-1 text-xs font-semibold text-slate-600">
-                      {a.is_correct === true ? "Correct" : a.is_correct === false ? "Wrong" : "Marked"}
+                  <div className="rounded-xl bg-slate-50 px-4 py-3">
+                    <div className="text-xs font-medium text-slate-500">Marks awarded</div>
+                    <div className="mt-0.5 font-semibold text-slate-900">
+                      {Number(a.awarded_marks ?? 0).toFixed(2)}
+                      <span className="font-normal text-slate-500"> / {Number(q?.marks ?? 0)}</span>
                     </div>
                   </div>
                 </div>
 
                 {sol?.explanation ? (
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="text-xs font-semibold text-slate-500">Explanation</div>
-                    <div className="mt-2 whitespace-pre-wrap text-sm text-slate-800">{sol.explanation}</div>
+                  <div className="mt-4 flex gap-3 rounded-xl border border-brand-gold-200 bg-brand-gold-50/60 px-4 py-3">
+                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-brand-gold-700" aria-hidden="true" />
+                    <div>
+                      <div className="text-xs font-semibold text-brand-gold-800">Explanation</div>
+                      <div className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{sol.explanation}</div>
+                    </div>
                   </div>
                 ) : null}
-              </div>
+              </Card>
             );
           })
         ) : (
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm">
-            No answers found.
-          </div>
+          <Card>
+            <EmptyState icon={MinusCircle} title="No answers found" />
+          </Card>
         )}
-      </div>
+      </section>
     </div>
   );
 }

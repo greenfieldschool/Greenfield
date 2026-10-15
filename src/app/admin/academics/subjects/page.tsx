@@ -6,6 +6,18 @@ import { cleanSubjectName, looseSubjectKey, subjectNameKey } from "@/lib/subject
 import SubmitButton from "@/components/submit-button";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
+import { BookOpen, CheckCircle2, GitMerge, Layers, Lock, Plus, School, Search, Trash2, X } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { StatCard } from "@/components/ui/stat-card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
+
+const smallInputClass =
+  "h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-brand-green-500 focus:ring-4 focus:ring-brand-green-500/15";
 
 type SubjectRow = {
   id: string;
@@ -45,7 +57,7 @@ async function createSubject(formData: FormData) {
   if (!name) back("Enter a subject name", "error");
 
   const supabase = getSupabaseServerClient();
-  if (!supabase) return;
+  if (!supabase) back("Database is not configured", "error");
 
   const { error } = await supabase.from("subjects").insert({
     name,
@@ -63,11 +75,11 @@ async function updateSubject(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   const name = cleanSubjectName(String(formData.get("name") ?? ""));
   const levelRaw = String(formData.get("level") ?? "").trim();
-  if (!id) return;
+  if (!id) back("Missing subject", "error");
   if (!name) back("Enter a subject name", "error");
 
   const supabase = getSupabaseServerClient();
-  if (!supabase) return;
+  if (!supabase) back("Database is not configured", "error");
 
   const { error } = await supabase
     .from("subjects")
@@ -83,10 +95,10 @@ async function toggleActive(formData: FormData) {
 
   const id = String(formData.get("id") ?? "").trim();
   const active = String(formData.get("active") ?? "").trim() === "true";
-  if (!id) return;
+  if (!id) back("Missing subject", "error");
 
   const supabase = getSupabaseServerClient();
-  if (!supabase) return;
+  if (!supabase) back("Database is not configured", "error");
 
   const { error } = await supabase.from("subjects").update({ active: !active }).eq("id", id);
   if (error) back(error.message, "error");
@@ -97,10 +109,10 @@ async function deleteSubject(formData: FormData) {
   "use server";
 
   const id = String(formData.get("id") ?? "").trim();
-  if (!id) return;
+  if (!id) back("Missing subject", "error");
 
   const supabase = getSupabaseServerClient();
-  if (!supabase) return;
+  if (!supabase) back("Database is not configured", "error");
 
   const { count } = await supabase
     .from("academic_assessments")
@@ -124,7 +136,7 @@ async function mergeSubjects(formData: FormData) {
   if (sourceId === targetId) back("Choose two different subjects", "error");
 
   const supabase = getSupabaseServerClient();
-  if (!supabase) return;
+  if (!supabase) back("Database is not configured", "error");
 
   const { error } = await supabase.rpc("merge_subjects", { p_source: sourceId, p_target: targetId });
   if (error) back(error.message, "error");
@@ -135,7 +147,7 @@ async function clearAllLevels() {
   "use server";
 
   const supabase = getSupabaseServerClient();
-  if (!supabase) return;
+  if (!supabase) back("Database is not configured", "error");
 
   const { error } = await supabase.from("subjects").update({ level: null }).not("level", "is", null);
   if (error) back(error.code === "23505" ? `Some subjects would become duplicates. ${DUPLICATE_MESSAGE}` : error.message, "error");
@@ -204,75 +216,85 @@ export default async function AdminSubjectsPage({
   const subjectsWithLevel = subjects.filter((s) => s.level).length;
   const subjectLabel = (s: SubjectRow) => `${s.name}${s.level ? ` (${s.level})` : ""}${s.active ? "" : " — inactive"}`;
 
-  const inputClass =
-    "mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green";
-  const smallInputClass =
-    "rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-brand-green";
+  const activeCount = subjects.filter((s) => s.active).length;
 
   return (
     <div className="space-y-6">
       <UrlToast />
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Academics</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Subjects</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          The school&apos;s subject list. Only admins can add, rename, merge or delete subjects. Choose which subjects
-          each class takes under{" "}
-          <Link className="font-semibold text-brand-green hover:underline" href="/admin/academics/class-subjects">
-            Class subjects
-          </Link>
-          .
-        </p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link
-            href="/admin/academics/class-subjects"
-            className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
-          >
+      <PageHeader
+        eyebrow="Academics"
+        title="Subjects"
+        description={
+          <>
+            The school&apos;s subject list. Only admins can add, rename, merge or delete subjects. Choose which subjects
+            each class takes under{" "}
+            <Link className="gf-link" href="/admin/academics/class-subjects">
+              Class subjects
+            </Link>
+            .
+          </>
+        }
+        actions={
+          <ButtonLink href="/admin/academics/class-subjects" variant="primary">
+            <School className="h-4 w-4" aria-hidden="true" />
             Assign subjects to classes
-          </Link>
-          {subjectsWithLevel > 0 ? (
-            <form action={clearAllLevels}>
-              <ConfirmSubmitButton
-                confirmMessage={`Remove the level from all ${subjectsWithLevel} subject(s)? Subjects will no longer be tied to creche/primary/secondary.`}
-                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60"
-              >
-                Remove level from all subjects
-              </ConfirmSubmitButton>
-            </form>
-          ) : null}
-        </div>
+          </ButtonLink>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="All subjects" value={subjects.length} icon={BookOpen} tone="green" />
+        <StatCard label="Active" value={activeCount} hint={`${subjects.length - activeCount} inactive`} icon={CheckCircle2} tone="blue" />
+        <StatCard
+          label="Possible duplicates"
+          value={duplicateGroups.length}
+          hint={duplicateGroups.length ? "Review and merge below" : "Nothing to merge"}
+          icon={GitMerge}
+          tone={duplicateGroups.length ? "gold" : "slate"}
+        />
+        <StatCard label="Tied to a level" value={subjectsWithLevel} hint="creche / primary / secondary" icon={Layers} tone="violet" />
       </div>
 
       {duplicateGroups.length ? (
-        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Possible duplicates ({duplicateGroups.length})</h2>
-          <p className="mt-1 text-sm text-slate-700">
-            These subjects have the same name once capital letters, spaces and dots are ignored. Merging moves all
-            results, CBT tests and class assignments onto the subject you keep, then deletes the duplicate. If both
-            have a score for the same student and column, the kept subject&apos;s score is used.
-          </p>
-          <div className="mt-4 space-y-3">
+        <Card className="!border-brand-gold-200">
+          <CardHeader
+            title={`Possible duplicates (${duplicateGroups.length})`}
+            description="These subjects have the same name once capital letters, spaces and dots are ignored. Merging moves all results, CBT tests and class assignments onto the subject you keep, then deletes the duplicate. If both have a score for the same student and column, the kept subject's score is used."
+            action={
+              <Badge tone="gold" dot>
+                Needs review
+              </Badge>
+            }
+          />
+          <CardBody className="space-y-3">
             {duplicateGroups.map((group) => {
               const [keep, ...rest] = group;
               return (
-                <div key={keep.id} className="rounded-2xl border border-amber-200 bg-white p-4">
-                  <div className="text-sm text-slate-700">
-                    Suggested to keep: <span className="font-semibold text-slate-900">{subjectLabel(keep)}</span>{" "}
+                <div key={keep.id} className="rounded-xl border border-brand-gold-200 bg-brand-gold-50/40 p-4">
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                    <Badge tone="green">Keep</Badge>
+                    <span className="font-semibold text-slate-900">{subjectLabel(keep)}</span>
                     <span className="text-xs text-slate-500">({usageText(usageById.get(keep.id))})</span>
                   </div>
                   <div className="mt-3 space-y-2">
                     {rest.map((dup) => (
-                      <form key={dup.id} action={mergeSubjects} className="flex flex-wrap items-center gap-2 text-sm">
+                      <form
+                        key={dup.id}
+                        action={mergeSubjects}
+                        className="flex flex-col gap-2 rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-slate-200 sm:flex-row sm:items-center sm:justify-between"
+                      >
                         <input type="hidden" name="source_id" value={dup.id} />
                         <input type="hidden" name="target_id" value={keep.id} />
-                        <span className="text-slate-700">
-                          Remove <span className="font-semibold text-slate-900">{subjectLabel(dup)}</span>{" "}
+                        <span className="flex flex-wrap items-center gap-2 text-slate-700">
+                          <Badge tone="red">Remove</Badge>
+                          <span className="font-semibold text-slate-900">{subjectLabel(dup)}</span>
                           <span className="text-xs text-slate-500">({usageText(usageById.get(dup.id))})</span>
                         </span>
                         <ConfirmSubmitButton
                           confirmMessage={`Merge "${dup.name}" into "${keep.name}"? "${dup.name}" will be deleted and its results moved. This cannot be undone.`}
-                          className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-60"
+                          className={buttonClasses({ variant: "secondary", size: "sm" })}
                         >
+                          <GitMerge className="h-3.5 w-3.5" aria-hidden="true" />
                           {`Merge into ${keep.name}`}
                         </ConfirmSubmitButton>
                       </form>
@@ -281,124 +303,146 @@ export default async function AdminSubjectsPage({
                 </div>
               );
             })}
-          </div>
-          <p className="mt-3 text-xs text-slate-600">
-            Not really duplicates? Rename one of them below so the names differ. To keep a different one than suggested,
-            use &quot;Merge two subjects&quot;.
-          </p>
-        </div>
+            <p className="text-xs text-slate-500">
+              Not really duplicates? Rename one of them below so the names differ. To keep a different one than suggested,
+              use &quot;Merge two subjects&quot;.
+            </p>
+          </CardBody>
+        </Card>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Add subject</h2>
-          <form action={createSubject} className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Name</label>
-              <input className={inputClass} name="name" placeholder="Mathematics" required />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Level (optional)</label>
-              <select className={inputClass} name="level" defaultValue="">
-                <option value="">(all)</option>
-                {levels.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-              <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-700">
-                <input className="h-4 w-4" name="active" type="checkbox" defaultChecked />
+        <form action={createSubject} className="flex">
+          <FormSection
+            className="flex w-full flex-col [&>div:nth-child(2)]:flex-1"
+            title="Add subject"
+            description="New subjects become available to assign to classes."
+            footer={
+              <SubmitButton variant="primary" pendingText="Creating…">
+                <span className="inline-flex items-center gap-2">
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Create subject
+                </span>
+              </SubmitButton>
+            }
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Name" htmlFor="new-subject-name" required>
+                <input id="new-subject-name" className="gf-input" name="name" placeholder="Mathematics" required />
+              </Field>
+              <Field label="Level" htmlFor="new-subject-level" hint="Optional">
+                <select id="new-subject-level" className="gf-select" name="level" defaultValue="">
+                  <option value="">(all)</option>
+                  {levels.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 sm:col-span-2">
+                <input className="gf-checkbox" name="active" type="checkbox" defaultChecked />
                 Active
               </label>
             </div>
-            <div className="sm:col-span-2">
-              <SubmitButton
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                pendingText="Creating…"
-              >
-                Create subject
-              </SubmitButton>
-            </div>
-          </form>
-        </div>
+          </FormSection>
+        </form>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Merge two subjects</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            For duplicates that are spelled differently, e.g. &quot;Health habit&quot; and &quot;Health Habits&quot;.
-          </p>
-          <form action={mergeSubjects} className="mt-4 grid gap-4">
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Duplicate to remove</label>
-              <select className={inputClass} name="source_id" defaultValue="" required>
-                <option value="">Select subject</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {subjectLabel(s)}
-                  </option>
-                ))}
-              </select>
+        <form action={mergeSubjects} className="flex">
+          <FormSection
+            className="flex w-full flex-col [&>div:nth-child(2)]:flex-1"
+            title="Merge two subjects"
+            description={<>For duplicates that are spelled differently, e.g. &quot;Health habit&quot; and &quot;Health Habits&quot;.</>}
+            footer={
+              <ConfirmSubmitButton
+                confirmMessage="Merge these subjects? The duplicate will be deleted and its results, CBT tests and class assignments moved to the subject you keep. This cannot be undone."
+                className={buttonClasses({ variant: "danger" })}
+              >
+                <GitMerge className="h-4 w-4" aria-hidden="true" />
+                Merge subjects
+              </ConfirmSubmitButton>
+            }
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Duplicate to remove" htmlFor="merge-source" required>
+                <select id="merge-source" className="gf-select" name="source_id" defaultValue="" required>
+                  <option value="">Select subject</option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {subjectLabel(s)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Subject to keep" htmlFor="merge-target" required>
+                <select id="merge-target" className="gf-select" name="target_id" defaultValue="" required>
+                  <option value="">Select subject</option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {subjectLabel(s)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
             </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-900">Subject to keep</label>
-              <select className={inputClass} name="target_id" defaultValue="" required>
-                <option value="">Select subject</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {subjectLabel(s)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <ConfirmSubmitButton
-              confirmMessage="Merge these subjects? The duplicate will be deleted and its results, CBT tests and class assignments moved to the subject you keep. This cannot be undone."
-              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60"
-            >
-              Merge subjects
-            </ConfirmSubmitButton>
-          </form>
-        </div>
+          </FormSection>
+        </form>
       </div>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="font-semibold text-slate-900">
-            All subjects <span className="text-sm font-normal text-slate-500">({subjects.length})</span>
+      <Card>
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">
+              All subjects <span className="text-sm font-normal text-slate-500">({subjects.length})</span>
+            </h2>
+            <p className="mt-0.5 text-sm text-slate-500">Rename or change the level inline. Click the status to toggle it.</p>
           </div>
-          <form className="flex gap-2" action="/admin/academics/subjects">
-            <input className={smallInputClass} name="q" defaultValue={query} placeholder="Search subjects" />
-            <button className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+          <form className="flex items-center gap-2" action="/admin/academics/subjects" role="search">
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                aria-hidden="true"
+              />
+              <input
+                className="gf-input h-9 py-0 pl-9 sm:w-56"
+                name="q"
+                defaultValue={query}
+                placeholder="Search subjects"
+                aria-label="Search subjects"
+              />
+            </div>
+            <button type="submit" className={buttonClasses({ variant: "secondary", size: "sm" })}>
               Search
             </button>
             {query ? (
-              <Link className="self-center text-sm font-semibold text-brand-green hover:underline" href="/admin/academics/subjects">
+              <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/admin/academics/subjects">
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
                 Clear
               </Link>
             ) : null}
           </form>
         </div>
-        <div>
-          {visible.length ? (
-            visible.map((s) => {
+        {visible.length ? (
+          <ul className="divide-y divide-slate-100">
+            {visible.map((s) => {
               const usage = usageById.get(s.id);
               const hasResults = (usage?.assessment_count ?? 0) > 0;
               const isExactDuplicate = exactDuplicateKeys.has(`${subjectNameKey(s.name)}|${s.level ?? ""}`);
               return (
-                <div
+                <li
                   key={s.id}
-                  className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 text-sm first:border-t-0 lg:flex-row lg:items-center"
+                  className="flex flex-col gap-3 px-5 py-3.5 text-sm transition-colors hover:bg-slate-50/70 sm:px-6 lg:flex-row lg:items-center"
                 >
                   <form action={updateSubject} className="flex flex-1 flex-wrap items-center gap-2">
                     <input type="hidden" name="id" value={s.id} />
                     <input
-                      className={`${smallInputClass} min-w-0 flex-1 font-semibold text-slate-900`}
+                      className={cn(smallInputClass, "min-w-[10rem] flex-1 font-semibold")}
                       name="name"
                       defaultValue={s.name}
                       aria-label="Subject name"
                       required
                     />
-                    <select className={smallInputClass} name="level" defaultValue={s.level ?? ""} aria-label="Level">
+                    <select className={cn(smallInputClass, "w-36 pr-8")} name="level" defaultValue={s.level ?? ""} aria-label="Level">
                       <option value="">— (none)</option>
                       {levels.map((l) => (
                         <option key={l} value={l}>
@@ -406,34 +450,38 @@ export default async function AdminSubjectsPage({
                         </option>
                       ))}
                     </select>
-                    <SubmitButton
-                      className="text-xs font-semibold text-brand-green hover:underline disabled:opacity-60"
-                      pendingText="Saving…"
-                      showSpinner={false}
-                    >
+                    <SubmitButton variant="ghost" size="sm" pendingText="Saving…" showSpinner={false}>
                       Save
                     </SubmitButton>
                   </form>
-                  <div className="flex flex-wrap items-center gap-4 lg:w-[22rem] lg:justify-end">
-                    <span className="text-xs text-slate-500">
-                      {usageText(usage)}
-                      {isExactDuplicate ? <span className="ml-2 font-semibold text-amber-700">Duplicate</span> : null}
-                    </span>
+                  <div className="flex flex-wrap items-center gap-3 lg:w-[24rem] lg:justify-end">
+                    <span className="text-xs text-slate-500">{usageText(usage)}</span>
+                    {isExactDuplicate ? <Badge tone="gold">Duplicate</Badge> : null}
                     <form action={toggleActive}>
                       <input type="hidden" name="id" value={s.id} />
                       <input type="hidden" name="active" value={String(s.active)} />
                       <SubmitButton
-                        className={`text-xs font-semibold hover:underline disabled:opacity-60 ${
-                          s.active ? "text-brand-green" : "text-slate-500"
-                        }`}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset transition disabled:opacity-60",
+                          s.active
+                            ? "bg-brand-green-50 text-brand-green-700 ring-brand-green-200/70 hover:bg-brand-green-100"
+                            : "bg-slate-100 text-slate-600 ring-slate-200 hover:bg-slate-200"
+                        )}
                         pendingText="Saving…"
                         showSpinner={false}
                       >
-                        {s.active ? "Active" : "Inactive"}
+                        <span className="inline-flex items-center gap-1.5" title={s.active ? "Click to deactivate" : "Click to activate"}>
+                          <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+                          {s.active ? "Active" : "Inactive"}
+                        </span>
                       </SubmitButton>
                     </form>
                     {hasResults ? (
-                      <span className="text-xs text-slate-400" title="Subjects with results can only be removed by merging">
+                      <span
+                        className="inline-flex items-center gap-1 text-xs text-slate-400"
+                        title="Subjects with results can only be removed by merging"
+                      >
+                        <Lock className="h-3.5 w-3.5" aria-hidden="true" />
                         Has results
                       </span>
                     ) : (
@@ -443,21 +491,50 @@ export default async function AdminSubjectsPage({
                           confirmMessage={`Delete "${s.name}"?${
                             usage?.test_count ? ` ${usage.test_count} CBT test(s) will be left without a subject.` : ""
                           } This cannot be undone.`}
-                          className="text-xs font-semibold text-red-700 hover:underline disabled:opacity-60"
+                          title={`Delete ${s.name}`}
+                          className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
                         >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                           Delete
                         </ConfirmSubmitButton>
                       </form>
                     )}
                   </div>
-                </div>
+                </li>
               );
-            })
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">{query ? "No subjects match your search." : "No subjects yet."}</div>
-          )}
-        </div>
-      </div>
+            })}
+          </ul>
+        ) : (
+          <EmptyState
+            icon={query ? Search : BookOpen}
+            title={query ? "No subjects match your search." : "No subjects yet."}
+            description={query ? "Try a different name or clear the search." : "Add your first subject above."}
+          />
+        )}
+      </Card>
+
+      {subjectsWithLevel > 0 ? (
+        <FormSection
+          title="Danger zone"
+          description="Bulk changes that affect every subject."
+          className="!border-red-200"
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-600">
+              Remove the level from all {subjectsWithLevel} subject(s) so they are no longer tied to creche, primary or
+              secondary.
+            </p>
+            <form action={clearAllLevels} className="shrink-0">
+              <ConfirmSubmitButton
+                confirmMessage={`Remove the level from all ${subjectsWithLevel} subject(s)? Subjects will no longer be tied to creche/primary/secondary.`}
+                className={buttonClasses({ variant: "danger" })}
+              >
+                Remove level from all subjects
+              </ConfirmSubmitButton>
+            </form>
+          </div>
+        </FormSection>
+      ) : null}
     </div>
   );
 }

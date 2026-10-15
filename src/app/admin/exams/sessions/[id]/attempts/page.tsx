@@ -1,8 +1,32 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  BarChart3,
+  CircleCheck,
+  ClipboardList,
+  EyeOff,
+  FileSpreadsheet,
+  Lock,
+  Send,
+  Settings2,
+  Users
+} from "lucide-react";
 import SubmitButton from "@/components/submit-button";
+import UrlToast from "@/components/url-toast";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Field } from "@/components/ui/form-section";
+import { StatCard } from "@/components/ui/stat-card";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
+import { formatLagosDate } from "@/lib/lagos-dates";
+import { AttemptStatusBadge } from "../../../_components/exam-ui";
 import { firstOrNull } from "@/lib/relations";
+import { failWithToast, NO_DB_MESSAGE } from "../../../_components/feedback";
 
 type AttemptRow = {
   attempt_id: string;
@@ -71,7 +95,7 @@ export default async function AdminExamSessionAttemptsPage({
     const note = String(formData.get("note") ?? "").trim();
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast(`/admin/exams/sessions/${id}/attempts`, NO_DB_MESSAGE);
 
     const {
       data: { user }
@@ -96,7 +120,7 @@ export default async function AdminExamSessionAttemptsPage({
     "use server";
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast(`/admin/exams/sessions/${id}/attempts`, NO_DB_MESSAGE);
 
     await supabase
       .from("exam_test_sessions")
@@ -114,14 +138,14 @@ export default async function AdminExamSessionAttemptsPage({
     const obtained = Number(String(formData.get("obtained_marks") ?? "0").trim() || "0");
     const max = Number(String(formData.get("max_marks") ?? "0").trim() || "0");
 
-    if (!attemptId) return;
-    if (!Number.isFinite(obtained) || obtained < 0) return;
-    if (!Number.isFinite(max) || max < 0) return;
+    if (!attemptId) failWithToast(`/admin/exams/sessions/${id}/attempts`, "Attempt not found.");
+    if (!Number.isFinite(obtained) || obtained < 0) failWithToast(`/admin/exams/sessions/${id}/attempts`, "Obtained marks must be 0 or more.");
+    if (!Number.isFinite(max) || max < 0) failWithToast(`/admin/exams/sessions/${id}/attempts`, "Max marks must be 0 or more.");
 
     const percent = max > 0 ? (obtained / max) * 100 : 0;
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) failWithToast(`/admin/exams/sessions/${id}/attempts`, NO_DB_MESSAGE);
 
     await supabase
       .from("exam_attempts")
@@ -131,145 +155,199 @@ export default async function AdminExamSessionAttemptsPage({
     revalidatePath(`/admin/exams/sessions/${id}/attempts`);
   }
 
+  const submittedCount = attempts.filter((a) => !!a.submitted_at).length;
+  const lockedCount = attempts.filter((a) => !!a.locked_at).length;
+  const averagePercent = attempts.length
+    ? attempts.reduce((sum, a) => sum + Number(a.percent ?? 0), 0) / attempts.length
+    : null;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Exams</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Session attempts</h1>
-        <p className="mt-2 text-sm text-slate-600">Review who attempted and edit marks if needed.</p>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/exams/sessions">
-            Back to sessions
+      <UrlToast />
+      <PageHeader
+        back={{ href: "/admin/exams/sessions", label: "Back to sessions" }}
+        eyebrow="Exams"
+        title="Session attempts"
+        description="Review who attempted and edit marks if needed."
+        actions={
+          <Link className={buttonClasses({ variant: "secondary" })} href={`/admin/exams/sessions/${id}`}>
+            <Settings2 className="h-4 w-4" aria-hidden="true" />
+            Session settings
           </Link>
-        </div>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Attempts" value={attempts.length} hint="Students who started" icon={Users} tone="blue" />
+        <StatCard label="Submitted" value={submittedCount} hint="Finished and handed in" icon={CircleCheck} tone="green" />
+        <StatCard label="Locked" value={lockedCount} hint="Need a conductor to unlock" icon={Lock} tone="rose" />
+        <StatCard
+          label="Average score"
+          value={averagePercent === null ? "—" : `${averagePercent.toFixed(1)}%`}
+          hint="Across all attempts"
+          icon={BarChart3}
+          tone="violet"
+        />
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-slate-900">Result release</div>
-            <p className="mt-2 text-sm text-slate-600">
-              Students see their CBT score, correct answers and explanations under Exam Results only after you release.
-            </p>
-            <div className="mt-2 text-xs font-semibold text-slate-700">
-              Status: {release?.results_released_at ? `Released (${release.results_released_at})` : "Not released"}
-            </div>
-          </div>
-
-          {release?.results_released_at ? (
-            <form action={unreleaseResults}>
-              <SubmitButton
-                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                pendingText="Unreleasing…"
-                showSpinner={false}
-              >
-                Unrelease
-              </SubmitButton>
-            </form>
-          ) : (
-            <form action={releaseResults} className="grid w-full gap-3 sm:max-w-md">
-              <input
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                name="note"
-                placeholder="(optional release note)"
-              />
-              <SubmitButton
-                className="inline-flex items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                pendingText="Releasing…"
-              >
-                Release results
-              </SubmitButton>
-            </form>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-slate-900">Add to term result</div>
-            <p className="mt-2 text-sm text-slate-600">
-              Copy these objective scores into the class result sheet, then add 1st CA, 2nd CA and theory before
-              publishing the term result.
-            </p>
-            {!release?.class_id || !subjectId || !release?.academic_term_id ? (
-              <p className="mt-2 text-xs text-amber-700">
-                Tip: set the class and term on this session (and a subject on its test) so the sheet opens pre-filled.
-              </p>
-            ) : null}
-          </div>
-          <Link
-            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
-            href={resultSheetHref}
-          >
-            Open result sheet
-          </Link>
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-12 gap-0 bg-slate-50 px-6 py-3 text-xs font-semibold text-slate-600">
-          <div className="col-span-3">Student</div>
-          <div className="col-span-1">Adm no</div>
-          <div className="col-span-2">Obtained</div>
-          <div className="col-span-2">Max</div>
-          <div className="col-span-1">%</div>
-          <div className="col-span-2">Status</div>
-          <div className="col-span-1">Action</div>
-        </div>
-        <div>
-          {attempts.length ? (
-            attempts.map((a) => (
-              <div key={a.attempt_id} className="grid grid-cols-12 gap-0 border-t border-slate-200 px-6 py-4 text-sm">
-                <div className="col-span-3 font-semibold text-slate-900">
-                  {a.first_name} {a.last_name}
-                </div>
-                <div className="col-span-2 text-slate-700">{a.admission_number ?? "—"}</div>
-                <div className="col-span-7">
-                  <form action={updateMarks} className="grid grid-cols-12 gap-3">
-                    <input type="hidden" name="attempt_id" value={a.attempt_id} />
-                    <div className="col-span-3">
-                      <input
-                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                        name="obtained_marks"
-                        type="number"
-                        step="0.01"
-                        min={0}
-                        defaultValue={String(a.obtained_marks ?? 0)}
-                      />
-                    </div>
-                    <div className="col-span-3">
-                      <input
-                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-                        name="max_marks"
-                        type="number"
-                        step="0.01"
-                        min={0}
-                        defaultValue={String(a.max_marks ?? 0)}
-                      />
-                    </div>
-                    <div className="col-span-2 flex items-center text-slate-700">{Number(a.percent ?? 0).toFixed(2)}</div>
-                    <div className="col-span-2 flex items-center text-xs font-semibold text-slate-700">
-                      {a.status}
-                      {a.locked_at ? ` • locked(${a.lock_count ?? 0})` : ""}
-                    </div>
-                    <div className="col-span-2">
-                      <SubmitButton
-                        className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-3 py-2 text-xs font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-                        pendingText="Saving…"
-                      >
-                        Save
-                      </SubmitButton>
-                    </div>
-                  </form>
-                </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader
+            title="Result release"
+            description="Students see their CBT score, correct answers and explanations under Exam Results only after you release."
+            action={
+              release?.results_released_at ? (
+                <Badge tone="green" dot>
+                  Released
+                </Badge>
+              ) : (
+                <Badge tone="gold" dot>
+                  Not released
+                </Badge>
+              )
+            }
+          />
+          <CardBody>
+            {release?.results_released_at ? (
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-slate-600">
+                  Status: Released{" "}
+                  <span className="font-semibold text-slate-900" title={release.results_released_at}>
+                    ({formatLagosDate(release.results_released_at)})
+                  </span>
+                </p>
+                <form action={unreleaseResults}>
+                  <SubmitButton variant="secondary" pendingText="Unreleasing…" showSpinner={false}>
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
+                    Unrelease
+                  </SubmitButton>
+                </form>
               </div>
-            ))
-          ) : (
-            <div className="px-6 py-8 text-sm text-slate-600">No attempts yet.</div>
-          )}
-        </div>
+            ) : (
+              <form action={releaseResults} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <Field label="Release note" htmlFor="release-note" className="flex-1">
+                  <input id="release-note" className="gf-input" name="note" placeholder="(optional release note)" />
+                </Field>
+                <SubmitButton variant="primary" pendingText="Releasing…">
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                  Release results
+                </SubmitButton>
+              </form>
+            )}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Add to term result"
+            description="Copy these objective scores into the class result sheet, then add 1st CA, 2nd CA and theory before publishing the term result."
+          />
+          <CardBody className="space-y-4">
+            {!release?.class_id || !subjectId || !release?.academic_term_id ? (
+              <Alert tone="warning">
+                Tip: set the class and term on this session (and a subject on its test) so the sheet opens pre-filled.
+              </Alert>
+            ) : null}
+            <Link className={buttonClasses({ variant: "primary" })} href={resultSheetHref}>
+              <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+              Open result sheet
+            </Link>
+          </CardBody>
+        </Card>
       </div>
+
+      <Card>
+        <CardHeader title="Attempts" description={`${attempts.length} student${attempts.length === 1 ? "" : "s"}`} />
+        {attempts.length ? (
+          <div className="gf-table-wrap">
+            <table className="gf-table min-w-[880px]">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Adm no</th>
+                  <th>Obtained</th>
+                  <th>Max</th>
+                  <th>%</th>
+                  <th>Status</th>
+                  <th className="text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attempts.map((a) => {
+                  const formId = `marks-${a.attempt_id}`;
+                  return (
+                    <tr key={a.attempt_id}>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <Avatar name={`${a.first_name} ${a.last_name}`} size="sm" />
+                          <span className="font-semibold text-slate-900">
+                            {a.first_name} {a.last_name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="text-slate-600">{a.admission_number ?? "—"}</td>
+                      <td>
+                        <input
+                          form={formId}
+                          aria-label={`Obtained marks for ${a.first_name} ${a.last_name}`}
+                          className="gf-input w-24 py-2"
+                          name="obtained_marks"
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          defaultValue={String(a.obtained_marks ?? 0)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          form={formId}
+                          aria-label={`Max marks for ${a.first_name} ${a.last_name}`}
+                          className="gf-input w-24 py-2"
+                          name="max_marks"
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          defaultValue={String(a.max_marks ?? 0)}
+                        />
+                      </td>
+                      <td className="font-semibold tabular-nums text-slate-900">{Number(a.percent ?? 0).toFixed(2)}</td>
+                      <td>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <AttemptStatusBadge status={a.status} />
+                          {a.locked_at ? (
+                            <Badge tone="red">
+                              <Lock className="h-3 w-3" aria-hidden="true" />
+                              locked({a.lock_count ?? 0})
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex items-center justify-end gap-1">
+                          <Link
+                            className={buttonClasses({ variant: "ghost", size: "sm" })}
+                            href={`/admin/exams/sessions/${id}/attempts/${a.attempt_id}`}
+                          >
+                            Mark
+                          </Link>
+                          <form id={formId} action={updateMarks}>
+                            <input type="hidden" name="attempt_id" value={a.attempt_id} />
+                            <SubmitButton variant="primary" size="sm" pendingText="Saving…">
+                              Save
+                            </SubmitButton>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={ClipboardList} title="No attempts yet." description="Attempts appear here once students start the exam." />
+        )}
+      </Card>
     </div>
   );
 }

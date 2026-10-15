@@ -1,8 +1,12 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
+import UrlToast from "@/components/url-toast";
+import { toastUrl } from "../../_components/finance-server";
+import { PageHeader } from "@/components/ui/page-header";
+import { FormSection, Field } from "@/components/ui/form-section";
+import { ButtonLink } from "@/components/ui/button";
 
 type GuardianRow = { id: string; full_name: string };
 
@@ -47,10 +51,13 @@ export default async function AdminNewInvoicePage() {
     const currency = String(formData.get("currency") ?? "NGN").trim() || "NGN";
     const notes = String(formData.get("notes") ?? "").trim();
 
-    if (!billToGuardianId) return;
+    if (!billToGuardianId) redirect(toastUrl("/admin/finance/invoices/new", "Choose the guardian to bill", "error"));
+    if (dueDateRaw && issueDateRaw && dueDateRaw < issueDateRaw) {
+      redirect(toastUrl("/admin/finance/invoices/new", "Due date cannot be before the issue date", "error"));
+    }
 
     const supabase = getSupabaseServerClient();
-    if (!supabase) return;
+    if (!supabase) redirect(toastUrl("/admin/finance/invoices/new", "Database is not configured", "error"));
 
     const { data, error } = await supabase
       .from("finance_invoices")
@@ -68,139 +75,108 @@ export default async function AdminNewInvoicePage() {
       .select("id")
       .maybeSingle();
 
-    if (error || !data?.id) return;
+    if (error || !data?.id) {
+      redirect(toastUrl("/admin/finance/invoices/new", error?.message ?? "Could not create the invoice", "error"));
+    }
 
     revalidatePath("/admin/finance/invoices");
-    redirect(`/admin/finance/invoices/${data.id}`);
+    redirect(toastUrl(`/admin/finance/invoices/${data.id}`, "Invoice created"));
   }
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-sm font-semibold text-slate-500">Finance</div>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">New invoice</h1>
-        <p className="mt-2 text-sm text-slate-600">Create an invoice. The invoice number is generated automatically.</p>
-        <div className="mt-4">
-          <Link className="text-sm font-semibold text-brand-green hover:underline" href="/admin/finance/invoices">
-            Back to invoices
-          </Link>
-        </div>
-      </div>
+      <UrlToast />
+      <PageHeader
+        back={{ href: "/admin/finance/invoices", label: "Back to invoices" }}
+        eyebrow="Finance"
+        title="New invoice"
+        description="Create an invoice. The invoice number is generated automatically."
+      />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <form action={createInvoice} className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label className="text-sm font-semibold text-slate-900">Bill to guardian</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="bill_to_guardian_id"
-              required
-              defaultValue=""
-            >
-              <option value="" disabled>
-                Select guardian
-              </option>
-              {guardianRows.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.full_name}
+      <form action={createInvoice} className="space-y-6">
+        <FormSection title="Bill to" description="Who the invoice is addressed to.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Bill to guardian" htmlFor="bill_to_guardian_id" required className="sm:col-span-2">
+              <select id="bill_to_guardian_id" className="gf-select" name="bill_to_guardian_id" required defaultValue="">
+                <option value="" disabled>
+                  Select guardian
                 </option>
-              ))}
-            </select>
-          </div>
+                {guardianRows.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.full_name}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Student (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="student_id"
-              defaultValue=""
-            >
-              <option value="">—</option>
-              {studentRows.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.last_name} {s.first_name}
-                </option>
-              ))}
-            </select>
-          </div>
+            <Field label="Student (optional)" htmlFor="student_id">
+              <select id="student_id" className="gf-select" name="student_id" defaultValue="">
+                <option value="">—</option>
+                {studentRows.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.last_name} {s.first_name}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Currency</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="currency"
-              defaultValue="NGN"
-            />
+            <Field label="Currency" htmlFor="currency">
+              <input id="currency" className="gf-input" name="currency" defaultValue="NGN" />
+            </Field>
           </div>
+        </FormSection>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic year (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_year_id"
-              defaultValue=""
-            >
-              <option value="">—</option>
-              {yearRows.map((y) => (
-                <option key={y.id} value={y.id}>
-                  {y.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <FormSection
+          title="Period and dates"
+          description="New invoices start as drafts. Add line items on the next screen."
+          footer={
+            <>
+              <ButtonLink href="/admin/finance/invoices" variant="ghost">
+                Cancel
+              </ButtonLink>
+              <SubmitButton variant="primary" pendingText="Creating…">
+                Create invoice
+              </SubmitButton>
+            </>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Academic year (optional)" htmlFor="academic_year_id">
+              <select id="academic_year_id" className="gf-select" name="academic_year_id" defaultValue="">
+                <option value="">—</option>
+                {yearRows.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Academic term (optional)</label>
-            <select
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="academic_term_id"
-              defaultValue=""
-            >
-              <option value="">—</option>
-              {termRows.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
+            <Field label="Academic term (optional)" htmlFor="academic_term_id">
+              <select id="academic_term_id" className="gf-select" name="academic_term_id" defaultValue="">
+                <option value="">—</option>
+                {termRows.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Issue date</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="issue_date"
-              type="date"
-            />
-          </div>
+            <Field label="Issue date" htmlFor="issue_date" hint="Leave blank for today.">
+              <input id="issue_date" className="gf-input" name="issue_date" type="date" />
+            </Field>
 
-          <div>
-            <label className="text-sm font-semibold text-slate-900">Due date (optional)</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="due_date"
-              type="date"
-            />
-          </div>
+            <Field label="Due date (optional)" htmlFor="due_date">
+              <input id="due_date" className="gf-input" name="due_date" type="date" />
+            </Field>
 
-          <div className="sm:col-span-2">
-            <label className="text-sm font-semibold text-slate-900">Notes (optional)</label>
-            <textarea
-              className="mt-1 min-h-28 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-green"
-              name="notes"
-            />
+            <Field label="Notes (optional)" htmlFor="notes" className="sm:col-span-2">
+              <textarea id="notes" className="gf-input min-h-28" name="notes" />
+            </Field>
           </div>
-
-          <div className="sm:col-span-2">
-            <SubmitButton
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              pendingText="Creating…"
-            >
-              Create invoice
-            </SubmitButton>
-          </div>
-        </form>
-      </div>
+        </FormSection>
+      </form>
     </div>
   );
 }
