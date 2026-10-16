@@ -9,6 +9,8 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { classNameKey } from "@/lib/class-names";
+import UrlToast from "@/components/url-toast";
 
 type ClassRow = { id: string; level: string; name: string; active: boolean };
 type StudentRow = { class_id: string | null; status: string };
@@ -44,12 +46,21 @@ export default async function AdminClassesPage() {
 
   const levels = Array.from(new Set(classes.map((c) => c.level)));
 
+  // Classes with the same name in the same level (ignoring case, spaces and dashes), e.g. "JSS 1" and "JSS1".
+  const byKey = new Map<string, ClassRow[]>();
+  for (const c of classes) {
+    const key = `${c.level}|${classNameKey(c.name)}`;
+    byKey.set(key, [...(byKey.get(key) ?? []), c]);
+  }
+  const duplicateGroups = Array.from(byKey.values()).filter((g) => g.length > 1);
+
   return (
     <div className="space-y-6">
+      <UrlToast />
       <PageHeader
         eyebrow="Core"
         title="Classes"
-        description="Open a class to see the children in it and correct anything that was registered wrongly (name, admission number, class or status)."
+        description="Open a class to see the children in it and correct anything that was registered wrongly (name, admission number, class or status). Admins can also delete or merge a class from there."
         actions={
           <ButtonLink href="/admin/finance/fees/classes" variant="secondary">
             <Settings2 className="h-4 w-4" aria-hidden="true" />
@@ -70,6 +81,27 @@ export default async function AdminClassesPage() {
           <Link className="font-semibold hover:underline" href="/admin/classes/unassigned">
             {unassigned} current student{unassigned === 1 ? " has" : "s have"} no class
           </Link>
+        </Alert>
+      ) : null}
+
+      {duplicateGroups.length ? (
+        <Alert tone="warning" title="Possible duplicate classes">
+          <ul className="mt-1 space-y-1">
+            {duplicateGroups.map((group) => (
+              <li key={group[0].id}>
+                {group.map((c, i) => (
+                  <span key={c.id}>
+                    {i > 0 ? " · " : ""}
+                    <Link className="font-semibold capitalize hover:underline" href={`/admin/classes/${c.id}`}>
+                      {c.level} - {c.name}
+                    </Link>{" "}
+                    ({counts.get(c.id)?.total ?? 0} student{(counts.get(c.id)?.total ?? 0) === 1 ? "" : "s"})
+                  </span>
+                ))}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2">Open the one you don&apos;t want and use &quot;Merge into&quot; at the bottom of the page.</p>
         </Alert>
       ) : null}
 

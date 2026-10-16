@@ -48,7 +48,9 @@ export default function AdminLearnCentrePage() {
             "Open Core > Classes (/admin/classes) to see every class and how many current students it has.",
             "Click a class to list its children. Admins can correct the name, admission number, class or status on a row and press 'Save'.",
             "Changing the class moves the child to that class (their level follows the new class).",
-            "Use the notice at the top of the Classes page to find current students who have no class yet."
+            "Use the notice at the top of the Classes page to find current students who have no class yet.",
+            "Duplicate classes (e.g. 'JSS 1' and 'JSS1') are flagged at the top of the Classes page. Open the one you don't want and use 'Merge into' at the bottom: its students, results, attendance, fees, exam sessions, subjects and teachers move to the class you keep, then it is deleted.",
+            "'Delete class' only works for a class nothing uses yet (e.g. one created by mistake). A class with history can be merged, or deactivated under Finance > Fee setup > Classes to hide it while keeping its records."
           ]
         }
       ]

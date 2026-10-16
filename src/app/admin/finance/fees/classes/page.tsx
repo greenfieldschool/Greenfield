@@ -100,7 +100,7 @@ export default async function AdminFeeClassesPage() {
       </form>
 
       <Card>
-        <CardHeader title="All classes" description="Click Activate / Deactivate to change a class's status." />
+        <CardHeader title="All classes" description="Click Activate / Deactivate to change a class's status. To delete or merge a class, open it under Core → Classes." />
         {classes.length ? (
           <div className="gf-table-wrap">
             <table className="gf-table min-w-[480px]">
