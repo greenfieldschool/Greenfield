@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { QuestionImage } from "@/components/question-image";
 import { CheckCircle2, Hourglass, Lightbulb, MinusCircle, XCircle } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { firstOrNull } from "@/lib/relations";
@@ -59,7 +60,7 @@ type AnswerRow = {
   answer: unknown;
   is_correct: boolean | null;
   awarded_marks: number;
-  exam_questions: Array<{ id: string; prompt: string; question_type: string; marks: number }>;
+  exam_questions: Array<{ id: string; prompt: string; question_type: string; marks: number; image_url?: string | null }>;
 };
 
 type SolutionRow = {
@@ -132,7 +133,8 @@ export default async function PortalExamResultDetailPage({ params }: { params: P
 
   const { data: answersData } = await supabase
     .from("exam_attempt_answers")
-    .select("question_id, answer, is_correct, awarded_marks, exam_questions(id, prompt, question_type, marks)")
+    // exam_questions(*) so results still load before the image_url column migration has been run.
+    .select("question_id, answer, is_correct, awarded_marks, exam_questions(*)")
     .eq("attempt_id", id);
 
   const answers = (answersData ?? []) as unknown as AnswerRow[];
@@ -246,6 +248,7 @@ export default async function PortalExamResultDetailPage({ params }: { params: P
                 </div>
 
                 <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-relaxed text-slate-900">{q?.prompt ?? "—"}</p>
+                <QuestionImage src={q?.image_url} />
 
                 <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
                   <div

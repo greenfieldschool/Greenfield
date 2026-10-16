@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { QuestionImage } from "@/components/question-image";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { Calculator, CircleCheck, FileQuestion, Percent, Target } from "lucide-react";
 import SubmitButton from "@/components/submit-button";
@@ -32,7 +33,7 @@ type AnswerRow = {
   awarded_marks: number;
   feedback: string | null;
   is_correct: boolean | null;
-  exam_questions: Array<{ id: string; question_type: string; prompt: string; marks: number }>;
+  exam_questions: Array<{ id: string; question_type: string; prompt: string; marks: number; image_url?: string | null }>;
 };
 
 function asValue(v: unknown) {
@@ -70,7 +71,8 @@ export default async function AdminExamAttemptMarkingPage({
 
   const { data: answersData } = await supabase
     .from("exam_attempt_answers")
-    .select("id, question_id, answer, awarded_marks, feedback, is_correct, exam_questions(id, question_type, prompt, marks)")
+    // exam_questions(*) so grading still loads before the image_url column migration has been run.
+    .select("id, question_id, answer, awarded_marks, feedback, is_correct, exam_questions(*)")
     .eq("attempt_id", attemptId)
     .order("created_at", { ascending: true });
 
@@ -183,7 +185,10 @@ export default async function AdminExamAttemptMarkingPage({
                   {a.is_correct === false ? <Badge tone="red">Incorrect</Badge> : null}
                 </div>
                 <CardBody className="space-y-4">
-                  <div className="whitespace-pre-wrap text-sm font-semibold text-slate-900">{q?.prompt ?? "—"}</div>
+                  <div>
+                    <div className="whitespace-pre-wrap text-sm font-semibold text-slate-900">{q?.prompt ?? "—"}</div>
+                    <QuestionImage src={q?.image_url} />
+                  </div>
 
                   <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
                     <div className="text-xs font-semibold text-slate-500">Student answer</div>

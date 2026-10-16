@@ -41,6 +41,7 @@ type QuestionRow = {
   prompt: string;
   marks: number;
   options: unknown | null;
+  image_url?: string | null;
 };
 
 type AnswerRow = { question_id: string; answer: unknown };
@@ -135,13 +136,22 @@ export default async function PortalExamRunnerPage({
 
   const { data: questionsData } = await supabase
     .from("exam_questions")
-    .select("id, question_type, prompt, marks, options")
+    // "*" so exams still load before the image_url column migration has been run.
+    .select("*")
     .eq("test_id", session.test_id)
     .eq("active", true)
     .order("created_at", { ascending: true })
-    .limit(50);
+    .limit(500);
 
-  const questions = (questionsData ?? []) as QuestionRow[];
+  // Only the fields the exam screen needs are passed on to the browser.
+  const questions: QuestionRow[] = ((questionsData ?? []) as QuestionRow[]).map((q) => ({
+    id: q.id,
+    question_type: q.question_type,
+    prompt: q.prompt,
+    marks: q.marks,
+    options: q.options,
+    image_url: q.image_url ?? null
+  }));
 
   const canRenderExam =
     !!attemptId && (!session.requires_secret_code || attempt?.secret_code_verified === true);

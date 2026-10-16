@@ -202,7 +202,7 @@ export default async function AdminExamTestsPage({
     // 3. Fetch questions
     const { data: questions } = await supabase
       .from("exam_questions")
-      .select("id, question_type, prompt, marks, options")
+      .select("*")
       .eq("test_id", testId);
 
     if (questions && questions.length > 0) {
@@ -214,7 +214,8 @@ export default async function AdminExamTestsPage({
             question_type: q.question_type,
             prompt: q.prompt,
             marks: q.marks,
-            options: q.options
+            options: q.options,
+            ...(q.image_url ? { image_url: q.image_url } : {})
           })
           .select("id")
           .maybeSingle();

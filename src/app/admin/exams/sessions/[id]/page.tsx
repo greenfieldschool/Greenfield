@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { CalendarX, ClipboardList, Users } from "lucide-react";
+import { CalendarX, ClipboardList, ListChecks, Pencil, Users } from "lucide-react";
 import SubmitButton from "@/components/submit-button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -13,6 +13,14 @@ import { buttonClasses } from "@/components/ui/button";
 import { lagosEndOfDayIso, lagosStartOfDayIso, sessionVisibility, toLagosDateInput } from "@/lib/lagos-dates";
 import UrlToast from "@/components/url-toast";
 import { failWithToast, NO_DB_MESSAGE } from "../../_components/feedback";
+import {
+  countByType,
+  formatDescriptionWithTargets,
+  groupCounts,
+  hasTargets,
+  parseDescriptionAndTargets,
+  targetProgress
+} from "@/lib/exam-targets";
 
 type SessionRow = {
   id: string;
@@ -143,6 +151,55 @@ export default async function AdminExamSessionEditPage({
   }
   if (session.academic_term_id && !termRows.some((t) => t.id === session.academic_term_id)) {
     termRows.unshift({ id: session.academic_term_id, name: "Current term" });
+  }
+
+  // Number of questions planned for the session's test (stored as the test's targets), next to how
+  // many are already set, so it can be changed for sessions that were created before targets existed.
+  const [{ data: sessionTestData }, { data: sessionQuestionsData }] = await Promise.all([
+    supabase.from("exam_tests").select("id, name, description").eq("id", session.test_id).maybeSingle(),
+    supabase.from("exam_questions").select("question_type").eq("test_id", session.test_id)
+  ]);
+  const sessionTest = sessionTestData as { id: string; name: string; description: string | null } | null;
+  const { targets } = parseDescriptionAndTargets(sessionTest?.description ?? null);
+  const setCounts = countByType(((sessionQuestionsData ?? []) as Array<{ question_type: string }>).map((q) => q.question_type));
+  const setGroups = groupCounts(setCounts);
+  const progress = targetProgress(targets, setCounts);
+  const perTypeMode = hasTargets(targets) && !(targets.objective > 0 || targets.theory > 0);
+  const plannedGroups = perTypeMode ? groupCounts(targets) : { objective: targets.objective ?? 0, theory: targets.theory ?? 0 };
+
+  async function updateQuestionNumbers(formData: FormData) {
+    "use server";
+
+    const path = `/admin/exams/sessions/${id}`;
+    const supabase = getSupabaseServerClient();
+    if (!supabase) failWithToast(path, NO_DB_MESSAGE);
+
+    // Use the session's saved test, not the (possibly changed, unsaved) select in the other form.
+    const { data: current } = await supabase.from("exam_test_sessions").select("test_id").eq("id", id).maybeSingle();
+    const testId = (current as { test_id: string } | null)?.test_id;
+    if (!testId) failWithToast(path, "Session not found.");
+
+    const objective = Math.max(0, Math.floor(Number(formData.get("target_objective") ?? "0") || 0));
+    const theory = Math.max(0, Math.floor(Number(formData.get("target_theory") ?? "0") || 0));
+
+    const { data: test } = await supabase.from("exam_tests").select("description").eq("id", testId).maybeSingle();
+    if (!test) failWithToast(path, "Test not found.");
+
+    const newTargets: Record<string, number> = {};
+    if (objective > 0) newTargets.objective = objective;
+    if (theory > 0) newTargets.theory = theory;
+    const { description: cleanDesc } = parseDescriptionAndTargets((test as { description: string | null }).description);
+
+    const { error: updateError } = await supabase
+      .from("exam_tests")
+      .update({ description: formatDescriptionWithTargets(cleanDesc, newTargets) })
+      .eq("id", testId);
+    if (updateError) failWithToast(path, `Could not save the number of questions: ${updateError.message}`);
+
+    revalidatePath(path);
+    revalidatePath(`/admin/exams/tests/${testId}`);
+    revalidatePath("/admin/exams/tests");
+    redirect(`${path}?toast=${encodeURIComponent("Number of questions saved")}&toast_type=success`);
   }
 
   async function updateSession(formData: FormData) {
@@ -325,6 +382,78 @@ export default async function AdminExamSessionEditPage({
                 Require secret code to start
               </label>
             </Field>
+          </div>
+        </FormSection>
+      </form>
+
+      <form action={updateQuestionNumbers}>
+        <FormSection
+          title="Number of questions"
+          description={
+            <>
+              How many questions <strong className="font-semibold text-slate-700">{sessionTest?.name ?? "this test"}</strong> should
+              have. This is saved on the test, so every session using it shows the same numbers.
+            </>
+          }
+          footer={
+            <>
+              <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={`/admin/exams/tests/${session.test_id}`}>
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+                Open test questions
+              </Link>
+              <SubmitButton variant="primary" pendingText="Saving…">
+                Save number of questions
+              </SubmitButton>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <Alert
+              tone={progress.totalTarget > 0 ? (progress.met ? "success" : "warning") : "info"}
+              title={
+                <>
+                  <ListChecks className="mr-1 inline h-4 w-4 align-[-2px]" aria-hidden="true" />
+                  {progress.totalTarget > 0
+                    ? `${progress.totalSet} / ${progress.totalTarget} questions set`
+                    : `${setGroups.objective + setGroups.theory} question${setGroups.objective + setGroups.theory === 1 ? "" : "s"} set, no number planned yet`}
+                </>
+              }
+            >
+              Already set: {setGroups.objective} objective and {setGroups.theory} theory.
+              {progress.totalTarget > 0 && !progress.met ? ` ${progress.remaining} still to set.` : ""}
+            </Alert>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="Objective questions"
+                htmlFor="session-target-objective"
+                hint="Multiple choice, true / false and fill in the blank."
+              >
+                <input
+                  id="session-target-objective"
+                  className="gf-input"
+                  name="target_objective"
+                  type="number"
+                  min={0}
+                  defaultValue={hasTargets(targets) ? plannedGroups.objective : setGroups.objective}
+                />
+              </Field>
+              <Field label="Theory questions" htmlFor="session-target-theory" hint="Short answer and essay questions.">
+                <input
+                  id="session-target-theory"
+                  className="gf-input"
+                  name="target_theory"
+                  type="number"
+                  min={0}
+                  defaultValue={hasTargets(targets) ? plannedGroups.theory : setGroups.theory}
+                />
+              </Field>
+            </div>
+            {perTypeMode ? (
+              <p className="text-xs text-slate-500">
+                This test currently plans its questions by type. Saving here replaces that with the two totals above.
+              </p>
+            ) : null}
           </div>
         </FormSection>
       </form>

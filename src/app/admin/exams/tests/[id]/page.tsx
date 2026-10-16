@@ -22,6 +22,7 @@ import {
   targetProgress
 } from "@/lib/exam-targets";
 import UrlToast from "@/components/url-toast";
+import QuestionImageField from "../../_components/QuestionImageField";
 
 type TestRow = {
   id: string;
@@ -37,6 +38,7 @@ type QuestionRow = {
   marks: number;
   options: unknown | null;
   active: boolean;
+  image_url?: string | null;
 };
 
 type SolutionRow = {
@@ -141,6 +143,17 @@ function getCorrectFillBlank(v: unknown): string {
   return safeString(asObj.value).trim();
 }
 
+// The picture URL a question form submits: undefined when it was not changed, null when removed.
+function changedImageUrl(formData: FormData): string | null | undefined {
+  const next = String(formData.get("image_url") ?? "").trim();
+  const original = String(formData.get("image_url_original") ?? "").trim();
+  if (next === original) return undefined;
+  return next.length ? next : null;
+}
+
+const IMAGE_COLUMN_MISSING =
+  "Pictures are not set up in the database yet. Run docs/migrations/20261016_exam_question_images.sql in Supabase.";
+
 // Send the admin back to the test editor with an error toast (usable from inline server actions).
 function failTo(testId: string, message: string): never {
   redirect(`/admin/exams/tests/${testId}?toast=${encodeURIComponent(message)}&toast_type=error`);
@@ -185,7 +198,8 @@ export default async function AdminExamTestDetailPage({
     supabase.from("exam_tests").select("id, name, description, duration_minutes").eq("id", id).maybeSingle(),
     supabase
       .from("exam_questions")
-      .select("id, question_type, prompt, marks, options, active")
+      // "*" so the page still loads before the image_url column migration has been run.
+      .select("*")
       .eq("test_id", id)
       .order("created_at", { ascending: false })
   ]);
@@ -228,8 +242,8 @@ export default async function AdminExamTestDetailPage({
     const supabase = getSupabaseServerClient();
     if (!supabase) failTo(id, NO_DB_MESSAGE);
 
-    if (await checkTestFrozen(supabase, id)) failTo(id, FROZEN_MESSAGE);
-
+    // Targets are planning information only (students never see them), so they can be changed
+    // even after students have sat the test.
     const { data: currentTest } = await supabase
       .from("exam_tests")
       .select("description")
@@ -335,14 +349,20 @@ export default async function AdminExamTestDetailPage({
     if (!questionType || !prompt) failTo(id, "Choose a question type and enter the prompt.");
     if (!Number.isFinite(marks) || marks <= 0) failTo(id, "Marks must be above 0.");
 
-    await supabase.from("exam_questions").insert({
+    const imageUrl = changedImageUrl(formData);
+    const { error: insertError } = await supabase.from("exam_questions").insert({
       test_id: id,
       question_type: questionType,
       prompt,
-      marks
+      marks,
+      ...(imageUrl ? { image_url: imageUrl } : {})
     });
+    if (insertError) {
+      failTo(id, insertError.message.includes("image_url") ? IMAGE_COLUMN_MISSING : `Could not create the question: ${insertError.message}`);
+    }
 
     revalidatePath(`/admin/exams/tests/${id}`);
+    redirect(`/admin/exams/tests/${id}?toast=${encodeURIComponent("Question created")}&toast_type=success`);
   }
 
   async function updateQuestion(formData: FormData) {
@@ -421,16 +441,21 @@ export default async function AdminExamTestDetailPage({
       }
     }
 
-    await supabase
+    const imageUrl = changedImageUrl(formData);
+    const { error: questionError } = await supabase
       .from("exam_questions")
       .update({
         prompt,
         marks,
         options,
-        active
+        active,
+        ...(imageUrl !== undefined ? { image_url: imageUrl } : {})
       })
       .eq("id", questionId)
       .eq("test_id", id);
+    if (questionError) {
+      failTo(id, questionError.message.includes("image_url") ? IMAGE_COLUMN_MISSING : `Could not save the question: ${questionError.message}`);
+    }
 
     await supabase
       .from("exam_question_solutions")
@@ -479,7 +504,7 @@ export default async function AdminExamTestDetailPage({
     // 1. Fetch original question
     const { data: qData } = await supabase
       .from("exam_questions")
-      .select("question_type, prompt, marks, options")
+      .select("*")
       .eq("id", questionId)
       .maybeSingle();
 
@@ -493,7 +518,8 @@ export default async function AdminExamTestDetailPage({
         question_type: qData.question_type,
         prompt: `${qData.prompt} (Copy)`,
         marks: qData.marks,
-        options: qData.options
+        options: qData.options,
+        ...(qData.image_url ? { image_url: qData.image_url } : {})
       })
       .select("id")
       .maybeSingle();
@@ -700,82 +726,80 @@ export default async function AdminExamTestDetailPage({
             )
           )}
 
-          {!isFrozen && (
-            <details className="group border-t border-slate-100 pt-4">
-              <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-brand-green-700 hover:text-brand-green [&::-webkit-details-marker]:hidden">
-                <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-                Configure question targets
-                <ChevronDown className="h-4 w-4 transition group-open:rotate-180" aria-hidden="true" />
-              </summary>
-              <form action={updateQuestionTargets} className="mt-4 space-y-5">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field
-                    label="Objective questions"
-                    htmlFor="target-objective"
-                    hint="Counts every auto-marked question: multiple choice, true / false and fill in the blank."
-                  >
-                    <input
-                      id="target-objective"
-                      type="number"
-                      name="target_objective"
-                      min={0}
-                      defaultValue={perTypeMode ? setGroupsFromTargets.objective : (targets.objective ?? 0)}
-                      disabled={perTypeMode}
-                      className="gf-input"
-                    />
-                  </Field>
-                  <Field label="Theory questions" htmlFor="target-theory" hint="Short answer and essay questions.">
-                    <input
-                      id="target-theory"
-                      type="number"
-                      name="target_theory"
-                      min={0}
-                      defaultValue={perTypeMode ? setGroupsFromTargets.theory : (targets.theory ?? 0)}
-                      disabled={perTypeMode}
-                      className="gf-input"
-                    />
-                  </Field>
-                </div>
-                {perTypeMode ? (
-                  <p className="text-xs text-slate-500">
-                    These targets are set by question type below. Set every type to 0 to switch back to the two totals.
-                  </p>
-                ) : null}
+          <details className="group border-t border-slate-100 pt-4">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-brand-green-700 hover:text-brand-green [&::-webkit-details-marker]:hidden">
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+              Configure question targets
+              <ChevronDown className="h-4 w-4 transition group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <form action={updateQuestionTargets} className="mt-4 space-y-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  label="Objective questions"
+                  htmlFor="target-objective"
+                  hint="Counts every auto-marked question: multiple choice, true / false and fill in the blank."
+                >
+                  <input
+                    id="target-objective"
+                    type="number"
+                    name="target_objective"
+                    min={0}
+                    defaultValue={perTypeMode ? setGroupsFromTargets.objective : (targets.objective ?? 0)}
+                    disabled={perTypeMode}
+                    className="gf-input"
+                  />
+                </Field>
+                <Field label="Theory questions" htmlFor="target-theory" hint="Short answer and essay questions.">
+                  <input
+                    id="target-theory"
+                    type="number"
+                    name="target_theory"
+                    min={0}
+                    defaultValue={perTypeMode ? setGroupsFromTargets.theory : (targets.theory ?? 0)}
+                    disabled={perTypeMode}
+                    className="gf-input"
+                  />
+                </Field>
+              </div>
+              {perTypeMode ? (
+                <p className="text-xs text-slate-500">
+                  These targets are set by question type below. Set every type to 0 to switch back to the two totals.
+                </p>
+              ) : null}
 
-                <details className="rounded-xl border border-slate-200 p-4" open={perTypeMode}>
-                  <summary className="cursor-pointer text-sm font-semibold text-slate-700">
-                    Set by question type instead (advanced)
-                  </summary>
-                  <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-                    {questionTypes.map((type) => (
-                      <div key={type}>
-                        <label htmlFor={`target-${type}`} className="gf-label whitespace-nowrap" title={questionTypeLabel(type)}>
-                          {questionTypeShortLabel(type)}
-                        </label>
-                        <input
-                          id={`target-${type}`}
-                          type="number"
-                          name={`target_${type}`}
-                          min={0}
-                          defaultValue={perTypeMode ? (targets[type] ?? 0) : 0}
-                          className="gf-input"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-3 text-xs text-slate-500">
-                    If any number here is above 0, these per-type targets are used instead of the two totals above.
-                  </p>
-                </details>
-
-                <div className="flex justify-end">
-                  <SubmitButton variant="primary" size="sm" pendingText="Updating Targets...">
-                    Save targets
-                  </SubmitButton>
+              <details className="rounded-xl border border-slate-200 p-4" open={perTypeMode}>
+                <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                  Set by question type instead (advanced)
+                </summary>
+                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                  {questionTypes.map((type) => (
+                    <div key={type}>
+                      <label htmlFor={`target-${type}`} className="gf-label whitespace-nowrap" title={questionTypeLabel(type)}>
+                        {questionTypeShortLabel(type)}
+                      </label>
+                      <input
+                        id={`target-${type}`}
+                        type="number"
+                        name={`target_${type}`}
+                        min={0}
+                        defaultValue={perTypeMode ? (targets[type] ?? 0) : 0}
+                        className="gf-input"
+                      />
+                    </div>
+                  ))}
                 </div>
-              </form>
-            </details>
-          )}
+                <p className="mt-3 text-xs text-slate-500">
+                  If any number here is above 0, these per-type targets are used instead of the two totals above.
+                </p>
+              </details>
+
+              <div className="flex justify-end">
+                <SubmitButton variant="primary" size="sm" pendingText="Updating Targets...">
+                  Save targets
+                </SubmitButton>
+              </div>
+            </form>
+          </details>
         </CardBody>
       </Card>
 
@@ -815,6 +839,10 @@ export default async function AdminExamTestDetailPage({
               </Field>
               <Field label="Prompt" htmlFor="new-question-prompt" required className="sm:col-span-2">
                 <textarea id="new-question-prompt" className="gf-input" name="prompt" rows={5} required />
+              </Field>
+              <Field label="Picture (optional)" htmlFor="new-question-image" className="sm:col-span-2">
+                {/* Keyed on the question count so the picker clears after each new question. */}
+                <QuestionImageField key={`new-${questions.length}`} id="new-question-image" testId={id} initialUrl={null} />
               </Field>
             </div>
           </FormSection>
@@ -886,6 +914,10 @@ export default async function AdminExamTestDetailPage({
                         </label>
                       </Field>
                     </div>
+
+                    <Field label="Picture (optional)" htmlFor={`${fid}-image`}>
+                      <QuestionImageField id={`${fid}-image`} testId={id} initialUrl={q.image_url ?? null} disabled={isFrozen} />
+                    </Field>
 
                     {q.question_type === "mcq_single" ||
                     q.question_type === "mcq_multi" ||

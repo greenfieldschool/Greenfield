@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AlertCircle, Check, CheckCircle2, CloudUpload, FileQuestion } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { QuestionImage } from "@/components/question-image";
 import { marksLabel, questionTypeLabel } from "../../_components/exam-labels";
 
 function hasValue(v: unknown) {
@@ -58,6 +59,7 @@ type QuestionRow = {
   prompt: string;
   marks: number;
   options?: unknown;
+  image_url?: string | null;
 };
 
 type InitialAnswer = { question_id: string; answer: unknown };
@@ -281,6 +283,7 @@ export default function ExamAnswersClient({
             <p id={`${fieldId}-prompt`} className="mt-4 whitespace-pre-wrap text-lg font-semibold leading-relaxed text-slate-900">
               {q.prompt}
             </p>
+            <QuestionImage src={q.image_url} className="mt-4" />
 
             <div className="mt-5">
               {q.question_type === "true_false" ? (

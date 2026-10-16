@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QuestionImage } from "@/components/question-image";
 import { buttonClasses } from "@/components/ui/button";
 
 type TestRow = {
@@ -20,6 +21,7 @@ type QuestionRow = {
   marks: number;
   options: unknown | null;
   active: boolean;
+  image_url?: string | null;
 };
 
 type McqOption = { key: string; label: string };
@@ -79,7 +81,8 @@ export default async function AdminExamTestPreviewPage({ params }: { params: Pro
     supabase.from("exam_tests").select("id, name, duration_minutes").eq("id", id).maybeSingle(),
     supabase
       .from("exam_questions")
-      .select("id, question_type, prompt, marks, options, active")
+      // "*" so the preview still loads before the image_url column migration has been run.
+      .select("*")
       .eq("test_id", id)
       .order("created_at", { ascending: true })
       .limit(200)
@@ -130,6 +133,7 @@ export default async function AdminExamTestPreviewPage({ params }: { params: Pro
                     {q.active ? null : <Badge tone="red">inactive</Badge>}
                   </div>
                   <div className="mt-3 whitespace-pre-wrap text-sm font-semibold text-slate-900">{q.prompt}</div>
+                  <QuestionImage src={q.image_url} />
 
                   <div className="mt-4">
                     {q.question_type === "true_false" ? (

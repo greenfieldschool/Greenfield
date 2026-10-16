@@ -66,7 +66,9 @@ export default function AdminLearnCentrePage() {
             "You are taken straight to the test, where a tracker shows how many questions are still left to set. The Tests list shows 'set / planned' for every test.",
             "Use 'Edit test name and duration' on the test page to change the time allowed later.",
             "Tests set before planned numbers existed: open the Tests page and press \'Use existing questions\' to fill in each test\'s objective and theory numbers from the questions it already has, or press \'Use these as targets\' on a single test.",
+            "To change the number of questions later, open 'Configure question targets' on the test page. This works even after students have sat the test, because the numbers are only for planning.",
             "Configure question types (MCQ single/multi, true/false, fill-blank, essay) and points/marks.",
+            "Add a picture (diagram, map, chart, photo) to a question with the 'Add picture' button under the prompt, or drag the picture onto it. PNG, JPG, WEBP or GIF up to 2 MB. Save the question to keep it. Students see the picture under the question and can open it full size.",
             "Open the 'Advanced (JSON)' section to modify or reuse structured options and answers."
           ]
         },
@@ -78,6 +80,7 @@ export default function AdminLearnCentrePage() {
             "Pick a Start date and End date (no times needed). Students in the class see the exam from the start of the start date until the end of the end date; the time allowed comes from the test's duration.",
             "Keep Status as 'active'. A 'draft' session is hidden from students. The sessions list shows 'Open to students now' or why a session is hidden.",
             "Enable 'Requires secret code' only if students must type a code given in the exam hall.",
+            "To change how many objective and theory questions a session's test should have, open the session and use 'Number of questions'. The numbers are saved on the test, so every session using that test shows them.",
             "Students access scheduled exams via the student portal (/portal/login/student)."
           ]
         },
