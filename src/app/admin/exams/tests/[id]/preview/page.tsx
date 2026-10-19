@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { canManageTest, getTeacherAccess } from "@/lib/teacher-access";
+import { redirect } from "next/navigation";
 import { Clock, ListChecks } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/page-header";
@@ -12,6 +14,8 @@ type TestRow = {
   id: string;
   name: string;
   duration_minutes: number;
+  subject_id: string | null;
+  created_by: string | null;
 };
 
 type QuestionRow = {
@@ -78,7 +82,7 @@ export default async function AdminExamTestPreviewPage({ params }: { params: Pro
   if (!supabase) return null;
 
   const [{ data: testData }, { data: questionsData }] = await Promise.all([
-    supabase.from("exam_tests").select("id, name, duration_minutes").eq("id", id).maybeSingle(),
+    supabase.from("exam_tests").select("id, name, duration_minutes, subject_id, created_by").eq("id", id).maybeSingle(),
     supabase
       .from("exam_questions")
       // "*" so the preview still loads before the image_url column migration has been run.
@@ -90,6 +94,7 @@ export default async function AdminExamTestPreviewPage({ params }: { params: Pro
 
   const test = (testData ?? null) as TestRow | null;
   if (!test) return null;
+  if (!canManageTest(await getTeacherAccess(supabase), test)) redirect("/admin/exams/tests");
 
   const questions = (questionsData ?? []) as QuestionRow[];
 

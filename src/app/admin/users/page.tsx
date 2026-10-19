@@ -28,7 +28,7 @@ import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
-import { buttonClasses } from "@/components/ui/button";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { safeFilterTerm } from "@/lib/postgrest";
 
@@ -65,15 +65,6 @@ type ClassRow = {
   id: string;
   level: string;
   name: string;
-};
-
-type TeacherClassAssignmentRow = {
-  teacher_id: string;
-  class_id: string;
-  active: boolean;
-  created_at: string;
-  classes: ClassRow | null;
-  profiles: { id: string; full_name: string | null } | null;
 };
 
 export default async function AdminUsersPage({
@@ -230,25 +221,9 @@ export default async function AdminUsersPage({
 
   const students = (studentsData ?? []) as StudentRow[];
 
-  const [{ data: teachersData }, { data: classesData }, { data: teacherClassAssignmentsData }] = canInviteStaff
-    ? await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id, full_name")
-          .eq("role", "teacher")
-          .order("full_name", { ascending: true }),
-        supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name"),
-        supabase
-          .from("teacher_class_assignments")
-          .select("teacher_id, class_id, active, created_at, classes(id, level, name), profiles(id, full_name)")
-          .eq("active", true)
-          .order("created_at", { ascending: false })
-      ])
-    : [{ data: [] as unknown[] }, { data: [] as unknown[] }, { data: [] as unknown[] }];
-
-  const teacherRows = (teachersData ?? []) as Array<{ id: string; full_name: string | null }>;
+  // Classes are only needed to show the class of a linked student.
+  const { data: classesData } = await supabase.from("classes").select("id, level, name").order("level").order("name");
   const classRows = (classesData ?? []) as ClassRow[];
-  const teacherClassAssignments = (teacherClassAssignmentsData ?? []) as unknown as TeacherClassAssignmentRow[];
 
   const userIds = profiles.map((p) => p.id);
 
@@ -273,7 +248,6 @@ export default async function AdminUsersPage({
   const guardianById = new Map(guardians.map((g) => [g.id, g] as const));
   const studentById = new Map(students.map((s) => [s.id, s] as const));
   const classById = new Map(classRows.map((c) => [c.id, c] as const));
-  const teacherById = new Map(teacherRows.map((t) => [t.id, t] as const));
 
   async function setQuery(formData: FormData) {
     "use server";
@@ -536,90 +510,6 @@ export default async function AdminUsersPage({
 
     revalidatePath("/admin/users");
     redirect(`/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent("Magic link generated — use Copy to copy it")}&toast_type=success`);
-  }
-
-  async function assignTeacherClass(formData: FormData) {
-    "use server";
-
-    const teacherId = String(formData.get("teacher_id") ?? "").trim();
-    const classId = String(formData.get("class_id") ?? "").trim();
-
-    if (!teacherId || !classId) {
-      redirect(usersToast("Pick a teacher and a class"));
-    }
-
-    const supabase = getSupabaseServerClient();
-    if (!supabase) {
-      redirect(usersToast("Server error — Supabase is not configured"));
-    }
-
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      redirect("/admin/login");
-    }
-
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-    const role = (profile as { role?: string } | null)?.role ?? null;
-    const isAllowed = role === "super_admin" || role === "admin";
-    if (!isAllowed) {
-      redirect(usersToast("You do not have permission to assign classes"));
-    }
-
-    const { error } = await supabase
-      .from("teacher_class_assignments")
-      .upsert({ teacher_id: teacherId, class_id: classId, active: true }, { onConflict: "teacher_id,class_id" });
-    if (error) {
-      redirect(usersToast(error.message));
-    }
-
-    revalidatePath("/admin/users");
-    redirect(usersToast("Teacher assigned to class", "success"));
-  }
-
-  async function removeTeacherClass(formData: FormData) {
-    "use server";
-
-    const teacherId = String(formData.get("teacher_id") ?? "").trim();
-    const classId = String(formData.get("class_id") ?? "").trim();
-
-    if (!teacherId || !classId) {
-      redirect(usersToast("Pick a teacher and a class"));
-    }
-
-    const supabase = getSupabaseServerClient();
-    if (!supabase) {
-      redirect(usersToast("Server error — Supabase is not configured"));
-    }
-
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      redirect("/admin/login");
-    }
-
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-    const role = (profile as { role?: string } | null)?.role ?? null;
-    const isAllowed = role === "super_admin" || role === "admin";
-    if (!isAllowed) {
-      redirect(usersToast("You do not have permission to change class assignments"));
-    }
-
-    const { error } = await supabase
-      .from("teacher_class_assignments")
-      .update({ active: false })
-      .eq("teacher_id", teacherId)
-      .eq("class_id", classId);
-    if (error) {
-      redirect(usersToast(error.message));
-    }
-
-    revalidatePath("/admin/users");
-    redirect(usersToast("Class assignment removed", "success"));
   }
 
   async function linkGuardian(formData: FormData) {
@@ -933,90 +823,23 @@ export default async function AdminUsersPage({
         </div>
       ) : null}
 
-      {/* Teacher Class Assignments */}
+      {/* Teacher assignments */}
       {canInviteStaff ? (
         <Card>
           <CardHeader
             title={
               <span className="flex items-center gap-2">
                 <School className="h-4 w-4 text-sky-600" aria-hidden="true" />
-                Teacher Class Assignments
+                Teacher assignments
               </span>
             }
-            description="Assign teachers to classes for access control"
+            description="Give a teacher several classes and choose the subjects they teach. Teachers only see their own classes and subjects."
+            action={
+              <ButtonLink href="/admin/academics/teachers" variant="secondary" size="sm">
+                Manage teacher assignments
+              </ButtonLink>
+            }
           />
-          <CardBody className="border-b border-slate-100">
-            <form action={assignTeacherClass} className="grid gap-4 sm:grid-cols-[2fr_1.5fr_auto] sm:items-end">
-              <Field label="Teacher" htmlFor="assign-teacher">
-                <select id="assign-teacher" className="gf-select" name="teacher_id" defaultValue="" required>
-                  <option value="">Select teacher...</option>
-                  {teacherRows.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.full_name ?? t.id}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Class" htmlFor="assign-class">
-                <select id="assign-class" className="gf-select" name="class_id" defaultValue="" required>
-                  <option value="">Select class...</option>
-                  {classRows.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.level} - {c.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <SubmitButton variant="primary" pendingText="Assigning…">
-                Assign
-              </SubmitButton>
-            </form>
-          </CardBody>
-
-          {teacherClassAssignments.length ? (
-            <div className="gf-table-wrap">
-              <table className="gf-table min-w-[480px]">
-                <thead>
-                  <tr>
-                    <th>Teacher</th>
-                    <th>Class</th>
-                    <th className="text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teacherClassAssignments.map((a) => {
-                    const teacher = a.profiles ?? teacherById.get(a.teacher_id) ?? null;
-                    const cls = a.classes ?? classById.get(a.class_id) ?? null;
-                    return (
-                      <tr key={`${a.teacher_id}-${a.class_id}`}>
-                        <td className="font-medium text-slate-900">{teacher?.full_name ?? a.teacher_id}</td>
-                        <td>{cls ? `${cls.level} - ${cls.name}` : a.class_id}</td>
-                        <td className="text-right">
-                          <form action={removeTeacherClass} className="inline-flex">
-                            <input type="hidden" name="teacher_id" value={a.teacher_id} />
-                            <input type="hidden" name="class_id" value={a.class_id} />
-                            <SubmitButton
-                              className={buttonClasses({
-                                variant: "ghost",
-                                size: "sm",
-                                className: "text-red-600 hover:bg-red-50 hover:text-red-700"
-                              })}
-                              pendingText="Removing…"
-                              showSpinner={false}
-                            >
-                              Remove
-                            </SubmitButton>
-                          </form>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <EmptyState icon={School} title="No teacher assignments yet." description="Assign teachers above." />
-          )}
         </Card>
       ) : null}
 

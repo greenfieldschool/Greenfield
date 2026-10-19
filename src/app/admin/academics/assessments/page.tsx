@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { canTeach, getTeacherAccess, teacherSubjectIds } from "@/lib/teacher-access";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -47,28 +48,14 @@ export default async function AdminAssessmentsPage() {
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  // Teachers see only their classes, and in each class only the subjects they teach.
+  const access = await getTeacherAccess(supabase);
+  const isTeacher = access.isTeacher;
 
-  const { data: profile } = user
-    ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
-    : { data: null as unknown };
-
-  const role = (profile as { role?: string } | null)?.role ?? null;
-  const isTeacher = role === "teacher";
-
-  const [{ data: years }, { data: terms }, { data: teacherClasses }, { data: classes }, { data: subjects }, { data: assessments }] =
+  const [{ data: years }, { data: terms }, { data: classes }, { data: subjects }, { data: assessments }] =
     await Promise.all([
       supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
       supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false }),
-      isTeacher && user
-        ? supabase
-            .from("teacher_class_assignments")
-            .select("class_id, classes(id, level, name)")
-            .eq("teacher_id", user.id)
-            .eq("active", true)
-        : Promise.resolve({ data: [] as unknown[] }),
       !isTeacher
         ? supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name")
         : Promise.resolve({ data: [] as unknown[] }),
@@ -84,11 +71,11 @@ export default async function AdminAssessmentsPage() {
 
   const yearRows = (years ?? []) as YearRow[];
   const termRows = (terms ?? []) as TermRow[];
-  const teacherClassRows = (teacherClasses ?? []) as Array<{ classes: ClassRow | ClassRow[] | null }>;
-  const classRows = isTeacher
-    ? teacherClassRows.map((r) => firstOrNull(r.classes)).filter((c): c is ClassRow => Boolean(c))
-    : ((classes ?? []) as ClassRow[]);
-  const subjectRows = (subjects ?? []) as SubjectRow[];
+  const classRows = isTeacher ? (access.classes as ClassRow[]) : ((classes ?? []) as ClassRow[]);
+  const allSubjectRows = (subjects ?? []) as SubjectRow[];
+  // A teacher can only pick subjects they teach in at least one of their classes (the pair is checked on save).
+  const mySubjects = teacherSubjectIds(access);
+  const subjectRows = isTeacher && mySubjects !== "all" ? allSubjectRows.filter((s) => mySubjects.includes(s.id)) : allSubjectRows;
   const assessmentRows = (assessments ?? []) as unknown as AssessmentRow[];
 
   const hasAnyClass = classRows.length > 0;
@@ -115,6 +102,13 @@ export default async function AdminAssessmentsPage() {
     const supabase = getSupabaseServerClient();
     if (!supabase) {
       redirect(`/admin/academics/assessments?toast=${encodeURIComponent("Database is not configured")}&toast_type=error`);
+    }
+
+    const teacherAccess = await getTeacherAccess(supabase);
+    if (!canTeach(teacherAccess, classId, subjectId)) {
+      redirect(
+        `/admin/academics/assessments?toast=${encodeURIComponent("You are not assigned to teach this subject in this class")}&toast_type=error`
+      );
     }
 
     const { error } = await supabase.from("academic_assessments").insert({

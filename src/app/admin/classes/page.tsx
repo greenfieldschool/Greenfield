@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/fetch-all";
-import { ChevronRight, School, Settings2 } from "lucide-react";
+import { ChevronRight, GitMerge, School, Settings2, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ButtonLink } from "@/components/ui/button";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
+import ConfirmSubmitButton from "@/components/confirm-submit-button";
+import { deleteClassAction, mergeClassAction } from "./actions";
 import { cn } from "@/lib/cn";
 import { classNameKey } from "@/lib/class-names";
 import UrlToast from "@/components/url-toast";
@@ -46,13 +48,21 @@ export default async function AdminClassesPage() {
 
   const levels = Array.from(new Set(classes.map((c) => c.level)));
 
-  // Classes with the same name in the same level (ignoring case, spaces and dashes), e.g. "JSS 1" and "JSS1".
+  // Classes with the same name (ignoring case, spaces and dashes), e.g. "JSS 1" and "JSS1" or "Reception" and "RECEPTION",
+  // whichever level they were registered under. The one with the most students (then the active one) is kept.
   const byKey = new Map<string, ClassRow[]>();
   for (const c of classes) {
-    const key = `${c.level}|${classNameKey(c.name)}`;
+    const key = classNameKey(c.name);
     byKey.set(key, [...(byKey.get(key) ?? []), c]);
   }
-  const duplicateGroups = Array.from(byKey.values()).filter((g) => g.length > 1);
+  const totalOf = (c: ClassRow) => counts.get(c.id)?.total ?? 0;
+  const duplicateGroups = Array.from(byKey.values())
+    .filter((g) => g.length > 1)
+    .map((g) => [...g].sort((a, b) => totalOf(b) - totalOf(a) || Number(b.active) - Number(a.active) || a.name.localeCompare(b.name)));
+
+  // Classes nobody is in: the ones that can be deleted (the database still refuses if fees, results or exams use them).
+  const duplicateIds = new Set(duplicateGroups.flat().map((c) => c.id));
+  const emptyClasses = classes.filter((c) => totalOf(c) === 0 && !duplicateIds.has(c.id));
 
   return (
     <div className="space-y-6">
@@ -85,24 +95,101 @@ export default async function AdminClassesPage() {
       ) : null}
 
       {duplicateGroups.length ? (
-        <Alert tone="warning" title="Possible duplicate classes">
-          <ul className="mt-1 space-y-1">
-            {duplicateGroups.map((group) => (
-              <li key={group[0].id}>
-                {group.map((c, i) => (
-                  <span key={c.id}>
-                    {i > 0 ? " · " : ""}
-                    <Link className="font-semibold capitalize hover:underline" href={`/admin/classes/${c.id}`}>
-                      {c.level} - {c.name}
-                    </Link>{" "}
-                    ({counts.get(c.id)?.total ?? 0} student{(counts.get(c.id)?.total ?? 0) === 1 ? "" : "s"})
+        <Card className="!border-brand-gold-200">
+          <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
+            <h2 className="text-base font-semibold text-slate-900">Classes registered twice</h2>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Merging moves the students, results, attendance, fees, exams, subjects and teachers of the duplicate onto the class
+              you keep, then deletes the duplicate.
+            </p>
+          </div>
+          <div className="space-y-4 px-5 py-5 sm:px-6">
+            {duplicateGroups.map(([keep, ...rest]) => (
+              <div key={keep.id} className="rounded-xl border border-slate-200 p-4">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <Badge tone="green">Keep</Badge>
+                  <Link className="font-semibold text-slate-900 hover:underline" href={`/admin/classes/${keep.id}`}>
+                    {keep.name}
+                  </Link>
+                  <span className="text-xs capitalize text-slate-500">
+                    {keep.level} · {totalOf(keep)} student{totalOf(keep) === 1 ? "" : "s"}
                   </span>
-                ))}
-              </li>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {rest.map((dup) => (
+                    <form
+                      key={dup.id}
+                      action={mergeClassAction}
+                      className="flex flex-col gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <input type="hidden" name="source_id" value={dup.id} />
+                      <input type="hidden" name="target_id" value={keep.id} />
+                      <input type="hidden" name="return_to" value="/admin/classes" />
+                      <span className="flex flex-wrap items-center gap-2 text-slate-700">
+                        <Badge tone="red">Remove</Badge>
+                        <Link className="font-semibold text-slate-900 hover:underline" href={`/admin/classes/${dup.id}`}>
+                          {dup.name}
+                        </Link>
+                        <span className="text-xs capitalize text-slate-500">
+                          {dup.level} · {totalOf(dup)} student{totalOf(dup) === 1 ? "" : "s"}
+                        </span>
+                      </span>
+                      <ConfirmSubmitButton
+                        confirmMessage={`Merge "${dup.name}" into "${keep.name}"? "${dup.name}" will be deleted and everything in it moved. This cannot be undone.`}
+                        className={buttonClasses({ variant: "secondary", size: "sm" })}
+                      >
+                        <GitMerge className="h-3.5 w-3.5" aria-hidden="true" />
+                        {`Merge into ${keep.name}`}
+                      </ConfirmSubmitButton>
+                    </form>
+                  ))}
+                </div>
+              </div>
             ))}
-          </ul>
-          <p className="mt-2">Open the one you don&apos;t want and use &quot;Merge into&quot; at the bottom of the page.</p>
-        </Alert>
+          </div>
+        </Card>
+      ) : null}
+
+      {emptyClasses.length ? (
+        <details className="group rounded-2xl border border-slate-200/80 bg-white shadow-card">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-4 text-sm font-semibold text-slate-900 sm:px-6 [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              Delete a class nobody is in ({emptyClasses.length})
+            </span>
+            <ChevronRight className="h-4 w-4 text-slate-400 transition group-open:rotate-90" aria-hidden="true" />
+          </summary>
+          <div className="space-y-2 border-t border-slate-100 px-5 py-4 sm:px-6">
+            <p className="text-sm text-slate-500">
+              These classes have no students. Delete the ones that were created by mistake. A class that still has fees,
+              results, attendance or exams cannot be deleted; merge or deactivate it instead.
+            </p>
+            {emptyClasses.map((c) => (
+              <form
+                key={c.id}
+                action={deleteClassAction}
+                className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm"
+              >
+                <input type="hidden" name="class_id" value={c.id} />
+                <input type="hidden" name="return_to" value="/admin/classes" />
+                <span className="flex flex-wrap items-center gap-2">
+                  <Link className="font-semibold text-slate-900 hover:underline" href={`/admin/classes/${c.id}`}>
+                    {c.name}
+                  </Link>
+                  <span className="text-xs capitalize text-slate-500">{c.level}</span>
+                  {!c.active ? <Badge tone="slate">Inactive</Badge> : null}
+                </span>
+                <ConfirmSubmitButton
+                  confirmMessage={`Delete "${c.name}"? This cannot be undone.`}
+                  className={buttonClasses({ variant: "ghost", size: "sm", className: "text-red-600 hover:bg-red-50 hover:text-red-700" })}
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  Delete
+                </ConfirmSubmitButton>
+              </form>
+            ))}
+          </div>
+        </details>
       ) : null}
 
       {levels.map((level) => (

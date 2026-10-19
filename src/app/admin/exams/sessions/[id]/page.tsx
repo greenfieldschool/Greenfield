@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTeacherAccess, teacherTestFilter } from "@/lib/teacher-access";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -65,6 +66,9 @@ export default async function AdminExamSessionEditPage({
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
 
+  // Teachers only get the tests of the subjects they teach.
+  const testLimit = teacherTestFilter(await getTeacherAccess(supabase));
+
   let loadErrorMsg: string | null = null;
   let sessionData: unknown = null;
   let tests: unknown = null;
@@ -82,7 +86,10 @@ export default async function AdminExamSessionEditPage({
           )
           .eq("id", id)
           .maybeSingle(),
-        supabase.from("exam_tests").select("id, name").eq("active", true).order("created_at", { ascending: false }),
+        (() => {
+          const q = supabase.from("exam_tests").select("id, name").eq("active", true);
+          return (testLimit ? q.or(testLimit) : q).order("created_at", { ascending: false });
+        })(),
         supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name"),
         supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
         supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false })

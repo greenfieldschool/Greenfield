@@ -6,7 +6,7 @@ import { cleanSubjectName, looseSubjectKey, subjectNameKey } from "@/lib/subject
 import SubmitButton from "@/components/submit-button";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
-import { BookOpen, CheckCircle2, GitMerge, Layers, Lock, Plus, School, Search, Trash2, X } from "lucide-react";
+import { BookOpen, CheckCircle2, GitMerge, Layers, Lock, Plus, School, Search, Trash2, UserCheck, X } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { FormSection, Field } from "@/components/ui/form-section";
@@ -235,10 +235,16 @@ export default async function AdminSubjectsPage({
           </>
         }
         actions={
-          <ButtonLink href="/admin/academics/class-subjects" variant="primary">
-            <School className="h-4 w-4" aria-hidden="true" />
-            Assign subjects to classes
-          </ButtonLink>
+          <>
+            <ButtonLink href="/admin/academics/class-subjects" variant="primary">
+              <School className="h-4 w-4" aria-hidden="true" />
+              Assign subjects to classes
+            </ButtonLink>
+            <ButtonLink href="/admin/academics/teachers" variant="secondary">
+              <UserCheck className="h-4 w-4" aria-hidden="true" />
+              Assign subjects to teachers
+            </ButtonLink>
+          </>
         }
       />
 

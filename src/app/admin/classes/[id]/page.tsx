@@ -14,6 +14,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { classNameKey } from "@/lib/class-names";
+import { deleteClassAction, mergeClassAction } from "../actions";
 
 type ClassRow = { id: string; level: string; name: string; active: boolean };
 
@@ -52,19 +53,6 @@ function rpcErrorMessage(message: string) {
 
 function classLabel(c: Pick<ClassRow, "level" | "name">) {
   return `${c.level} - ${c.name}`;
-}
-
-async function requireAdmin(back: string) {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) redirect(`${back}?toast=${encodeURIComponent("Server error — Supabase is not configured")}&toast_type=error`);
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-  const { data: me } = user ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle() : { data: null };
-  if (me?.role !== "super_admin" && me?.role !== "admin") {
-    redirect(`${back}?toast=${encodeURIComponent("Only admins can delete or merge classes")}&toast_type=error`);
-  }
-  return supabase;
 }
 
 export default async function AdminClassDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -118,48 +106,9 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
     ? usage.students + usage.fee_schedules + usage.assessments + usage.attendance + usage.publications + usage.exam_sessions > 0
     : true;
   const mergeTargets = classOptions.filter((c) => c.id !== id);
-  // Most likely duplicates first: same name (ignoring case and spaces), then same level.
+  // Likely duplicates: same name ignoring case, spaces and dashes (whatever the level).
   const thisKey = cls ? classNameKey(cls.name) : "";
-  const likelyDuplicates = cls ? mergeTargets.filter((c) => c.level === cls.level && classNameKey(c.name) === thisKey) : [];
-
-  async function deleteClass() {
-    "use server";
-
-    const back = `/admin/classes/${id}`;
-    const supabase = await requireAdmin(back);
-    const { error } = await supabase.rpc("delete_class", { p_class: id });
-    if (error) redirect(`${back}?toast=${encodeURIComponent(rpcErrorMessage(error.message))}&toast_type=error`);
-
-    revalidatePath("/admin/classes");
-    revalidatePath("/admin/finance/fees/classes");
-    redirect(`/admin/classes?toast=${encodeURIComponent("Class deleted")}&toast_type=success`);
-  }
-
-  async function mergeClass(formData: FormData) {
-    "use server";
-
-    const back = `/admin/classes/${id}`;
-    const targetId = String(formData.get("target_id") ?? "").trim();
-    if (!targetId || targetId === id) {
-      redirect(`${back}?toast=${encodeURIComponent("Choose the class to keep")}&toast_type=error`);
-    }
-
-    const supabase = await requireAdmin(back);
-    const { data, error } = await supabase.rpc("merge_classes", { p_source: id, p_target: targetId });
-    if (error) redirect(`${back}?toast=${encodeURIComponent(rpcErrorMessage(error.message))}&toast_type=error`);
-
-    const moved = Number((data as { moved_students?: number } | null)?.moved_students ?? 0);
-    revalidatePath("/admin/classes");
-    revalidatePath(`/admin/classes/${targetId}`);
-    revalidatePath("/admin/finance/fees/classes");
-    revalidatePath("/admin/students");
-    revalidatePath("/admin/exams/sessions");
-    redirect(
-      `/admin/classes/${targetId}?toast=${encodeURIComponent(
-        `Classes merged. ${moved} student${moved === 1 ? "" : "s"} moved, with their results, attendance, fees and exams.`
-      )}&toast_type=success`
-    );
-  }
+  const likelyDuplicates = cls ? mergeTargets.filter((c) => classNameKey(c.name) === thisKey) : [];
 
   const students = ((studentData ?? []) as StudentRow[]).sort((a, b) => Number(currentStatuses.has(b.status)) - Number(currentStatuses.has(a.status)));
   const currentCount = students.filter((s) => currentStatuses.has(s.status)).length;
@@ -433,7 +382,9 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
                   </Alert>
                 ) : null}
 
-                <form action={mergeClass} className="rounded-xl border border-slate-200 p-4">
+                <form action={mergeClassAction} className="rounded-xl border border-slate-200 p-4">
+                  <input type="hidden" name="source_id" value={id} />
+                  <input type="hidden" name="return_to" value={`/admin/classes/${id}`} />
                   <div className="space-y-3">
                     <Field
                       label="Merge into"
@@ -468,7 +419,9 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
                   </div>
                 </form>
 
-                <form action={deleteClass} className="flex flex-col gap-3 rounded-xl border border-red-100 bg-red-50/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <form action={deleteClassAction} className="flex flex-col gap-3 rounded-xl border border-red-100 bg-red-50/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <input type="hidden" name="class_id" value={id} />
+                  <input type="hidden" name="return_to" value={`/admin/classes/${id}`} />
                   <p className="text-sm text-slate-700">
                     {inUse
                       ? "This class can't be deleted on its own because it is in use. Merge it into another class, or deactivate it."

@@ -49,8 +49,8 @@ export default function AdminLearnCentrePage() {
             "Click a class to list its children. Admins can correct the name, admission number, class or status on a row and press 'Save'.",
             "Changing the class moves the child to that class (their level follows the new class).",
             "Use the notice at the top of the Classes page to find current students who have no class yet.",
-            "Duplicate classes (e.g. 'JSS 1' and 'JSS1') are flagged at the top of the Classes page. Open the one you don't want and use 'Merge into' at the bottom: its students, results, attendance, fees, exam sessions, subjects and teachers move to the class you keep, then it is deleted.",
-            "'Delete class' only works for a class nothing uses yet (e.g. one created by mistake). A class with history can be merged, or deactivated under Finance > Fee setup > Classes to hide it while keeping its records."
+            "Classes registered twice (e.g. 'Reception' and 'RECEPTION', or 'Year 1' and 'YEAR1') are listed under 'Classes registered twice' at the top of the Classes page, with the one that has the most students marked 'Keep'. Press 'Merge into …' on the duplicate: its students, results, attendance, fees, exam sessions, subjects and teachers move to the class you keep, then it is deleted.",
+            "A class created by mistake that nobody is in can be removed under 'Delete a class nobody is in'. A class that still has fees, results, attendance or exams cannot be deleted; merge it into another class, or deactivate it under Finance > Fee setup > Classes to hide it while keeping its records."
           ]
         }
       ]
@@ -125,6 +125,17 @@ export default function AdminLearnCentrePage() {
             "Open Academics > Class subjects (/admin/academics/class-subjects) and pick a class.",
             "Tick every subject the class takes and click 'Save subjects'. Use 'Copy subjects from another class' to start from a similar class.",
             "The Result sheet then only offers that class's subjects, with quick links to switch between them."
+          ]
+        },
+        {
+          name: "Assigning Teachers to Classes and Subjects",
+          steps: [
+            "Open Academics > Teacher assignments (/admin/academics/teachers). Teachers must first have the Teacher role under Staff & users.",
+            "Class teacher: pick the teacher, choose 'Class teacher' and tick one or more classes (use 'All creche classes' etc. to tick a whole level). They get those classes' students, attendance and every subject each class takes (set under Class subjects).",
+            "Subject teacher: choose 'Subject teacher', tick the classes and the subjects. For example Mr Bello teaching IRS and Arabic from Year 2 to Year 4: tick Year 2, Year 3, Year 4, then IRS and Arabic. A teacher of French across the school: tick every class and French.",
+            "A teacher can be both, e.g. class teacher of Year 1 and the French teacher in every class. Assignments are added, never replaced.",
+            "Teachers then see only their classes, and in each class only their subjects, on the Result sheet and Assessments. They can only set CBT tests and questions for subjects they teach.",
+            "Only class teachers (and admins) can publish a class's results or take attendance. Remove an assignment with the x beside it."
           ]
         },
         {

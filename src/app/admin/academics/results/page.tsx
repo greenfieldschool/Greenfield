@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { firstOrNull } from "@/lib/relations";
+import { canTeach, getTeacherAccess } from "@/lib/teacher-access";
 import { isResultColumnType, resultColumns, resultColumnTypes, type ResultColumnType } from "@/lib/results";
 import SubmitButton from "@/components/submit-button";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
@@ -66,6 +67,12 @@ async function ensureAssessments(
   ctx: SheetContext,
   maxOverrides?: Partial<Record<ResultColumnType, number>>
 ) {
+  // Teachers only work on the subjects they teach in this class (the database enforces this too).
+  const access = await getTeacherAccess(supabase as Parameters<typeof getTeacherAccess>[0]);
+  if (!canTeach(access, ctx.classId, ctx.subjectId)) {
+    back(ctx, "You are not assigned to teach this subject in this class. Ask an admin to assign it to you.", "error");
+  }
+
   const { data } = await supabase
     .from("academic_assessments")
     .select("id, assessment_type, max_score")
@@ -155,26 +162,14 @@ export default async function AdminResultSheetPage({
   const termId = str(sp.term_id);
   const importSessionId = str(sp.session_id);
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  // Teachers see only their classes, and in each class only the subjects they teach.
+  const access = await getTeacherAccess(supabase);
+  const isTeacher = access.isTeacher;
 
-  const { data: profile } = user
-    ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
-    : { data: null as unknown };
-  const isTeacher = (profile as { role?: string } | null)?.role === "teacher";
-
-  const [{ data: years }, { data: terms }, { data: teacherClasses }, { data: classes }, { data: subjects }] =
+  const [{ data: years }, { data: terms }, { data: classes }, { data: subjects }] =
     await Promise.all([
       supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
       supabase.from("academic_terms").select("id, name, academic_year_id").order("starts_on", { ascending: false }),
-      isTeacher && user
-        ? supabase
-            .from("teacher_class_assignments")
-            .select("class_id, classes(id, level, name)")
-            .eq("teacher_id", user.id)
-            .eq("active", true)
-        : Promise.resolve({ data: [] as unknown[] }),
       !isTeacher
         ? supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name")
         : Promise.resolve({ data: [] as unknown[] }),
@@ -183,11 +178,7 @@ export default async function AdminResultSheetPage({
 
   const yearRows = (years ?? []) as YearRow[];
   const termRows = (terms ?? []) as TermRow[];
-  const classRows = isTeacher
-    ? ((teacherClasses ?? []) as Array<{ classes: ClassRow | ClassRow[] | null }>)
-        .map((r) => firstOrNull(r.classes))
-        .filter((c): c is ClassRow => Boolean(c))
-    : ((classes ?? []) as ClassRow[]);
+  const classRows = isTeacher ? (access.classes as ClassRow[]) : ((classes ?? []) as ClassRow[]);
   const subjectRows = (subjects ?? []) as SubjectRow[];
 
   // Subjects assigned to each visible class (Academics → Class subjects). Empty if none are set up yet.
@@ -203,6 +194,14 @@ export default async function AdminResultSheetPage({
   const subjectIdsByClass: Record<string, string[]> = {};
   for (const row of (classSubjects ?? []) as Array<{ class_id: string; subject_id: string }>) {
     (subjectIdsByClass[row.class_id] ??= []).push(row.subject_id);
+  }
+  if (isTeacher) {
+    // The teacher's own subjects replace the class list; "all" (empty list) keeps the class's own rules.
+    for (const c of classRows) {
+      const mine = access.subjectsByClass[c.id];
+      if (mine === "all") continue;
+      subjectIdsByClass[c.id] = mine ?? [];
+    }
   }
   const classSubjectIds = subjectIdsByClass[classId] ?? [];
   const classSubjectRows = subjectRows.filter((s) => classSubjectIds.includes(s.id));
@@ -597,7 +596,9 @@ export default async function AdminResultSheetPage({
                     : "Not published. Students and parents cannot see these results yet."}
                 </p>
                 <p className="text-xs text-slate-500">Publishing applies to all subjects for this class and term.</p>
-                {publicationId ? (
+                {isTeacher && !access.classTeacherClassIds.includes(classId) ? (
+                  <p className="text-xs text-slate-500">Only the class teacher or an admin can publish or unpublish results.</p>
+                ) : publicationId ? (
                   <form action={unpublishResults}>
                     <ConfirmSubmitButton
                       confirmMessage="Hide this term's results from students and parents?"

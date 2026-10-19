@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTeacherAccess, teacherTestFilter } from "@/lib/teacher-access";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -94,10 +95,14 @@ export default async function AdminExamSessionsPage({
 
   try {
     // 1. Get all tests & classes for mapping names and filter lists
-    const testsQuery = supabase
+    // Teachers only get the tests of the subjects they teach (their sessions are limited the same way by the database).
+    const testLimit = teacherTestFilter(await getTeacherAccess(supabase));
+    let testsQuery = supabase
       .from("exam_tests")
       .select("id, name")
-      .eq("active", true)
+      .eq("active", true);
+    if (testLimit) testsQuery = testsQuery.or(testLimit);
+    testsQuery = testsQuery
       .order("created_at", { ascending: false })
       .limit(500);
     const { data: testsData, error: testsError } = await withTimeout(Promise.resolve(testsQuery), 12000);

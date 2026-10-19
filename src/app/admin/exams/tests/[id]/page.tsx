@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { canManageTest, getTeacherAccess } from "@/lib/teacher-access";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -29,6 +30,8 @@ type TestRow = {
   name: string;
   description: string | null;
   duration_minutes: number;
+  subject_id: string | null;
+  created_by: string | null;
 };
 
 type QuestionRow = {
@@ -195,7 +198,7 @@ export default async function AdminExamTestDetailPage({
   const isFrozen = await checkTestFrozen(supabase, id);
 
   const [{ data: testData }, { data: questionsData }] = await Promise.all([
-    supabase.from("exam_tests").select("id, name, description, duration_minutes").eq("id", id).maybeSingle(),
+    supabase.from("exam_tests").select("id, name, description, duration_minutes, subject_id, created_by").eq("id", id).maybeSingle(),
     supabase
       .from("exam_questions")
       // "*" so the page still loads before the image_url column migration has been run.
@@ -206,6 +209,11 @@ export default async function AdminExamTestDetailPage({
 
   const test = (testData ?? null) as TestRow | null;
   if (!test) return null;
+
+  // A teacher can only open the tests of subjects they teach (the database blocks the questions anyway).
+  if (!canManageTest(await getTeacherAccess(supabase), test)) {
+    redirect(`/admin/exams/tests?toast=${encodeURIComponent("You are not assigned to this test's subject")}&toast_type=error`);
+  }
 
   const questions = (questionsData ?? []) as QuestionRow[];
 

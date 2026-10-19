@@ -36,6 +36,7 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   Timer,
+  UserCheck,
   UserCog,
   UserPlus,
   Users,
@@ -99,6 +100,7 @@ const NAV: NavGroup[] = [
       { href: "/admin/academics/publications", label: "Publish results", icon: Megaphone },
       { href: "/admin/academics/subjects", label: "Subjects", icon: BookOpen, adminOnly: true },
       { href: "/admin/academics/class-subjects", label: "Class subjects", icon: Shapes, adminOnly: true },
+      { href: "/admin/academics/teachers", label: "Teacher assignments", icon: UserCheck, adminOnly: true },
       { href: "/admin/academics/config", label: "Grading & weights", icon: SlidersHorizontal }
     ]
   },

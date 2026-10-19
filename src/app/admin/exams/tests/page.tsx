@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTeacherAccess, teachesSubject, teacherSubjectIds, teacherTestFilter } from "@/lib/teacher-access";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -58,18 +59,25 @@ export default async function AdminExamTestsPage({
   const pageSize = 15;
   const offset = (page - 1) * pageSize;
 
+  // Teachers only see the tests (and subjects) of the subjects they teach.
+  const access = await getTeacherAccess(supabase);
+  const testLimit = teacherTestFilter(access);
+  const mySubjects = teacherSubjectIds(access);
+
   // 1. Fetch subjects for dropdown option list
   const { data: subjectsData } = await supabase
     .from("subjects")
     .select("id, name")
     .eq("active", true)
     .order("name");
-  const subjects = (subjectsData ?? []) as SubjectRow[];
+  const subjects = ((subjectsData ?? []) as SubjectRow[]).filter(
+    (s) => !access.isTeacher || mySubjects === "all" || mySubjects.includes(s.id)
+  );
 
   // 2. Fetch ALL tests to compute metrics
-  const { data: metricsTests } = await supabase
-    .from("exam_tests")
-    .select("id, active, subject_id, description");
+  let metricsQuery = supabase.from("exam_tests").select("id, active, subject_id, description");
+  if (testLimit) metricsQuery = metricsQuery.or(testLimit);
+  const { data: metricsTests } = await metricsQuery;
   const allTests = (metricsTests ?? []) as Array<{ id: string; active: boolean; subject_id: string | null; description: string | null }>;
 
   const totalTests = allTests.length;
@@ -82,6 +90,7 @@ export default async function AdminExamTestsPage({
     .from("exam_tests")
     .select("id, subject_id, name, description, duration_minutes, active, subjects(id, name)", { count: "exact" });
 
+  if (testLimit) testsQuery = testsQuery.or(testLimit);
   if (query.length > 0) {
     const term = safeFilterTerm(query);
     if (term.length) testsQuery = testsQuery.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
@@ -136,6 +145,11 @@ export default async function AdminExamTestsPage({
 
     const supabase = getSupabaseServerClient();
     if (!supabase) failWithToast("/admin/exams/tests", NO_DB_MESSAGE);
+
+    const teacherAccess = await getTeacherAccess(supabase);
+    if (teacherAccess.isTeacher && !teachesSubject(teacherAccess, subjectIdRaw.length ? subjectIdRaw : null)) {
+      failWithToast("/admin/exams/tests", "Choose a subject you teach. Ask an admin if it is missing from the list.");
+    }
 
     // Number of questions is saved as question targets, tracked on the test page while questions are set.
     const targets: Record<string, number> = {};
@@ -456,9 +470,14 @@ export default async function AdminExamTestsPage({
             <Field label="Test name" htmlFor="new-name" required className="sm:col-span-2">
               <input id="new-name" className="gf-input" name="name" placeholder="Mid-term examination" required />
             </Field>
-            <Field label="Subject (optional)" htmlFor="new-subject">
-              <select id="new-subject" className="gf-select" name="subject_id" defaultValue="">
-                <option value="">—</option>
+            <Field
+              label={access.isTeacher ? "Subject" : "Subject (optional)"}
+              htmlFor="new-subject"
+              required={access.isTeacher}
+              hint={access.isTeacher ? "Only the subjects assigned to you are listed." : undefined}
+            >
+              <select id="new-subject" className="gf-select" name="subject_id" defaultValue="" required={access.isTeacher}>
+                <option value="">{access.isTeacher ? "Select subject" : "—"}</option>
                 {subjects.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}

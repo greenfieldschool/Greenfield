@@ -118,7 +118,8 @@ export async function middleware(request: NextRequest) {
       "/admin/audit",
       "/admin/settings",
       "/admin/academics/subjects",
-      "/admin/academics/class-subjects"
+      "/admin/academics/class-subjects",
+      "/admin/academics/teachers"
     ];
     const isAdminOnly = adminOnlyPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
     if (isAdminOnly) {
