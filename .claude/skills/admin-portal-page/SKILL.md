@@ -9,7 +9,9 @@ description: Use when building or changing a page, form, nav item or server acti
 - Pages: `src/app/admin/**/page.tsx`, `src/app/portal/**/page.tsx` (server components).
 - Nav: `src/app/admin/AdminShell.tsx` (`NAV` groups, `adminOnly`, `chatOnly`, `SEGMENT_LABELS`),
   `src/app/portal/PortalShell.tsx` (`parentNav` / `studentNav`; `tab: true` = mobile bottom bar, max 4 + More).
-- Admin-only routes: `middleware.ts` → `adminOnlyPrefixes`.
+- Access rules: `src/lib/route-access.ts` (`decideAccess`, `adminOnlyPrefixes`, `safeRedirect`), enforced by
+  `src/middleware.ts`. It must stay in `src/`: with a src directory, a root-level `middleware.ts` is silently ignored
+  (ours was, for months).
 - Design system: `src/components/ui/*` and `gf-*` classes (see CLAUDE.md). Icons: `lucide-react`.
 - Shared form pieces: `SubmitButton` (supports `variant`, `size`, `formAction`), `ConfirmSubmitButton`,
   `ConfirmActionButton` (confirm + `formAction`), `UrlToast`.
@@ -24,7 +26,7 @@ description: Use when building or changing a page, form, nav item or server acti
    This stops a stale tab from overwriting someone else's work.
 4. Use the design system: `PageHeader` → `Card`s; `EmptyState` for empty lists; `Alert` for warnings;
    `Badge` for status. Tables: `gf-table-wrap` + `gf-table`.
-5. Access: hide UI by role, but rely on RLS. New admin-only page → add to `adminOnlyPrefixes` and `adminOnly` in nav.
+5. Access: hide UI by role, but rely on RLS. New admin-only page → add to `adminOnlyPrefixes` in `src/lib/route-access.ts` and `adminOnly` in nav.
 6. New route segment → add a label to `SEGMENT_LABELS`.
 7. Update the Learn Centre guide for the workflow.
 

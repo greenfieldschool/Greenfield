@@ -1,3 +1,4 @@
+import { safeRedirect } from "@/lib/route-access";
 import { StudentLoginForm } from "./ui";
 
 export default function PortalStudentLoginPage({
@@ -5,5 +6,5 @@ export default function PortalStudentLoginPage({
 }: {
   searchParams: { redirectTo?: string };
 }) {
-  return <StudentLoginForm redirectTo={searchParams.redirectTo ?? "/portal"} />;
+  return <StudentLoginForm redirectTo={safeRedirect(searchParams.redirectTo, "portal")} />;
 }

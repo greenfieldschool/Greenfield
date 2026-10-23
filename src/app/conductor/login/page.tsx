@@ -1,3 +1,4 @@
+import { safeRedirect } from "@/lib/route-access";
 import { ConductorLoginForm } from "@/app/conductor/login/ui";
 
 export default function ConductorLoginPage({
@@ -5,5 +6,5 @@ export default function ConductorLoginPage({
 }: {
   searchParams: { redirectTo?: string };
 }) {
-  return <ConductorLoginForm redirectTo={searchParams.redirectTo ?? "/conductor"} />;
+  return <ConductorLoginForm redirectTo={safeRedirect(searchParams.redirectTo, "conductor")} />;
 }

@@ -83,7 +83,7 @@ type AdminShellProps = {
 
 const STORAGE_KEY = "gf_admin_sidebar_collapsed";
 
-// Admin-only sections mirror the adminOnlyPrefixes check in middleware.ts (and RLS).
+// Admin-only sections mirror adminOnlyPrefixes in src/lib/route-access.ts (enforced by src/middleware.ts) and RLS.
 const NAV: NavGroup[] = [
   {
     key: "overview",

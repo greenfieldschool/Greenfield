@@ -1,3 +1,4 @@
+import { safeRedirect } from "@/lib/route-access";
 import { GuardianLoginForm } from "./ui";
 
 export default function PortalGuardianLoginPage({
@@ -5,5 +6,5 @@ export default function PortalGuardianLoginPage({
 }: {
   searchParams: { redirectTo?: string };
 }) {
-  return <GuardianLoginForm redirectTo={searchParams.redirectTo ?? "/portal"} />;
+  return <GuardianLoginForm redirectTo={safeRedirect(searchParams.redirectTo, "portal")} />;
 }

@@ -11,13 +11,14 @@
 
 import { useEffect, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useToast, type ToastType } from "./toast-provider";
+import { useOptionalToast, type ToastType } from "./toast-provider";
 
 export default function UrlToast() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { showToast } = useToast();
+  // Outside a ToastProvider (e.g. a page shown while signed out) there is nowhere to show it: do nothing.
+  const showToast = useOptionalToast()?.showToast;
   const lastShown = useRef<string | null>(null);
 
   const message = searchParams.get("toast");
@@ -35,7 +36,7 @@ export default function UrlToast() {
     lastShown.current = key;
 
     const type: ToastType = typeRaw === "error" ? "error" : typeRaw === "info" ? "info" : "success";
-    showToast(message, type);
+    showToast?.(message, type);
 
     // Clean the query params from the URL without a full navigation
     const next = new URLSearchParams(searchParams.toString());

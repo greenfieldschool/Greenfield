@@ -46,6 +46,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Like useToast, but returns null outside a ToastProvider instead of throwing. */
+export function useOptionalToast() {
+  return useContext(ToastContext);
+}
+
 export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error("useToast must be used inside <ToastProvider>");

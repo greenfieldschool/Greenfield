@@ -62,7 +62,9 @@ assume you can click through the real app; see the preview techniques in the ski
 - Teachers: class teacher (`teacher_class_assignments`) or subject teacher (`teacher_subject_assignments`). Use
   `getTeacherAccess()` / `canTeach()` in pages; the database enforces the same rules with `teacher_teaches()`,
   `teacher_has_class()`.
-- `middleware.ts` `adminOnlyPrefixes` blocks non-admin staff from admin-only routes. Keep it in step with
+- `src/middleware.ts` + `src/lib/route-access.ts` send signed-out visitors to the right login page, keep staff out of
+  the portal and non-admins out of `adminOnlyPrefixes`. The middleware must stay in `src/` (a root-level one is
+  ignored when using a src directory). Keep `adminOnlyPrefixes` in step with
   `adminOnly` in `AdminShell` **and** with RLS. RLS is the real guard; the UI only hides things.
 
 ## Hard-won rules

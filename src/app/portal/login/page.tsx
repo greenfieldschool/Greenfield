@@ -1,3 +1,4 @@
+import { safeRedirect } from "@/lib/route-access";
 import Link from "next/link";
 import { ArrowRight, GraduationCap, Users, type LucideIcon } from "lucide-react";
 import { LoginFrame } from "../_components/portal-ui";
@@ -40,7 +41,7 @@ export default function PortalLoginPage({
 }: {
   searchParams: { redirectTo?: string };
 }) {
-  const redirectTo = searchParams.redirectTo ?? "/portal";
+  const redirectTo = safeRedirect(searchParams.redirectTo, "portal");
   const qs = `?redirectTo=${encodeURIComponent(redirectTo)}`;
 
   return (
