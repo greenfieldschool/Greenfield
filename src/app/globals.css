@@ -128,3 +128,27 @@ body {
     animation: none;
   }
 }
+
+/* Printed report cards: one per A4 page, colours kept, everything else on the page hidden. */
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .gf-report-card {
+    break-after: page;
+    break-inside: avoid-page;
+    box-shadow: none !important;
+    border: 0 !important;
+    margin: 0 !important;
+  }
+  .gf-report-card:last-child {
+    break-after: auto;
+  }
+}

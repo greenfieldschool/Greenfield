@@ -12,7 +12,8 @@ export default function SubmitButton({
   type,
   showSpinner,
   variant,
-  size
+  size,
+  formAction
 }: {
   children: ReactNode;
   pendingText?: string;
@@ -23,6 +24,8 @@ export default function SubmitButton({
   disabled?: boolean;
   type?: "submit" | "button";
   showSpinner?: boolean;
+  /** Submit to a different server action than the form's own. */
+  formAction?: (formData: FormData) => void | Promise<void>;
 }) {
   const { pending } = useFormStatus();
 
@@ -31,6 +34,7 @@ export default function SubmitButton({
   return (
     <button
       type={type ?? "submit"}
+      formAction={formAction}
       disabled={disabled || pending}
       aria-busy={pending}
       className={className ?? buttonClasses({ variant, size })}

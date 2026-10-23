@@ -18,6 +18,7 @@ import {
   Smile,
   User,
   Users,
+  MessagesSquare,
   X,
   type LucideIcon
 } from "lucide-react";
@@ -40,9 +41,10 @@ const studentNav: NavItem[] = [
 
 const parentNav: NavItem[] = [
   { href: "/portal", label: "Home", icon: Home, exact: true, tab: true },
-  { href: "/portal/students", label: "My children", icon: Users, tab: true },
+  { href: "/portal/messages", label: "Messages", icon: MessagesSquare, tab: true },
   { href: "/portal/academics", label: "Report cards", icon: BookOpen, tab: true },
   { href: "/portal/billing", label: "Fees & billing", icon: Receipt, tab: true },
+  { href: "/portal/students", label: "My children", icon: Users },
   { href: "/portal/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/portal/discipline", label: "Discipline", icon: ShieldCheck },
   { href: "/portal/activities", label: "Activities", icon: Smile },
@@ -59,11 +61,14 @@ export default function PortalShell({
   role,
   displayName,
   displayEmail,
+  unreadMessages = 0,
   children
 }: {
   role: "student" | "parent";
   displayName: string;
   displayEmail: string;
+  /** Unread messages, shown as a badge on "Messages". */
+  unreadMessages?: number;
   children: ReactNode;
 }) {
   const pathname = usePathname() ?? "/portal";
@@ -103,7 +108,7 @@ export default function PortalShell({
   return (
     <div className="min-h-screen bg-canvas">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 backdrop-blur-md print:hidden">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/portal" aria-label="Portal home">
             <Logo subtitle={role === "student" ? "Student portal" : "Parent portal"} />
@@ -159,9 +164,9 @@ export default function PortalShell({
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl gap-8 px-4 pb-28 pt-6 sm:px-6 lg:pb-16 lg:pt-8">
+      <div className="mx-auto flex max-w-7xl gap-8 px-4 pb-28 pt-6 sm:px-6 lg:pb-16 lg:pt-8 print:max-w-none print:p-0">
         {/* Desktop side nav */}
-        <aside className="hidden w-60 shrink-0 lg:block">
+        <aside className="hidden w-60 shrink-0 lg:block print:!hidden">
           <nav className="sticky top-24 space-y-0.5" aria-label="Portal">
             {nav.map((item) => {
               const active = isActive(pathname, item);
@@ -182,6 +187,12 @@ export default function PortalShell({
                     aria-hidden="true"
                   />
                   {item.label}
+                  {item.href === "/portal/messages" && unreadMessages > 0 ? (
+                    <span className="ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-brand-green px-1.5 text-[11px] font-bold text-white">
+                      {unreadMessages > 99 ? "99+" : unreadMessages}
+                      <span className="sr-only"> unread</span>
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}
@@ -207,7 +218,7 @@ export default function PortalShell({
       {/* Mobile bottom tab bar */}
       <nav
         aria-label="Portal"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden print:hidden"
       >
         <div className="mx-auto grid max-w-lg grid-cols-5">
           {tabs.map((item) => {
@@ -224,11 +235,17 @@ export default function PortalShell({
               >
                 <span
                   className={cn(
-                    "inline-flex h-7 w-12 items-center justify-center rounded-full transition",
+                    "relative inline-flex h-7 w-12 items-center justify-center rounded-full transition",
                     active && "bg-brand-green-50"
                   )}
                 >
                   <item.icon className="h-5 w-5" aria-hidden="true" />
+                  {item.href === "/portal/messages" && unreadMessages > 0 ? (
+                    <span className="absolute -top-1 right-1.5 inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-4 text-white">
+                      {unreadMessages > 9 ? "9+" : unreadMessages}
+                      <span className="sr-only"> unread</span>
+                    </span>
+                  ) : null}
                 </span>
                 <span className="max-w-full truncate px-1">{item.label}</span>
               </Link>

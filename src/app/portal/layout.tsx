@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import PortalShell from "./PortalShell";
+import { ToastProvider } from "@/components/toast-provider";
 import { ServiceUnavailable } from "@/components/ui/service-unavailable";
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
@@ -80,12 +81,30 @@ export default async function PortalLayout({ children }: { children: ReactNode }
     return <>{children}</>;
   }
 
+  // Badge on "Messages" (parents only). Never blocks the page.
+  let unreadMessages = 0;
+  if (role === "parent") {
+    try {
+      const { data } = await withTimeout(Promise.resolve(supabase.rpc("chat_unread_total")), 2500);
+      unreadMessages = Number(data ?? 0) || 0;
+    } catch {
+      unreadMessages = 0;
+    }
+  }
+
   const displayEmail = user.email ?? "";
   const displayName = personName ?? displayEmail.split("@")[0];
 
   return (
-    <PortalShell role={role === "student" ? "student" : "parent"} displayName={displayName} displayEmail={displayEmail}>
-      {children}
-    </PortalShell>
+    <ToastProvider>
+      <PortalShell
+        role={role === "student" ? "student" : "parent"}
+        displayName={displayName}
+        displayEmail={displayEmail}
+        unreadMessages={unreadMessages}
+      >
+        {children}
+      </PortalShell>
+    </ToastProvider>
   );
 }

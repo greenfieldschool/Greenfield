@@ -2,9 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
-import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
-import { buttonClasses } from "@/components/ui/button";
 import { firstOrNull } from "@/lib/relations";
 import { EyeOff, FileSpreadsheet, Megaphone, Send } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -105,23 +103,6 @@ export default async function AdminAcademicsPublicationsPage() {
     revalidatePath("/portal/academics");
     if (error) pubBack(error.message, "error");
     pubBack("Results published");
-  }
-
-  async function unpublish(formData: FormData) {
-    "use server";
-
-    const id = String(formData.get("id") ?? "").trim();
-    if (!id) pubBack("Missing publication", "error");
-
-    const supabase = getSupabaseServerClient();
-    if (!supabase) pubBack("Database is not configured", "error");
-
-    const { error } = await supabase.from("result_publications").delete().eq("id", id);
-
-    revalidatePath("/admin/academics/publications");
-    revalidatePath("/portal/academics");
-    if (error) pubBack(error.message, "error");
-    pubBack("Results unpublished");
   }
 
   return (
@@ -242,16 +223,15 @@ export default async function AdminAcademicsPublicationsPage() {
                         </div>
                       </td>
                       <td className="text-right">
-                        <form action={unpublish}>
-                          <input type="hidden" name="id" value={p.id} />
-                          <ConfirmSubmitButton
-                            className={buttonClasses({ variant: "secondary", size: "sm" })}
-                            confirmMessage={`Unpublish ${p.scope} for ${cls ? `${cls.level} - ${cls.name}` : "this class"} (${year?.name ?? "—"} / ${term?.name ?? "—"})? Students and parents will no longer see these results.`}
-                          >
-                            <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
-                            Unpublish
-                          </ConfirmSubmitButton>
-                        </form>
+                        {/* Unpublishing needs an admin and a reason (kept in the audit log), on the Report cards page. */}
+                        <ButtonLink
+                          href={`/admin/academics/reports?class_id=${p.class_id ?? ""}&term_id=${p.academic_term_id ?? ""}`}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                          Manage
+                        </ButtonLink>
                       </td>
                     </tr>
                   );

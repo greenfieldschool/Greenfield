@@ -7,6 +7,7 @@ import {
   GraduationCap,
   HeartPulse,
   Library,
+  MessagesSquare,
   SlidersHorizontal,
   Timer,
   UserPlus,
@@ -141,12 +142,51 @@ export default function AdminLearnCentrePage() {
         {
           name: "Entering Term Results (Result sheet)",
           steps: [
-            "Open Academics > Result sheet (/admin/academics/results).",
-            "Pick the class first. The Subject list then shows only that class's subjects (or all subjects if none are assigned yet), then pick the term and click 'Open sheet'.",
-            "Enter 1st CA, 2nd CA, Exam (Objective) and Exam (Theory) scores and click 'Save all scores'. Leave a box empty to clear it.",
-            "Use 'Copy CBT scores' to bring in objective scores from a computer-based exam session for the class.",
-            "Use the subject links under the picker to move to the class's next subject without re-selecting everything.",
-            "When every subject is done, click 'Publish results' so students and parents can see them."
+            "Open Academics > Result sheet (/admin/academics/results). Pick the class (the Subject list then shows only that class's subjects), the subject and the term, then click 'Open sheet'.",
+            "The first time a subject's sheet is opened for a term, choose its columns: e.g. '1st CA (Obj)' and '1st CA (Theory)', 'Assignment 1', 'Assignment 2', 'Exam (Objective)', 'Exam (Theory)'. Tick the box to keep the same columns for that subject in future terms.",
+            "Enter scores and click 'Save changes'. Only the boxes you changed are saved, so you can save the CA scores now and the exam scores later, and two teachers can work on the same sheet without wiping each other's scores.",
+            "The total is shown out of 100 even if the columns add up to a different number. 'so far' means some columns are still empty; the grade appears once every column is filled.",
+            "Need to change the columns mid-term? Use 'Edit columns'. Removing a column that already has scores asks you to confirm first.",
+            "Use 'Copy CBT scores' to bring a computer-based exam into any column, scaled to that column's max score."
+          ]
+        },
+        {
+          name: "Final Scores, Corrections and the Results History",
+          steps: [
+            "When a subject's scores are all entered and checked against the marked scripts, the subject teacher clicks 'Submit as final' on the result sheet. The sheet is then locked: nobody (teachers or admins) can type over its scores or change its columns. Publishing a class's report cards locks every sheet and welfare rating for that class and term.",
+            "Found a mistake on a final sheet? Click 'Request a correction', change only the wrong boxes, write why (e.g. 'script shows 15, keyed 17') and click 'Send to admin'. Nothing changes until an admin approves it. You can withdraw a request while it is waiting.",
+            "Admins see waiting requests under Academics > Correction requests (and on the sheet itself). 'Approve' applies the new scores at once and the sheet stays locked; 'Reject' needs a note for the teacher. If a score changed after the request was made, approval is refused so nothing is overwritten unseen.",
+            "For larger corrections an admin can still unlock the whole sheet with a reason, and the teacher submits it again afterwards. Published report cards are unpublished by an admin, also with a reason.",
+            "Academics > Results history shows every score entered, changed or deleted (who, when, old and new score, typed or from a CBT exam or a correction), every column change, welfare rating, submission, correction request and decision, unlock, publish and unpublish. Teachers see the classes and subjects they teach; admins see everything. Nobody can edit or delete it."
+          ]
+        },
+        {
+          name: "Result Sheet Columns for the Whole School or a Level",
+          steps: [
+            "Open Academics > Grading & layouts (/admin/academics/config) > Result sheet columns.",
+            "Set the whole-school default, and a different set for creche, primary or secondary if they are assessed differently.",
+            "New sheets start from the most specific layout: the class and subject's own, then the level's, then the school default. Sheets that already exist keep their columns."
+          ]
+        },
+        {
+          name: "Welfare Scores (out of 100)",
+          steps: [
+            "Welfare is scored out of 100 per pupil per term. Admins set what it is made of under Welfare > Welfare criteria, per level.",
+            "Default criteria: Attendance 20, Punctuality 10, Uniform 10 and Conduct 15 come automatically from attendance, 'late' marks, uniform checks and discipline records. Neatness, Politeness, Honesty, Cooperation, Attentiveness, Leadership and Participation (45 in total) are rated 1–5 by the class teacher.",
+            "Class teachers rate their pupils on Welfare > Welfare scores (/admin/welfare/scores), and must keep attendance, uniform checks and discipline records up to date during the term.",
+            "If a record-based criterion has nothing recorded (e.g. no uniform checks), it is left out and welfare is scored out of the rest. Health incidents never reduce the score.",
+            "Pupils who are not yet rated are flagged on the score sheet and on the Report cards checklist."
+          ]
+        },
+        {
+          name: "Report Cards and Publishing",
+          steps: [
+            "Open Academics > Report cards (/admin/academics/reports) and pick the class and term.",
+            "The checklist shows what is missing: subjects not fully scored, pupils without welfare ratings, attendance, and comments. Each line links to the page that fixes it.",
+            "Term total = average of the academic average (average of all subject totals) and the welfare score. Positions are ranked on the term total; pupils with no scores are not ranked.",
+            "Write comments on the Comments page: the class teacher for every pupil, the head teacher (admin) after. 'Suggest for blanks' fills in a starting comment from the pupil's term total to edit.",
+            "Click 'Print all' to print or save all report cards as PDF (one A4 page per pupil). 'Hide positions' prints them without positions.",
+            "Click 'Publish report cards'. If anything is still missing you are warned first. Parents and pupils then see the same report card on the portal and can print it."
           ]
         },
         {
@@ -161,9 +201,36 @@ export default function AdminLearnCentrePage() {
         {
           name: "Assessment Weights & Grading scales",
           steps: [
-            "Open Academics > Config (/admin/academics/config).",
-            "Set weight allocations (e.g. exams vs. weekly tests) per school level (creche, primary, secondary). Active weights must total 100%.",
-            "Configure Grading scale thresholds (e.g. A = 70 to 100) per level."
+            "Open Academics > Grading & layouts (/admin/academics/config).",
+            "Configure Grading scale thresholds (e.g. A = 70 to 100) per level. They grade every subject total, the academic average and the term total.",
+            "Assessment weights only apply to assessments created on the Assessments page, not to the result sheet."
+          ]
+        }
+      ]
+    },
+    {
+      title: "Messages",
+      icon: MessagesSquare,
+      tone: "blue" as Tone,
+      guides: [
+        {
+          name: "How Messages Work (Teachers and Parents)",
+          steps: [
+            "Open Messages (/admin/messages for staff, Messages in the parent portal). Who can talk to whom follows enrolment: when a pupil moves class, their parents move to the new class's spaces automatically.",
+            "Every class has two spaces: Announcements (teachers of the class post, parents read) and the Parents' chat (parents talk to each other; the class teacher and admins can read it, and parents are told so).",
+            "Click New for a private message. Teachers can message parents of pupils in classes they teach (as class teacher or subject teacher). Parents can message their children's teachers.",
+            "Parents can message other parents in the same class only if that parent has switched on 'Let other parents message me' (off by default). They can block anyone. Phone numbers and emails are never shown.",
+            "Teachers set when they usually reply under Messages > settings (default Mon–Fri 08:00–16:00). Parents see it, plus the school office number for anything urgent. Messages still arrive at any time; there is no need to reply outside those hours."
+          ]
+        },
+        {
+          name: "Keeping Chats Safe (Moderation)",
+          steps: [
+            "Anyone can report a message with the ⋯ menu. Reports go to Messages > Moderation (admins).",
+            "Admins can remove a message (with a reason), dismiss a report, or mute a parent in a class chat for 1, 7 or 30 days. Class teachers can remove messages and mute in their own class spaces.",
+            "Nothing is ever deleted: unsent (within 15 minutes) and removed messages are hidden from the chat but the original is kept in the school record.",
+            "Teacher–parent private messages are kept as a school record and admins can read them under Moderation > Teacher–parent messages. Private messages between two parents are only seen by the school if one is reported.",
+            "Students have no access to Messages."
           ]
         }
       ]
@@ -235,7 +302,7 @@ export default function AdminLearnCentrePage() {
       />
 
       {/* Category directory */}
-      <nav aria-label="Guide categories" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <nav aria-label="Guide categories" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {categories.map((cat, idx) => (
           <a
             key={idx}

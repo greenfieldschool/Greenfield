@@ -53,9 +53,20 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     redirect("/admin/logout?next=/admin/login?unauthorized=1");
   }
 
+  // Badge on "Messages". Never blocks the page: missing table or slow query just means no badge.
+  let unreadMessages = 0;
+  if (role === "teacher" || role === "admin" || role === "super_admin") {
+    try {
+      const { data } = await withTimeout(Promise.resolve(supabase.rpc("chat_unread_total")), 2500);
+      unreadMessages = Number(data ?? 0) || 0;
+    } catch {
+      unreadMessages = 0;
+    }
+  }
+
   return (
     <ToastProvider>
-      <AdminShell userEmail={user.email ?? ""} role={(role ?? null) as string | null}>
+      <AdminShell userEmail={user.email ?? ""} role={(role ?? null) as string | null} unreadMessages={unreadMessages}>
         {children}
       </AdminShell>
     </ToastProvider>

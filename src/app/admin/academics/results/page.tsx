@@ -5,15 +5,27 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { firstOrNull } from "@/lib/relations";
 import { canTeach, getTeacherAccess } from "@/lib/teacher-access";
-import { isResultColumnType, resultColumns, resultColumnTypes, type ResultColumnType } from "@/lib/results";
+import {
+  componentGroups,
+  gradeFor,
+  layoutSourceLabel,
+  layoutTotal,
+  parseLayout,
+  resolveLayout,
+  round2,
+  subjectPercent,
+  type ComponentGroup,
+  type GradeBand
+} from "@/lib/results";
 import SubmitButton from "@/components/submit-button";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
+import ColumnsEditor from "@/components/columns-editor";
 import SheetPicker from "./SheetPicker";
-import { Download, EyeOff, FileSpreadsheet, MonitorCheck, Save, Send, Settings2, Users } from "lucide-react";
+import { Columns3, Download, FilePen, FileSpreadsheet, FileText, History, Lock, LockOpen, MonitorCheck, Save, Send, Settings2, Users } from "lucide-react";
+import { CorrectionRequestCard, loadCorrectionRequests } from "../corrections/_requests";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
-import { FormSection, Field } from "@/components/ui/form-section";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -25,25 +37,25 @@ type TermRow = { id: string; name: string; academic_year_id: string };
 type ClassRow = { id: string; level: string; name: string };
 type SubjectRow = { id: string; name: string };
 type StudentRow = { id: string; first_name: string; last_name: string; admission_number: string | null };
-type AssessmentRow = { id: string; assessment_type: string; max_score: number };
+type ColumnRow = { id: string; title: string | null; max_score: number; position: number; component_group: string | null };
 type ScoreRow = { assessment_id: string; student_id: string; score: number };
-type GradeRow = { grade: string; min_score: number; max_score: number };
 type SessionRow = {
   id: string;
   starts_at: string | null;
   academic_term_id: string | null;
-  results_released_at: string | null;
   exam_tests: { id: string; name: string; subject_id: string | null } | Array<{ id: string; name: string; subject_id: string | null }> | null;
 };
 
 type SheetContext = { classId: string; subjectId: string; yearId: string; termId: string };
 
+const groupLabel = Object.fromEntries(componentGroups.map((g) => [g.value, g.label.split(" ")[0]])) as Record<ComponentGroup, string>;
+
 function str(v: string | string[] | undefined) {
   return (Array.isArray(v) ? v[0] : v)?.trim() ?? "";
 }
 
-function round2(n: number) {
-  return Math.round(n * 100) / 100;
+function asGroup(v: string | null): ComponentGroup {
+  return v === "ca" || v === "exam" ? v : "other";
 }
 
 function sheetUrl(ctx: SheetContext, extra?: Record<string, string>) {
@@ -61,64 +73,25 @@ function back(ctx: SheetContext, message: string, type: "success" | "error" = "s
   redirect(sheetUrl(ctx, { toast: message, toast_type: type }));
 }
 
-// Finds (or creates) the four assessments that back the sheet columns for this class/subject/term.
-async function ensureAssessments(
-  supabase: SupabaseClient,
-  ctx: SheetContext,
-  maxOverrides?: Partial<Record<ResultColumnType, number>>
-) {
-  // Teachers only work on the subjects they teach in this class (the database enforces this too).
-  const access = await getTeacherAccess(supabase as Parameters<typeof getTeacherAccess>[0]);
-  if (!canTeach(access, ctx.classId, ctx.subjectId)) {
-    back(ctx, "You are not assigned to teach this subject in this class. Ask an admin to assign it to you.", "error");
-  }
-
-  const { data } = await supabase
+function sheetColumns(supabase: SupabaseClient, ctx: SheetContext) {
+  return supabase
     .from("academic_assessments")
-    .select("id, assessment_type, max_score")
+    .select("id, title, max_score, position, component_group")
     .eq("class_id", ctx.classId)
     .eq("subject_id", ctx.subjectId)
     .eq("academic_year_id", ctx.yearId)
     .eq("academic_term_id", ctx.termId)
-    .in("assessment_type", resultColumnTypes)
+    .eq("on_result_sheet", true)
+    .order("position", { ascending: true })
     .order("created_at", { ascending: true });
+}
 
-  const byType = new Map<string, AssessmentRow>();
-  for (const a of (data ?? []) as AssessmentRow[]) {
-    if (!byType.has(a.assessment_type)) byType.set(a.assessment_type, a);
+// Teachers only work on the subjects they teach in this class (the database enforces this too).
+async function requireTeachAccess(supabase: SupabaseClient, ctx: SheetContext) {
+  const access = await getTeacherAccess(supabase as Parameters<typeof getTeacherAccess>[0]);
+  if (!canTeach(access, ctx.classId, ctx.subjectId)) {
+    back(ctx, "You are not assigned to teach this subject in this class. Ask an admin to assign it to you.", "error");
   }
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  for (const col of resultColumns) {
-    const wantedMax = maxOverrides?.[col.type];
-    const existing = byType.get(col.type);
-
-    if (!existing) {
-      const { data: created } = await supabase
-        .from("academic_assessments")
-        .insert({
-          class_id: ctx.classId,
-          subject_id: ctx.subjectId,
-          academic_year_id: ctx.yearId,
-          academic_term_id: ctx.termId,
-          assessment_type: col.type,
-          title: col.label,
-          max_score: wantedMax ?? col.defaultMax,
-          created_by: user?.id ?? null
-        })
-        .select("id, assessment_type, max_score")
-        .maybeSingle();
-      if (created) byType.set(col.type, created as AssessmentRow);
-    } else if (wantedMax !== undefined && Number(existing.max_score) !== wantedMax) {
-      await supabase.from("academic_assessments").update({ max_score: wantedMax }).eq("id", existing.id);
-      existing.max_score = wantedMax;
-    }
-  }
-
-  return byType;
 }
 
 // Module level so it cannot capture values from the page render (inline actions that do can crash).
@@ -141,10 +114,316 @@ async function openSheet(formData: FormData) {
 
 function revalidateResults() {
   revalidatePath("/admin/academics/results");
+  revalidatePath("/admin/academics/reports");
   revalidatePath("/admin/academics/assessments");
-  revalidatePath("/admin/academics/publications");
   revalidatePath("/portal/academics");
   revalidatePath("/portal");
+}
+
+function readContext(formData: FormData): SheetContext {
+  return {
+    classId: String(formData.get("class_id") ?? "").trim(),
+    subjectId: String(formData.get("subject_id") ?? "").trim(),
+    yearId: String(formData.get("year_id") ?? "").trim(),
+    termId: String(formData.get("term_id") ?? "").trim()
+  };
+}
+
+// Creates, renames, resizes, reorders and removes the sheet's columns.
+async function saveColumns(formData: FormData) {
+  "use server";
+  const ctx = readContext(formData);
+  if (!ctx.classId || !ctx.subjectId || !ctx.yearId || !ctx.termId) back(ctx, "Choose a class, subject and term first", "error");
+  const supabase = getSupabaseServerClient();
+  if (!supabase) back(ctx, "Database is not configured", "error");
+  await requireTeachAccess(supabase, ctx);
+
+  let submitted: Array<{ id?: string; label: string; group: ComponentGroup; max: number }> = [];
+  try {
+    submitted = JSON.parse(String(formData.get("columns") ?? "[]"));
+  } catch {
+    back(ctx, "Could not read the columns. Please try again.", "error");
+  }
+  const parsed = parseLayout(submitted);
+  if (!parsed) {
+    back(ctx, "Every column needs a name (all different) and a max score above 0, with at most 12 columns.", "error");
+  }
+  const rows = parsed.map((c, i) => ({ ...c, id: typeof submitted[i]?.id === "string" ? submitted[i].id : undefined }));
+
+  const { data: existingData, error: readError } = await sheetColumns(supabase, ctx);
+  if (readError) back(ctx, readError.message, "error");
+  const existing = (existingData ?? []) as ColumnRow[];
+  const existingIds = new Set(existing.map((c) => c.id));
+
+  const { data: scoreData } = existing.length
+    ? await supabase
+        .from("academic_assessment_scores")
+        .select("assessment_id, score")
+        .in(
+          "assessment_id",
+          existing.map((c) => c.id)
+        )
+    : { data: [] };
+  const highest = new Map<string, number>();
+  const counts = new Map<string, number>();
+  for (const s of (scoreData ?? []) as Array<{ assessment_id: string; score: number }>) {
+    highest.set(s.assessment_id, Math.max(highest.get(s.assessment_id) ?? 0, Number(s.score)));
+    counts.set(s.assessment_id, (counts.get(s.assessment_id) ?? 0) + 1);
+  }
+
+  const keptIds = new Set(rows.map((r) => r.id).filter((id): id is string => !!id && existingIds.has(id)));
+  const removed = existing.filter((c) => !keptIds.has(c.id));
+  if (removed.some((c) => counts.get(c.id)) && formData.get("confirm_remove") !== "on") {
+    back(ctx, "Tick the box to confirm deleting the scores in the columns you removed.", "error");
+  }
+  for (const r of rows) {
+    if (r.id && keptIds.has(r.id) && (highest.get(r.id) ?? 0) > r.max) {
+      back(ctx, `“${r.label}” already has a score of ${highest.get(r.id)}, so its max score can't be lower than that.`, "error");
+    }
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (removed.length) {
+    const { error } = await supabase
+      .from("academic_assessments")
+      .delete()
+      .in(
+        "id",
+        removed.map((c) => c.id)
+      );
+    if (error) back(ctx, error.message, "error");
+  }
+
+  for (const [i, r] of rows.entries()) {
+    const values = { title: r.label, max_score: r.max, component_group: r.group, assessment_type: r.group, position: i + 1 };
+    const { error } =
+      r.id && keptIds.has(r.id)
+        ? await supabase.from("academic_assessments").update(values).eq("id", r.id)
+        : await supabase.from("academic_assessments").insert({
+            ...values,
+            class_id: ctx.classId,
+            subject_id: ctx.subjectId,
+            academic_year_id: ctx.yearId,
+            academic_term_id: ctx.termId,
+            on_result_sheet: true,
+            created_by: user?.id ?? null
+          });
+    if (error) back(ctx, error.message, "error");
+  }
+
+  // Optionally keep this layout for future terms of this subject in this class.
+  if (formData.get("save_default") === "on") {
+    const components = rows.map(({ label, group, max }) => ({ label, group, max }));
+    const { data: current } = await supabase
+      .from("result_layouts")
+      .select("id")
+      .eq("class_id", ctx.classId)
+      .eq("subject_id", ctx.subjectId)
+      .is("level", null)
+      .maybeSingle();
+    const { error } = current
+      ? await supabase
+          .from("result_layouts")
+          .update({ components, updated_by: user?.id ?? null, updated_at: new Date().toISOString() })
+          .eq("id", (current as { id: string }).id)
+      : await supabase
+          .from("result_layouts")
+          .insert({ class_id: ctx.classId, subject_id: ctx.subjectId, components, updated_by: user?.id ?? null });
+    if (error) back(ctx, `Columns saved, but they could not be kept for future terms: ${error.message}`, "error");
+  }
+
+  revalidateResults();
+  const total = layoutTotal(rows);
+  back(ctx, total === 100 ? "Columns saved" : `Columns saved. They add up to ${total}, so totals are scaled to 100.`);
+}
+
+// Saves only the boxes that changed since the sheet was opened, so CA scores can be saved now and exam scores
+// later (or by someone else) without one overwriting the other.
+async function saveScores(formData: FormData) {
+  "use server";
+  const ctx = readContext(formData);
+  const supabase = getSupabaseServerClient();
+  if (!supabase) back(ctx, "Database is not configured", "error");
+  await requireTeachAccess(supabase, ctx);
+
+  const { data: colData } = await sheetColumns(supabase, ctx);
+  const columns = (colData ?? []) as ColumnRow[];
+  if (!columns.length) back(ctx, "Set up the sheet's columns first", "error");
+
+  const studentIds = String(formData.get("student_ids") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  const upserts: Array<{ assessment_id: string; student_id: string; score: number; graded_by: string | null }> = [];
+  const deletesByColumn = new Map<string, string[]>();
+  const problems: string[] = [];
+
+  for (const studentId of studentIds) {
+    for (const col of columns) {
+      const field = `${col.id}:${studentId}`;
+      if (!formData.has(`score:${field}`)) continue;
+      const raw = String(formData.get(`score:${field}`) ?? "").trim();
+      const orig = String(formData.get(`orig:${field}`) ?? "").trim();
+      if (raw === orig) continue;
+      if (!raw.length) {
+        deletesByColumn.set(col.id, [...(deletesByColumn.get(col.id) ?? []), studentId]);
+        continue;
+      }
+      const score = Number(raw);
+      if (!Number.isFinite(score) || score < 0 || score > Number(col.max_score)) {
+        problems.push(`${col.title ?? "Score"} must be between 0 and ${col.max_score}`);
+        continue;
+      }
+      upserts.push({ assessment_id: col.id, student_id: studentId, score, graded_by: user?.id ?? null });
+    }
+  }
+
+  if (upserts.length) {
+    const { error } = await supabase.from("academic_assessment_scores").upsert(upserts, { onConflict: "assessment_id,student_id" });
+    if (error) back(ctx, error.message, "error");
+  }
+  for (const [columnId, ids] of Array.from(deletesByColumn.entries())) {
+    const { error } = await supabase.from("academic_assessment_scores").delete().eq("assessment_id", columnId).in("student_id", ids);
+    if (error) back(ctx, error.message, "error");
+  }
+
+  revalidateResults();
+  const changed = upserts.length + Array.from(deletesByColumn.values()).reduce((a, ids) => a + ids.length, 0);
+  if (problems.length) {
+    back(ctx, `Saved ${changed} change(s), but some scores were skipped: ${Array.from(new Set(problems)).join("; ")}`, "error");
+  }
+  back(ctx, changed ? `Saved ${changed} change(s)` : "Nothing had changed");
+}
+
+async function importCbtScores(formData: FormData) {
+  "use server";
+  const ctx = readContext(formData);
+  const supabase = getSupabaseServerClient();
+  if (!supabase) back(ctx, "Database is not configured", "error");
+  await requireTeachAccess(supabase, ctx);
+
+  const sessionId = String(formData.get("session_id") ?? "").trim();
+  const target = String(formData.get("target") ?? "").trim();
+  if (!sessionId || !target) back(ctx, "Choose an exam session and a column", "error");
+
+  const { data: colData } = await sheetColumns(supabase, ctx);
+  const column = ((colData ?? []) as ColumnRow[]).find((c) => c.id === target);
+  if (!column) back(ctx, "That column is no longer on the sheet", "error");
+
+  const [{ data: attempts }, { data: classStudents }] = await Promise.all([
+    supabase
+      .from("exam_attempts")
+      .select("student_id, obtained_marks, max_marks, submitted_at")
+      .eq("session_id", sessionId)
+      .not("submitted_at", "is", null),
+    supabase.from("students").select("id").eq("class_id", ctx.classId)
+  ]);
+
+  const inClass = new Set(((classStudents ?? []) as Array<{ id: string }>).map((s) => s.id));
+  const colMax = Number(column.max_score);
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  const rows = ((attempts ?? []) as Array<{ student_id: string; obtained_marks: number; max_marks: number }>)
+    .filter((a) => inClass.has(a.student_id) && Number(a.max_marks) > 0)
+    .map((a) => ({
+      assessment_id: column.id,
+      student_id: a.student_id,
+      score: Math.min(colMax, round2((Number(a.obtained_marks) / Number(a.max_marks)) * colMax)),
+      remarks: "Imported from CBT exam",
+      graded_by: user?.id ?? null
+    }));
+  if (!rows.length) back(ctx, "No submitted attempts from this class were found for that session", "error");
+
+  const { error } = await supabase.from("academic_assessment_scores").upsert(rows, { onConflict: "assessment_id,student_id" });
+  if (error) back(ctx, error.message, "error");
+
+  revalidateResults();
+  back(ctx, `Copied ${rows.length} CBT score(s) into ${column.title ?? "the column"} (scaled to ${colMax})`);
+}
+
+// Marks the sheet as final. From then on nobody can change its scores or columns until an admin unlocks it.
+async function submitSheet(formData: FormData) {
+  "use server";
+  const ctx = readContext(formData);
+  const supabase = getSupabaseServerClient();
+  if (!supabase) back(ctx, "Database is not configured", "error");
+  const { error } = await supabase.rpc("submit_result_sheet", { p_class: ctx.classId, p_subject: ctx.subjectId, p_term: ctx.termId });
+  if (error) back(ctx, error.message, "error");
+  revalidateResults();
+  back(ctx, "Submitted as final. The scores are now locked.");
+}
+
+// On a locked sheet: the boxes the teacher changed become a correction request for an admin to approve.
+async function requestCorrection(formData: FormData) {
+  "use server";
+  const ctx = readContext(formData);
+  const reason = String(formData.get("reason") ?? "").trim();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) back(ctx, "Database is not configured", "error");
+  if (reason.length < 5) redirect(sheetUrl(ctx, { request: "1", toast: "Explain why the scores need correcting", toast_type: "error" }));
+
+  const { data: colData } = await sheetColumns(supabase, ctx);
+  const columns = (colData ?? []) as ColumnRow[];
+  const studentIds = String(formData.get("student_ids") ?? "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const items: Array<{ assessment_id: string; student_id: string; new_score: number | null }> = [];
+  for (const studentId of studentIds) {
+    for (const col of columns) {
+      const field = `${col.id}:${studentId}`;
+      if (!formData.has(`score:${field}`)) continue;
+      const raw = String(formData.get(`score:${field}`) ?? "").trim();
+      if (raw === String(formData.get(`orig:${field}`) ?? "").trim()) continue;
+      const value = raw.length ? Number(raw) : null;
+      if (value !== null && !Number.isFinite(value)) continue;
+      items.push({ assessment_id: col.id, student_id: studentId, new_score: value });
+    }
+  }
+  if (!items.length) {
+    redirect(sheetUrl(ctx, { request: "1", toast: "Change the score(s) that are wrong first, then send the request", toast_type: "error" }));
+  }
+
+  const { error } = await supabase.rpc("request_result_correction", {
+    p_class: ctx.classId,
+    p_subject: ctx.subjectId,
+    p_term: ctx.termId,
+    p_reason: reason,
+    p_items: items
+  });
+  if (error) redirect(sheetUrl(ctx, { request: "1", toast: error.message, toast_type: "error" }));
+  revalidateResults();
+  revalidatePath("/admin/academics/corrections");
+  back(ctx, `Correction request sent to the admin (${items.length} change${items.length === 1 ? "" : "s"}). The scores change only if it is approved.`);
+}
+
+// Admin only, with a reason that is kept in the audit log.
+async function unlockSheet(formData: FormData) {
+  "use server";
+  const ctx = readContext(formData);
+  const reason = String(formData.get("reason") ?? "").trim();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) back(ctx, "Database is not configured", "error");
+  if (reason.length < 5) back(ctx, "Give a reason for unlocking (it is kept in the audit log)", "error");
+  const { error } = await supabase.rpc("unlock_result_sheet", {
+    p_class: ctx.classId,
+    p_subject: ctx.subjectId,
+    p_term: ctx.termId,
+    p_reason: reason
+  });
+  if (error) back(ctx, error.message, "error");
+  revalidateResults();
+  back(ctx, "Sheet unlocked. Make the correction, then submit it as final again.");
 }
 
 export default async function AdminResultSheetPage({
@@ -158,7 +437,8 @@ export default async function AdminResultSheetPage({
   const sp = (await searchParams) ?? {};
   const classId = str(sp.class_id);
   const subjectId = str(sp.subject_id);
-  const yearId = str(sp.year_id);
+  let yearId = str(sp.year_id);
+  const requestMode = str(sp.request) === "1";
   const termId = str(sp.term_id);
   const importSessionId = str(sp.session_id);
 
@@ -166,18 +446,19 @@ export default async function AdminResultSheetPage({
   const access = await getTeacherAccess(supabase);
   const isTeacher = access.isTeacher;
 
-  const [{ data: years }, { data: terms }, { data: classes }, { data: subjects }] =
-    await Promise.all([
-      supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
-      supabase.from("academic_terms").select("id, name, academic_year_id").order("starts_on", { ascending: false }),
-      !isTeacher
-        ? supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name")
-        : Promise.resolve({ data: [] as unknown[] }),
-      supabase.from("subjects").select("id, name").eq("active", true).order("name")
-    ]);
+  const [{ data: years }, { data: terms }, { data: classes }, { data: subjects }] = await Promise.all([
+    supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
+    supabase.from("academic_terms").select("id, name, academic_year_id").order("starts_on", { ascending: false }),
+    !isTeacher
+      ? supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name")
+      : Promise.resolve({ data: [] as unknown[] }),
+    supabase.from("subjects").select("id, name").eq("active", true).order("name")
+  ]);
 
   const yearRows = (years ?? []) as YearRow[];
   const termRows = (terms ?? []) as TermRow[];
+  // Links from other pages may leave out the year; it follows from the term.
+  if (!yearId) yearId = termRows.find((t) => t.id === str(sp.term_id))?.academic_year_id ?? "";
   const classRows = isTeacher ? (access.classes as ClassRow[]) : ((classes ?? []) as ClassRow[]);
   const subjectRows = (subjects ?? []) as SubjectRow[];
 
@@ -215,15 +496,16 @@ export default async function AdminResultSheetPage({
   const term = termRows.find((t) => t.id === termId) ?? null;
 
   let students: StudentRow[] = [];
-  const assessmentByType = new Map<string, AssessmentRow>();
+  let columns: ColumnRow[] = [];
   const scoreByKey = new Map<string, number>();
-  let grades: GradeRow[] = [];
-  let publicationId: string | null = null;
-  let publishedAt: string | null = null;
+  let grades: GradeBand[] = [];
+  let published = false;
+  let lockedAt: string | null = null;
   let sessions: SessionRow[] = [];
+  let layout: Awaited<ReturnType<typeof resolveLayout>> | null = null;
 
   if (ready) {
-    const [{ data: studentsData }, { data: assessmentsData }, { data: gradesData }, { data: pubData }, { data: sessionsData }] =
+    const [{ data: studentsData }, { data: columnsData }, { data: gradesData }, { data: pubData }, { data: sessionsData }] =
       await Promise.all([
         supabase
           .from("students")
@@ -231,15 +513,7 @@ export default async function AdminResultSheetPage({
           .eq("class_id", classId)
           .order("last_name", { ascending: true })
           .order("first_name", { ascending: true }),
-        supabase
-          .from("academic_assessments")
-          .select("id, assessment_type, max_score")
-          .eq("class_id", classId)
-          .eq("subject_id", subjectId)
-          .eq("academic_year_id", yearId)
-          .eq("academic_term_id", termId)
-          .in("assessment_type", resultColumnTypes)
-          .order("created_at", { ascending: true }),
+        sheetColumns(supabase, ctx),
         cls
           ? supabase
               .from("grading_scales")
@@ -250,249 +524,85 @@ export default async function AdminResultSheetPage({
           : Promise.resolve({ data: [] as unknown[] }),
         supabase
           .from("result_publications")
-          .select("id, published_at")
+          .select("id")
           .eq("scope", "term_results")
           .eq("class_id", classId)
-          .eq("academic_year_id", yearId)
           .eq("academic_term_id", termId)
           .maybeSingle(),
         supabase
           .from("exam_test_sessions")
-          .select("id, starts_at, academic_term_id, results_released_at, exam_tests(id, name, subject_id)")
+          .select("id, starts_at, academic_term_id, exam_tests(id, name, subject_id)")
           .eq("class_id", classId)
           .order("starts_at", { ascending: false })
           .limit(100)
       ]);
 
     students = (studentsData ?? []) as StudentRow[];
-    for (const a of (assessmentsData ?? []) as AssessmentRow[]) {
-      if (!assessmentByType.has(a.assessment_type)) assessmentByType.set(a.assessment_type, a);
-    }
-    grades = (gradesData ?? []) as GradeRow[];
-    publicationId = (pubData as { id: string } | null)?.id ?? null;
-    publishedAt = (pubData as { published_at: string } | null)?.published_at ?? null;
+    columns = (columnsData ?? []) as ColumnRow[];
+    grades = (gradesData ?? []) as GradeBand[];
+    published = Boolean(pubData);
+    const { data: lockRow } = await supabase
+      .from("result_sheet_locks")
+      .select("locked_at")
+      .eq("class_id", classId)
+      .eq("subject_id", subjectId)
+      .eq("academic_term_id", termId)
+      .maybeSingle();
+    lockedAt = (lockRow as { locked_at: string } | null)?.locked_at ?? null;
 
-    // CBT sessions for this class: show ones for this subject (or with no subject) first.
+    // CBT sessions for this class: ones for this subject (or with no subject).
     sessions = ((sessionsData ?? []) as unknown as SessionRow[]).filter((s) => {
       const test = firstOrNull(s.exam_tests);
       return !test?.subject_id || test.subject_id === subjectId;
     });
 
-    const assessmentIds = Array.from(assessmentByType.values()).map((a) => a.id);
-    if (assessmentIds.length) {
+    if (columns.length) {
       const { data: scoresData } = await supabase
         .from("academic_assessment_scores")
         .select("assessment_id, student_id, score")
-        .in("assessment_id", assessmentIds);
+        .in(
+          "assessment_id",
+          columns.map((c) => c.id)
+        );
       for (const s of (scoresData ?? []) as ScoreRow[]) {
         scoreByKey.set(`${s.assessment_id}:${s.student_id}`, Number(s.score));
       }
+    } else {
+      layout = await resolveLayout(supabase, { classId, subjectId, level: cls?.level ?? null });
     }
   }
 
-  const columnMax = (type: ResultColumnType) => {
-    const a = assessmentByType.get(type);
-    return a ? Number(a.max_score) : resultColumns.find((c) => c.type === type)!.defaultMax;
-  };
-  const maxTotal = resultColumns.reduce((acc, c) => acc + columnMax(c.type), 0);
+  const locked = Boolean(lockedAt) || published;
+  const { data: me } = access.userId
+    ? await supabase.from("profiles").select("role").eq("id", access.userId).maybeSingle()
+    : { data: null };
+  const myRole = (me as { role?: string } | null)?.role ?? "";
+  const isAdmin = myRole === "admin" || myRole === "super_admin";
+  const corrections =
+    ready && columns.length
+      ? await loadCorrectionRequests(supabase, { classId, subjectId, termId, limit: 20 })
+      : { requests: [], studentName: new Map<string, string>(), error: null };
 
-  const scoreFor = (type: ResultColumnType, studentId: string) => {
-    const a = assessmentByType.get(type);
-    if (!a) return null;
-    const v = scoreByKey.get(`${a.id}:${studentId}`);
+  const maxTotal = layoutTotal(columns.map((c) => ({ max: Number(c.max_score) })));
+  const scoreFor = (columnId: string, studentId: string) => {
+    const v = scoreByKey.get(`${columnId}:${studentId}`);
     return v === undefined ? null : v;
   };
-
-  const gradeFor = (total: number) => {
-    const pct = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
-    return grades.find((g) => pct >= Number(g.min_score) && pct <= Number(g.max_score))?.grade ?? null;
-  };
-
-  const enteredCount = students.filter((st) => resultColumns.some((c) => scoreFor(c.type, st.id) !== null)).length;
-
-  async function saveColumns(formData: FormData) {
-    "use server";
-    const supabase = getSupabaseServerClient();
-    if (!ready) back(ctx, "Choose a class, subject and term first", "error");
-    if (!supabase) back(ctx, "Database is not configured", "error");
-
-    const overrides: Partial<Record<ResultColumnType, number>> = {};
-    for (const col of resultColumns) {
-      const v = Number(String(formData.get(`max:${col.type}`) ?? "").trim());
-      if (!Number.isFinite(v) || v <= 0) back(ctx, `Enter a valid max score for ${col.label}`, "error");
-      overrides[col.type] = v;
-    }
-
-    await ensureAssessments(supabase, ctx, overrides);
-    revalidateResults();
-
-    const total = Object.values(overrides).reduce((acc, v) => acc + (v ?? 0), 0);
-    back(ctx, total === 100 ? "Max scores saved" : `Max scores saved (they add up to ${total}, not 100)`);
-  }
-
-  async function saveScores(formData: FormData) {
-    "use server";
-    const supabase = getSupabaseServerClient();
-    if (!ready) back(ctx, "Choose a class, subject and term first", "error");
-    if (!supabase) back(ctx, "Database is not configured", "error");
-
-    const byType = await ensureAssessments(supabase, ctx);
-    const missingColumns = resultColumns.filter((c) => !byType.get(c.type)).map((c) => c.label);
-    if (missingColumns.length) {
-      back(ctx, `Could not prepare the result sheet (${missingColumns.join(", ")}). Nothing was saved — please try again.`, "error");
-    }
-    const studentIds = String(formData.get("student_ids") ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    const upserts: Array<{ assessment_id: string; student_id: string; score: number; graded_by: string | null }> = [];
-    const deletesByAssessment = new Map<string, string[]>();
-    const problems: string[] = [];
-
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    for (const studentId of studentIds) {
-      for (const col of resultColumns) {
-        const a = byType.get(col.type);
-        if (!a) continue;
-        const raw = String(formData.get(`score:${col.type}:${studentId}`) ?? "").trim();
-        if (!raw.length) {
-          deletesByAssessment.set(a.id, [...(deletesByAssessment.get(a.id) ?? []), studentId]);
-          continue;
-        }
-        const score = Number(raw);
-        if (!Number.isFinite(score) || score < 0 || score > Number(a.max_score)) {
-          problems.push(`${col.label} must be between 0 and ${a.max_score}`);
-          continue;
-        }
-        upserts.push({ assessment_id: a.id, student_id: studentId, score, graded_by: user?.id ?? null });
+  const columnStats = (columnId: string) => {
+    let count = 0;
+    let highest = 0;
+    for (const st of students) {
+      const v = scoreFor(columnId, st.id);
+      if (v !== null) {
+        count += 1;
+        highest = Math.max(highest, v);
       }
     }
+    return { count, highest };
+  };
 
-    if (upserts.length) {
-      const { error } = await supabase
-        .from("academic_assessment_scores")
-        .upsert(upserts, { onConflict: "assessment_id,student_id" });
-      if (error) back(ctx, error.message, "error");
-    }
-
-    for (const [assessmentId, ids] of Array.from(deletesByAssessment.entries())) {
-      const { error } = await supabase
-        .from("academic_assessment_scores")
-        .delete()
-        .eq("assessment_id", assessmentId)
-        .in("student_id", ids);
-      if (error) back(ctx, error.message, "error");
-    }
-
-    revalidateResults();
-    if (problems.length) {
-      back(ctx, `Saved, but some scores were skipped: ${Array.from(new Set(problems)).join("; ")}`, "error");
-    }
-    back(ctx, "Scores saved");
-  }
-
-  async function importCbtScores(formData: FormData) {
-    "use server";
-    const supabase = getSupabaseServerClient();
-    if (!ready) back(ctx, "Choose a class, subject and term first", "error");
-    if (!supabase) back(ctx, "Database is not configured", "error");
-
-    const sessionId = String(formData.get("session_id") ?? "").trim();
-    const target = String(formData.get("target") ?? "").trim();
-    if (!sessionId || !isResultColumnType(target)) back(ctx, "Choose an exam session and a column", "error");
-
-    const byType = await ensureAssessments(supabase, ctx);
-    const assessment = byType.get(target as ResultColumnType);
-    if (!assessment) back(ctx, "Could not prepare the result sheet", "error");
-
-    const [{ data: attempts }, { data: classStudents }] = await Promise.all([
-      supabase
-        .from("exam_attempts")
-        .select("student_id, obtained_marks, max_marks, submitted_at")
-        .eq("session_id", sessionId)
-        .not("submitted_at", "is", null),
-      supabase.from("students").select("id").eq("class_id", ctx.classId)
-    ]);
-
-    const inClass = new Set(((classStudents ?? []) as Array<{ id: string }>).map((s) => s.id));
-    const colMax = Number(assessment!.max_score);
-
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    const rows = ((attempts ?? []) as Array<{ student_id: string; obtained_marks: number; max_marks: number }>)
-      .filter((a) => inClass.has(a.student_id) && Number(a.max_marks) > 0)
-      .map((a) => ({
-        assessment_id: assessment!.id,
-        student_id: a.student_id,
-        score: Math.min(colMax, round2((Number(a.obtained_marks) / Number(a.max_marks)) * colMax)),
-        remarks: "Imported from CBT exam",
-        graded_by: user?.id ?? null
-      }));
-
-    if (!rows.length) back(ctx, "No submitted attempts from this class were found for that session", "error");
-
-    const { error } = await supabase
-      .from("academic_assessment_scores")
-      .upsert(rows, { onConflict: "assessment_id,student_id" });
-    if (error) back(ctx, error.message, "error");
-
-    revalidateResults();
-    const label = resultColumns.find((c) => c.type === target)!.label;
-    back(ctx, `Copied ${rows.length} CBT score(s) into ${label} (scaled to ${colMax})`);
-  }
-
-  async function publishResults() {
-    "use server";
-    const supabase = getSupabaseServerClient();
-    if (!ready) back(ctx, "Choose a class, subject and term first", "error");
-    if (!supabase) back(ctx, "Database is not configured", "error");
-
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    const { error } = await supabase.from("result_publications").upsert(
-      {
-        scope: "term_results",
-        academic_year_id: ctx.yearId,
-        academic_term_id: ctx.termId,
-        level: cls?.level ?? null,
-        class_id: ctx.classId,
-        published_at: new Date().toISOString(),
-        published_by: user?.id ?? null
-      },
-      { onConflict: "scope,academic_year_id,academic_term_id,level,class_id" }
-    );
-    if (error) back(ctx, error.message, "error");
-
-    revalidateResults();
-    back(ctx, "Results published — students and parents can now see them");
-  }
-
-  async function unpublishResults() {
-    "use server";
-    const supabase = getSupabaseServerClient();
-    if (!ready) back(ctx, "Choose a class, subject and term first", "error");
-    if (!supabase) back(ctx, "Database is not configured", "error");
-
-    const { error } = await supabase
-      .from("result_publications")
-      .delete()
-      .eq("scope", "term_results")
-      .eq("class_id", ctx.classId)
-      .eq("academic_year_id", ctx.yearId)
-      .eq("academic_term_id", ctx.termId);
-
-    revalidateResults();
-    if (error) back(ctx, error.message, "error");
-    back(ctx, "Results unpublished");
-  }
+  const rowsComplete = students.filter((st) => columns.length && columns.every((c) => scoreFor(c.id, st.id) !== null)).length;
+  const rowsStarted = students.filter((st) => columns.some((c) => scoreFor(c.id, st.id) !== null)).length;
 
   const gradeTone = (g: string | null) => {
     if (!g) return "slate" as const;
@@ -504,18 +614,37 @@ export default async function AdminResultSheetPage({
     return "slate" as const;
   };
 
+  const contextFields = (
+    <>
+      <input type="hidden" name="class_id" value={classId} />
+      <input type="hidden" name="subject_id" value={subjectId} />
+      <input type="hidden" name="year_id" value={yearId} />
+      <input type="hidden" name="term_id" value={termId} />
+    </>
+  );
+
+  const saveDefaultLabel = `Also use these columns for ${subject?.name ?? "this subject"} in ${cls?.name ?? "this class"} in future terms`;
+
   return (
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
         eyebrow="Academics"
         title="Result sheet"
-        description="Enter 1st CA, 2nd CA and Exam scores for a class and subject, copy objective scores from a CBT exam, then publish so students and parents can see the result."
+        description="Enter each subject's CA and exam scores for a class. Choose the columns you need (e.g. 1st CA objective and theory, assignments, exam). Only the boxes you change are saved, so CA scores can go in now and exam scores later."
         actions={
-          <ButtonLink href="/admin/academics/config" variant="secondary" size="sm">
-            <Settings2 className="h-4 w-4" aria-hidden="true" />
-            Grading scale
-          </ButtonLink>
+          <>
+            <ButtonLink href="/admin/academics/config" variant="secondary" size="sm">
+              <Settings2 className="h-4 w-4" aria-hidden="true" />
+              Grading & layouts
+            </ButtonLink>
+            {ready ? (
+              <ButtonLink href={`/admin/academics/reports?class_id=${classId}&term_id=${termId}`} variant="secondary" size="sm">
+                <FileText className="h-4 w-4" aria-hidden="true" />
+                Report cards
+              </ButtonLink>
+            ) : null}
+          </>
         }
       />
 
@@ -561,87 +690,147 @@ export default async function AdminResultSheetPage({
             <Alert tone="warning">{subject?.name ?? "This subject"} is not assigned to this class.</Alert>
           ) : null}
           {isTeacher && !classRows.length ? (
-            <Alert tone="warning">
-              No classes are assigned to your account yet. Ask an admin to assign you to at least one class.
-            </Alert>
+            <Alert tone="warning">No classes are assigned to your account yet. Ask an admin to assign you to at least one class.</Alert>
           ) : null}
         </CardBody>
       </Card>
 
-      {ready ? (
+      {!ready ? (
+        <Card>
+          <EmptyState
+            icon={FileSpreadsheet}
+            title="No sheet open"
+            description="Choose a class, subject and term above, then open the sheet to start entering scores."
+          />
+        </Card>
+      ) : !columns.length ? (
+        <form action={saveColumns}>
+          {contextFields}
+          <Card>
+            <CardHeader
+              title="Set up this sheet's columns"
+              description={`Starting from ${layout ? layoutSourceLabel[layout.source] : "the standard layout"}. Add, remove or rename columns to suit how this subject is assessed this term — e.g. split 1st CA into objective and theory, or add assignments. The total is always shown out of 100.`}
+            />
+            <CardBody className="space-y-4">
+              <ColumnsEditor name="columns" initial={(layout?.components ?? []).map((c) => ({ ...c }))} />
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" name="save_default" className="h-4 w-4" />
+                {saveDefaultLabel}
+              </label>
+              <div className="flex justify-end">
+                <SubmitButton variant="primary" pendingText="Creating…">
+                  <span className="inline-flex items-center gap-2">
+                    <Columns3 className="h-4 w-4" aria-hidden="true" />
+                    Create sheet
+                  </span>
+                </SubmitButton>
+              </div>
+            </CardBody>
+          </Card>
+        </form>
+      ) : (
         <>
           <div className="grid gap-6 lg:grid-cols-3">
-            {/* Publish status */}
-            <Card className={publicationId ? "!border-brand-green-200" : "!border-brand-gold-200"}>
+            <Card className={locked ? "!border-brand-green-200" : undefined}>
               <CardHeader
-                title="Publish status"
+                title="Status"
                 action={
-                  publicationId ? (
+                  published ? (
                     <Badge tone="green" dot>
                       Published
                     </Badge>
+                  ) : lockedAt ? (
+                    <Badge tone="blue" dot>
+                      Final
+                    </Badge>
                   ) : (
                     <Badge tone="gold" dot>
-                      Not published
+                      Draft
                     </Badge>
                   )
                 }
               />
-              <CardBody className="space-y-4">
-                <p className="text-sm text-slate-700">
-                  {publicationId
-                    ? `Published ${publishedAt ? new Date(publishedAt).toLocaleString() : ""}. Students and parents in ${
-                        cls?.name ?? "this class"
-                      } can see ${term?.name ?? "this term"}'s results.`
-                    : "Not published. Students and parents cannot see these results yet."}
-                </p>
-                <p className="text-xs text-slate-500">Publishing applies to all subjects for this class and term.</p>
-                {isTeacher && !access.classTeacherClassIds.includes(classId) ? (
-                  <p className="text-xs text-slate-500">Only the class teacher or an admin can publish or unpublish results.</p>
-                ) : publicationId ? (
-                  <form action={unpublishResults}>
-                    <ConfirmSubmitButton
-                      confirmMessage="Hide this term's results from students and parents?"
-                      className={buttonClasses({ variant: "secondary" })}
-                    >
-                      <EyeOff className="h-4 w-4" aria-hidden="true" />
-                      Unpublish
-                    </ConfirmSubmitButton>
-                  </form>
+              <CardBody className="space-y-3">
+                {published ? (
+                  <p className="text-sm text-slate-700">
+                    The report cards for this class are published, so these scores are locked. If a score is wrong, send a
+                    correction request: an admin approves or rejects it, and either way it is recorded.
+                  </p>
+                ) : lockedAt ? (
+                  <>
+                    <p className="text-sm text-slate-700">
+                      Submitted as final on {new Date(lockedAt).toLocaleString()}. Scores and columns are locked for everyone.
+                    </p>
+                    {isAdmin ? (
+                      <form action={unlockSheet} className="space-y-2">
+                        {contextFields}
+                        <label htmlFor="unlock-reason" className="gf-label">
+                          Reason for unlocking (kept in the audit log)
+                        </label>
+                        <input id="unlock-reason" name="reason" className="gf-input" minLength={5} required placeholder="e.g. 1st CA mis-keyed for 2 pupils" />
+                        <SubmitButton variant="secondary" size="sm" pendingText="Unlocking…">
+                          <span className="inline-flex items-center gap-1.5">
+                            <LockOpen className="h-4 w-4" aria-hidden="true" />
+                            Unlock for correction
+                          </span>
+                        </SubmitButton>
+                      </form>
+                    ) : (
+                      <p className="text-xs text-slate-500">If a score is wrong, send a correction request to an admin.</p>
+                    )}
+                  </>
                 ) : (
-                  <form action={publishResults}>
+                  <form action={submitSheet} className="space-y-2">
+                    {contextFields}
+                    <p className="text-sm text-slate-700">
+                      When every score is entered and checked against the marked scripts, submit the sheet as final. It is then
+                      locked: only an admin can unlock it, and the reason is recorded.
+                    </p>
                     <ConfirmSubmitButton
-                      confirmMessage={`Publish ${term?.name ?? "this term"} results for ${cls?.name ?? "this class"}? Students and parents will be able to see them.`}
-                      className={buttonClasses({ variant: "primary" })}
+                      confirmMessage={`Submit ${subject?.name ?? "this subject"} for ${cls?.name ?? "this class"} as final?${
+                        rowsComplete < students.length ? `\n\n${students.length - rowsComplete} pupil(s) still have empty boxes.` : ""
+                      }\n\nAfter this, scores can only be changed if an admin unlocks the sheet. Save any changes first.`}
+                      className={buttonClasses({ variant: "primary", size: "sm" })}
                     >
-                      <Send className="h-4 w-4" aria-hidden="true" />
-                      Publish results
+                      <Lock className="h-4 w-4" aria-hidden="true" />
+                      Submit as final
                     </ConfirmSubmitButton>
                   </form>
                 )}
+                {locked && !requestMode ? (
+                  <ButtonLink href={sheetUrl(ctx, { request: "1" })} variant="secondary" size="sm">
+                    <FilePen className="h-4 w-4" aria-hidden="true" />
+                    Request a correction
+                  </ButtonLink>
+                ) : null}
+                <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-3 text-sm">
+                  <Link className="gf-link" href={`/admin/academics/reports?class_id=${classId}&term_id=${termId}`}>
+                    Report cards
+                  </Link>
+                  <Link className="gf-link inline-flex items-center gap-1" href={`/admin/academics/audit?class_id=${classId}&subject_id=${subjectId}&term_id=${termId}`}>
+                    <History className="h-3.5 w-3.5" aria-hidden="true" />
+                    Change history
+                  </Link>
+                </div>
               </CardBody>
             </Card>
 
-            {/* CBT import */}
             <Card className="lg:col-span-2">
               <CardHeader
-                title="Copy objective scores from a CBT exam"
-                description="Takes each student's score from a computer-based exam session for this class and scales it to the column's max score. Re-importing overwrites the column, so theory scores are never touched."
+                title="Copy scores from a CBT exam"
+                description="Takes each student's score from a computer-based exam session and scales it to the column's max score. Only the chosen column is changed."
               />
               <CardBody>
-                {sessions.length ? (
+                {locked ? (
+                  <p className="text-sm text-slate-600">This sheet is locked, so no scores can be copied into it.</p>
+                ) : sessions.length ? (
                   <form action={importCbtScores} className="grid gap-4 sm:grid-cols-3">
+                    {contextFields}
                     <div className="sm:col-span-2">
                       <label htmlFor="cbt-session" className="gf-label">
                         Exam session
                       </label>
-                      <select
-                        id="cbt-session"
-                        className="gf-select"
-                        name="session_id"
-                        defaultValue={importSessionId}
-                        required
-                      >
+                      <select id="cbt-session" className="gf-select" name="session_id" defaultValue={importSessionId} required>
                         <option value="">Select exam session</option>
                         {sessions.map((s) => {
                           const test = firstOrNull(s.exam_tests);
@@ -657,17 +846,22 @@ export default async function AdminResultSheetPage({
                     </div>
                     <div>
                       <label htmlFor="cbt-target" className="gf-label">
-                        Column
+                        Into column
                       </label>
-                      <select id="cbt-target" className="gf-select" name="target" defaultValue="exam_objective">
-                        {resultColumns.map((c) => (
-                          <option key={c.type} value={c.type}>
-                            into {c.label}
+                      <select
+                        id="cbt-target"
+                        className="gf-select"
+                        name="target"
+                        defaultValue={columns.find((c) => /obj/i.test(c.title ?? ""))?.id ?? columns[0]?.id}
+                      >
+                        {columns.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.title} (/{Number(c.max_score)})
                           </option>
                         ))}
                       </select>
                     </div>
-                    <div className="sm:col-span-3 flex justify-end">
+                    <div className="flex justify-end sm:col-span-3">
                       <ConfirmSubmitButton
                         confirmMessage="Copy CBT scores into the selected column? Existing scores in that column will be replaced for students who took the exam."
                         className={buttonClasses({ variant: "secondary" })}
@@ -689,59 +883,94 @@ export default async function AdminResultSheetPage({
             </Card>
           </div>
 
-          {/* Column max scores */}
-          <form action={saveColumns}>
-            <FormSection
-              title="Max scores"
-              description={
-                <>
-                  They should add up to 100 (currently{" "}
-                  <span className={cn("font-semibold", maxTotal === 100 ? "text-brand-green-700" : "text-red-600")}>
-                    {maxTotal}
-                  </span>
-                  ). Defaults: 1st CA 20, 2nd CA 20, Objective 30, Theory 30.
-                </>
-              }
-              footer={
-                <SubmitButton variant="secondary" pendingText="Saving…">
-                  Save max scores
-                </SubmitButton>
-              }
-            >
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                {resultColumns.map((c) => (
-                  <Field key={c.type} label={c.label} htmlFor={`max-${c.type}`}>
-                    <input
-                      id={`max-${c.type}`}
-                      className="gf-input tabular-nums"
-                      name={`max:${c.type}`}
-                      type="number"
-                      inputMode="decimal"
-                      step="0.5"
-                      min="0.5"
-                      defaultValue={String(columnMax(c.type))}
-                      required
-                    />
-                  </Field>
-                ))}
+          {/* Columns */}
+          {locked ? null : (
+          <details className="group rounded-2xl border border-slate-200/80 bg-white shadow-card">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 sm:px-6">
+              <div>
+                <div className="text-base font-semibold text-slate-900">Columns</div>
+                <div className="mt-0.5 text-sm text-slate-500">
+                  {columns.map((c) => `${c.title} /${Number(c.max_score)}`).join(" · ")} — total {maxTotal}
+                  {maxTotal === 100 ? "" : " (scaled to 100)"}
+                </div>
               </div>
-            </FormSection>
-          </form>
+              <span className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                <Columns3 className="h-4 w-4" aria-hidden="true" />
+                Edit columns
+              </span>
+            </summary>
+            <form action={saveColumns} className="space-y-4 border-t border-slate-100 px-5 py-5 sm:px-6">
+              {contextFields}
+              <ColumnsEditor
+                name="columns"
+                initial={columns.map((c) => {
+                  const st = columnStats(c.id);
+                  return {
+                    id: c.id,
+                    label: c.title ?? "",
+                    group: asGroup(c.component_group),
+                    max: Number(c.max_score),
+                    scoreCount: st.count,
+                    highest: st.highest
+                  };
+                })}
+              />
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" name="save_default" className="h-4 w-4" />
+                {saveDefaultLabel}
+              </label>
+              <div className="flex justify-end">
+                <SubmitButton variant="primary" pendingText="Saving…">
+                  Save columns
+                </SubmitButton>
+              </div>
+            </form>
+          </details>
+          )}
 
           {/* Score grid */}
-          <form action={saveScores}>
+          {corrections.requests.length ? (
+            <Card>
+              <CardHeader
+                title="Correction requests for this sheet"
+                description="Changes asked for after the sheet was final. Approved ones have been applied; all are in the change history."
+              />
+              <div className="divide-y divide-slate-100">
+                {corrections.requests.map((r) => (
+                  <CorrectionRequestCard
+                    key={r.id}
+                    request={r}
+                    studentName={corrections.studentName}
+                    isAdmin={isAdmin}
+                    userId={access.userId}
+                    returnTo={sheetUrl(ctx)}
+                  />
+                ))}
+              </div>
+            </Card>
+          ) : null}
+
+          {requestMode && locked ? (
+            <Alert tone="warning">
+              <strong>Requesting a correction.</strong> Change only the boxes that are wrong, explain why at the bottom, and send
+              the request. Nothing changes on the sheet until an admin approves it.
+            </Alert>
+          ) : null}
+
+          <form action={locked ? requestCorrection : saveScores}>
+            {contextFields}
             <Card>
               <input type="hidden" name="student_ids" value={students.map((s) => s.id).join(",")} />
               <CardHeader
-                title={`${subject?.name ?? "Subject"} · ${cls ? `${cls.level} - ${cls.name}` : "Class"}${
-                  term ? ` · ${termLabel(term)}` : ""
-                }`}
-                description={`${enteredCount} of ${students.length} students have scores. Leave a box empty to clear it.`}
+                title={`${subject?.name ?? "Subject"} · ${cls ? `${cls.level} - ${cls.name}` : "Class"}${term ? ` · ${termLabel(term)}` : ""}`}
+                description={`${rowsComplete} of ${students.length} complete${
+                  rowsStarted > rowsComplete ? `, ${rowsStarted - rowsComplete} partly entered` : ""
+                }. ${locked ? (requestMode ? "Enter the corrected scores, then send the request below." : "Locked — scores can't be changed. Use “Request a correction” if one is wrong.") : "Only changed boxes are saved — leave a box empty to clear it."}`}
                 action={
-                  students.length ? (
+                  students.length && !locked ? (
                     <div className="hidden sm:block">
                       <SubmitButton variant="primary" pendingText="Saving…">
-                        Save all scores
+                        Save changes
                       </SubmitButton>
                     </div>
                   ) : null
@@ -759,14 +988,16 @@ export default async function AdminResultSheetPage({
                         >
                           Student
                         </th>
-                        {resultColumns.map((c) => (
+                        {columns.map((c) => (
                           <th
-                            key={c.type}
+                            key={c.id}
                             scope="col"
                             className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-2 py-2.5 text-center text-xs font-semibold text-slate-600"
                           >
-                            <div className="whitespace-nowrap">{c.label}</div>
-                            <div className="font-normal text-slate-400">out of {columnMax(c.type)}</div>
+                            <div className="whitespace-nowrap">{c.title}</div>
+                            <div className="font-normal text-slate-400">
+                              {groupLabel[asGroup(c.component_group)]} · out of {Number(c.max_score)}
+                            </div>
                           </th>
                         ))}
                         <th
@@ -774,7 +1005,7 @@ export default async function AdminResultSheetPage({
                           className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-right text-xs font-semibold text-slate-600"
                         >
                           <div>Total</div>
-                          <div className="font-normal text-slate-400">out of {maxTotal}</div>
+                          <div className="font-normal text-slate-400">out of 100</div>
                         </th>
                         <th
                           scope="col"
@@ -786,10 +1017,10 @@ export default async function AdminResultSheetPage({
                     </thead>
                     <tbody>
                       {students.map((st, rowIndex) => {
-                        const values = resultColumns.map((c) => scoreFor(c.type, st.id));
-                        const hasAny = values.some((v) => v !== null);
-                        const total = round2(values.reduce<number>((acc, v) => acc + (v ?? 0), 0));
-                        const grade = hasAny ? gradeFor(total) : null;
+                        const values = columns.map((c) => scoreFor(c.id, st.id));
+                        const percent = subjectPercent(values, columns.map((c) => Number(c.max_score)));
+                        const complete = values.every((v) => v !== null);
+                        const grade = gradeFor(percent, grades);
                         const zebra = rowIndex % 2 === 1 ? "bg-slate-50/60" : "bg-white";
                         return (
                           <tr key={st.id} className="group">
@@ -803,48 +1034,49 @@ export default async function AdminResultSheetPage({
                               <div className="max-w-[12rem] truncate font-semibold text-slate-900 sm:max-w-none">
                                 {st.last_name} {st.first_name}
                               </div>
-                              {st.admission_number ? (
-                                <div className="text-xs text-slate-500">{st.admission_number}</div>
-                              ) : null}
+                              {st.admission_number ? <div className="text-xs text-slate-500">{st.admission_number}</div> : null}
                             </th>
-                            {resultColumns.map((c, i) => (
-                              <td
-                                key={c.type}
-                                className={cn("border-b border-slate-100 px-2 py-2 text-center group-hover:bg-brand-green-50", zebra)}
-                              >
-                                <input
-                                  className="h-9 w-[4.5rem] rounded-lg border border-slate-300 bg-white px-2 text-center text-sm tabular-nums text-slate-900 shadow-sm outline-none transition placeholder:text-slate-300 focus:border-brand-green-500 focus:ring-4 focus:ring-brand-green-500/15 invalid:border-red-400 invalid:bg-red-50"
-                                  name={`score:${c.type}:${st.id}`}
-                                  type="number"
-                                  inputMode="decimal"
-                                  step="0.01"
-                                  min="0"
-                                  max={String(columnMax(c.type))}
-                                  placeholder="–"
-                                  defaultValue={values[i] === null ? "" : String(values[i])}
-                                  aria-label={`${c.label} for ${st.first_name} ${st.last_name}`}
-                                />
-                              </td>
-                            ))}
+                            {columns.map((c, i) => {
+                              const value = values[i] === null ? "" : String(values[i]);
+                              return (
+                                <td
+                                  key={c.id}
+                                  className={cn("border-b border-slate-100 px-2 py-2 text-center group-hover:bg-brand-green-50", zebra)}
+                                >
+                                  <input type="hidden" name={`orig:${c.id}:${st.id}`} value={value} />
+                                  <input
+                                    className="h-9 w-[4.5rem] rounded-lg border border-slate-300 bg-white px-2 text-center text-sm tabular-nums text-slate-900 shadow-sm outline-none transition placeholder:text-slate-300 focus:border-brand-green-500 focus:ring-4 focus:ring-brand-green-500/15 invalid:border-red-400 invalid:bg-red-50"
+                                    name={`score:${c.id}:${st.id}`}
+                                    type="number"
+                                    inputMode="decimal"
+                                    step="0.01"
+                                    min="0"
+                                    max={String(Number(c.max_score))}
+                                    placeholder="–"
+                                    defaultValue={value}
+                                    disabled={locked && !requestMode}
+                                    aria-label={`${c.title} for ${st.first_name} ${st.last_name}`}
+                                  />
+                                </td>
+                              );
+                            })}
                             <td
                               className={cn(
                                 "border-b border-slate-100 px-4 py-2 text-right font-semibold tabular-nums text-slate-900 group-hover:bg-brand-green-50",
                                 zebra
                               )}
                             >
-                              {hasAny ? total : <span className="text-slate-400">—</span>}
-                            </td>
-                            <td
-                              className={cn(
-                                "border-b border-slate-100 px-4 py-2 text-center group-hover:bg-brand-green-50 sm:pr-6",
-                                zebra
-                              )}
-                            >
-                              {grade ? (
-                                <Badge tone={gradeTone(grade)}>{grade}</Badge>
-                              ) : (
+                              {percent === null ? (
                                 <span className="text-slate-400">—</span>
+                              ) : (
+                                <div>
+                                  {percent}
+                                  {!complete ? <div className="text-[11px] font-medium text-brand-gold-800">so far</div> : null}
+                                </div>
                               )}
+                            </td>
+                            <td className={cn("border-b border-slate-100 px-4 py-2 text-center group-hover:bg-brand-green-50 sm:pr-6", zebra)}>
+                              {grade && complete ? <Badge tone={gradeTone(grade)}>{grade}</Badge> : <span className="text-slate-400">—</span>}
                             </td>
                           </tr>
                         );
@@ -863,41 +1095,59 @@ export default async function AdminResultSheetPage({
               {students.length ? (
                 <div className="sticky bottom-0 z-30 flex flex-col gap-3 rounded-b-2xl border-t border-slate-200 bg-white/95 px-5 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
                   <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <Badge tone={enteredCount === students.length ? "green" : enteredCount ? "gold" : "slate"} dot>
-                      {enteredCount}/{students.length} entered
+                    <Badge tone={rowsComplete === students.length ? "green" : rowsStarted ? "gold" : "slate"} dot>
+                      {rowsComplete}/{students.length} complete
                     </Badge>
                     <span className="hidden sm:inline">Totals and grades refresh after saving.</span>
                   </div>
-                  <SubmitButton
-                    className={buttonClasses({ variant: "primary", className: "w-full sm:w-auto" })}
-                    pendingText="Saving…"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <Save className="h-4 w-4" aria-hidden="true" />
-                      Save all scores
+                  {locked && requestMode ? (
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                      <input
+                        name="reason"
+                        className="gf-input sm:w-80"
+                        minLength={5}
+                        maxLength={500}
+                        required
+                        placeholder="Why? e.g. script shows 15, keyed 17"
+                        aria-label="Reason for the correction"
+                      />
+                      <SubmitButton className={buttonClasses({ variant: "primary", className: "shrink-0" })} pendingText="Sending…">
+                        <span className="inline-flex items-center gap-2">
+                          <Send className="h-4 w-4" aria-hidden="true" />
+                          Send to admin
+                        </span>
+                      </SubmitButton>
+                      <Link href={sheetUrl(ctx)} className={buttonClasses({ variant: "ghost", className: "shrink-0" })}>
+                        Cancel
+                      </Link>
+                    </div>
+                  ) : locked ? (
+                    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600">
+                      <Lock className="h-4 w-4" aria-hidden="true" />
+                      Locked
                     </span>
-                  </SubmitButton>
+                  ) : (
+                    <SubmitButton className={buttonClasses({ variant: "primary", className: "w-full sm:w-auto" })} pendingText="Saving…">
+                      <span className="inline-flex items-center gap-2">
+                        <Save className="h-4 w-4" aria-hidden="true" />
+                        Save changes
+                      </span>
+                    </SubmitButton>
+                  )}
                 </div>
               ) : null}
             </Card>
           </form>
 
           <p className="text-xs text-slate-500">
-            Totals and grades shown above refresh after saving. Grades come from the grading scale in{" "}
+            The total is the scores out of the columns&apos; max scores, shown out of 100. Grades appear once every column
+            is filled, using the grading scale in{" "}
             <Link className="gf-link" href="/admin/academics/config">
-              Config
+              Grading & layouts
             </Link>
             .
           </p>
         </>
-      ) : (
-        <Card>
-          <EmptyState
-            icon={FileSpreadsheet}
-            title="No sheet open"
-            description="Choose a class, subject and term above, then open the sheet to start entering scores."
-          />
-        </Card>
       )}
     </div>
   );

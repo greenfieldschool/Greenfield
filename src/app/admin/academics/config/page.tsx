@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 import UrlToast from "@/components/url-toast";
-import { Award, Plus, Scale } from "lucide-react";
+import { Award, Columns3, Plus, Scale } from "lucide-react";
+import ColumnsEditor from "@/components/columns-editor";
+import { builtInLayout, layoutTotal, parseLayout, type LayoutComponent } from "@/lib/results";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +35,53 @@ function configBack(message: string, type: "success" | "error" = "success"): nev
   redirect(`/admin/academics/config?toast=${encodeURIComponent(message)}&toast_type=${type}`);
 }
 
+// Default result-sheet columns for the whole school ("") or one level. New sheets start from the most specific
+// layout: class + subject (saved from the sheet), class, level, then school.
+async function saveLayout(formData: FormData) {
+  "use server";
+  const level = String(formData.get("level") ?? "").trim();
+  if (level && !levels.includes(level as (typeof levels)[number])) configBack("Unknown level", "error");
+  let raw: unknown = null;
+  try {
+    raw = JSON.parse(String(formData.get("columns") ?? "[]"));
+  } catch {
+    configBack("Could not read the columns", "error");
+  }
+  const components = parseLayout(raw);
+  if (!components) configBack("Every column needs a name (all different) and a max score above 0, with at most 12 columns.", "error");
+
+  const supabase = getSupabaseServerClient();
+  if (!supabase) configBack("Database is not configured", "error");
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  let query = supabase.from("result_layouts").select("id").is("class_id", null).is("subject_id", null);
+  query = level ? query.eq("level", level) : query.is("level", null);
+  const { data: current } = await query.maybeSingle();
+  const { error } = current
+    ? await supabase
+        .from("result_layouts")
+        .update({ components, updated_by: user?.id ?? null, updated_at: new Date().toISOString() })
+        .eq("id", (current as { id: string }).id)
+    : await supabase.from("result_layouts").insert({ level: level || null, components, updated_by: user?.id ?? null });
+
+  revalidatePath("/admin/academics/config");
+  if (error) configBack(error.message, "error");
+  configBack(`${level ? `${level.charAt(0).toUpperCase()}${level.slice(1)}` : "School"} layout saved. New result sheets will start with these columns.`);
+}
+
+async function clearLayout(formData: FormData) {
+  "use server";
+  const level = String(formData.get("level") ?? "").trim();
+  const supabase = getSupabaseServerClient();
+  if (!supabase || !level) configBack("Choose a level", "error");
+  const { error } = await supabase.from("result_layouts").delete().eq("level", level).is("class_id", null).is("subject_id", null);
+  revalidatePath("/admin/academics/config");
+  if (error) configBack(error.message, "error");
+  configBack("Level layout removed — it now follows the school layout");
+}
+
 // Row layouts for the inline editors (each row is its own form, so a CSS grid stands in for a table).
 const weightGrid = "grid grid-cols-[minmax(0,1fr)_5.5rem_4.5rem_auto] items-center gap-3 px-5 py-2.5 sm:px-6";
 const scaleGrid = "grid grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)_4.5rem_auto] items-center gap-3 px-5 py-2.5 sm:px-6";
@@ -43,7 +92,7 @@ export default async function AdminAcademicsConfigPage() {
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
 
-  const [{ data: weights }, { data: scales }] = await Promise.all([
+  const [{ data: weights }, { data: scales }, { data: layoutsData }] = await Promise.all([
     supabase
       .from("assessment_weights")
       .select("id, level, assessment_type, weight, active")
@@ -53,8 +102,13 @@ export default async function AdminAcademicsConfigPage() {
       .from("grading_scales")
       .select("id, level, grade, min_score, max_score, active")
       .order("level")
-      .order("min_score", { ascending: false })
+      .order("min_score", { ascending: false }),
+    supabase.from("result_layouts").select("level, components").is("class_id", null).is("subject_id", null)
   ]);
+
+  const layoutRows = (layoutsData ?? []) as Array<{ level: string | null; components: unknown }>;
+  const layoutFor = (level: string | null) => parseLayout(layoutRows.find((r) => r.level === level)?.components) ?? null;
+  const schoolLayout: LayoutComponent[] = layoutFor(null) ?? builtInLayout;
 
   const weightRows = (weights ?? []) as WeightRow[];
   const scaleRows = (scales ?? []) as ScaleRow[];
@@ -139,9 +193,13 @@ export default async function AdminAcademicsConfigPage() {
       <PageHeader
         eyebrow="Academics"
         title="Configuration"
-        description="Configure assessment weights and grading scales per level. Changes affect computed results immediately."
+        description="Result sheet columns, grading scales and (older) assessment weights per level. Changes affect computed results immediately."
         actions={
           <>
+            <a href="#layouts" className={buttonClasses({ variant: "secondary", size: "sm" })}>
+              <Columns3 className="h-4 w-4" aria-hidden="true" />
+              Result sheet columns
+            </a>
             <a href="#weights" className={buttonClasses({ variant: "secondary", size: "sm" })}>
               <Scale className="h-4 w-4" aria-hidden="true" />
               Weights
@@ -154,13 +212,57 @@ export default async function AdminAcademicsConfigPage() {
         }
       />
 
+      {/* Result sheet layouts */}
+      <section id="layouts" className="scroll-mt-24 space-y-4" aria-labelledby="layouts-heading">
+        <div>
+          <h2 id="layouts-heading" className="text-lg font-semibold text-slate-900">
+            Result sheet columns
+          </h2>
+          <p className="mt-0.5 text-sm text-slate-500">
+            The columns a new result sheet starts with, e.g. 1st CA (objective + theory), assignments, exam. Teachers can still
+            change the columns of their own sheet and keep them for their class and subject. Totals are always shown out of 100.
+          </p>
+        </div>
+        <div className="grid gap-6 xl:grid-cols-2">
+          {[null, ...levels].map((lvl) => {
+            const own = layoutFor(lvl);
+            const initial = own ?? schoolLayout;
+            return (
+              <Card key={lvl ?? "school"}>
+                <CardHeader
+                  title={<span className="capitalize">{lvl ?? "Whole school (default)"}</span>}
+                  description={lvl && !own ? "Following the school default" : `Total ${layoutTotal(initial)}`}
+                  action={lvl && own ? <Badge tone="blue">Own layout</Badge> : null}
+                />
+                <form action={saveLayout} className="space-y-4 px-5 py-5 sm:px-6">
+                  <input type="hidden" name="level" value={lvl ?? ""} />
+                  <ColumnsEditor name="columns" initial={initial.map((c) => ({ ...c }))} />
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {lvl && own ? (
+                      <SubmitButton variant="ghost" size="sm" pendingText="Removing…" formAction={clearLayout}>
+                        Use school default
+                      </SubmitButton>
+                    ) : null}
+                    <SubmitButton variant="primary" size="sm" pendingText="Saving…">
+                      Save layout
+                    </SubmitButton>
+                  </div>
+                </form>
+              </Card>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Assessment weights */}
       <section id="weights" className="scroll-mt-24 space-y-4" aria-labelledby="weights-heading">
         <div>
           <h2 id="weights-heading" className="text-lg font-semibold text-slate-900">
             Assessment weights
           </h2>
-          <p className="mt-0.5 text-sm text-slate-500">For each level, active weights should add up to 100.</p>
+          <p className="mt-0.5 text-sm text-slate-500">
+            Only for assessments created on the Assessments page (not the result sheet). For each level, active weights should add up to 100.
+          </p>
         </div>
 
         <div className="grid gap-6 2xl:grid-cols-3">

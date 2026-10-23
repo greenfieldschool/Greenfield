@@ -33,6 +33,12 @@ import {
   Settings,
   Shapes,
   Shirt,
+  MessagesSquare,
+  HeartHandshake,
+  ListChecks,
+  ScrollText,
+  History,
+  FilePen,
   ShieldAlert,
   SlidersHorizontal,
   Timer,
@@ -56,6 +62,8 @@ type NavItem = {
   /** Sub-paths that belong to a different nav item. */
   excludes?: string[];
   adminOnly?: boolean;
+  /** Teachers and admins only (messaging). */
+  chatOnly?: boolean;
 };
 
 type NavGroup = {
@@ -68,6 +76,8 @@ type NavGroup = {
 type AdminShellProps = {
   userEmail: string;
   role: string | null;
+  /** Unread messages, shown as a badge on "Messages". */
+  unreadMessages?: number;
   children: ReactNode;
 };
 
@@ -78,7 +88,10 @@ const NAV: NavGroup[] = [
   {
     key: "overview",
     label: "Overview",
-    items: [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true }]
+    items: [
+      { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+      { href: "/admin/messages", label: "Messages", icon: MessagesSquare, chatOnly: true }
+    ]
   },
   {
     key: "people",
@@ -96,12 +109,15 @@ const NAV: NavGroup[] = [
     label: "Academics",
     items: [
       { href: "/admin/academics/results", label: "Result sheet", icon: FileSpreadsheet },
+      { href: "/admin/academics/reports", label: "Report cards", icon: ScrollText },
       { href: "/admin/academics/assessments", label: "Assessments", icon: ClipboardCheck },
       { href: "/admin/academics/publications", label: "Publish results", icon: Megaphone },
       { href: "/admin/academics/subjects", label: "Subjects", icon: BookOpen, adminOnly: true },
       { href: "/admin/academics/class-subjects", label: "Class subjects", icon: Shapes, adminOnly: true },
       { href: "/admin/academics/teachers", label: "Teacher assignments", icon: UserCheck, adminOnly: true },
-      { href: "/admin/academics/config", label: "Grading & weights", icon: SlidersHorizontal }
+      { href: "/admin/academics/corrections", label: "Correction requests", icon: FilePen },
+      { href: "/admin/academics/audit", label: "Results history", icon: History },
+      { href: "/admin/academics/config", label: "Grading & layouts", icon: SlidersHorizontal }
     ]
   },
   {
@@ -118,10 +134,12 @@ const NAV: NavGroup[] = [
     key: "welfare",
     label: "Welfare",
     items: [
+      { href: "/admin/welfare/scores", label: "Welfare scores", icon: HeartHandshake },
       { href: "/admin/welfare/attendance", label: "Attendance", icon: CalendarCheck },
       { href: "/admin/welfare/incidents", label: "Health & incidents", icon: HeartPulse },
       { href: "/admin/welfare/discipline", label: "Discipline", icon: ShieldAlert },
-      { href: "/admin/welfare/uniform", label: "Uniform", icon: Shirt }
+      { href: "/admin/welfare/uniform", label: "Uniform", icon: Shirt },
+      { href: "/admin/welfare/criteria", label: "Welfare criteria", icon: ListChecks, adminOnly: true }
     ]
   },
   {
@@ -162,7 +180,16 @@ const SEGMENT_LABELS: Record<string, string> = {
   publications: "Publish results",
   subjects: "Subjects",
   "class-subjects": "Class subjects",
-  config: "Grading & weights",
+  config: "Grading & layouts",
+  reports: "Report cards",
+  comments: "Comments",
+  print: "Print",
+  scores: "Welfare scores",
+  criteria: "Welfare criteria",
+  audit: "Results history",
+  corrections: "Correction requests",
+  messages: "Messages",
+  moderation: "Moderation",
   exams: "Exams",
   tests: "Tests",
   sessions: "Sessions",
@@ -230,7 +257,7 @@ function useBreadcrumbs(pathname: string) {
   }, [pathname]);
 }
 
-export default function AdminShell({ userEmail, role, children }: AdminShellProps) {
+export default function AdminShell({ userEmail, role, unreadMessages = 0, children }: AdminShellProps) {
   const pathname = usePathname() ?? "/admin";
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -243,9 +270,12 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
   const navGroups = useMemo(
     () =>
       NAV.filter((g) => isAdmin || !g.adminOnly)
-        .map((g) => ({ ...g, items: g.items.filter((i) => isAdmin || !i.adminOnly) }))
+        .map((g) => ({
+          ...g,
+          items: g.items.filter((i) => (isAdmin || !i.adminOnly) && (!i.chatOnly || isAdmin || role === "teacher"))
+        }))
         .filter((g) => g.items.length > 0),
-    [isAdmin]
+    [isAdmin, role]
   );
 
   useEffect(() => {
@@ -358,6 +388,17 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
                           aria-hidden="true"
                         />
                         {!compact ? <span className="truncate">{item.label}</span> : null}
+                        {item.href === "/admin/messages" && unreadMessages > 0 ? (
+                          <span
+                            className={cn(
+                              "inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-brand-gold px-1.5 text-[11px] font-bold text-brand-green-950",
+                              compact ? "absolute right-1 top-0.5" : "ml-auto"
+                            )}
+                          >
+                            {unreadMessages > 99 ? "99+" : unreadMessages}
+                            <span className="sr-only"> unread</span>
+                          </span>
+                        ) : null}
                       </Link>
                     </li>
                   );
@@ -404,7 +445,7 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 hidden bg-brand-green-950 transition-[width] duration-200 lg:block",
+          "fixed inset-y-0 left-0 z-30 hidden bg-brand-green-950 transition-[width] duration-200 lg:block print:!hidden",
           collapsed ? "w-[76px]" : "w-64"
         )}
       >
@@ -437,9 +478,9 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
         </div>
       </div>
 
-      <div className={cn("transition-[padding] duration-200", collapsed ? "lg:pl-[76px]" : "lg:pl-64")}>
+      <div className={cn("transition-[padding] duration-200 print:!pl-0", collapsed ? "lg:pl-[76px]" : "lg:pl-64")}>
         {/* Top bar */}
-        <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/85 backdrop-blur-md">
+        <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/85 backdrop-blur-md print:hidden">
           <div className="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-8">
             <button
               type="button"
@@ -548,7 +589,7 @@ export default function AdminShell({ userEmail, role, children }: AdminShellProp
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</main>
+        <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 print:max-w-none print:p-0">{children}</main>
       </div>
     </div>
   );
