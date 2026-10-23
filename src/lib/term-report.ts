@@ -175,7 +175,7 @@ export async function buildClassReport(
     supabase.from("class_subjects").select("subject_id").eq("class_id", classId),
     supabase
       .from("grading_scales")
-      .select("grade, min_score, max_score")
+      .select("grade, min_score, max_score, remark")
       .eq("level", cls.level)
       .eq("active", true)
       .order("min_score", { ascending: false }),

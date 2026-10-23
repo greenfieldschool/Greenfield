@@ -9,6 +9,13 @@ description: Use for anything about academic results, result sheet columns, welf
 - **Result sheet** (`/admin/academics/results`): one sheet per class + subject + term. Columns are
   `academic_assessments` with `on_result_sheet = true` (`title`, `max_score`, `position`, `component_group`
   ca/exam/other). Subject score = sum of scores / sum of column maxima × 100 (`subjectPercent` in `src/lib/results.ts`).
+- **Result management** menu (issue 8): Class result sheet (bulk entry/edit, Excel paste via `bulkUpload`, CSV
+  download at `/admin/academics/results/template`), Single pupil results (`/admin/academics/results/pupil`), Report
+  cards, Correction requests, Results history, Grading & layouts. Sheets open straight onto their columns through
+  `ensure_result_sheet()` (20261026); no set-up step. The sheet shows a class summary, column averages and a per-pupil
+  stacked bar coloured by column kind (`groupColors` in `src/lib/results.ts`, validated with the dataviz skill).
+- **Grades** come from `grading_scales` (with `remark`, e.g. A Excellent); school default 80/70/60/50 bands. Show the
+  remark with `gradeRemark()`.
 - **Default columns**: `result_layouts` (class+subject → class → level → school → built-in). Admins edit level/school
   layouts on `/admin/academics/config`; teachers can save one for their class+subject from the sheet.
 - **Welfare** (`/admin/welfare/scores`, criteria at `/admin/welfare/criteria`): `welfare_criteria` per level, total

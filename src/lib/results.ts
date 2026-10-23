@@ -102,10 +102,19 @@ export function subjectPercent(scores: Array<number | null>, maxes: number[]) {
   return round2((total / maxTotal) * 100);
 }
 
-export type GradeBand = { grade: string; min_score: number; max_score: number };
+export type GradeBand = { grade: string; min_score: number; max_score: number; remark?: string | null };
 
 export function gradeFor(percent: number | null, bands: GradeBand[]) {
   if (percent === null) return null;
   const p = round2(percent);
   return bands.find((g) => p >= Number(g.min_score) && p <= Number(g.max_score))?.grade ?? null;
 }
+
+/** "Excellent", "Very Good"… for a grade, from the grading scale (Academics → Grading & layouts). */
+export function gradeRemark(grade: string | null, bands: GradeBand[]) {
+  if (!grade) return null;
+  return bands.find((g) => g.grade === grade)?.remark ?? null;
+}
+
+/** Colours for result charts, by kind of column (validated for colour-blind separation). */
+export const groupColors: Record<ComponentGroup, string> = { ca: "#2a78d6", exam: "#eb6834", other: "#1baf7a" };

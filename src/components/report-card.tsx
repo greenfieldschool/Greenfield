@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { LogoMark } from "@/components/ui/logo";
 import { school } from "@/lib/school";
 import { ordinal, type ClassReport, type StudentReport } from "@/lib/term-report";
+import { gradeRemark } from "@/lib/results";
 import { cn } from "@/lib/cn";
 
 // The printable termly report card: student details, every subject with its CA / exam breakdown, welfare
@@ -197,7 +198,11 @@ export default function ReportCard({
             value: student.welfare.percent === null ? "—" : `${fmt(student.welfare.percent, 2)}%${student.welfareBadge ? ` · ${student.welfareBadge}` : ""}`
           },
           { label: "Term total", value: student.termTotal === null ? "—" : `${fmt(student.termTotal, 2)}%`, strong: true },
-          { label: "Grade", value: student.termGrade ?? "—", strong: true },
+          {
+            label: "Grade",
+            value: student.termGrade ? `${student.termGrade}${gradeRemark(student.termGrade, report.grades) ? ` · ${gradeRemark(student.termGrade, report.grades)}` : ""}` : "—",
+            strong: true
+          },
           ...(showPositions
             ? [{ label: "Position", value: student.position ? `${ordinal(student.position)}${classSize ? ` of ${classSize}` : ""}` : "—" }]
             : [])
@@ -237,7 +242,7 @@ export default function ReportCard({
       {report.grades.length ? (
         <footer className="mt-4 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
           <span className="font-semibold">Grading key: </span>
-          {report.grades.map((g) => `${g.grade} ${fmt(Number(g.min_score), 2)}–${fmt(Number(g.max_score), 2)}`).join(" · ")}
+          {report.grades.map((g) => `${g.grade} ${fmt(Number(g.min_score), 2)}–${fmt(Number(g.max_score), 2)}${g.remark ? ` ${g.remark}` : ""}`).join(" · ")}
         </footer>
       ) : null}
     </article>

@@ -8,6 +8,8 @@ import { canTeach, getTeacherAccess } from "@/lib/teacher-access";
 import {
   componentGroups,
   gradeFor,
+  gradeRemark,
+  groupColors,
   layoutSourceLabel,
   layoutTotal,
   parseLayout,
@@ -22,7 +24,7 @@ import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
 import ColumnsEditor from "@/components/columns-editor";
 import SheetPicker from "./SheetPicker";
-import { Columns3, Download, FilePen, FileSpreadsheet, FileText, History, Lock, LockOpen, MonitorCheck, Save, Send, Settings2, Users } from "lucide-react";
+import { Columns3, Download, FilePen, FileSpreadsheet, FileText, History, Lock, LockOpen, MonitorCheck, Save, Send, Settings2, Upload, Users } from "lucide-react";
 import { CorrectionRequestCard, loadCorrectionRequests } from "../corrections/_requests";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -351,6 +353,84 @@ async function importCbtScores(formData: FormData) {
   back(ctx, `Copied ${rows.length} CBT score(s) into ${column.title ?? "the column"} (scaled to ${colMax})`);
 }
 
+// Paste from Excel: rows of [admission no, pupil name, score per column] (or [admission no or name, scores…]).
+// Fills only the cells that have a value; empty cells keep what is saved. Locked sheets are refused by the database.
+async function bulkUpload(formData: FormData) {
+  "use server";
+  const ctx = readContext(formData);
+  const supabase = getSupabaseServerClient();
+  if (!supabase) back(ctx, "Database is not configured", "error");
+  await requireTeachAccess(supabase, ctx);
+
+  const [{ data: colData }, { data: studentData }] = await Promise.all([
+    sheetColumns(supabase, ctx),
+    supabase.from("students").select("id, first_name, last_name, admission_number").eq("class_id", ctx.classId)
+  ]);
+  const columns = (colData ?? []) as ColumnRow[];
+  const pupils = (studentData ?? []) as StudentRow[];
+  if (!columns.length) back(ctx, "This sheet has no columns yet", "error");
+
+  const norm = (v: string) => v.toLowerCase().replace(/\s+/g, " ").trim();
+  const byKey = new Map<string, string>();
+  for (const p of pupils) {
+    if (p.admission_number) byKey.set(norm(p.admission_number), p.id);
+    byKey.set(norm(`${p.last_name} ${p.first_name}`), p.id);
+    byKey.set(norm(`${p.first_name} ${p.last_name}`), p.id);
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  const upserts = new Map<string, { assessment_id: string; student_id: string; score: number; graded_by: string | null }>();
+  const unmatched: string[] = [];
+  const problems: string[] = [];
+  const lines = String(formData.get("pasted") ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\s+$/, ""))
+    .filter((l) => l.trim().length);
+
+  for (const line of lines) {
+    const cells = (line.includes("\t") ? line.split("\t") : line.split(",")).map((c) => c.trim().replace(/^"|"$/g, ""));
+    if (/admission|pupil|name/i.test(cells[0] ?? "") && cells.slice(1).some((c) => /ca|exam|theory|objective/i.test(c))) continue; // heading row
+    let studentId: string | undefined;
+    let scores: string[];
+    if (cells.length >= columns.length + 2) {
+      studentId = byKey.get(norm(cells[0])) ?? byKey.get(norm(cells[1]));
+      scores = cells.slice(2, 2 + columns.length);
+    } else {
+      studentId = byKey.get(norm(cells[0]));
+      scores = cells.slice(1, 1 + columns.length);
+    }
+    if (!studentId) {
+      unmatched.push(cells[1] || cells[0]);
+      continue;
+    }
+    columns.forEach((col, i) => {
+      const raw = (scores[i] ?? "").trim();
+      if (!raw) return;
+      const score = Number(raw);
+      if (!Number.isFinite(score) || score < 0 || score > Number(col.max_score)) {
+        problems.push(`${col.title} "${raw}" (max ${Number(col.max_score)})`);
+        return;
+      }
+      upserts.set(`${col.id}:${studentId}`, { assessment_id: col.id, student_id: studentId!, score, graded_by: user?.id ?? null });
+    });
+  }
+
+  if (upserts.size) {
+    const { error } = await supabase
+      .from("academic_assessment_scores")
+      .upsert(Array.from(upserts.values()), { onConflict: "assessment_id,student_id" });
+    if (error) back(ctx, error.message, "error");
+  }
+  revalidateResults();
+  const notes = [
+    unmatched.length ? `${unmatched.length} row(s) not matched to a pupil in this class (${unmatched.slice(0, 5).join(", ")}${unmatched.length > 5 ? "…" : ""})` : null,
+    problems.length ? `${problems.length} score(s) skipped because they were not numbers or above the maximum: ${problems.slice(0, 5).join("; ")}` : null
+  ].filter(Boolean);
+  back(ctx, `Uploaded ${upserts.size} score(s).${notes.length ? ` ${notes.join(". ")}.` : ""}`, notes.length ? "error" : "success");
+}
+
 // Marks the sheet as final. From then on nobody can change its scores or columns until an admin unlocks it.
 async function submitSheet(formData: FormData) {
   "use server";
@@ -517,7 +597,7 @@ export default async function AdminResultSheetPage({
         cls
           ? supabase
               .from("grading_scales")
-              .select("grade, min_score, max_score")
+              .select("grade, min_score, max_score, remark")
               .eq("level", cls.level)
               .eq("active", true)
               .order("min_score", { ascending: false })
@@ -569,6 +649,20 @@ export default async function AdminResultSheetPage({
       }
     } else {
       layout = await resolveLayout(supabase, { classId, subjectId, level: cls?.level ?? null });
+      // Open straight onto the standard columns (1st CA, 2nd CA, Exam Objective, Exam Theory, or the saved layout)
+      // instead of asking for columns first. The database only allows it for teachers of the subject.
+      if (canTeach(access, classId, subjectId)) {
+        const { error: ensureError } = await supabase.rpc("ensure_result_sheet", {
+          p_class: classId,
+          p_subject: subjectId,
+          p_term: termId,
+          p_columns: layout.components
+        });
+        if (!ensureError) {
+          const { data: again } = await sheetColumns(supabase, ctx);
+          columns = (again ?? []) as ColumnRow[];
+        }
+      }
     }
   }
 
@@ -603,6 +697,27 @@ export default async function AdminResultSheetPage({
 
   const rowsComplete = students.filter((st) => columns.length && columns.every((c) => scoreFor(c.id, st.id) !== null)).length;
   const rowsStarted = students.filter((st) => columns.some((c) => scoreFor(c.id, st.id) !== null)).length;
+
+  // Class summary: totals of pupils with every column filled, plus each column's average.
+  const maxes = columns.map((c) => Number(c.max_score));
+  const completeTotals = students
+    .map((st) => columns.map((c) => scoreFor(c.id, st.id)))
+    .filter((v) => v.length && v.every((x) => x !== null))
+    .map((v) => subjectPercent(v, maxes) ?? 0);
+  const startedTotals = students
+    .map((st) => subjectPercent(columns.map((c) => scoreFor(c.id, st.id)), maxes))
+    .filter((p): p is number => p !== null);
+  const avg = (xs: number[]) => (xs.length ? round2(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
+  const classAverage = avg(completeTotals);
+  const classAverageSoFar = avg(startedTotals);
+  const gradeCounts = grades.map((g) => ({
+    grade: g.grade,
+    remark: g.remark ?? null,
+    count: completeTotals.filter((t) => gradeFor(t, grades) === g.grade).length
+  }));
+  const columnAverage = (columnId: string) =>
+    avg(students.map((st) => scoreFor(columnId, st.id)).filter((v): v is number => v !== null));
+  const usedGroups = (["ca", "exam", "other"] as const).filter((g) => columns.some((c) => asGroup(c.component_group) === g));
 
   const gradeTone = (g: string | null) => {
     if (!g) return "slate" as const;
@@ -928,6 +1043,88 @@ export default async function AdminResultSheetPage({
           </details>
           )}
 
+          {/* Class summary */}
+          <Card>
+            <CardHeader
+              title="Class summary"
+              description={
+                rowsComplete < students.length
+                  ? `Based on the ${rowsComplete} pupil(s) with every column filled. ${students.length - rowsComplete} still to finish.`
+                  : "All pupils have every column filled."
+              }
+            />
+            <CardBody className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  { label: "Class average", value: classAverage === null ? "—" : `${classAverage}%`, hint: classAverage === null && classAverageSoFar !== null ? `${classAverageSoFar}% so far` : "out of 100" },
+                  { label: "Highest", value: completeTotals.length ? `${Math.max(...completeTotals)}%` : "—", hint: "complete pupils" },
+                  { label: "Lowest", value: completeTotals.length ? `${Math.min(...completeTotals)}%` : "—", hint: "complete pupils" },
+                  { label: "Complete", value: `${rowsComplete}/${students.length}`, hint: "pupils" }
+                ].map((t) => (
+                  <div key={t.label} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{t.label}</div>
+                    <div className="text-xl font-bold tabular-nums text-slate-900">{t.value}</div>
+                    <div className="text-xs text-slate-500">{t.hint}</div>
+                  </div>
+                ))}
+              </div>
+              {grades.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {gradeCounts.map((g) => (
+                    <span key={g.grade} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs">
+                      <Badge tone={gradeTone(g.grade)}>{g.grade}</Badge>
+                      <span className="text-slate-600">{g.remark ?? ""}</span>
+                      <span className="font-semibold tabular-nums text-slate-900">{g.count}</span>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </CardBody>
+          </Card>
+
+          {/* Bulk upload */}
+          {!locked ? (
+            <details className="rounded-2xl border border-slate-200/80 bg-white shadow-card">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 sm:px-6">
+                <div>
+                  <div className="text-base font-semibold text-slate-900">Bulk upload from Excel</div>
+                  <div className="mt-0.5 text-sm text-slate-500">
+                    Download the sheet, fill it in Excel, then copy the rows and paste them here. Empty cells are left as they are.
+                  </div>
+                </div>
+                <span className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                  <Upload className="h-4 w-4" aria-hidden="true" />
+                  Bulk upload
+                </span>
+              </summary>
+              <form action={bulkUpload} className="space-y-3 border-t border-slate-100 px-5 py-5 sm:px-6">
+                {contextFields}
+                <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-700">
+                  <li>
+                    <a className="gf-link" href={`/admin/academics/results/template?${new URLSearchParams({ class_id: classId, subject_id: subjectId, term_id: termId }).toString()}`}>
+                      Download this sheet (CSV for Excel)
+                    </a>{" "}
+                    — it lists every pupil with columns: Admission no, Pupil name, {columns.map((c) => c.title).join(", ")}.
+                  </li>
+                  <li>Fill in the scores. Leave a cell empty to keep what is already saved.</li>
+                  <li>Select the rows in Excel (with or without the heading row), copy, and paste below.</li>
+                </ol>
+                <textarea
+                  name="pasted"
+                  rows={6}
+                  required
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-900 outline-none focus:border-brand-green-500 focus:ring-4 focus:ring-brand-green-500/15"
+                  placeholder={`GRE/2024/398\tABUBAKAR KHADIJAH\t20\t19\t\t`}
+                />
+                <div className="flex justify-end">
+                  <SubmitButton variant="primary" pendingText="Uploading…">
+                    Upload scores
+                  </SubmitButton>
+                </div>
+              </form>
+            </details>
+          ) : null}
+
           {/* Score grid */}
           {corrections.requests.length ? (
             <Card>
@@ -1009,9 +1206,23 @@ export default async function AdminResultSheetPage({
                         </th>
                         <th
                           scope="col"
-                          className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-center text-xs font-semibold text-slate-600 sm:pr-6"
+                          className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-center text-xs font-semibold text-slate-600"
                         >
                           Grade
+                        </th>
+                        <th
+                          scope="col"
+                          className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 sm:pr-6"
+                        >
+                          <div>Scores chart</div>
+                          <div className="mt-0.5 flex gap-2 font-normal text-slate-500">
+                            {usedGroups.map((g) => (
+                              <span key={g} className="inline-flex items-center gap-1">
+                                <span className="inline-block h-2 w-2 rounded-sm" style={{ backgroundColor: groupColors[g] }} aria-hidden="true" />
+                                {groupLabel[g]}
+                              </span>
+                            ))}
+                          </div>
                         </th>
                       </tr>
                     </thead>
@@ -1075,13 +1286,63 @@ export default async function AdminResultSheetPage({
                                 </div>
                               )}
                             </td>
-                            <td className={cn("border-b border-slate-100 px-4 py-2 text-center group-hover:bg-brand-green-50 sm:pr-6", zebra)}>
-                              {grade && complete ? <Badge tone={gradeTone(grade)}>{grade}</Badge> : <span className="text-slate-400">—</span>}
+                            <td className={cn("border-b border-slate-100 px-4 py-2 text-center group-hover:bg-brand-green-50", zebra)}>
+                              {grade && complete ? (
+                                <div className="flex flex-col items-center">
+                                  <Badge tone={gradeTone(grade)}>{grade}</Badge>
+                                  {gradeRemark(grade, grades) ? (
+                                    <span className="mt-0.5 whitespace-nowrap text-[11px] text-slate-500">{gradeRemark(grade, grades)}</span>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </td>
+                            <td className={cn("border-b border-slate-100 px-4 py-2 group-hover:bg-brand-green-50 sm:pr-6", zebra)}>
+                              {/* One segment per column, sized out of the sheet's total, coloured by kind; hover for the score. */}
+                              <div
+                                className="flex h-3 w-40 gap-[2px] overflow-hidden rounded bg-slate-100"
+                                role="img"
+                                aria-label={columns.map((c, i) => `${c.title} ${values[i] ?? "not entered"} of ${Number(c.max_score)}`).join(", ")}
+                              >
+                                {columns.map((c, i) =>
+                                  values[i] ? (
+                                    <span
+                                      key={c.id}
+                                      title={`${c.title}: ${values[i]} / ${Number(c.max_score)}`}
+                                      className="h-full first:rounded-l last:rounded-r"
+                                      style={{
+                                        width: `${maxTotal ? ((values[i] as number) / maxTotal) * 100 : 0}%`,
+                                        backgroundColor: groupColors[asGroup(c.component_group)]
+                                      }}
+                                    />
+                                  ) : null
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
                       })}
                     </tbody>
+                    <tfoot>
+                      <tr>
+                        <th scope="row" className="sticky bottom-0 left-0 z-30 border-t-2 border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-700 sm:pl-6">
+                          Class average
+                        </th>
+                        {columns.map((c) => (
+                          <td key={c.id} className="sticky bottom-0 z-20 border-t-2 border-slate-200 bg-slate-50 px-2 py-2.5 text-center text-xs font-semibold tabular-nums text-slate-700">
+                            {columnAverage(c.id) ?? "—"}
+                          </td>
+                        ))}
+                        <td className="sticky bottom-0 z-20 border-t-2 border-slate-200 bg-slate-50 px-4 py-2.5 text-right text-sm font-bold tabular-nums text-slate-900">
+                          {classAverage ?? "—"}
+                        </td>
+                        <td className="sticky bottom-0 z-20 border-t-2 border-slate-200 bg-slate-50 px-4 py-2.5 text-center text-xs text-slate-600">
+                          {classAverage !== null ? gradeFor(classAverage, grades) ?? "" : ""}
+                        </td>
+                        <td className="sticky bottom-0 z-20 border-t-2 border-slate-200 bg-slate-50 sm:pr-6" />
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               ) : (

@@ -140,14 +140,15 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
-          name: "Entering Term Results (Result sheet)",
+          name: "Entering Term Results (Result management)",
           steps: [
-            "Open Academics > Result sheet (/admin/academics/results). Pick the class (the Subject list then shows only that class's subjects), the subject and the term, then click 'Open sheet'.",
-            "The first time a subject's sheet is opened for a term, choose its columns: e.g. '1st CA (Obj)' and '1st CA (Theory)', 'Assignment 1', 'Assignment 2', 'Exam (Objective)', 'Exam (Theory)'. Tick the box to keep the same columns for that subject in future terms.",
-            "Enter scores and click 'Save changes'. Only the boxes you changed are saved, so you can save the CA scores now and the exam scores later, and two teachers can work on the same sheet without wiping each other's scores.",
-            "The total is shown out of 100 even if the columns add up to a different number. 'so far' means some columns are still empty; the grade appears once every column is filled.",
-            "Need to change the columns mid-term? Use 'Edit columns'. Removing a column that already has scores asks you to confirm first.",
-            "Use 'Copy CBT scores' to bring a computer-based exam into any column, scaled to that column's max score."
+            "Open Result management > Class result sheet. Pick the class, subject and term (e.g. RECEPTION · Quantitative Reasoning · 2026/2027 First Term) and click Open sheet. Every pupil in the class is listed automatically.",
+            "A new sheet opens with 1st CA (20), 2nd CA (20), Exam (Objective) (30) and Exam (Theory) (30), total 100. You can change the columns with Edit columns if a subject is assessed differently.",
+            "Enter the 1st and 2nd CA and click Save changes. The exam boxes stay empty. Reopen the same sheet after the exam and enter the Objective and Theory scores: only the boxes you change are saved, so the CA scores are never lost.",
+            "Scores above a column's maximum are refused. Each pupil's total out of 100 appears with 'so far' until every column is filled; then the grade and remark show (80–100 A Excellent, 70–79 B Very Good, 60–69 C Good, 50–59 D Pass, 0–49 F Fail).",
+            "The Class summary shows the class average, highest, lowest and how many pupils got each grade. The bottom row shows each column's class average, and the Scores chart shows each pupil's CA (blue) and exam (orange) marks.",
+            "Bulk upload: download the sheet as a CSV, fill it in Excel, copy the rows and paste them under Bulk upload. Empty cells are left as they are. Single pupil results lets you enter or check one pupil's scores for every subject at once.",
+            "When a subject's scores match the marked scripts, click Submit as final. Use 'Copy CBT scores' to bring a computer-based exam into any column."
           ]
         },
         {

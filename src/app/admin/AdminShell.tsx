@@ -39,6 +39,7 @@ import {
   ScrollText,
   History,
   FilePen,
+  UserRound,
   ShieldAlert,
   SlidersHorizontal,
   Timer,
@@ -105,19 +106,31 @@ const NAV: NavGroup[] = [
     ]
   },
   {
-    key: "academics",
-    label: "Academics",
+    key: "results",
+    label: "Result management",
     items: [
-      { href: "/admin/academics/results", label: "Result sheet", icon: FileSpreadsheet },
+      {
+        href: "/admin/academics/results",
+        label: "Class result sheet",
+        icon: FileSpreadsheet,
+        excludes: ["/admin/academics/results/pupil"]
+      },
+      { href: "/admin/academics/results/pupil", label: "Single pupil results", icon: UserRound },
       { href: "/admin/academics/reports", label: "Report cards", icon: ScrollText },
-      { href: "/admin/academics/assessments", label: "Assessments", icon: ClipboardCheck },
-      { href: "/admin/academics/publications", label: "Publish results", icon: Megaphone },
-      { href: "/admin/academics/subjects", label: "Subjects", icon: BookOpen, adminOnly: true },
-      { href: "/admin/academics/class-subjects", label: "Class subjects", icon: Shapes, adminOnly: true },
-      { href: "/admin/academics/teachers", label: "Teacher assignments", icon: UserCheck, adminOnly: true },
       { href: "/admin/academics/corrections", label: "Correction requests", icon: FilePen },
       { href: "/admin/academics/audit", label: "Results history", icon: History },
       { href: "/admin/academics/config", label: "Grading & layouts", icon: SlidersHorizontal }
+    ]
+  },
+  {
+    key: "academics",
+    label: "Academics",
+    items: [
+      { href: "/admin/academics/subjects", label: "Subjects", icon: BookOpen, adminOnly: true },
+      { href: "/admin/academics/class-subjects", label: "Class subjects", icon: Shapes, adminOnly: true },
+      { href: "/admin/academics/teachers", label: "Teacher assignments", icon: UserCheck, adminOnly: true },
+      { href: "/admin/academics/assessments", label: "Assessments", icon: ClipboardCheck },
+      { href: "/admin/academics/publications", label: "Publish results", icon: Megaphone }
     ]
   },
   {
@@ -176,6 +189,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   users: "Staff & users",
   academics: "Academics",
   results: "Result sheet",
+  pupil: "Single pupil",
   assessments: "Assessments",
   publications: "Publish results",
   subjects: "Subjects",
