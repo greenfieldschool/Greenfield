@@ -26,6 +26,23 @@ export const builtInLayout: LayoutComponent[] = [
 
 export const MAX_COMPONENTS = 12;
 
+/** Turns a database error on the results pages into words school staff can act on. */
+export function resultsErrorMessage(message: string | null | undefined): string {
+  const m = message ?? "";
+  if (/infinite recursion/i.test(m)) {
+    return "Results can't be opened until a database update is applied (20261028_fix_results_policy_loop.sql). Please tell whoever looks after the website.";
+  }
+  if (/could not find the function|function .* does not exist|column .* does not exist/i.test(m)) {
+    return "This needs a database update that hasn't been applied yet. Please tell whoever looks after the website.";
+  }
+  if (/row-level security|permission denied/i.test(m)) {
+    return "You don't have permission to change this sheet. Ask an admin to assign you to this subject in this class.";
+  }
+  if (/duplicate key/i.test(m)) return "That has already been saved by someone else. Refresh the page and try again.";
+  if (/failed to fetch|fetch failed|network/i.test(m)) return "Couldn't reach the database. Check your internet connection and try again.";
+  return m || "Something went wrong. Please try again.";
+}
+
 function isGroup(v: unknown): v is ComponentGroup {
   return v === "ca" || v === "exam" || v === "other";
 }

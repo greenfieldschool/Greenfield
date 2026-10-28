@@ -10,7 +10,8 @@ description: Use for any database change in Supabase/Postgres: new tables, colum
 - `docs/schema.sql`: full schema. Append each migration's body (from the first `-- ----` divider) at the end with a
   `-- <Title> (see docs/migrations/<file>)` header.
 - Role helpers already in the database: `is_admin()`, `is_staff()`, `current_role()`, `teacher_teaches(class, subject)`,
-  `teacher_has_class(class)`, `teacher_has_class_or_subject(class)`.
+  `teacher_has_class(class)`, `teacher_has_class_or_subject(class)`, `staff_can_class(class)`,
+  `can_manage_results(class, subject)`, `can_manage_assessment(assessment)`.
 - Test harness: [`pglite-harness.mjs`](pglite-harness.mjs).
 
 ## Steps
@@ -46,6 +47,14 @@ user with `set test.uid` / `set test.role`, then `set role authenticated` to mak
 `String.replace` SQL containing `$$` with a string replacement (use a function), because `$$` means `$`.
 
 ## Pitfalls we hit
+- Policies on two tables that query each other (A's policy reads B, B's policy reads A) fail every query with
+  "infinite recursion detected in policy". Do cross-table checks in a `security definer` helper instead of a
+  subquery in the policy. PGlite reproduces it, so test the old policies first.
+- `is_admin() or current_role() <> 'teacher' or …` lets parents and pupils through. Use the helpers
+  `staff_can_class(class_id)` (classes, students, attendance) or `can_manage_results(class, subject)` (results),
+  or write `coalesce(is_staff(), false) and current_role() is distinct from 'teacher'`. Fixed everywhere by
+  20261023 (result_publications) and the two 20261028 migrations. Test a parent account in PGlite for every
+  staff policy you write.
 - Exact-duplicate cleanup must merge dependents before adding a unique index.
 - Merge functions matched result columns by `assessment_type`; once several columns could share a type they had
   to match by title.

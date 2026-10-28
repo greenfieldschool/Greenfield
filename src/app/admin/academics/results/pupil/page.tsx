@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { Lock, Save, UserRound } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { canTeach, getTeacherAccess } from "@/lib/teacher-access";
-import { gradeFor, gradeRemark, resolveLayout, subjectPercent, type GradeBand } from "@/lib/results";
+import { gradeFor, gradeRemark, resolveLayout, resultsErrorMessage, subjectPercent, type GradeBand } from "@/lib/results";
 import UrlToast from "@/components/url-toast";
 import SubmitButton from "@/components/submit-button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -43,12 +43,14 @@ async function savePupil(formData: FormData) {
   const { data: pupil } = await supabase.from("students").select("id").eq("id", studentId).eq("class_id", classId).maybeSingle();
   if (!pupil) back(params, "That pupil is not in this class", "error");
 
-  const { data: colData } = await supabase
+  const { data: colData, error: colError } = await supabase
     .from("academic_assessments")
     .select("id, subject_id, title, max_score")
     .eq("class_id", classId)
     .eq("academic_term_id", termId)
     .eq("on_result_sheet", true);
+  // Without the columns nothing can be matched, and "Nothing had changed" would be wrong.
+  if (colError) back(params, `Nothing was saved. ${resultsErrorMessage(colError.message)}`, "error");
   const columns = (colData ?? []) as Column[];
   const {
     data: { user }
@@ -78,12 +80,12 @@ async function savePupil(formData: FormData) {
   for (const [, entry] of Array.from(bySubject.entries())) {
     if (entry.upserts.length) {
       const { error } = await supabase.from("academic_assessment_scores").upsert(entry.upserts, { onConflict: "assessment_id,student_id" });
-      if (error) problems.push(`${entry.name}: ${error.message}`);
+      if (error) problems.push(`${entry.name}: ${resultsErrorMessage(error.message)}`);
       else changed += entry.upserts.length;
     }
     if (entry.deletes.length) {
       const { error } = await supabase.from("academic_assessment_scores").delete().eq("student_id", studentId).in("assessment_id", entry.deletes);
-      if (error) problems.push(`${entry.name}: ${error.message}`);
+      if (error) problems.push(`${entry.name}: ${resultsErrorMessage(error.message)}`);
       else changed += entry.deletes.length;
     }
   }
@@ -137,6 +139,7 @@ export default async function PupilResultsPage({
   let grades: GradeBand[] = [];
   const scoreOf = new Map<string, number>();
   let published = false;
+  let loadError: string | null = null;
 
   if (cls && pupil && termIdOrActive) {
     const [{ data: offered }, { data: gradeData }, { data: pub }, { data: locks }] = await Promise.all([
@@ -168,18 +171,21 @@ export default async function PupilResultsPage({
     // Open each subject's sheet with its standard columns if it doesn't exist yet.
     for (const sub of subjects) {
       const layout = await resolveLayout(supabase, { classId: cls.id, subjectId: sub.id, level: cls.level });
-      await supabase.rpc("ensure_result_sheet", { p_class: cls.id, p_subject: sub.id, p_term: termIdOrActive, p_columns: layout.components });
+      const { error } = await supabase.rpc("ensure_result_sheet", { p_class: cls.id, p_subject: sub.id, p_term: termIdOrActive, p_columns: layout.components });
+      // A subject it couldn't create shows "Sheet not set up" with a link; a broken database stops the page below.
+      if (error && /infinite recursion|could not find the function/i.test(error.message)) loadError = resultsErrorMessage(error.message);
     }
-    const { data: colData } = await supabase
+    const { data: colData, error: colError } = await supabase
       .from("academic_assessments")
       .select("id, subject_id, title, max_score")
       .eq("class_id", cls.id)
       .eq("academic_term_id", termIdOrActive)
       .eq("on_result_sheet", true)
       .order("position", { ascending: true });
+    if (colError) loadError = resultsErrorMessage(colError.message);
     const columns = (colData ?? []) as Column[];
     if (columns.length) {
-      const { data: scores } = await supabase
+      const { data: scores, error: scoresError } = await supabase
         .from("academic_assessment_scores")
         .select("assessment_id, score")
         .eq("student_id", pupil.id)
@@ -187,6 +193,7 @@ export default async function PupilResultsPage({
           "assessment_id",
           columns.map((c) => c.id)
         );
+      if (scoresError) loadError = resultsErrorMessage(scoresError.message);
       for (const s of (scores ?? []) as Array<{ assessment_id: string; score: number }>) scoreOf.set(s.assessment_id, Number(s.score));
     }
     blocks = subjects.map((sub) => ({
@@ -267,6 +274,18 @@ export default async function PupilResultsPage({
         <Card>
           <EmptyState icon={UserRound} title="No pupil chosen" description="Choose a class and term, then pick the pupil." />
         </Card>
+      ) : loadError ? (
+        <Alert
+          tone="danger"
+          title="These results couldn't be opened"
+          action={
+            <Link className={buttonClasses({ variant: "secondary", size: "sm" })} href={`${PATH}?class_id=${cls.id}&term_id=${termIdOrActive}&student_id=${pupil.id}`}>
+              Try again
+            </Link>
+          }
+        >
+          {loadError} No scores have been changed.
+        </Alert>
       ) : !blocks.length ? (
         <Alert tone="warning">
           No subjects to show. Assign subjects to {cls.name} under Class subjects
@@ -323,7 +342,14 @@ export default async function PupilResultsPage({
                           />
                         </label>
                       ))}
-                      {!b.columns.length ? <span className="text-sm text-slate-500">Sheet not set up.</span> : null}
+                      {!b.columns.length ? (
+                        <span className="text-sm text-slate-500">
+                          Sheet not set up yet.{" "}
+                          <Link className="gf-link" href={`/admin/academics/results?class_id=${cls.id}&subject_id=${b.id}&term_id=${termIdOrActive}`}>
+                            Open the class sheet
+                          </Link>
+                        </span>
+                      ) : null}
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-bold tabular-nums text-slate-900">{percent ?? "—"}</div>

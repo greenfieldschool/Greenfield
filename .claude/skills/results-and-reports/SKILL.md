@@ -41,10 +41,19 @@ description: Use for anything about academic results, result sheet columns, welf
 - Never write scores, ratings or columns around the locks, and never write to `result_audit_log` from the app.
   Trusted bypasses use `set_config('app.result_lock_bypass', 'merge' | 'correction', true)` inside definer functions only.
 - Save only changed cells (`orig:` hidden inputs) on every grid.
+- Never ignore a read error on columns or scores: a blank grid looks like "no scores entered" and invites re-entry.
+  Show an `Alert` instead, and pass every database error through `resultsErrorMessage()` (`src/lib/results.ts`).
+- The result sheet's states, in order: no sheet chosen → couldn't load (error) → no columns and user can't teach it →
+  no columns but locked/published (admin gets the unlock form there) → no columns (set-up form, with the reason if
+  `ensure_result_sheet` failed) → the sheet.
 - Keep the PGlite tests for locks/corrections passing when touching these triggers (see supabase-migration skill).
 - Report-card numbers must come from `buildClassReport`; don't recompute elsewhere.
 
 ## Pitfalls we hit
+- "infinite recursion detected in policy for relation academic_assessments": the parent policy on columns read
+  scores while the teacher policy on scores read columns. Fixed in 20261028 with definer helpers
+  (`can_manage_results`, `can_manage_assessment`, `portal_can_see_assessment`). The page swallowed the error, so
+  "Open sheet" looked like it did nothing and "Create sheet" showed the raw message.
 - Upserts logged phantom "score entered" entries; the guard skips the insert path when the row exists.
 - A pupil with no scores ranked first on welfare alone; term total now needs both halves.
 - Attendance/uniform/discipline rows are sometimes saved without a term id; `termFilter()` also matches by the term's dates.

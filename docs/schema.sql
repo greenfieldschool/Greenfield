@@ -6658,3 +6658,149 @@ $$;
 
 revoke all on function public.ensure_result_sheet(uuid, uuid, uuid, jsonb) from public, anon;
 grant execute on function public.ensure_result_sheet(uuid, uuid, uuid, jsonb) to authenticated;
+
+-- Fix the results permission loop (see docs/migrations/20261028_fix_results_policy_loop.sql)
+-- ---------------------------------------------------------------------------------------------------------------
+-- Fix the results permission loop (academic_assessments <-> academic_assessment_scores)
+-- ---------------------------------------------------------------------------------------------------------------
+
+-- Staff other than teachers (admins, front desk, nurse) work on every sheet; teachers only on subjects they teach.
+create or replace function public.can_manage_results(p_class uuid, p_subject uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(public.is_admin(), false)
+    or (coalesce(public.is_staff(), false) and public.current_role() is distinct from 'teacher')
+    or (public.current_role() = 'teacher' and coalesce(public.teacher_teaches(p_class, p_subject), false));
+$$;
+
+-- Same check for one result column, looked up without going through academic_assessments' own rules.
+create or replace function public.can_manage_assessment(p_assessment uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select public.can_manage_results(a.class_id, a.subject_id) from public.academic_assessments a where a.id = p_assessment),
+    false
+  );
+$$;
+
+-- A parent or pupil may see a result column when their own child (or they themselves) has a score in it.
+create or replace function public.portal_can_see_assessment(p_assessment uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.academic_assessment_scores s
+    where s.assessment_id = p_assessment
+      and (
+        exists (
+          select 1
+          from public.guardian_user_links gul
+          join public.student_guardians sg on sg.guardian_id = gul.guardian_id
+          where gul.user_id = auth.uid() and sg.student_id = s.student_id
+        )
+        or exists (
+          select 1 from public.student_user_links sul
+          where sul.user_id = auth.uid() and sul.student_id = s.student_id
+        )
+      )
+  );
+$$;
+
+revoke all on function public.can_manage_results(uuid, uuid) from public, anon;
+revoke all on function public.can_manage_assessment(uuid) from public, anon;
+revoke all on function public.portal_can_see_assessment(uuid) from public, anon;
+-- Policies run as the signed-in user, so the user needs execute on the helpers they call.
+grant execute on function public.can_manage_results(uuid, uuid) to authenticated;
+grant execute on function public.can_manage_assessment(uuid) to authenticated;
+grant execute on function public.portal_can_see_assessment(uuid) to authenticated;
+
+drop policy if exists academic_assessments_staff_all on public.academic_assessments;
+create policy academic_assessments_staff_all
+  on public.academic_assessments
+  for all
+  to authenticated
+  using (public.can_manage_results(class_id, subject_id))
+  with check (public.can_manage_results(class_id, subject_id));
+
+drop policy if exists academic_assessments_parent_student_select on public.academic_assessments;
+create policy academic_assessments_parent_student_select
+  on public.academic_assessments
+  for select
+  to authenticated
+  using (public.portal_can_see_assessment(id));
+
+drop policy if exists academic_assessment_scores_staff_all on public.academic_assessment_scores;
+create policy academic_assessment_scores_staff_all
+  on public.academic_assessment_scores
+  for all
+  to authenticated
+  using (public.can_manage_assessment(assessment_id))
+  with check (public.can_manage_assessment(assessment_id));
+
+-- Close the parent/pupil access gap (see docs/migrations/20261028_close_parent_access_gap.sql)
+-- ---------------------------------------------------------------------------------------------------------------
+-- Close the parent/pupil access gap on classes, students and attendance
+-- ---------------------------------------------------------------------------------------------------------------
+
+-- Admins and non-teaching staff (front desk, nurse) work on every class; teachers only on their own classes.
+-- Parents, pupils and unknown roles get a definite false.
+create or replace function public.staff_can_class(p_class uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(public.is_admin(), false)
+    or (coalesce(public.is_staff(), false) and public.current_role() is distinct from 'teacher')
+    or (public.current_role() = 'teacher' and coalesce(public.teacher_has_class(p_class), false));
+$$;
+
+revoke all on function public.staff_can_class(uuid) from public, anon;
+-- Policies run as the signed-in user, so the user needs execute on it.
+grant execute on function public.staff_can_class(uuid) to authenticated;
+
+drop policy if exists classes_staff_all on public.classes;
+create policy classes_staff_all
+  on public.classes
+  for all
+  to authenticated
+  using (public.staff_can_class(id))
+  with check (public.staff_can_class(id));
+
+-- Parents, pupils and exam conductors read class names. Staff are covered above, and teachers keep seeing only
+-- their own classes so their class lists don't change.
+drop policy if exists classes_portal_select on public.classes;
+create policy classes_portal_select
+  on public.classes
+  for select
+  to authenticated
+  using (not coalesce(public.is_staff(), false));
+
+drop policy if exists students_staff_all on public.students;
+create policy students_staff_all
+  on public.students
+  for all
+  to authenticated
+  using (public.staff_can_class(class_id))
+  with check (public.staff_can_class(class_id));
+
+drop policy if exists student_attendance_staff_all on public.student_attendance;
+create policy student_attendance_staff_all
+  on public.student_attendance
+  for all
+  to authenticated
+  using (public.staff_can_class(class_id))
+  with check (public.staff_can_class(class_id));

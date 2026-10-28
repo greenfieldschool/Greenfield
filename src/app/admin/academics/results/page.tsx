@@ -14,6 +14,7 @@ import {
   layoutTotal,
   parseLayout,
   resolveLayout,
+  resultsErrorMessage,
   round2,
   subjectPercent,
   type ComponentGroup,
@@ -111,6 +112,8 @@ async function openSheet(formData: FormData) {
     yearId: (nextTerm as { academic_year_id: string } | null)?.academic_year_id ?? "",
     termId: nextTermId
   };
+  if (!next.classId || !next.subjectId || !next.termId) back(next, "Choose a class, subject and term, then open the sheet.", "error");
+  if (!next.yearId) back(next, "That term isn't linked to a school year. Ask an admin to check it under Finance → Academic years, then try again.", "error");
   redirect(sheetUrl(next));
 }
 
@@ -153,7 +156,7 @@ async function saveColumns(formData: FormData) {
   const rows = parsed.map((c, i) => ({ ...c, id: typeof submitted[i]?.id === "string" ? submitted[i].id : undefined }));
 
   const { data: existingData, error: readError } = await sheetColumns(supabase, ctx);
-  if (readError) back(ctx, readError.message, "error");
+  if (readError) back(ctx, resultsErrorMessage(readError.message), "error");
   const existing = (existingData ?? []) as ColumnRow[];
   const existingIds = new Set(existing.map((c) => c.id));
 
@@ -196,7 +199,7 @@ async function saveColumns(formData: FormData) {
         "id",
         removed.map((c) => c.id)
       );
-    if (error) back(ctx, error.message, "error");
+    if (error) back(ctx, resultsErrorMessage(error.message), "error");
   }
 
   for (const [i, r] of rows.entries()) {
@@ -213,7 +216,7 @@ async function saveColumns(formData: FormData) {
             on_result_sheet: true,
             created_by: user?.id ?? null
           });
-    if (error) back(ctx, error.message, "error");
+    if (error) back(ctx, resultsErrorMessage(error.message), "error");
   }
 
   // Optionally keep this layout for future terms of this subject in this class.
@@ -234,7 +237,7 @@ async function saveColumns(formData: FormData) {
       : await supabase
           .from("result_layouts")
           .insert({ class_id: ctx.classId, subject_id: ctx.subjectId, components, updated_by: user?.id ?? null });
-    if (error) back(ctx, `Columns saved, but they could not be kept for future terms: ${error.message}`, "error");
+    if (error) back(ctx, `Columns saved, but they could not be kept for future terms: ${resultsErrorMessage(error.message)}`, "error");
   }
 
   revalidateResults();
@@ -290,11 +293,11 @@ async function saveScores(formData: FormData) {
 
   if (upserts.length) {
     const { error } = await supabase.from("academic_assessment_scores").upsert(upserts, { onConflict: "assessment_id,student_id" });
-    if (error) back(ctx, error.message, "error");
+    if (error) back(ctx, resultsErrorMessage(error.message), "error");
   }
   for (const [columnId, ids] of Array.from(deletesByColumn.entries())) {
     const { error } = await supabase.from("academic_assessment_scores").delete().eq("assessment_id", columnId).in("student_id", ids);
-    if (error) back(ctx, error.message, "error");
+    if (error) back(ctx, resultsErrorMessage(error.message), "error");
   }
 
   revalidateResults();
@@ -347,7 +350,7 @@ async function importCbtScores(formData: FormData) {
   if (!rows.length) back(ctx, "No submitted attempts from this class were found for that session", "error");
 
   const { error } = await supabase.from("academic_assessment_scores").upsert(rows, { onConflict: "assessment_id,student_id" });
-  if (error) back(ctx, error.message, "error");
+  if (error) back(ctx, resultsErrorMessage(error.message), "error");
 
   revalidateResults();
   back(ctx, `Copied ${rows.length} CBT score(s) into ${column.title ?? "the column"} (scaled to ${colMax})`);
@@ -421,7 +424,7 @@ async function bulkUpload(formData: FormData) {
     const { error } = await supabase
       .from("academic_assessment_scores")
       .upsert(Array.from(upserts.values()), { onConflict: "assessment_id,student_id" });
-    if (error) back(ctx, error.message, "error");
+    if (error) back(ctx, resultsErrorMessage(error.message), "error");
   }
   revalidateResults();
   const notes = [
@@ -438,7 +441,7 @@ async function submitSheet(formData: FormData) {
   const supabase = getSupabaseServerClient();
   if (!supabase) back(ctx, "Database is not configured", "error");
   const { error } = await supabase.rpc("submit_result_sheet", { p_class: ctx.classId, p_subject: ctx.subjectId, p_term: ctx.termId });
-  if (error) back(ctx, error.message, "error");
+  if (error) back(ctx, resultsErrorMessage(error.message), "error");
   revalidateResults();
   back(ctx, "Submitted as final. The scores are now locked.");
 }
@@ -481,7 +484,7 @@ async function requestCorrection(formData: FormData) {
     p_reason: reason,
     p_items: items
   });
-  if (error) redirect(sheetUrl(ctx, { request: "1", toast: error.message, toast_type: "error" }));
+  if (error) redirect(sheetUrl(ctx, { request: "1", toast: resultsErrorMessage(error.message), toast_type: "error" }));
   revalidateResults();
   revalidatePath("/admin/academics/corrections");
   back(ctx, `Correction request sent to the admin (${items.length} change${items.length === 1 ? "" : "s"}). The scores change only if it is approved.`);
@@ -501,7 +504,7 @@ async function unlockSheet(formData: FormData) {
     p_term: ctx.termId,
     p_reason: reason
   });
-  if (error) back(ctx, error.message, "error");
+  if (error) back(ctx, resultsErrorMessage(error.message), "error");
   revalidateResults();
   back(ctx, "Sheet unlocked. Make the correction, then submit it as final again.");
 }
@@ -583,9 +586,13 @@ export default async function AdminResultSheetPage({
   let lockedAt: string | null = null;
   let sessions: SessionRow[] = [];
   let layout: Awaited<ReturnType<typeof resolveLayout>> | null = null;
+  // Set when the sheet could not be read; the page then explains instead of offering a blank sheet.
+  let loadError: string | null = null;
+  // Set when the standard columns could not be created automatically; the set-up form is shown with it.
+  let createError: string | null = null;
 
   if (ready) {
-    const [{ data: studentsData }, { data: columnsData }, { data: gradesData }, { data: pubData }, { data: sessionsData }] =
+    const [{ data: studentsData, error: studentsError }, { data: columnsData, error: columnsError }, { data: gradesData }, { data: pubData }, { data: sessionsData }] =
       await Promise.all([
         supabase
           .from("students")
@@ -619,6 +626,7 @@ export default async function AdminResultSheetPage({
 
     students = (studentsData ?? []) as StudentRow[];
     columns = (columnsData ?? []) as ColumnRow[];
+    loadError = columnsError || studentsError ? resultsErrorMessage((columnsError ?? studentsError)?.message) : null;
     grades = (gradesData ?? []) as GradeBand[];
     published = Boolean(pubData);
     const { data: lockRow } = await supabase
@@ -636,14 +644,18 @@ export default async function AdminResultSheetPage({
       return !test?.subject_id || test.subject_id === subjectId;
     });
 
-    if (columns.length) {
-      const { data: scoresData } = await supabase
+    if (loadError) {
+      // Nothing else to load: the page shows the problem.
+    } else if (columns.length) {
+      const { data: scoresData, error: scoresError } = await supabase
         .from("academic_assessment_scores")
         .select("assessment_id, student_id, score")
         .in(
           "assessment_id",
           columns.map((c) => c.id)
         );
+      // A blank grid after a failed read would look like no scores were entered, so don't show one.
+      if (scoresError) loadError = resultsErrorMessage(scoresError.message);
       for (const s of (scoresData ?? []) as ScoreRow[]) {
         scoreByKey.set(`${s.assessment_id}:${s.student_id}`, Number(s.score));
       }
@@ -658,8 +670,11 @@ export default async function AdminResultSheetPage({
           p_term: termId,
           p_columns: layout.components
         });
-        if (!ensureError) {
-          const { data: again } = await sheetColumns(supabase, ctx);
+        if (ensureError) {
+          createError = resultsErrorMessage(ensureError.message);
+        } else {
+          const { data: again, error: againError } = await sheetColumns(supabase, ctx);
+          if (againError) loadError = resultsErrorMessage(againError.message);
           columns = (again ?? []) as ColumnRow[];
         }
       }
@@ -801,7 +816,8 @@ export default async function AdminResultSheetPage({
               </div>
             </div>
           ) : null}
-          {ready && classSubjectIds.length > 0 && !classSubjectIds.includes(subjectId) ? (
+          {/* For teachers the list is their own subjects; the "can't set up" message below covers that case. */}
+          {ready && !isTeacher && classSubjectIds.length > 0 && !classSubjectIds.includes(subjectId) ? (
             <Alert tone="warning">{subject?.name ?? "This subject"} is not assigned to this class.</Alert>
           ) : null}
           {isTeacher && !classRows.length ? (
@@ -818,9 +834,71 @@ export default async function AdminResultSheetPage({
             description="Choose a class, subject and term above, then open the sheet to start entering scores."
           />
         </Card>
+      ) : loadError ? (
+        <Alert
+          tone="danger"
+          title="This sheet couldn't be opened"
+          action={
+            <ButtonLink href={sheetUrl(ctx)} variant="secondary" size="sm">
+              Try again
+            </ButtonLink>
+          }
+        >
+          {loadError} No scores have been changed.
+        </Alert>
+      ) : !columns.length && !canTeach(access, classId, subjectId) ? (
+        <Card>
+          <EmptyState
+            icon={Lock}
+            title="You can't set up this sheet"
+            description={`You are not assigned to teach ${subject?.name ?? "this subject"} in ${cls?.name ?? "this class"}, and its teacher hasn't opened the sheet yet. Ask an admin to assign it to you under Teacher assignments.`}
+          />
+        </Card>
+      ) : !columns.length && locked ? (
+        <Card>
+          <EmptyState
+            icon={Lock}
+            title={published ? "Results for this class are published" : "This sheet has been submitted as final"}
+            description={`${subject?.name ?? "This subject"} has no columns yet, and none can be added while the sheet is locked. ${
+              published
+                ? isAdmin
+                  ? "If this subject needs scores, unpublish the term under Publish results first."
+                  : "If this subject needs scores, ask an admin to unpublish the term."
+                : isAdmin
+                  ? "If this subject needs scores, unlock the sheet below."
+                  : "If this subject needs scores, ask an admin to unlock the sheet."
+            }`}
+            action={
+              published && isAdmin ? (
+                <ButtonLink href="/admin/academics/publications" variant="secondary" size="sm">
+                  Go to Publish results
+                </ButtonLink>
+              ) : !published && isAdmin ? (
+                <form action={unlockSheet} className="mx-auto w-full max-w-sm space-y-2 text-left">
+                  {contextFields}
+                  <label htmlFor="unlock-reason-empty" className="gf-label">
+                    Reason for unlocking (kept in the audit log)
+                  </label>
+                  <input id="unlock-reason-empty" name="reason" className="gf-input" minLength={5} required placeholder="e.g. subject was left out" />
+                  <SubmitButton variant="secondary" size="sm" pendingText="Unlocking…">
+                    <span className="inline-flex items-center gap-1.5">
+                      <LockOpen className="h-4 w-4" aria-hidden="true" />
+                      Unlock sheet
+                    </span>
+                  </SubmitButton>
+                </form>
+              ) : undefined
+            }
+          />
+        </Card>
       ) : !columns.length ? (
         <form action={saveColumns}>
           {contextFields}
+          {createError ? (
+            <Alert tone="warning" title="The standard columns couldn't be added automatically" className="mb-4">
+              {createError} You can try setting the columns up below and pressing Create sheet.
+            </Alert>
+          ) : null}
           <Card>
             <CardHeader
               title="Set up this sheet's columns"
