@@ -92,6 +92,8 @@ export type ClassReport = {
   /** False until 20261102_weekly_welfare.sql has been run. */
   weeklyReady: boolean;
   grades: GradeBand[];
+  /** Welfare award thresholds (Gold / Silver / Bronze from this score up), from welfare_scoring_rules. */
+  welfareAwards: { gold: number; silver: number; bronze: number } | null;
   students: StudentReport[];
   publication: { id: string; published_at: string } | null;
   completeness: {
@@ -509,6 +511,7 @@ export async function buildClassReport(
     legacyRatings: legacyRatings.length,
     weeklyReady,
     grades,
+    welfareAwards: rules ? { gold: Number(rules.gold_min), silver: Number(rules.silver_min), bronze: Number(rules.bronze_min) } : null,
     students: onlyStudent ? reports.filter((r) => r.student.id === onlyStudent) : reports,
     publication: (pubData as { id: string; published_at: string } | null) ?? null,
     completeness

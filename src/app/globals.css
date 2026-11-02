@@ -151,4 +151,26 @@ body {
   .gf-report-card:last-child {
     break-after: auto;
   }
+  /* Certificates: one per A4 landscape page. The sheet is a little shorter than its screen ratio to fit the margins. */
+  @page certificate {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  .gf-certificate {
+    page: certificate;
+    width: 277mm !important;
+    max-width: none !important;
+    break-after: page;
+    break-inside: avoid-page;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+  .gf-certificate:last-child {
+    break-after: auto;
+  }
+  .gf-certificate-sheet {
+    aspect-ratio: auto !important;
+    height: 189mm;
+  }
 }

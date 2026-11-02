@@ -34,6 +34,20 @@ description: Use for anything about academic results, result sheet columns, welf
   `buildClassReport()` in `src/lib/term-report.ts` so every view agrees. Final score (`termTotal`) = (academic average + welfare) / 2,
   only when both exist. Call it "Final score" on screen. Positions rank on term total (ties share). Comments in `report_card_comments`
   (head comment admin-only, enforced by trigger). Printable component: `src/components/report-card.tsx`.
+- **Report card layout** (`src/components/report-card.tsx`): the term result comes first (final score /100, grade +
+  remark, position, and the sum "(academic + welfare) ÷ 2" with the academic grade and welfare award), then subjects,
+  welfare (weekly scores, missed weeks shown as "–"), comments, and keys (final score rule, grading key, welfare
+  award marks from `ClassReport.welfareAwards`). If either half is missing it says "Not ready yet" and why.
+- **Certificates** (`src/lib/certificates.ts` `awardsFor`, `src/components/certificate.tsx`): 1st–3rd in class on the
+  final score, best in each subject, welfare Gold/Silver/Bronze. Positions/subjects need ≥ 2 pupils with a score; ties
+  say "joint". Admin page `/admin/academics/reports/certificates` (tabs by kind, who-gets-what list, print); portal
+  `/portal/academics/certificates`. A4 landscape via `@page certificate` + `.gf-certificate` in `globals.css`; sizes
+  are `cqw` so the design scales from phone to paper.
+- **Fee hold** (`src/lib/fee-hold.ts`): the portal report card and certificates stay hidden while the pupil has
+  unpaid issued invoices for that term or earlier (read from `finance_invoice_balances` with the service key, so the
+  other parent's invoices count). Parents get the amount and "Pay fees"; pupils are told to ask a parent. If fees
+  can't be read, the report stays hidden ("unknown"). Admins see "Held from parents: fees owed" on Report cards.
+  Staff printing is not held. Portal loading is shared in `src/app/portal/academics/_load.ts`.
 - **Integrity** (migrations 20261023, 20261024):
   - A sheet is locked when submitted as final (`result_sheet_locks`, `submit_result_sheet`) or when the class+term
     is published. Locked = nobody can change scores or columns; triggers refuse it.

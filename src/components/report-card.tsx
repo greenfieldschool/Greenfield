@@ -5,9 +5,9 @@ import { ordinal, type ClassReport, type StudentReport } from "@/lib/term-report
 import { gradeRemark } from "@/lib/results";
 import { cn } from "@/lib/cn";
 
-// The printable termly report card: student details, every subject with its CA / exam breakdown, welfare
-// criteria, the term total (average of academic and welfare), comments and the grading key. Used by the admin
-// report cards page, the printed batch and the parent portal, so all three always match.
+// The printable termly report card: student details, the term result (final score, grade, position and the sum
+// behind it) up front, then every subject with its CA / exam breakdown, welfare criteria, comments and the keys.
+// Used by the admin report cards page, the printed batch and the parent portal, so all three always match.
 
 const fmt = (v: number | null | undefined, digits = 1) =>
   v === null || v === undefined ? "—" : String(Math.round(v * 10 ** digits) / 10 ** digits);
@@ -26,6 +26,16 @@ function age(dob: string | null) {
   let years = now.getFullYear() - d.getFullYear();
   if (now < new Date(now.getFullYear(), d.getMonth(), d.getDate())) years -= 1;
   return years >= 0 ? years : null;
+}
+
+function Part({ label, value, note }: { label: string; value: string; note: string | null }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="text-base font-bold tabular-nums leading-tight text-slate-900">{value}</div>
+      {note ? <div className="text-[10.5px] text-slate-500">{note}</div> : null}
+    </div>
+  );
 }
 
 function Info({ label, value }: { label: string; value: ReactNode }) {
@@ -54,6 +64,13 @@ export default function ReportCard({
   const studentAge = age(s.date_of_birth);
   const groupsUsed = (["ca", "exam", "other"] as const).filter((g) => report.subjects.some((sub) => sub.columns.some((c) => c.group === g)));
   const groupHeading = { ca: "CA", exam: "Exam", other: "Other" } as const;
+  const gradeNote = (grade: string | null) => (grade ? [grade, gradeRemark(grade, report.grades)].filter(Boolean).join(" · ") : null);
+  const termRemark = gradeRemark(student.termGrade, report.grades);
+  const notReady = [
+    student.academicAverage === null ? "no subject scores yet" : null,
+    student.welfare.percent === null ? "welfare not scored yet" : null
+  ].filter(Boolean);
+  const awards = report.welfareAwards;
 
   return (
     <article className={cn("gf-report-card mx-auto max-w-[210mm] rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-card sm:p-8", className)}>
@@ -94,6 +111,62 @@ export default function ReportCard({
           />
           <Info label="Next term begins" value={formatDate(report.nextTermStartsOn)} />
         </div>
+      </section>
+
+      {/* Term result: the outcome first, with the sum that makes it. */}
+      <section
+        className="mt-4 flex flex-col gap-3 rounded-xl border border-brand-green-200 bg-brand-green-50 p-3 sm:flex-row sm:items-center print:flex-row print:items-center"
+        aria-label="Term result"
+      >
+        {student.termTotal === null ? (
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Final score</div>
+            <div className="text-lg font-bold text-slate-700">Not ready yet</div>
+            <div className="text-xs text-slate-600">The final score needs both halves: {notReady.join(" and ")}.</div>
+          </div>
+        ) : (
+          <>
+            <div className="flex shrink-0 items-center gap-3">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-brand-green-800">Final score</div>
+                <div className="text-[2rem] font-bold leading-none tabular-nums text-brand-green-900">
+                  {fmt(student.termTotal, 2)}
+                  <span className="ml-0.5 text-sm font-semibold text-slate-500">/100</span>
+                </div>
+              </div>
+              {student.termGrade ? (
+                <div className="min-w-[3.5rem] rounded-lg bg-brand-green-800 px-2.5 py-1.5 text-center text-white">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-brand-green-100">Grade</div>
+                  <div className="text-2xl font-bold leading-none">{student.termGrade}</div>
+                  {termRemark ? <div className="mt-0.5 whitespace-nowrap text-[10px] font-medium">{termRemark}</div> : null}
+                </div>
+              ) : null}
+              {showPositions && student.position ? (
+                <div className="rounded-lg border border-brand-green-200 bg-white px-2.5 py-1.5 text-center">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Position</div>
+                  <div className="text-xl font-bold leading-none tabular-nums text-slate-900">{ordinal(student.position)}</div>
+                  {classSize ? <div className="mt-0.5 text-[10px] text-slate-500">of {classSize}</div> : null}
+                </div>
+              ) : null}
+            </div>
+            <div className="min-w-0 flex-1 sm:border-l sm:border-brand-green-200 sm:pl-3 print:border-l print:border-brand-green-200 print:pl-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">How it is worked out</div>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-slate-600">
+                <span aria-hidden="true">(</span>
+                <Part label="Academic average" value={fmt(student.academicAverage, 2)} note={gradeNote(student.academicGrade)} />
+                <span aria-label="plus">+</span>
+                <Part
+                  label="Welfare"
+                  value={fmt(student.welfare.percent, 2)}
+                  note={student.welfareBadge ? `${student.welfareBadge} award` : null}
+                />
+                <span className="whitespace-nowrap">
+                  <span aria-hidden="true">)</span> ÷ 2 = <span className="font-bold tabular-nums text-brand-green-900">{fmt(student.termTotal, 2)}</span>
+                </span>
+              </div>
+            </div>
+          </>
+        )}
       </section>
 
       {/* Academic */}
@@ -190,14 +263,21 @@ export default function ReportCard({
         {student.welfare.mode === "weekly" && student.welfare.weeksCounted ? (
           <div className="mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[11px] text-slate-600">
             <span className="font-semibold text-slate-700">Weekly scores (out of 100):</span>
-            {report.weeks.map((w) => {
-              const wk = student.welfare.weeks.find((x) => x.weekStart === w.start);
-              return wk?.percent !== null && wk?.percent !== undefined ? (
-                <span key={w.start} className="rounded border border-slate-200 px-1 tabular-nums">
-                  Wk {w.number}: {fmt(wk.percent, 0)}
-                </span>
-              ) : null;
-            })}
+            {report.weeks
+              .filter((w) => !w.future)
+              .map((w) => {
+                const wk = student.welfare.weeks.find((x) => x.weekStart === w.start);
+                const counted = wk?.counted && wk.percent !== null;
+                return (
+                  <span
+                    key={w.start}
+                    className={cn("rounded border px-1 tabular-nums", counted ? "border-slate-200" : "border-dashed border-slate-200 text-slate-400")}
+                    title={counted ? undefined : "Not scored, so not counted"}
+                  >
+                    Wk {w.number}: {counted ? fmt(wk.percent, 0) : "–"}
+                  </span>
+                );
+              })}
             <span>
               → average of {student.welfare.weeksCounted} week{student.welfare.weeksCounted === 1 ? "" : "s"} ={" "}
               <span className="font-semibold text-slate-800">{fmt(student.welfare.percent, 2)}</span>
@@ -205,41 +285,6 @@ export default function ReportCard({
           </div>
         ) : null}
       </section>
-
-      {/* Summary */}
-      <section className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
-        {[
-          { label: "Academic average", value: student.academicAverage === null ? "—" : `${fmt(student.academicAverage, 2)}%` },
-          {
-            label: "Welfare",
-            value: student.welfare.percent === null ? "—" : `${fmt(student.welfare.percent, 2)}%${student.welfareBadge ? ` · ${student.welfareBadge}` : ""}`
-          },
-          { label: "Final score", value: student.termTotal === null ? "—" : `${fmt(student.termTotal, 2)}%`, strong: true },
-          {
-            label: "Grade",
-            value: student.termGrade ? `${student.termGrade}${gradeRemark(student.termGrade, report.grades) ? ` · ${gradeRemark(student.termGrade, report.grades)}` : ""}` : "—",
-            strong: true
-          },
-          ...(showPositions
-            ? [{ label: "Position", value: student.position ? `${ordinal(student.position)}${classSize ? ` of ${classSize}` : ""}` : "—" }]
-            : [])
-        ].map((box) => (
-          <div
-            key={box.label}
-            className={cn(
-              "rounded-xl border px-3 py-2",
-              "strong" in box && box.strong ? "border-brand-green-300 bg-brand-green-50" : "border-slate-200 bg-slate-50"
-            )}
-          >
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{box.label}</div>
-            <div className="text-base font-bold tabular-nums text-slate-900">{box.value}</div>
-          </div>
-        ))}
-      </section>
-      <p className="mt-1.5 text-[11px] text-slate-500">
-        Final score = (academic average + welfare) ÷ 2.
-        {student.welfare.mode === "weekly" ? " Welfare is scored out of 100 every week; the term's welfare is the average of the weeks." : ""}
-      </p>
 
       {/* Comments */}
       <section className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -258,13 +303,25 @@ export default function ReportCard({
         ))}
       </section>
 
-      {/* Grading key */}
-      {report.grades.length ? (
-        <footer className="mt-4 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
-          <span className="font-semibold">Grading key: </span>
-          {report.grades.map((g) => `${g.grade} ${fmt(Number(g.min_score), 2)}–${fmt(Number(g.max_score), 2)}${g.remark ? ` ${g.remark}` : ""}`).join(" · ")}
-        </footer>
-      ) : null}
+      {/* Keys */}
+      <footer className="mt-4 space-y-0.5 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
+        <div>
+          <span className="font-semibold">Final score</span> = (academic average + welfare) ÷ 2. The academic average is the average of the subject
+          totals.{student.welfare.mode === "weekly" ? " Welfare is scored out of 100 every week; the term's welfare is the average of the weeks scored." : ""}
+        </div>
+        {report.grades.length ? (
+          <div>
+            <span className="font-semibold">Grading key: </span>
+            {report.grades.map((g) => `${g.grade} ${fmt(Number(g.min_score), 2)}–${fmt(Number(g.max_score), 2)}${g.remark ? ` ${g.remark}` : ""}`).join(" · ")}
+          </div>
+        ) : null}
+        {awards ? (
+          <div>
+            <span className="font-semibold">Welfare awards: </span>
+            Gold {fmt(awards.gold, 2)} and above · Silver {fmt(awards.silver, 2)} and above · Bronze {fmt(awards.bronze, 2)} and above
+          </div>
+        ) : null}
+      </footer>
     </article>
   );
 }

@@ -7,7 +7,8 @@ description: Use for anything about fees, invoices, payments, debtors, payment I
 
 ## When to use
 Changes to money records and how payments reach them. Table or RLS changes also need the `supabase-migration`
-skill; new pages also need `admin-portal-page`. Result/report-card money questions are not here.
+skill; new pages also need `admin-portal-page`. Unpaid fees hold back portal report cards (`src/lib/fee-hold.ts`,
+explained in the results-and-reports skill): a change to what counts as "paid" changes who sees report cards.
 
 ## Where things live
 - Pages: `src/app/admin/finance/**` (admin only, `/admin/finance` is in `adminOnlyPrefixes`), parent view

@@ -198,6 +198,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   reports: "Report cards",
   comments: "Comments",
   print: "Print",
+  certificates: "Certificates",
   scores: "Welfare scores",
   criteria: "Welfare criteria",
   audit: "Results history",

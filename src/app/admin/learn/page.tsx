@@ -187,9 +187,20 @@ export default function AdminLearnCentrePage() {
             "Open Academics > Report cards (/admin/academics/reports) and pick the class and term.",
             "The checklist shows what is missing: subjects not fully scored, pupils without welfare ratings, attendance, and comments. Each line links to the page that fixes it.",
             "Final score = (academic average + welfare) ÷ 2. The academic average is the average of all subject totals; welfare is the average of the weekly welfare scores. Positions are ranked on the final score; pupils with no scores are not ranked.",
-            "Write comments on the Comments page: the class teacher for every pupil, the head teacher (admin) after. 'Suggest for blanks' fills in a starting comment from the pupil's term total to edit.",
+            "Write comments on the Comments page: the class teacher for every pupil, the head teacher (admin) after. 'Suggest for blanks' fills in a starting comment from the pupil's final score to edit.",
             "Click 'Print all' to print or save all report cards as PDF (one A4 page per pupil). 'Hide positions' prints them without positions.",
-            "Click 'Publish report cards'. If anything is still missing you are warned first. Parents and pupils then see the same report card on the portal and can print it."
+            "Click 'Publish report cards'. If anything is still missing you are warned first. Parents and pupils then see the same report card on the portal and can print it.",
+            "Fees first: on the portal, a report card (and its certificates) only opens once the pupil's fees for that term and earlier terms are paid. Until then the parent sees a message with the amount owed and a 'Pay fees' button, and the pupil is asked to speak to their parent. Admins see who is held on the Report cards page ('Held from parents: fees owed'). Staff can still print report cards from the dashboard."
+          ]
+        },
+        {
+          name: "Certificates of Achievement",
+          steps: [
+            "Open Academics > Report cards, pick the class and term, then click 'Certificates'.",
+            "Certificates are given automatically from the report cards: 1st, 2nd and 3rd in class on the final score (gold, silver and bronze seals), the best score in each subject, and Gold, Silver or Bronze for welfare (the marks are set per level with the welfare criteria).",
+            "Use the tabs to print only one kind (e.g. Class positions for prize-giving day). Check the 'Who gets a certificate' list, then click Print. Each certificate prints on its own A4 landscape page; sign them by hand.",
+            "Print after publishing: until then scores, positions and awards can still change.",
+            "Parents see their child's certificates on the portal under the report card ('View certificates') and can print them, once fees are paid."
           ]
         },
         {

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { CheckCircle2, CircleAlert, EyeOff, FileText, HeartHandshake, MessageSquareText, Printer, Send } from "lucide-react";
+import { Award, CheckCircle2, CircleAlert, EyeOff, FileText, HeartHandshake, MessageSquareText, Printer, Send } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getTeacherAccess } from "@/lib/teacher-access";
 import { buildClassReport, ordinal } from "@/lib/term-report";
+import { feeHolds } from "@/lib/fee-hold";
 import UrlToast from "@/components/url-toast";
 import ConfirmActionButton from "@/components/confirm-action-button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -125,6 +126,9 @@ export default async function AdminReportCardsPage({
   const isAdmin = ["admin", "super_admin"].includes((me as { role?: string } | null)?.role ?? "");
   const n = report?.students.length ?? 0;
   const c = report?.completeness;
+  // Parents only see a report card once the fees are paid. Money is admin-only, so only admins see who is held.
+  const holds = isAdmin && report ? await feeHolds(supabase, report.students.map((r) => r.student.id), report.term) : null;
+  const heldCount = holds ? Array.from(holds.values()).filter((h) => h.status === "held").length : 0;
   const ratingCriteria = report?.welfareCriteria.filter((x) => x.source === "rating").length ?? 0;
   const params = { class_id: classId, term_id: termId };
 
@@ -145,7 +149,7 @@ export default async function AdminReportCardsPage({
       <PageHeader
         eyebrow="Academics"
         title="Report cards"
-        description="The termly result sheet for each pupil: every subject with its CA and exam scores, welfare, the term total (average of academic and welfare), positions and comments. Check everything is complete, then publish."
+        description="The termly result sheet for each pupil: every subject with its CA and exam scores, welfare, the final score ((academic average + welfare) ÷ 2) with its grade, positions and comments. Check everything is complete, then publish."
       />
 
       <Card>
@@ -300,10 +304,23 @@ export default async function AdminReportCardsPage({
                     </ConfirmActionButton>
                   )}
                 </form>
+                {heldCount ? (
+                  <p className="rounded-xl bg-brand-gold-50 px-3 py-2 text-sm text-brand-gold-900">
+                    {heldCount} pupil{heldCount === 1 ? "" : "s"} still owe{heldCount === 1 ? "s" : ""} fees. Their parents will see a &ldquo;pay
+                    fees&rdquo; message instead of the report card until it is paid.{" "}
+                    <Link href="/admin/finance/debtors" className="font-semibold underline">
+                      See debtors
+                    </Link>
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
                   <ButtonLink href={reportsUrl(`${PATH}/print`, params)} variant="secondary" size="sm">
                     <Printer className="h-4 w-4" aria-hidden="true" />
                     Print all
+                  </ButtonLink>
+                  <ButtonLink href={reportsUrl(`${PATH}/certificates`, params)} variant="secondary" size="sm">
+                    <Award className="h-4 w-4" aria-hidden="true" />
+                    Certificates
                   </ButtonLink>
                   <ButtonLink href={reportsUrl(`${PATH}/comments`, params)} variant="secondary" size="sm">
                     <MessageSquareText className="h-4 w-4" aria-hidden="true" />
@@ -416,6 +433,9 @@ export default async function AdminReportCardsPage({
                               ) : (
                                 <Badge tone="green">Complete</Badge>
                               )}
+                              {holds?.get(r.student.id)?.status === "held" ? (
+                                <div className="mt-1 text-xs text-slate-500">Held from parents: fees owed</div>
+                              ) : null}
                             </td>
                             <td className="text-right">
                               <Link

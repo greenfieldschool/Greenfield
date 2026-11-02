@@ -48,6 +48,13 @@ skill says where the code goes; this one says how the screen should work for the
 - **Picker → content**: `ClassTermPicker`, then tabs (`LinkTabs`) for the views of the same data.
 - **Stats row**: 3–4 `StatCard`s answering "how far along are we?" above the work area.
 - **Explain-the-maths footnote** under any table that shows a computed score.
+- **Outcome first** (report card): the result a parent is looking for (final score, grade, position) sits at the top
+  with the sum that makes it written out; details follow. A missing result says why ("Not ready yet: welfare not
+  scored yet"), never a bare dash.
+- **Held, not hidden** (portal fee hold): when something exists but is withheld, say it is ready, why it's held, the
+  exact amount, the one action that releases it ("Pay fees"), and what to do if they already paid.
+- **Printable documents** (certificates): size everything in `cqw` inside a `container-type: inline-size` wrapper so
+  one design works on a phone and on paper; give each its own `@page` size.
 
 ## Glossary (use these words)
 - **Welfare score**: out of 100, scored weekly; the term's welfare is the average of the weeks.
