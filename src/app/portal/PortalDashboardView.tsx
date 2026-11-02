@@ -127,7 +127,7 @@ function Shortcut({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-lift"
+      className="group flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-card transition hover:-translate-y-0.5 active:scale-[0.99] hover:shadow-lift"
     >
       <span
         className={cn(

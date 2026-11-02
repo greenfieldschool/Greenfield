@@ -125,7 +125,7 @@ export default function DashboardView({ data }: { data: DashboardData }) {
             <Link
               key={a.href}
               href={a.href}
-              className="group flex flex-col rounded-2xl border border-slate-200/80 bg-white p-4 shadow-card transition hover:-translate-y-0.5 hover:border-brand-green-200 hover:shadow-lift"
+              className="group flex flex-col rounded-2xl border border-slate-200/80 bg-white p-4 shadow-card transition hover:-translate-y-0.5 active:scale-[0.99] hover:border-brand-green-200 hover:shadow-lift"
             >
               <span className={cn("inline-flex h-10 w-10 items-center justify-center rounded-xl", toneStyles[a.tone].icon)}>
                 <a.icon className="h-5 w-5" aria-hidden="true" />

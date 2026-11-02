@@ -1,6 +1,6 @@
 ---
 name: ui-ux-design
-description: Use whenever a screen, form, grid, report or flow is designed or reworked, or the user asks for the best possible UI/UX. Applies a senior (20+ years) product-design review to the work before it is called done.
+description: Use whenever a screen, form, grid, report, flow, animation or three.js scene is designed or reworked, or the user asks for the best possible UI/UX. Applies a senior (20+ years) product-design review to the work before it is called done.
 ---
 
 # UI/UX design (senior review)
@@ -42,6 +42,10 @@ skill says where the code goes; this one says how the screen should work for the
     ("I have paid, but it still shows that I owe"), answer in two or three sentences, end with the one action.
 11. **Same words, same parts.** Use the design system (`PageHeader`, `Card`, `StatCard`, `LinkTabs`, `Badge`,
     `Alert`, `EmptyState`, `SubmitButton`, `gf-*` classes) and the glossary below.
+12. **Does it move well on a phone?** Any animation, transition or three.js scene follows
+    [motion-and-3d.md](motion-and-3d.md): short and transform/opacity only, a tap state for every hover, reduced
+    motion respected, and 3D treated as decoration: loaded late, paused off screen, cut down or skipped on weak
+    phones, with a finished-looking fallback. Read that file before touching `src/components/three/`.
 
 ## Patterns already in the app (reuse them)
 - **Score grid** (`/admin/welfare/scores` `weekly-grid.tsx`, result sheets): sticky header and first column, empty
@@ -63,6 +67,9 @@ skill says where the code goes; this one says how the screen should work for the
   email). Help links are plain `<a>` so `#id` opens and highlights the answer.
 - **Printable documents** (certificates): size everything in `cqw` inside a `container-type: inline-size` wrapper so
   one design works on a phone and on paper; give each its own `@page` size.
+- **3D scene** (`src/components/three/`): light wrapper (WebGL + reduced-motion checks, `useInView`) → dynamic
+  `ssr:false` scene with `frameloop` tied to visibility, instanced meshes, a static fallback. Details and the
+  pmndrs / three.js repos to copy from: [motion-and-3d.md](motion-and-3d.md).
 
 ## Glossary (use these words)
 - **Welfare score**: out of 100, scored weekly; the term's welfare is the average of the weeks.

@@ -1,7 +1,8 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { PerformanceMonitor } from "@react-three/drei";
+import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { seeded } from "./hooks";
 
@@ -35,7 +36,7 @@ type Leaf = {
   scale: number;
 };
 
-function Leaves({ count, paused }: { count: number; paused: boolean }) {
+function Leaves({ count, shown, paused }: { count: number; shown: number; paused: boolean }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const geometry = useMemo(leafGeometry, []);
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -86,6 +87,8 @@ function Leaves({ count, paused }: { count: number; paused: boolean }) {
       mesh.current!.setMatrixAt(i, dummy.matrix);
     });
     mesh.current.instanceMatrix.needsUpdate = true;
+    // Draw only the first `shown` leaves; the rest are skipped by the GPU.
+    mesh.current.count = shown;
   });
 
   return (
@@ -107,13 +110,23 @@ function Parallax() {
   return null;
 }
 
-export default function HeroLeavesScene({ active }: { active: boolean }) {
+const LEAVES = 70;
+
+/** `lite` = phones and tablets: half the leaves and a lower resolution. Drops further if frames start to slow. */
+export default function HeroLeavesScene({ active, lite = false }: { active: boolean; lite?: boolean }) {
+  const [dpr, setDpr] = useState(lite ? 1.25 : 1.75);
+  const [shown, setShown] = useState(lite ? LEAVES / 2 : LEAVES);
+  const slowDown = () => {
+    setDpr(1);
+    setShown((n) => Math.max(20, Math.round(n * 0.6)));
+  };
+
   return (
     <Canvas
-      dpr={[1, 1.75]}
+      dpr={[1, dpr]}
       frameloop={active ? "always" : "never"}
       camera={{ position: [0, 0, 6], fov: 50 }}
-      gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
+      gl={{ antialias: !lite, alpha: true, powerPreference: "low-power" }}
       style={{ pointerEvents: "none" }}
       eventSource={typeof document !== "undefined" ? document.body : undefined}
       eventPrefix="client"
@@ -122,7 +135,8 @@ export default function HeroLeavesScene({ active }: { active: boolean }) {
       <ambientLight intensity={0.7} />
       <directionalLight position={[3, 5, 4]} intensity={1.6} color="#FFF4D6" />
       <directionalLight position={[-4, -2, 2]} intensity={0.5} color="#7FC2A0" />
-      <Leaves count={70} paused={!active} />
+      <PerformanceMonitor onDecline={slowDown} />
+      <Leaves count={LEAVES} shown={shown} paused={!active} />
       <Parallax />
     </Canvas>
   );

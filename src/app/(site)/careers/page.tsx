@@ -63,7 +63,7 @@ export default async function CareersPage() {
               <Link
                 key={job.slug}
                 href={`/careers/${job.slug}`}
-                className="group flex flex-col rounded-3xl border border-slate-200/80 bg-white p-7 shadow-card transition hover:-translate-y-0.5 hover:shadow-lift"
+                className="group flex flex-col rounded-3xl border border-slate-200/80 bg-white p-7 shadow-card transition hover:-translate-y-0.5 active:scale-[0.99] hover:shadow-lift"
               >
                 <h3 className="font-display text-2xl font-semibold text-slate-900">{job.title}</h3>
                 <p className="mt-2 flex-1 leading-relaxed text-slate-600">{job.summary}</p>

@@ -7,6 +7,7 @@ import * as THREE from "three";
 const vertexShader = /* glsl */ `
   uniform float uTime;
   uniform vec2 uPointer;
+  uniform float uPointScale;
   attribute float aSeed;
   varying float vHeight;
   varying float vFade;
@@ -23,7 +24,7 @@ const vertexShader = /* glsl */ `
     vHeight = wave;
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     vFade = smoothstep(-26.0, -4.0, mv.z);
-    gl_PointSize = (2.2 + aSeed * 2.4) * (12.0 / -mv.z);
+    gl_PointSize = (2.2 + aSeed * 2.4) * uPointScale * (12.0 / -mv.z);
     gl_Position = projectionMatrix * mv;
   }
 `;
@@ -44,13 +45,14 @@ const fragmentShader = /* glsl */ `
   }
 `;
 
-function Field({ active }: { active: boolean }) {
+function Field({ active, lite }: { active: boolean; lite: boolean }) {
   const material = useRef<THREE.ShaderMaterial>(null);
   const pointer = useRef(new THREE.Vector2());
 
   const geometry = useMemo(() => {
-    const cols = 110;
-    const rows = 70;
+    // Phones get about half the points, spread over the same area.
+    const cols = lite ? 80 : 110;
+    const rows = lite ? 50 : 70;
     const positions = new Float32Array(cols * rows * 3);
     const seeds = new Float32Array(cols * rows);
     let i = 0;
@@ -67,9 +69,12 @@ function Field({ active }: { active: boolean }) {
     g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     g.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
     return g;
-  }, []);
+  }, [lite]);
 
-  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uPointer: { value: new THREE.Vector2() } }), []);
+  const uniforms = useMemo(
+    () => ({ uTime: { value: 0 }, uPointer: { value: new THREE.Vector2() }, uPointScale: { value: lite ? 1.25 : 1 } }),
+    [lite]
+  );
 
   useFrame((state, delta) => {
     if (!material.current) return;
@@ -93,10 +98,10 @@ function Field({ active }: { active: boolean }) {
   );
 }
 
-export default function FieldBackdropScene({ active }: { active: boolean }) {
+export default function FieldBackdropScene({ active, lite = false }: { active: boolean; lite?: boolean }) {
   return (
     <Canvas
-      dpr={[1, 1.5]}
+      dpr={lite ? [1, 1.25] : [1, 1.5]}
       frameloop={active ? "always" : "never"}
       camera={{ position: [0, 2.4, 8], fov: 55 }}
       onCreated={({ camera }) => camera.lookAt(0, -1.5, -6)}
@@ -105,7 +110,7 @@ export default function FieldBackdropScene({ active }: { active: boolean }) {
       eventPrefix="client"
       style={{ pointerEvents: "none" }}
     >
-      <Field active={active} />
+      <Field active={active} lite={lite} />
     </Canvas>
   );
 }

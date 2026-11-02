@@ -31,18 +31,58 @@ export function useInView<T extends Element>(rootMargin = "200px") {
   return [ref, inView] as const;
 }
 
+let webglSupport: boolean | undefined;
+
+// Checked once per page load. The test context is released straight away: browsers only allow about 16 at once.
+function detectWebGL() {
+  if (webglSupport !== undefined) return webglSupport;
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = window.WebGLRenderingContext ? canvas.getContext("webgl2") || canvas.getContext("webgl") : null;
+    webglSupport = Boolean(gl);
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+  } catch {
+    webglSupport = false;
+  }
+  return webglSupport;
+}
+
 /** WebGL can be missing (old devices, blocked GPU); scenes fall back to their static design. */
 export function useWebGLAvailable() {
   const [ok, setOk] = useState<boolean | null>(null);
-  useEffect(() => {
-    try {
-      const canvas = document.createElement("canvas");
-      setOk(Boolean(window.WebGLRenderingContext && (canvas.getContext("webgl2") || canvas.getContext("webgl"))));
-    } catch {
-      setOk(false);
-    }
-  }, []);
+  useEffect(() => setOk(detectWebGL()), []);
   return ok;
+}
+
+/**
+ * How much 3D this device should get:
+ * - "off": reduced motion, no WebGL, Data Saver on, or very little memory. Show the static design.
+ * - "lite": phones and tablets (touch screen or narrow window). Fewer objects, lower resolution.
+ * - "full": everything else.
+ * `null` until the browser has been checked (and during server rendering), so nothing loads early.
+ */
+export type SceneTier = "off" | "lite" | "full";
+
+export function useSceneTier(): SceneTier | null {
+  const [tier, setTier] = useState<SceneTier | null>(null);
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const touch = window.matchMedia("(pointer: coarse), (max-width: 767px)");
+    const update = () => {
+      const nav = navigator as Navigator & { connection?: { saveData?: boolean }; deviceMemory?: number };
+      const weak = Boolean(nav.connection?.saveData) || (nav.deviceMemory !== undefined && nav.deviceMemory <= 2);
+      if (reduced.matches || weak || !detectWebGL()) setTier("off");
+      else setTier(touch.matches ? "lite" : "full");
+    };
+    update();
+    reduced.addEventListener("change", update);
+    touch.addEventListener("change", update);
+    return () => {
+      reduced.removeEventListener("change", update);
+      touch.removeEventListener("change", update);
+    };
+  }, []);
+  return tier;
 }
 
 /** Deterministic pseudo-random generator so scenes look the same on every visit. */

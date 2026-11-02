@@ -19,7 +19,7 @@ function ChoiceCard({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-brand-green-200 hover:shadow-lift focus-visible:ring-4 focus-visible:ring-brand-green-500/20"
+      className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 active:scale-[0.99] hover:border-brand-green-200 hover:shadow-lift focus-visible:ring-4 focus-visible:ring-brand-green-500/20"
     >
       <span className={`inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${tone}`}>
         <Icon className="h-7 w-7" aria-hidden="true" />

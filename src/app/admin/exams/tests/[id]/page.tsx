@@ -670,7 +670,7 @@ export default async function AdminExamTestDetailPage({
                   aria-label="Overall question target progress"
                 >
                   <div
-                    className={`h-full rounded-full transition-all duration-300 ${overallPercent === 100 ? "bg-brand-green-500" : "bg-brand-gold"}`}
+                    className={`h-full rounded-full transition-[width] duration-300 ${overallPercent === 100 ? "bg-brand-green-500" : "bg-brand-gold"}`}
                     style={{ width: `${overallPercent}%` }}
                   />
                 </div>
@@ -702,7 +702,7 @@ export default async function AdminExamTestDetailPage({
                       </div>
                       <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200">
                         <div
-                          className={`h-full rounded-full transition-all duration-300 ${
+                          className={`h-full rounded-full transition-[width] duration-300 ${
                             percent === 100 ? "bg-brand-green-500" : percent > 50 ? "bg-brand-gold" : "bg-brand-green-300"
                           }`}
                           style={{ width: `${percent}%` }}

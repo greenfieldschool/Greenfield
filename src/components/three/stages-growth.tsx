@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useScroll, useMotionValueEvent } from "framer-motion";
 import { ArrowRight, BookOpenCheck, GraduationCap, Sprout, type LucideIcon } from "lucide-react";
-import { useInView, useReducedMotion, useWebGLAvailable } from "./hooks";
+import { useInView, useSceneTier } from "./hooks";
 import { cn } from "@/lib/cn";
 
 const Scene = dynamic(() => import("./growing-tree-scene"), { ssr: false });
@@ -38,15 +38,14 @@ const stages: Stage[] = [
 
 /**
  * "Three stages" section. On large screens a 3D tree grows from seedling to full crown as the
- * visitor scrolls past creche → primary → secondary. Phones, reduced-motion users and browsers
- * without WebGL get the same content as simple cards.
+ * visitor scrolls past creche → primary → secondary. Phones and tablets, reduced-motion users, Data
+ * Saver, and browsers without WebGL get the same content as simple cards.
  */
 export function StagesGrowth() {
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const progress = useRef(0.08);
   const [activeStage, setActiveStage] = useState(0);
-  const reduced = useReducedMotion();
-  const webgl = useWebGLAvailable();
+  const tier = useSceneTier();
   const [canvasRef, inView] = useInView<HTMLDivElement>("100px");
   const [isLarge, setIsLarge] = useState(false);
 
@@ -64,7 +63,7 @@ export function StagesGrowth() {
     setActiveStage(v < 0.36 ? 0 : v < 0.7 ? 1 : 2);
   });
 
-  const show3D = isLarge && webgl === true && !reduced;
+  const show3D = isLarge && tier === "full";
 
   return (
     <div ref={sectionRef} className={cn("relative", show3D && "lg:grid lg:grid-cols-2 lg:gap-16")}>
@@ -81,7 +80,7 @@ export function StagesGrowth() {
                     ? active
                       ? "border-brand-green-200 opacity-100 shadow-lift"
                       : "border-slate-200/80 opacity-40"
-                    : "border-slate-200/80 hover:-translate-y-1 hover:shadow-lift"
+                    : "border-slate-200/80 hover:-translate-y-1 active:scale-[0.99] hover:shadow-lift"
                 )}
               >
                 <div className="flex items-center gap-3">

@@ -235,7 +235,7 @@ export default function ExamAnswersClient({
             aria-valuemax={total}
             aria-valuenow={answeredCount}
           >
-            <div className="h-full rounded-full bg-brand-green-500 transition-all duration-500" style={{ width: `${progressPct}%` }} />
+            <div className="h-full rounded-full bg-brand-green-500 transition-[width] duration-500" style={{ width: `${progressPct}%` }} />
           </div>
         </div>
       ) : (

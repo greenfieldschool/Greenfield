@@ -118,7 +118,7 @@ export default async function AdminFinancePage() {
             <Link
               key={s.href}
               href={s.href}
-              className="group flex items-start gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card transition hover:-translate-y-0.5 hover:border-brand-green-200 hover:shadow-lift"
+              className="group flex items-start gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card transition hover:-translate-y-0.5 active:scale-[0.99] hover:border-brand-green-200 hover:shadow-lift"
             >
               <span className={cn("inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", toneStyles[s.tone].icon)}>
                 <s.icon className="h-5 w-5" aria-hidden="true" />

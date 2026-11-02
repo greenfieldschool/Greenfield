@@ -20,7 +20,7 @@ export default function EventsPage() {
             return (
               <li
                 key={e.title}
-                className="flex gap-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-lift"
+                className="flex gap-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-card transition hover:-translate-y-0.5 active:scale-[0.99] hover:shadow-lift"
               >
                 <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-2xl bg-brand-green text-white">
                   <span className="font-display text-3xl font-semibold leading-none">{d.day}</span>

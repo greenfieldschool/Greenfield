@@ -38,11 +38,7 @@ export default function GalleryPage() {
       <PublicSection>
         <PhotoRing
           className="mb-12"
-          photos={Object.values(schoolPhotos).map((p) => ({
-            // Same-origin, resized copy from Next's image optimiser keeps the 3D textures light.
-            src: `/_next/image?url=${encodeURIComponent(p.src)}&w=1080&q=70`,
-            alt: p.alt
-          }))}
+          photos={Object.values(schoolPhotos).map((p) => ({ src: p.src, alt: p.alt }))}
         />
 
         <div className="columns-1 gap-6 sm:columns-2 lg:columns-3">
@@ -57,10 +53,10 @@ export default function GalleryPage() {
                   className="object-cover transition duration-700 group-hover:scale-105"
                 />
                 <div
-                  className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent transition sm:opacity-0 sm:group-hover:opacity-100"
+                  className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent transition can-hover:opacity-0 can-hover:group-hover:opacity-100"
                   aria-hidden="true"
                 />
-                <figcaption className="absolute bottom-4 left-4 right-4 text-sm font-medium text-white transition sm:translate-y-2 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
+                <figcaption className="absolute bottom-4 left-4 right-4 text-sm font-medium text-white transition can-hover:translate-y-2 can-hover:opacity-0 can-hover:group-hover:translate-y-0 can-hover:group-hover:opacity-100">
                   {t.alt}
                 </figcaption>
               </figure>

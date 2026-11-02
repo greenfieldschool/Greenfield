@@ -46,7 +46,7 @@ export function StatCard({
 
   const className =
     "block rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card transition " +
-    (href ? "hover:-translate-y-0.5 hover:border-brand-green-200 hover:shadow-lift" : "");
+    (href ? "hover:-translate-y-0.5 active:scale-[0.99] hover:border-brand-green-200 hover:shadow-lift" : "");
 
   return href ? (
     <Link href={href} className={className}>

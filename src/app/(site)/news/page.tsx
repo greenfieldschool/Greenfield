@@ -28,7 +28,7 @@ export default function NewsPage() {
           {posts.map((p) => (
             <article
               key={p.slug}
-              className="group flex flex-col rounded-3xl border border-slate-200/80 bg-white p-8 shadow-card transition hover:-translate-y-0.5 hover:shadow-lift"
+              className="group flex flex-col rounded-3xl border border-slate-200/80 bg-white p-8 shadow-card transition hover:-translate-y-0.5 active:scale-[0.99] hover:shadow-lift"
             >
               <div className="flex items-center gap-3">
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-green-50 text-brand-green-600">

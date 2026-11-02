@@ -152,7 +152,8 @@ export function HeroRotator({ images, intervalMs = 7000, className }: HeroRotato
         <div className="absolute inset-0 bg-gradient-to-t from-brand-green-950/70 via-transparent to-transparent" />
       </div>
 
-      <div className="absolute bottom-6 right-6 z-10 flex items-center gap-2 sm:bottom-8 sm:right-8">
+      {/* Phones: the stats card covers this corner, and the photos change by themselves. */}
+      <div className="absolute bottom-6 right-6 z-10 hidden items-center gap-2 sm:bottom-8 sm:right-8 sm:flex">
         <button
           type="button"
           onClick={prev}
@@ -162,7 +163,7 @@ export function HeroRotator({ images, intervalMs = 7000, className }: HeroRotato
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </button>
 
-        <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 backdrop-blur">
+        <div className="flex h-9 items-center rounded-full border border-white/20 bg-white/10 px-1 backdrop-blur">
           {safeImages.map((_, i) => {
             const isActive = i === active;
             return (
@@ -170,13 +171,18 @@ export function HeroRotator({ images, intervalMs = 7000, className }: HeroRotato
                 key={i}
                 type="button"
                 onClick={() => goTo(i)}
-                className={
-                  "h-1.5 rounded-full transition-all " +
-                  (isActive ? "w-6 bg-brand-gold" : "w-1.5 bg-white/50 hover:bg-white/80")
-                }
+                // The dot is small; the button around it is big enough for a finger.
+                className="group/dot flex h-full items-center px-2.5"
                 aria-label={`Go to image ${i + 1}`}
                 aria-current={isActive ? "true" : undefined}
-              />
+              >
+                <span
+                  className={
+                    "block h-1.5 rounded-full transition-[width,background-color] duration-300 " +
+                    (isActive ? "w-6 bg-brand-gold" : "w-1.5 bg-white/50 group-hover/dot:bg-white/80 group-active/dot:bg-white")
+                  }
+                />
+              </button>
             );
           })}
         </div>

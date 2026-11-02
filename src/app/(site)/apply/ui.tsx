@@ -491,7 +491,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
 
         <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
           <div
-            className="h-full rounded-full bg-brand-green transition-all"
+            className="h-full rounded-full bg-brand-green transition-[width]"
             style={{ width: `${Math.round(((stepIndex + 1) / steps.length) * 100)}%` }}
           />
         </div>

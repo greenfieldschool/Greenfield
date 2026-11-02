@@ -1,6 +1,9 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 
 const config: Config = {
+  // Hover styles only apply on devices with a mouse, so a tap on a phone doesn't leave a card stuck "hovered".
+  future: { hoverOnlyWhenSupported: true },
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -54,7 +57,10 @@ const config: Config = {
       }
     }
   },
-  plugins: []
+  plugins: [
+    // `can-hover:` = only on devices with a mouse. Use it to hide something until hover, so touch screens still show it.
+    plugin(({ addVariant }) => addVariant("can-hover", "@media (hover: hover) and (pointer: fine)"))
+  ]
 };
 
 export default config;

@@ -207,7 +207,7 @@ export default async function AdminClassesPage() {
                     key={c.id}
                     href={`/admin/classes/${c.id}`}
                     className={cn(
-                      "group block rounded-2xl border bg-white p-5 shadow-card transition hover:-translate-y-0.5 hover:border-brand-green-200 hover:shadow-lift",
+                      "group block rounded-2xl border bg-white p-5 shadow-card transition hover:-translate-y-0.5 active:scale-[0.99] hover:border-brand-green-200 hover:shadow-lift",
                       c.active ? "border-slate-200/80" : "border-dashed border-slate-300 opacity-70"
                     )}
                   >

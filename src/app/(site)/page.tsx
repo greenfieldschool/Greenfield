@@ -254,8 +254,8 @@ export default function HomePage() {
                 sizes="(min-width: 1024px) 50vw, 100vw"
                 className="object-cover transition duration-700 group-hover:scale-105"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
-              <span className="absolute bottom-4 left-4 right-4 translate-y-2 text-sm font-medium text-white opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent transition can-hover:opacity-0 can-hover:group-hover:opacity-100" />
+              <span className="absolute bottom-4 left-4 right-4 text-sm font-medium text-white transition can-hover:translate-y-2 can-hover:opacity-0 can-hover:group-hover:translate-y-0 can-hover:group-hover:opacity-100">
                 {img.alt}
               </span>
             </div>

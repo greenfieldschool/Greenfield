@@ -14,7 +14,7 @@ export default async function ConductorHomePage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <Link
           href="/conductor/sessions"
-          className="group flex flex-col rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card transition hover:-translate-y-0.5 hover:border-brand-green-200 hover:shadow-lift"
+          className="group flex flex-col rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card transition hover:-translate-y-0.5 active:scale-[0.99] hover:border-brand-green-200 hover:shadow-lift"
         >
           <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-green-50 text-brand-green-600">
             <CalendarClock className="h-5 w-5" aria-hidden="true" />
