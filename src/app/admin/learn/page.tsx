@@ -170,13 +170,15 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
-          name: "Welfare Scores (out of 100)",
+          name: "Weekly Welfare Scores (out of 100 every week)",
           steps: [
-            "Welfare is scored out of 100 per pupil per term. Admins set what it is made of under Welfare > Welfare criteria, per level.",
-            "Default criteria: Attendance 20, Punctuality 10, Uniform 10 and Conduct 15 come automatically from attendance, 'late' marks, uniform checks and discipline records. Neatness, Politeness, Honesty, Cooperation, Attentiveness, Leadership and Participation (45 in total) are rated 1–5 by the class teacher.",
-            "Class teachers rate their pupils on Welfare > Welfare scores (/admin/welfare/scores), and must keep attendance, uniform checks and discipline records up to date during the term.",
-            "If a record-based criterion has nothing recorded (e.g. no uniform checks), it is left out and welfare is scored out of the rest. Health incidents never reduce the score.",
-            "Pupils who are not yet rated are flagged on the score sheet and on the Report cards checklist."
+            "Welfare is scored every week, out of 100 per pupil. At the end of term the weekly scores are averaged into one welfare score out of 100. The final score on the report card = (academic average + welfare) ÷ 2.",
+            "The marks: Attendance 15, Punctuality 10, Uniform & appearance 10, Conduct 15, Politeness & respect 10, Honesty 5, Cooperation & relationship with others 5, Attentiveness & self-control 5, Leadership & responsibility 5, Participation (sports, clubs, crafts) 20 = 100. Admins can change them under Welfare > Welfare criteria, per level.",
+            "Attendance, Punctuality, Uniform and Conduct are worked out for each week from that week's attendance, 'late' marks, uniform checks and discipline records, so keep those up to date. The class teacher rates the rest from 1 (Poor) to 5 (Excellent): a 4 on a 10-mark criterion gives 8 marks.",
+            "Class teachers open Welfare > Welfare scores (/admin/welfare/scores), pick the class and term, and land on this week. Pick another week from the strip of weeks; each shows whether it is fully scored.",
+            "To save time: 'Copy week N into empty boxes' fills each pupil's empty boxes with last week's ratings, and 'Fill empty…' under a heading fills that column. Change only what was different, then 'Save week'. Changed boxes are blue until saved; empty ones are gold. You are warned if you leave with unsaved changes.",
+            "A week counts towards the term once the pupil is rated for it. Weeks with attendance but no ratings are flagged as 'to rate'. If nothing was recorded for a criterion that week (e.g. no uniform check), it is left out and the week is scored out of the rest. Health incidents never reduce the score.",
+            "The Term summary tab shows every pupil's weekly scores, their term welfare, academic average and final score."
           ]
         },
         {
@@ -184,7 +186,7 @@ export default function AdminLearnCentrePage() {
           steps: [
             "Open Academics > Report cards (/admin/academics/reports) and pick the class and term.",
             "The checklist shows what is missing: subjects not fully scored, pupils without welfare ratings, attendance, and comments. Each line links to the page that fixes it.",
-            "Term total = average of the academic average (average of all subject totals) and the welfare score. Positions are ranked on the term total; pupils with no scores are not ranked.",
+            "Final score = (academic average + welfare) ÷ 2. The academic average is the average of all subject totals; welfare is the average of the weekly welfare scores. Positions are ranked on the final score; pupils with no scores are not ranked.",
             "Write comments on the Comments page: the class teacher for every pupil, the head teacher (admin) after. 'Suggest for blanks' fills in a starting comment from the pupil's term total to edit.",
             "Click 'Print all' to print or save all report cards as PDF (one A4 page per pupil). 'Hide positions' prints them without positions.",
             "Click 'Publish report cards'. If anything is still missing you are warned first. Parents and pupils then see the same report card on the portal and can print it."

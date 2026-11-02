@@ -1,15 +1,29 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllRows } from "@/lib/fetch-all";
 import { gradeFor, round2, subjectPercent, type ComponentGroup, type GradeBand } from "@/lib/results";
-import { emptyWelfareRecords, scoreWelfare, type WelfareCriterion, type WelfareRecords, type WelfareResult } from "@/lib/welfare";
+import { toLagosDateInput } from "@/lib/lagos-dates";
+import {
+  emptyWelfareRecords,
+  lagosDay,
+  mondayOf,
+  scoreWelfareTerm,
+  scoreWelfareWeekly,
+  termWeeks,
+  type AnyWelfareResult,
+  type TermWeek,
+  type WeeklyWelfareResult,
+  type WelfareCriterion,
+  type WelfareRecords
+} from "@/lib/welfare";
 
 // Everything on a class's termly report cards, worked out in one place so the admin pages, the printed
 // report cards and the parent portal always agree.
 //
 //  - Subject score: (sum of the sheet's scores / sum of its column max scores) × 100.
 //  - Academic average: average of the subject scores.
-//  - Welfare: out of 100 from the level's welfare criteria (see lib/welfare.ts).
-//  - Term total: average of the academic average and the welfare score.
+//  - Welfare: scored every week out of 100 from the level's welfare criteria; the term's welfare is the average
+//    of the weeks scored (see lib/welfare.ts). Terms rated before weekly scoring use the whole-term calculation.
+//  - Final score (termTotal): average of the academic average and the welfare score.
 
 export type ReportColumn = { id: string; label: string; group: ComponentGroup; max: number };
 
@@ -51,7 +65,9 @@ export type StudentReport = {
   subjects: StudentSubjectResult[];
   academicAverage: number | null;
   academicGrade: string | null;
-  welfare: WelfareResult;
+  welfare: AnyWelfareResult;
+  /** Week by week, always worked out (for the welfare score sheet), even when the term uses whole-term ratings. */
+  weeklyWelfare: WeeklyWelfareResult;
   welfareBadge: string | null;
   termTotal: number | null;
   termGrade: string | null;
@@ -68,6 +84,13 @@ export type ClassReport = {
   daysOpened: number;
   subjects: ReportSubject[];
   welfareCriteria: WelfareCriterion[];
+  /** "weekly" unless the term only has whole-term ratings from before weekly scoring. */
+  welfareMode: "weekly" | "term";
+  weeks: TermWeek[];
+  /** Whole-term ratings saved before weekly scoring (ignored once the term has weekly ratings). */
+  legacyRatings: number;
+  /** False until 20261102_weekly_welfare.sql has been run. */
+  weeklyReady: boolean;
   grades: GradeBand[];
   students: StudentReport[];
   publication: { id: string; published_at: string } | null;
@@ -258,6 +281,13 @@ export async function buildClassReport(
   const scopeIds = studentIds.length ? studentIds : ["00000000-0000-0000-0000-000000000000"];
   const assessmentIds = assessments.map((a) => a.id);
 
+  type RatingRow = { student_id: string; criterion_id: string; rating: number; week_start: string | null };
+  // Before the weekly migration is run there is no week_start column: fall back to whole-term ratings
+  // rather than showing no ratings at all.
+  const { error: weekColumnError } = await supabase.from("welfare_ratings").select("week_start").limit(1);
+  const weeklyReady = !weekColumnError;
+  const ratingColumns: string = weeklyReady ? "student_id, criterion_id, rating, week_start" : "student_id, criterion_id, rating";
+
   const [scores, attendance, uniform, discipline, ratings, comments] = await Promise.all([
     assessmentIds.length
       ? fetchAllRows<{ assessment_id: string; student_id: string; score: number }>(() =>
@@ -276,29 +306,30 @@ export async function buildClassReport(
         .or(termFilter(termId, term, "date"))
         .order("id", { ascending: true })
     ),
-    fetchAllRows<{ student_id: string; ok: boolean }>(() =>
+    fetchAllRows<{ student_id: string; ok: boolean; date: string }>(() =>
       supabase
         .from("student_uniform_checks")
-        .select("student_id, ok")
+        .select("student_id, ok, date")
         .in("student_id", scopeIds)
         .or(termFilter(termId, term, "date"))
         .order("id", { ascending: true })
     ),
-    fetchAllRows<{ student_id: string; severity: number }>(() =>
+    fetchAllRows<{ student_id: string; severity: number; occurred_at: string }>(() =>
       supabase
         .from("welfare_discipline_records")
-        .select("student_id, severity")
+        .select("student_id, severity, occurred_at")
         .in("student_id", scopeIds)
         .or(termFilter(termId, term, "occurred_at"))
         .order("id", { ascending: true })
     ),
-    fetchAllRows<{ student_id: string; criterion_id: string; rating: number }>(() =>
+    fetchAllRows<RatingRow>(() =>
       supabase
         .from("welfare_ratings")
-        .select("student_id, criterion_id, rating")
+        .select(ratingColumns)
         .in("student_id", scopeIds)
         .eq("academic_term_id", termId)
         .order("id", { ascending: true })
+        .returns<RatingRow[]>()
     ),
     fetchAllRows<{ student_id: string; class_teacher_comment: string | null; head_comment: string | null }>(() =>
       supabase
@@ -321,25 +352,57 @@ export async function buildClassReport(
     }
     return r;
   };
+  // The same records again, split by week (student → Monday → records).
+  const weekly = new Map<string, Map<string, WelfareRecords>>();
+  const recWeek = (id: string, day: string) => {
+    let byWeek = weekly.get(id);
+    if (!byWeek) {
+      byWeek = new Map();
+      weekly.set(id, byWeek);
+    }
+    const week = mondayOf(day);
+    let r = byWeek.get(week);
+    if (!r) {
+      r = emptyWelfareRecords();
+      byWeek.set(week, r);
+    }
+    return r;
+  };
   const openedDates = new Set<string>();
   for (const a of attendance) {
-    openedDates.add(String(a.date).slice(0, 10));
-    const r = rec(a.student_id);
-    if (a.status === "present") r.present += 1;
-    else if (a.status === "late") r.late += 1;
-    else if (a.status === "absent") r.absent += 1;
+    const day = lagosDay(String(a.date));
+    openedDates.add(day);
+    for (const r of [rec(a.student_id), recWeek(a.student_id, day)]) {
+      if (a.status === "present") r.present += 1;
+      else if (a.status === "late") r.late += 1;
+      else if (a.status === "absent") r.absent += 1;
+    }
   }
   for (const u of uniform) {
-    const r = rec(u.student_id);
-    r.uniformChecks += 1;
-    if (!u.ok) r.uniformFailures += 1;
+    for (const r of [rec(u.student_id), recWeek(u.student_id, lagosDay(String(u.date)))]) {
+      r.uniformChecks += 1;
+      if (!u.ok) r.uniformFailures += 1;
+    }
   }
   for (const d of discipline) {
-    const r = rec(d.student_id);
-    r.disciplineCount += 1;
-    r.disciplineSeverity += Number(d.severity ?? 1);
+    for (const r of [rec(d.student_id), recWeek(d.student_id, lagosDay(String(d.occurred_at)))]) {
+      r.disciplineCount += 1;
+      r.disciplineSeverity += Number(d.severity ?? 1);
+    }
   }
-  for (const rt of ratings) rec(rt.student_id).ratings[rt.criterion_id] = Number(rt.rating);
+  const legacyRatings = ratings.filter((rt) => !rt.week_start);
+  const weeklyRatings = ratings.filter((rt) => rt.week_start);
+  const welfareMode: "weekly" | "term" = weeklyReady && (weeklyRatings.length > 0 || legacyRatings.length === 0) ? "weekly" : "term";
+  if (welfareMode === "term") {
+    for (const rt of legacyRatings) rec(rt.student_id).ratings[rt.criterion_id] = Number(rt.rating);
+  }
+  for (const rt of weeklyRatings) recWeek(rt.student_id, String(rt.week_start)).ratings[rt.criterion_id] = Number(rt.rating);
+  const weeks = termWeeks(
+    term.starts_on,
+    term.ends_on,
+    weeklyRatings.map((rt) => String(rt.week_start)),
+    toLagosDateInput(new Date().toISOString())
+  );
   const commentByStudent = new Map(comments.map((c) => [c.student_id, c] as const));
 
   const subjectList = subjectIds
@@ -373,7 +436,8 @@ export async function buildClassReport(
     const percents = subjects.map((s) => s.percent).filter((p): p is number => p !== null);
     const academicAverage = percents.length ? round2(percents.reduce((a, b) => a + b, 0) / percents.length) : null;
     const r = records.get(student.id) ?? emptyWelfareRecords();
-    const welfare = scoreWelfare(criteria, r, disciplinePenalty);
+    const weeklyWelfare = scoreWelfareWeekly(criteria, weekly.get(student.id) ?? new Map(), weeks, r, disciplinePenalty);
+    const welfare = welfareMode === "weekly" ? weeklyWelfare : scoreWelfareTerm(criteria, r, disciplinePenalty);
     // Needs both halves: a pupil with no scores yet must not rank on welfare alone.
     const termTotal =
       academicAverage !== null && welfare.percent !== null ? round2((academicAverage + welfare.percent) / 2) : null;
@@ -384,6 +448,7 @@ export async function buildClassReport(
       academicAverage,
       academicGrade: gradeFor(academicAverage, grades),
       welfare,
+      weeklyWelfare,
       welfareBadge: badgeFor(welfare.percent),
       termTotal,
       termGrade: gradeFor(termTotal, grades),
@@ -439,6 +504,10 @@ export async function buildClassReport(
     daysOpened: openedDates.size,
     subjects: subjectsOut,
     welfareCriteria: criteria,
+    welfareMode,
+    weeks,
+    legacyRatings: legacyRatings.length,
+    weeklyReady,
     grades,
     students: onlyStudent ? reports.filter((r) => r.student.id === onlyStudent) : reports,
     publication: (pubData as { id: string; published_at: string } | null) ?? null,

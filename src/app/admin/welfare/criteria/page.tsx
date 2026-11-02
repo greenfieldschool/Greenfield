@@ -182,7 +182,7 @@ export default async function WelfareCriteriaPage({
       <PageHeader
         eyebrow="Welfare"
         title="Welfare criteria"
-        description="What welfare is scored on for each level, and how many of the 100 points each criterion is worth. Teacher-rated criteria are rated 1–5 on the welfare score sheet; the others are worked out from the school's records."
+        description="What welfare is scored on for each level, and how many of the 100 marks each criterion is worth. Welfare is scored every week out of 100 and averaged over the term. Teacher-rated criteria are rated 1–5 each week on the welfare score sheet; the others are worked out from that week's records."
       />
 
       <LinkTabs tabs={levels.map((l) => ({ key: l, label: l.charAt(0).toUpperCase() + l.slice(1), href: `${PATH}?level=${l}` }))} active={level} />
@@ -192,7 +192,7 @@ export default async function WelfareCriteriaPage({
       <Card>
         <CardHeader
           title="Criteria"
-          description="Points of the active criteria should add up to 100. If they don't, welfare is still shown out of 100 (scaled)."
+          description="Marks of the active criteria should add up to 100. If they don't, each week is still shown out of 100 (scaled)."
           action={<Badge tone={activeTotal === 100 ? "green" : "gold"}>Total {activeTotal}</Badge>}
         />
         <ul className="divide-y divide-slate-100">
@@ -281,7 +281,7 @@ export default async function WelfareCriteriaPage({
                   <input className={input} name="bronze_min" type="number" step="1" min="0" max="100" defaultValue={Number(rules.bronze_min)} />
                 </label>
                 <p className="text-xs text-slate-600 sm:col-span-2">
-                  Example: a discipline record of severity 3 with 1 point per severity takes 3 points off the Conduct criterion.
+                  Example: a discipline record of severity 3 with 1 point per severity takes 3 points off Conduct for that week.
                   Health incidents never reduce the welfare score.
                 </p>
                 <div className="flex justify-end sm:col-span-2">

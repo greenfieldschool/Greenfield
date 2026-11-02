@@ -201,7 +201,7 @@ export default async function ReportCommentsPage({
                           {r.student.last_name} {r.student.first_name}
                         </div>
                         <div className="text-xs text-slate-500">
-                          Term total {r.termTotal ?? "—"}
+                          Final score {r.termTotal ?? "—"}
                           {r.termGrade ? ` · ${r.termGrade}` : ""}
                           {r.position ? ` · ${ordinal(r.position)}` : ""}
                         </div>

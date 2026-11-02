@@ -187,6 +187,23 @@ export default function ReportCard({
         ) : (
           <p className="mt-2 text-sm text-slate-500">No welfare criteria set for this level.</p>
         )}
+        {student.welfare.mode === "weekly" && student.welfare.weeksCounted ? (
+          <div className="mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[11px] text-slate-600">
+            <span className="font-semibold text-slate-700">Weekly scores (out of 100):</span>
+            {report.weeks.map((w) => {
+              const wk = student.welfare.weeks.find((x) => x.weekStart === w.start);
+              return wk?.percent !== null && wk?.percent !== undefined ? (
+                <span key={w.start} className="rounded border border-slate-200 px-1 tabular-nums">
+                  Wk {w.number}: {fmt(wk.percent, 0)}
+                </span>
+              ) : null;
+            })}
+            <span>
+              → average of {student.welfare.weeksCounted} week{student.welfare.weeksCounted === 1 ? "" : "s"} ={" "}
+              <span className="font-semibold text-slate-800">{fmt(student.welfare.percent, 2)}</span>
+            </span>
+          </div>
+        ) : null}
       </section>
 
       {/* Summary */}
@@ -197,7 +214,7 @@ export default function ReportCard({
             label: "Welfare",
             value: student.welfare.percent === null ? "—" : `${fmt(student.welfare.percent, 2)}%${student.welfareBadge ? ` · ${student.welfareBadge}` : ""}`
           },
-          { label: "Term total", value: student.termTotal === null ? "—" : `${fmt(student.termTotal, 2)}%`, strong: true },
+          { label: "Final score", value: student.termTotal === null ? "—" : `${fmt(student.termTotal, 2)}%`, strong: true },
           {
             label: "Grade",
             value: student.termGrade ? `${student.termGrade}${gradeRemark(student.termGrade, report.grades) ? ` · ${gradeRemark(student.termGrade, report.grades)}` : ""}` : "—",
@@ -219,7 +236,10 @@ export default function ReportCard({
           </div>
         ))}
       </section>
-      <p className="mt-1.5 text-[11px] text-slate-500">Term total = average of the academic average and the welfare score.</p>
+      <p className="mt-1.5 text-[11px] text-slate-500">
+        Final score = (academic average + welfare) ÷ 2.
+        {student.welfare.mode === "weekly" ? " Welfare is scored out of 100 every week; the term's welfare is the average of the weeks." : ""}
+      </p>
 
       {/* Comments */}
       <section className="mt-4 grid gap-3 sm:grid-cols-2">

@@ -134,7 +134,7 @@ export default async function AdminReportCardsPage({
     if (incompleteSubjects.length) missing.push(`${incompleteSubjects.length} subject(s) not fully scored`);
     const unsubmitted = report.subjects.filter((s) => !s.submitted).length;
     if (unsubmitted) missing.push(`${unsubmitted} subject(s) not submitted as final`);
-    if (ratingCriteria && c.ratingsComplete < n) missing.push(`welfare ratings for ${n - c.ratingsComplete} pupil(s)`);
+    if (ratingCriteria && c.ratingsComplete < n) missing.push(`weekly welfare scores for ${n - c.ratingsComplete} pupil(s)`);
     if (!report.daysOpened) missing.push("attendance for the term");
     if (c.classCommentsDone < n) missing.push(`class teacher comments for ${n - c.classCommentsDone} pupil(s)`);
   }
@@ -204,10 +204,18 @@ export default async function AdminReportCardsPage({
                 />
                 <Check
                   ok={!ratingCriteria || c!.ratingsComplete === n}
-                  label={`Welfare ratings · ${c!.ratingsComplete} of ${n} pupils rated`}
-                  detail={`${ratingCriteria} criteria rated 1–5 by the class teacher.`}
+                  label={
+                    report.welfareMode === "weekly"
+                      ? `Weekly welfare · ${c!.ratingsComplete} of ${n} pupils scored for every week so far`
+                      : `Welfare ratings · ${c!.ratingsComplete} of ${n} pupils rated`
+                  }
+                  detail={
+                    report.welfareMode === "weekly"
+                      ? "The class teacher scores welfare every week out of 100; the term's welfare is the average of the weeks."
+                      : `${ratingCriteria} criteria rated 1–5 by the class teacher for the whole term.`
+                  }
                   href={reportsUrl("/admin/welfare/scores", params)}
-                  action="Rate pupils"
+                  action="Score welfare"
                 />
                 <Check
                   ok={report.daysOpened > 0}
@@ -362,7 +370,7 @@ export default async function AdminReportCardsPage({
           </Card>
 
           <Card>
-            <CardHeader title="Pupils" description="Term total = average of the academic average and the welfare score." />
+            <CardHeader title="Pupils" description="Final score = (academic average + welfare) ÷ 2. Welfare is the average of the weekly welfare scores." />
             {n ? (
               <div className="gf-table-wrap">
                 <table className="gf-table min-w-[720px]">
@@ -371,7 +379,7 @@ export default async function AdminReportCardsPage({
                       <th>Pupil</th>
                       <th className="text-right">Academic</th>
                       <th className="text-right">Welfare</th>
-                      <th className="text-right">Term total</th>
+                      <th className="text-right">Final score</th>
                       <th className="text-center">Grade</th>
                       <th className="text-center">Position</th>
                       <th>Status</th>
@@ -386,7 +394,7 @@ export default async function AdminReportCardsPage({
                         const subjectsDone = r.subjects.filter((s) => s.complete).length;
                         const issues = [
                           subjectsDone < r.subjects.length ? `${r.subjects.length - subjectsDone} subject(s)` : null,
-                          r.welfare.unrated ? "welfare rating" : null,
+                          r.welfare.unrated ? "welfare" : null,
                           r.comments.classTeacher?.trim() ? null : "comment"
                         ].filter(Boolean);
                         return (

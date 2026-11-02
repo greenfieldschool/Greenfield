@@ -18,13 +18,21 @@ description: Use for anything about academic results, result sheet columns, welf
   remark with `gradeRemark()`.
 - **Default columns**: `result_layouts` (class+subject → class → level → school → built-in). Admins edit level/school
   layouts on `/admin/academics/config`; teachers can save one for their class+subject from the sheet.
-- **Welfare** (`/admin/welfare/scores`, criteria at `/admin/welfare/criteria`): `welfare_criteria` per level, total
-  100. Sources: `rating` (class teacher rates 1–5 in `welfare_ratings`), `attendance`, `punctuality`, `uniform`,
-  `conduct` (discipline severity × penalty from `welfare_scoring_rules`). Health incidents never count. A
-  record-based criterion with no records is left out and the rest scaled. Logic: `src/lib/welfare.ts`.
+- **Welfare is weekly** (20261102; `/admin/welfare/scores`, criteria at `/admin/welfare/criteria`): `welfare_criteria`
+  per level, total 100 (school's marks: Attendance 15, Punctuality 10, Uniform 10, Conduct 15, Politeness 10,
+  Honesty 5, Cooperation 5, Attentiveness 5, Leadership 5, Participation 20). Sources: `rating` (class teacher rates
+  1–5 in `welfare_ratings`, one row per pupil + criterion + `week_start` Monday), `attendance`, `punctuality`,
+  `uniform`, `conduct` (discipline severity × penalty from `welfare_scoring_rules`), each worked out from that week's
+  records. Each week is out of 100; a week counts once the pupil is rated that week; term welfare = average of the
+  counted weeks (`scoreWelfareWeekly`). A record-based criterion with no records that week is left out and the rest
+  scaled. Health incidents never count. Ratings with `week_start` null are old whole-term ratings: a term with only
+  those uses `scoreWelfareTerm` (`report.welfareMode === "term"`) until its first weekly save.
+  `StudentReport.weeklyWelfare` is always the week-by-week result (the score sheet uses it); `welfare` is what counts.
+  Score sheet UI: `week-strip.tsx` (weeks with status) + `weekly-grid.tsx` (client grid: live totals, copy last week,
+  fill empty, unsaved warning) + Term summary tab. Logic: `src/lib/welfare.ts`.
 - **Report cards** (`/admin/academics/reports`, `/comments`, `/print`; portal `/portal/academics`): all built by
-  `buildClassReport()` in `src/lib/term-report.ts` so every view agrees. Term total = (academic average + welfare) / 2,
-  only when both exist. Positions rank on term total (ties share). Comments in `report_card_comments`
+  `buildClassReport()` in `src/lib/term-report.ts` so every view agrees. Final score (`termTotal`) = (academic average + welfare) / 2,
+  only when both exist. Call it "Final score" on screen. Positions rank on term total (ties share). Comments in `report_card_comments`
   (head comment admin-only, enforced by trigger). Printable component: `src/components/report-card.tsx`.
 - **Integrity** (migrations 20261023, 20261024):
   - A sheet is locked when submitted as final (`result_sheet_locks`, `submit_result_sheet`) or when the class+term
@@ -57,3 +65,7 @@ description: Use for anything about academic results, result sheet columns, welf
 - Upserts logged phantom "score entered" entries; the guard skips the insert path when the row exists.
 - A pupil with no scores ranked first on welfare alone; term total now needs both halves.
 - Attendance/uniform/discipline rows are sometimes saved without a term id; `termFilter()` also matches by the term's dates.
+- Weeks are Lagos dates: `lagosDay()` for timestamps (`occurred_at`), `mondayOf()` for the week. Month names are
+  spelled by hand (`en-GB` gives "Sept" on some servers).
+- Before 20261102 is run there is no `week_start` column: `buildClassReport` probes for it (`weeklyReady`) and falls
+  back to whole-term ratings instead of silently showing none.
