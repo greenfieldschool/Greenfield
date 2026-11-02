@@ -21,6 +21,7 @@ Every request goes through a skill.
 | [admin-portal-page](.claude/skills/admin-portal-page/SKILL.md) | Building or changing any page, form or server action in `/admin` or `/portal` |
 | [supabase-migration](.claude/skills/supabase-migration/SKILL.md) | Any database change: tables, RLS policies, functions, triggers, views |
 | [results-and-reports](.claude/skills/results-and-reports/SKILL.md) | Result sheets, welfare scores, report cards, locks, corrections, results history |
+| [finance-payments](.claude/skills/finance-payments/SKILL.md) | Fees, invoices, payments, debtors, payment IDs, bank statements or bank email alerts |
 | [messaging](.claude/skills/messaging/SKILL.md) | Teacher–parent / parent–parent messages, class spaces, moderation |
 | [deploy](.claude/skills/deploy/SKILL.md) | Committing, pushing and checking the Vercel deployment |
 

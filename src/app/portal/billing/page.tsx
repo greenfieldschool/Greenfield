@@ -16,6 +16,7 @@ import CopyReferenceButton from "./CopyReferenceButton";
 type InvoiceBalanceRow = {
   invoice_id: string;
   invoice_no: string | null;
+  student_id: string | null;
   issue_date: string;
   due_date: string | null;
   status: string;
@@ -108,12 +109,21 @@ export default async function PortalBillingPage({
 
   const { data } = await supabase
     .from("finance_invoice_balances")
-    .select("invoice_id, invoice_no, issue_date, due_date, status, currency, invoice_total, allocated_total, balance")
+    .select("invoice_id, invoice_no, student_id, issue_date, due_date, status, currency, invoice_total, allocated_total, balance")
     .eq("bill_to_guardian_id", guardianId)
     .order("issue_date", { ascending: false })
     .limit(200);
 
   const invoices = (data ?? []) as InvoiceBalanceRow[];
+
+  // Admission numbers, for the bank-transfer description shown under each unpaid invoice.
+  const studentIds = Array.from(new Set(invoices.map((i) => i.student_id).filter((v): v is string => Boolean(v))));
+  const { data: studentRows } = studentIds.length
+    ? await supabase.from("students").select("id, admission_number").in("id", studentIds)
+    : { data: [] as unknown[] };
+  const admissionById = new Map(
+    ((studentRows ?? []) as Array<{ id: string; admission_number: string | null }>).map((s) => [s.id, s.admission_number] as const)
+  );
 
   async function payNow(formData: FormData) {
     "use server";
@@ -270,6 +280,15 @@ export default async function PortalBillingPage({
                         <span>Due {inv.due_date ? formatLagosDate(inv.due_date) : "—"}</span>
                         <span>Total {money(inv.currency, inv.invoice_total)}</span>
                       </div>
+                      {due && inv.student_id && admissionById.get(inv.student_id) && inv.invoice_no ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                          <span>Paying by bank transfer? Write this in the description:</span>
+                          <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono font-semibold text-slate-900">
+                            {admissionById.get(inv.student_id)} {inv.invoice_no}
+                          </code>
+                          <CopyReferenceButton value={`${admissionById.get(inv.student_id)} ${inv.invoice_no}`} />
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-4 sm:justify-end">

@@ -250,6 +250,17 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          name: "Payment IDs and Bank Statements (automatic matching)",
+          steps: [
+            "Every fee type has a short payment ID (School fees = SF, Uniform = UNI ...). See or change them under Finance > Fees > Fee types & payment IDs. Print them on fee notices.",
+            "Parents write the child's admission number and the payment ID in the bank transfer description, e.g. GRE/2026/447 SF. An invoice number (INV-2026-00012) also works. Each invoice page and the parent's Fees & billing page show the exact text to write.",
+            "Monthly statement: open Finance > Payments > Bank statement & alerts, upload the bank's CSV (or paste the rows) and press 'Read and match'. Payments already added before are skipped, so adding the same month twice is safe.",
+            "Sure matches are recorded as payments straight away: a known admission number, a payment ID that matches one of the child's unpaid invoices, and an amount that is not more than what is owed.",
+            "Anything else waits under 'Needs a look' with a note saying why (no payment ID, two children named, amount too big, unknown child). Press Confirm on the suggestion, type the admission number or invoice number, or Ignore the line.",
+            "Bank email alerts can be recorded automatically too: see docs/BANK_ALERTS.md for the one-time setup. Alerts go through the same matching and the same inbox."
+          ]
+        },
+        {
           name: "Editing or Voiding a Payment",
           steps: [
             "Open Operations > Finance > Payments (/admin/finance/payments) and click the payment to change.",

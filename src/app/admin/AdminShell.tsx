@@ -217,6 +217,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   uniform: "Uniform",
   finance: "Finance",
   payments: "Payments",
+  import: "Bank statement & alerts",
   invoices: "Invoices",
   debtors: "Debtors",
   fees: "Fees",

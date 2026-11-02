@@ -13,6 +13,8 @@ import { FormSection, Field } from "@/components/ui/form-section";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Alert } from "@/components/ui/alert";
+import { transferDescription } from "@/lib/payment-codes";
 import { ButtonLink } from "@/components/ui/button";
 import {
   FinanceStatusBadge,
@@ -149,8 +151,21 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
   const studentId = header?.student_id ?? invoice.student_id;
 
   const { data: studentRow } = studentId
-    ? await supabase.from("students").select("id, class_id").eq("id", studentId).maybeSingle()
-    : await Promise.resolve({ data: null as { id: string; class_id: string | null } | null });
+    ? await supabase.from("students").select("id, class_id, admission_number").eq("id", studentId).maybeSingle()
+    : await Promise.resolve({ data: null as { id: string; class_id: string | null; admission_number: string | null } | null });
+
+  // Payment IDs of the fee types on this invoice: what parents write in the bank transfer description.
+  const { data: codeRows } = await supabase
+    .from("finance_invoice_items")
+    .select("revenue_categories(name, payment_code)")
+    .eq("invoice_id", id);
+  const paymentIds = new Map<string, string>();
+  for (const row of (codeRows ?? []) as unknown as Array<{
+    revenue_categories: { name: string; payment_code: string | null } | Array<{ name: string; payment_code: string | null }> | null;
+  }>) {
+    const cat = Array.isArray(row.revenue_categories) ? row.revenue_categories[0] : row.revenue_categories;
+    if (cat?.payment_code) paymentIds.set(cat.payment_code, cat.name);
+  }
 
   const classId = (studentRow?.class_id ?? null) as string | null;
 
@@ -344,6 +359,27 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
           </ButtonLink>
         }
       />
+
+      <Alert tone="info" title="Payment ID for bank transfers">
+        <p className="mt-1">
+          Ask the parent to write this in the transfer description:{" "}
+          <code className="rounded bg-white/70 px-1.5 py-0.5 font-mono text-[13px] font-semibold">
+            {transferDescription(studentRow?.admission_number, invoice.invoice_no ?? "")}
+          </code>
+          {!studentRow?.admission_number ? " (this child has no admission number yet, so payments cannot be matched automatically)" : ""}
+        </p>
+        {paymentIds.size ? (
+          <p className="mt-1 text-xs">
+            Or by item, with the admission number first:{" "}
+            {Array.from(paymentIds.entries()).map(([code, name], i) => (
+              <span key={code}>
+                {i ? " · " : ""}
+                <span className="font-mono font-semibold">{code}</span> = {name}
+              </span>
+            ))}
+          </p>
+        ) : null}
+      </Alert>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard

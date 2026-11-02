@@ -5,7 +5,7 @@ import { firstOrNull } from "@/lib/relations";
 import { lagosEndOfDayIso, lagosStartOfDayIso } from "@/lib/lagos-dates";
 import { classLabel, loadStudentsByClass } from "@/lib/student-classes";
 import { fetchAllRows } from "@/lib/fetch-all";
-import { Banknote, Filter, Pencil, Plus, Receipt, Search, UserX, Users, Wallet } from "lucide-react";
+import { Banknote, FileUp, Filter, Pencil, Plus, Receipt, Search, UserX, Users, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Field } from "@/components/ui/form-section";
@@ -140,6 +140,10 @@ export default async function AdminFinancePaymentsPage({
         description="Payments with the student and class they belong to. Click a payment to edit or delete it."
         actions={
           <>
+            <ButtonLink href="/admin/finance/payments/import" variant="secondary">
+              <FileUp className="h-4 w-4" aria-hidden="true" />
+              Bank statement &amp; alerts
+            </ButtonLink>
             <ButtonLink href="/admin/finance/debtors" variant="secondary">
               <UserX className="h-4 w-4" aria-hidden="true" />
               Debtors by class
