@@ -12,6 +12,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { canManageClassReports, ClassTermPicker, loadReportPicker, reportsBack } from "../_shared";
+import { LEARN } from "@/lib/learn-guides";
 
 const PATH = "/admin/academics/reports/comments";
 
@@ -150,6 +151,7 @@ export default async function ReportCommentsPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.reportCards}
         eyebrow="Report cards"
         title="Comments"
         description="The class teacher writes a comment for every pupil; the head teacher (admin) adds theirs. Only comments you change are saved."

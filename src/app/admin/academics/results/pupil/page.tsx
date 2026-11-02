@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
+import { LEARN } from "@/lib/learn-guides";
 
 // One pupil, every subject for a term: for a late joiner, a single correction before the sheet is final, or
 // checking one child's results. Same rules as the class result sheet (only changed boxes are saved; final and
@@ -213,6 +214,7 @@ export default async function PupilResultsPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.results}
         eyebrow="Result management"
         title="Single pupil results"
         description="Enter or check one pupil's scores for every subject in a term. Only the boxes you change are saved. To enter a whole class at once, use the class result sheet."

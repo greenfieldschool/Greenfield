@@ -11,6 +11,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { LEARN } from "@/lib/learn-guides";
 
 type WeightRow = {
   id: string;
@@ -191,6 +192,7 @@ export default async function AdminAcademicsConfigPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.grading}
         eyebrow="Academics"
         title="Configuration"
         description="Result sheet columns, grading scales and (older) assessment weights per level. Changes affect computed results immediately."

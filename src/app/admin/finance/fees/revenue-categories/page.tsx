@@ -11,6 +11,7 @@ import { FormSection, Field } from "@/components/ui/form-section";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toastUrl } from "../../_components/finance-server";
+import { LEARN } from "@/lib/learn-guides";
 
 type RevenueCategoryRow = {
   id: string;
@@ -102,6 +103,7 @@ export default async function AdminRevenueCategoriesPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.paymentIds}
         back={{ href: "/admin/finance/fees", label: "Back to fee setup" }}
         eyebrow="Finance"
         title="Fee types & payment IDs"

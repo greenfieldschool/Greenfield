@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { toneStyles, type Tone } from "@/components/ui/stat-card";
 import { cn } from "@/lib/cn";
+import { LEARN } from "@/lib/learn-guides";
 
 export default function AdminLearnCentrePage() {
   const categories = [
@@ -121,6 +122,7 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.classSubjects,
           name: "Assigning Subjects to Classes",
           steps: [
             "Open Academics > Class subjects (/admin/academics/class-subjects) and pick a class.",
@@ -129,6 +131,7 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.teachers,
           name: "Assigning Teachers to Classes and Subjects",
           steps: [
             "Open Academics > Teacher assignments (/admin/academics/teachers). Teachers must first have the Teacher role under Staff & users.",
@@ -140,6 +143,7 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.results,
           name: "Entering Term Results (Result management)",
           steps: [
             "Open Result management > Class result sheet. Pick the class, subject and term (e.g. RECEPTION · Quantitative Reasoning · 2026/2027 First Term) and click Open sheet. Every pupil in the class is listed automatically.",
@@ -152,6 +156,7 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.corrections,
           name: "Final Scores, Corrections and the Results History",
           steps: [
             "When a subject's scores are all entered and checked against the marked scripts, the subject teacher clicks 'Submit as final' on the result sheet. The sheet is then locked: nobody (teachers or admins) can type over its scores or change its columns. Publishing a class's report cards locks every sheet and welfare rating for that class and term.",
@@ -170,6 +175,7 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.welfare,
           name: "Weekly Welfare Scores (out of 100 every week)",
           steps: [
             "Welfare is scored every week, out of 100 per pupil. At the end of term the weekly scores are averaged into one welfare score out of 100. The final score on the report card = (academic average + welfare) ÷ 2.",
@@ -182,6 +188,7 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.reportCards,
           name: "Report Cards and Publishing",
           steps: [
             "Open Academics > Report cards (/admin/academics/reports) and pick the class and term.",
@@ -194,6 +201,7 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.certificates,
           name: "Certificates of Achievement",
           steps: [
             "Open Academics > Report cards, pick the class and term, then click 'Certificates'.",
@@ -213,6 +221,7 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.grading,
           name: "Assessment Weights & Grading scales",
           steps: [
             "Open Academics > Grading & layouts (/admin/academics/config).",
@@ -255,6 +264,17 @@ export default function AdminLearnCentrePage() {
       tone: "gold" as Tone,
       guides: [
         {
+          id: LEARN.feeHold,
+          name: "Report Cards and Unpaid Fees",
+          steps: [
+            "Parents and pupils only see a published report card (and its certificates) on the portal once the pupil's fees are paid: every issued invoice for that term and earlier terms with nothing left to pay. Draft and void invoices don't count; invoices for a later term don't hold back this term.",
+            "Until then the parent sees 'report card is ready' with the amount owed, a 'Pay fees' button, and a note that bank transfers can take a little while to be recorded. The pupil is asked to speak to their parent.",
+            "As soon as the payment is recorded (by hand, from the bank statement or an alert), the report card opens on its own. There is nothing else to do.",
+            "Admins see who is held on Academics > Report cards: the Publish box counts them and each pupil shows 'Held from parents: fees owed'. Staff can still print any report card."
+          ]
+        },
+        {
+          id: LEARN.recordingPayments,
           name: "Recording Payments by Student and Class",
           steps: [
             "Open Finance > Payments > Record payment and pick the Student — the list is grouped by class. Picking an invoice instead fills in its student automatically.",
@@ -263,9 +283,11 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.paymentIds,
           name: "Payment IDs and Bank Statements (automatic matching)",
           steps: [
             "Every fee type has a short payment ID (School fees = SF, Uniform = UNI ...). See or change them under Finance > Fees > Fee types & payment IDs. Print them on fee notices.",
+            "A payment ID is 2 to 8 capital letters or numbers with no spaces. New fee types get one from the first letters of their name (School fees = SF, Sports and Games = SAG; a one-word name uses its first three letters, Uniform = UNI). If two would clash, a number is added (SF2). INV, NGN, GRE, POS, TRF and NIP can't be used because they already appear in bank descriptions.",
             "Parents write the child's admission number and the payment ID in the bank transfer description, e.g. GRE/2026/447 SF. An invoice number (INV-2026-00012) also works. Each invoice page and the parent's Fees & billing page show the exact text to write.",
             "Monthly statement: open Finance > Payments > Bank statement & alerts, upload the bank's CSV (or paste the rows) and press 'Read and match'. Payments already added before are skipped, so adding the same month twice is safe.",
             "Sure matches are recorded as payments straight away: a known admission number, a payment ID that matches one of the child's unpaid invoices, and an amount that is not more than what is owed.",
@@ -290,6 +312,7 @@ export default function AdminLearnCentrePage() {
       tone: "rose" as Tone,
       guides: [
         {
+          id: LEARN.attendance,
           name: "Attendance Marking",
           steps: [
             "Navigate to Welfare > Attendance (/admin/welfare/attendance).",
@@ -359,7 +382,11 @@ export default function AdminLearnCentrePage() {
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               {cat.guides.map((guide, gIdx) => (
-                <Card key={gIdx}>
+                <Card
+                  key={gIdx}
+                  id={"id" in guide ? guide.id : undefined}
+                  className="scroll-mt-24 target:border-brand-green-300 target:ring-2 target:ring-brand-green-400/40"
+                >
                   <CardHeader title={guide.name} />
                   <ol className="space-y-3 px-5 py-5 sm:px-6">
                     {guide.steps.map((step, sIdx) => (

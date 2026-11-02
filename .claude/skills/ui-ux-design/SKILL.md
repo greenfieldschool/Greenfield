@@ -36,7 +36,9 @@ skill says where the code goes; this one says how the screen should work for the
    column and sticky header; chip rows scroll sideways with the selected chip brought into view; tap targets ≥ 36px.
 9. **Accessible?** Every input has a label or `aria-label` naming the pupil and the field; visible focus ring;
    status text, not just colour; `aria-current` on the selected tab/chip; contrast at least slate-500 on white.
-10. **Same words, same parts.** Use the design system (`PageHeader`, `Card`, `StatCard`, `LinkTabs`, `Badge`,
+10. **Help where the work is.** Every admin workflow page links to its Learn Centre guide ("How this works",
+    `PageHeader learn={LEARN.x}`). When the workflow changes, change the guide in the same commit.
+11. **Same words, same parts.** Use the design system (`PageHeader`, `Card`, `StatCard`, `LinkTabs`, `Badge`,
     `Alert`, `EmptyState`, `SubmitButton`, `gf-*` classes) and the glossary below.
 
 ## Patterns already in the app (reuse them)

@@ -9,6 +9,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
+import { LEARN } from "@/lib/learn-guides";
 
 type GuardianBalanceRow = {
   guardian_id: string;
@@ -138,6 +139,7 @@ export default async function AdminFinanceDebtorsPage({
   return (
     <div className="space-y-6">
       <PageHeader
+        learn={LEARN.recordingPayments}
         back={{ href: "/admin/finance", label: "Back to finance" }}
         eyebrow="Finance"
         title="Debtors"

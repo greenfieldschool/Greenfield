@@ -12,6 +12,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink } from "@/components/ui/button";
 import TeacherAssignForm from "./TeacherAssignForm";
+import { LEARN } from "@/lib/learn-guides";
 
 type TeacherRow = { id: string; full_name: string | null; email: string | null };
 type ClassRow = { id: string; level: string; name: string };
@@ -187,6 +188,7 @@ export default async function AdminTeacherAssignmentsPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.teachers}
         eyebrow="Academics"
         title="Teacher assignments"
         description="Choose which classes and subjects each teacher works on. Teachers only see their own classes and subjects when entering results and setting CBT questions."

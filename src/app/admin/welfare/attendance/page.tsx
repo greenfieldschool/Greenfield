@@ -13,6 +13,7 @@ import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
+import { LEARN } from "@/lib/learn-guides";
 
 type ClassRow = { id: string; level: string; name: string };
 type StudentRow = { id: string; first_name: string; last_name: string; class_id: string | null };
@@ -239,6 +240,7 @@ export default async function AdminWelfareAttendancePage({
       <UrlToast />
 
       <PageHeader
+        learn={LEARN.attendance}
         eyebrow="Welfare"
         title="Attendance"
         description="Record daily attendance by class group."

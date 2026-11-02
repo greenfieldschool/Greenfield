@@ -18,6 +18,7 @@ import { cn } from "@/lib/cn";
 import { canManageClassReports, ClassTermPicker, loadReportPicker, reportsBack, reportsUrl } from "../../academics/reports/_shared";
 import { WeekStrip, type StripWeek } from "./week-strip";
 import { WeeklyGrid, type GridCriterion, type GridRow } from "./weekly-grid";
+import { LEARN } from "@/lib/learn-guides";
 
 const PATH = "/admin/welfare/scores";
 const sourceLabel = Object.fromEntries(welfareSources.map((s) => [s.value, s.label])) as Record<string, string>;
@@ -303,6 +304,7 @@ export default async function WelfareScoresPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.welfare}
         eyebrow="Welfare"
         title="Welfare scores"
         description="Score every pupil each week out of 100. At the end of term the weekly scores are averaged into one welfare score out of 100, and the final score on the report card is the average of the academic average and welfare."

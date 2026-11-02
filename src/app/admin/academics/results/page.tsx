@@ -34,6 +34,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { LEARN } from "@/lib/learn-guides";
 
 type YearRow = { id: string; name: string };
 type TermRow = { id: string; name: string; academic_year_id: string };
@@ -759,6 +760,7 @@ export default async function AdminResultSheetPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.results}
         eyebrow="Academics"
         title="Result sheet"
         description="Enter each subject's CA and exam scores for a class. Choose the columns you need (e.g. 1st CA objective and theory, assignments, exam). Only the boxes you change are saved, so CA scores can go in now and exam scores later."

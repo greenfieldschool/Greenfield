@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { LinkTabs } from "@/components/ui/tabs";
 import { buttonClasses } from "@/components/ui/button";
+import { LEARN } from "@/lib/learn-guides";
 
 const PATH = "/admin/welfare/criteria";
 const levels = ["creche", "primary", "secondary"] as const;
@@ -180,6 +181,7 @@ export default async function WelfareCriteriaPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.welfare}
         eyebrow="Welfare"
         title="Welfare criteria"
         description="What welfare is scored on for each level, and how many of the 100 marks each criterion is worth. Welfare is scored every week out of 100 and averaged over the term. Teacher-rated criteria are rated 1–5 each week on the welfare score sheet; the others are worked out from that week's records."

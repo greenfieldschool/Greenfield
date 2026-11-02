@@ -13,6 +13,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { LEARN } from "@/lib/learn-guides";
 
 type ClassRow = { id: string; level: string; name: string };
 type SubjectRow = { id: string; name: string; level: string | null; active: boolean };
@@ -149,6 +150,7 @@ export default async function AdminClassSubjectsPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.classSubjects}
         eyebrow="Academics"
         title="Class subjects"
         description={

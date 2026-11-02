@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { currencyPrefix, fmtDate } from "../../_components/finance-ui";
 import { toastUrl } from "../../_components/finance-server";
+import { LEARN } from "@/lib/learn-guides";
 
 type StudentRef = { first_name: string; last_name: string; admission_number: string | null };
 type InvoiceRef = { invoice_no: string | null };
@@ -221,6 +222,7 @@ export default async function AdminBankImportPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.paymentIds}
         back={{ href: "/admin/finance/payments", label: "Back to payments" }}
         eyebrow="Finance"
         title="Bank statement & alerts"

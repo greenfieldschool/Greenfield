@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { FinanceStatusBadge, currencyPrefix, fmtDateTime } from "../_components/finance-ui";
+import { LEARN } from "@/lib/learn-guides";
 
 type InvoiceRef = { student_id: string | null };
 type AllocationRef = { finance_invoices: InvoiceRef | InvoiceRef[] | null };
@@ -134,6 +135,7 @@ export default async function AdminFinancePaymentsPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.recordingPayments}
         back={{ href: "/admin/finance", label: "Back to finance" }}
         eyebrow="Finance"
         title="Payments"

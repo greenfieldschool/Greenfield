@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LinkTabs } from "@/components/ui/tabs";
 import { CorrectionRequestCard, loadCorrectionRequests } from "./_requests";
+import { LEARN } from "@/lib/learn-guides";
 
 const PATH = "/admin/academics/corrections";
 
@@ -43,6 +44,7 @@ export default async function CorrectionRequestsPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.corrections}
         eyebrow="Academics"
         title="Correction requests"
         description={

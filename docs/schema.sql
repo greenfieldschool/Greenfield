@@ -7135,39 +7135,43 @@ $$;
 -- 4. The school's criteria and marks, for every level
 -- ---------------------------------------------------------------------------------------------------------------
 
-drop table if exists pg_temp._welfare_wanted;
-create temporary table _welfare_wanted (name text, description text, source text, max_points numeric, position int);
-insert into _welfare_wanted values
-  ('Attendance', 'Days present out of the days attendance was taken that week.', 'attendance', 15, 1),
-  ('Punctuality', 'Days on time out of the days present that week (from "late" attendance marks).', 'punctuality', 10, 2),
-  ('Uniform & appearance', 'Uniform checks passed out of the checks done that week.', 'uniform', 10, 3),
-  ('Conduct', 'Starts full each week; discipline records that week take points off by severity.', 'conduct', 15, 4),
-  ('Politeness & respect', 'Greets, listens and speaks respectfully to staff and pupils.', 'rating', 10, 5),
-  ('Honesty', 'Tells the truth and owns up to mistakes.', 'rating', 5, 6),
-  ('Cooperation & relationship with others', 'Works and plays well with others; kind and helpful.', 'rating', 5, 7),
-  ('Attentiveness & self-control', 'Pays attention in class and manages own behaviour.', 'rating', 5, 8),
-  ('Leadership & responsibility', 'Takes on duties, keeps promises, leads by example.', 'rating', 5, 9),
-  ('Participation (sports, clubs, crafts)', 'Takes part in sports, clubs, crafts and school activities.', 'rating', 20, 10);
+-- One block, no helper table: the list is read from JSON in each statement. (A temporary table here made the
+-- Supabase SQL editor offer "enable Row Level Security", which added a statement that failed after the table was gone.)
+do $$
+declare
+  wanted constant jsonb := $json$[
+    {"name": "Attendance", "description": "Days present out of the days attendance was taken that week.", "source": "attendance", "max_points": 15, "position": 1},
+    {"name": "Punctuality", "description": "Days on time out of the days present that week (from \"late\" attendance marks).", "source": "punctuality", "max_points": 10, "position": 2},
+    {"name": "Uniform & appearance", "description": "Uniform checks passed out of the checks done that week.", "source": "uniform", "max_points": 10, "position": 3},
+    {"name": "Conduct", "description": "Starts full each week; discipline records that week take points off by severity.", "source": "conduct", "max_points": 15, "position": 4},
+    {"name": "Politeness & respect", "description": "Greets, listens and speaks respectfully to staff and pupils.", "source": "rating", "max_points": 10, "position": 5},
+    {"name": "Honesty", "description": "Tells the truth and owns up to mistakes.", "source": "rating", "max_points": 5, "position": 6},
+    {"name": "Cooperation & relationship with others", "description": "Works and plays well with others; kind and helpful.", "source": "rating", "max_points": 5, "position": 7},
+    {"name": "Attentiveness & self-control", "description": "Pays attention in class and manages own behaviour.", "source": "rating", "max_points": 5, "position": 8},
+    {"name": "Leadership & responsibility", "description": "Takes on duties, keeps promises, leads by example.", "source": "rating", "max_points": 5, "position": 9},
+    {"name": "Participation (sports, clubs, crafts)", "description": "Takes part in sports, clubs, crafts and school activities.", "source": "rating", "max_points": 20, "position": 10}
+  ]$json$;
+begin
+  update public.welfare_criteria c
+  set max_points = w.max_points,
+      position = w.position,
+      active = true,
+      description = case when c.source = w.source then w.description else c.description end,
+      updated_at = now()
+  from jsonb_to_recordset(wanted) as w(name text, description text, source text, max_points numeric, position int)
+  where c.name = w.name
+    and (c.max_points is distinct from w.max_points or c.position is distinct from w.position or not c.active
+         or (c.source = w.source and c.description is distinct from w.description));
 
-update public.welfare_criteria c
-set max_points = w.max_points,
-    position = w.position,
-    active = true,
-    description = case when c.source = w.source then w.description else c.description end,
-    updated_at = now()
-from _welfare_wanted w
-where c.name = w.name
-  and (c.max_points is distinct from w.max_points or c.position is distinct from w.position or not c.active
-       or (c.source = w.source and c.description is distinct from w.description));
+  insert into public.welfare_criteria (level, name, description, source, max_points, position)
+  select lvl, w.name, w.description, w.source, w.max_points, w.position
+  from unnest(array['creche', 'primary', 'secondary']::public.school_level[]) as lvl
+  cross join jsonb_to_recordset(wanted) as w(name text, description text, source text, max_points numeric, position int)
+  on conflict (level, name) do nothing;
 
-insert into public.welfare_criteria (level, name, description, source, max_points, position)
-select lvl, w.name, w.description, w.source, w.max_points, w.position
-from unnest(array['creche', 'primary', 'secondary']::public.school_level[]) as lvl
-cross join _welfare_wanted w
-on conflict (level, name) do nothing;
-
-update public.welfare_criteria c
-set active = false, updated_at = now()
-where c.active and not exists (select 1 from _welfare_wanted w where w.name = c.name);
-
-drop table if exists pg_temp._welfare_wanted;
+  update public.welfare_criteria c
+  set active = false, updated_at = now()
+  where c.active
+    and not exists (select 1 from jsonb_to_recordset(wanted) as w(name text) where w.name = c.name);
+end;
+$$;

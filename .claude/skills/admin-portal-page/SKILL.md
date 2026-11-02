@@ -28,7 +28,9 @@ description: Use when building or changing a page, form, nav item or server acti
    `Badge` for status. Tables: `gf-table-wrap` + `gf-table`.
 5. Access: hide UI by role, but rely on RLS. New admin-only page → add to `adminOnlyPrefixes` in `src/lib/route-access.ts` and `adminOnly` in nav.
 6. New route segment → add a label to `SEGMENT_LABELS`.
-7. Update the Learn Centre guide for the workflow.
+7. Update the Learn Centre guide for the workflow (`src/app/admin/learn/page.tsx`). Give the guide an `id` from
+   `LEARN` in `src/lib/learn-guides.ts` (add one if new) and pass `learn={LEARN.x}` to the page's `PageHeader`; it
+   shows a "How this works" link to `/admin/learn#<id>`, and the guide is highlighted when opened that way.
 
 ## Rules
 - Never capture a function, a helper declared in the component, or a method like `rows.find` inside an inline

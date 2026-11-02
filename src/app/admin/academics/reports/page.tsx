@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { canManageClassReports, ClassTermPicker, loadReportPicker, reportsBack, reportsUrl } from "./_shared";
+import { LEARN, learnHref } from "@/lib/learn-guides";
 
 const PATH = "/admin/academics/reports";
 
@@ -147,6 +148,7 @@ export default async function AdminReportCardsPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.reportCards}
         eyebrow="Academics"
         title="Report cards"
         description="The termly result sheet for each pupil: every subject with its CA and exam scores, welfare, the final score ((academic average + welfare) ÷ 2) with its grade, positions and comments. Check everything is complete, then publish."
@@ -311,6 +313,10 @@ export default async function AdminReportCardsPage({
                     <Link href="/admin/finance/debtors" className="font-semibold underline">
                       See debtors
                     </Link>
+                    {" · "}
+                    <a href={learnHref(LEARN.feeHold)} className="font-semibold underline">
+                      How this works
+                    </a>
                   </p>
                 ) : null}
                 <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">

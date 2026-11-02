@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LinkTabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/cn";
 import { canManageClassReports, reportsUrl } from "../_shared";
+import { LEARN } from "@/lib/learn-guides";
 
 const PATH = "/admin/academics/reports/certificates";
 
@@ -69,6 +70,7 @@ export default async function CertificatesPage({
     <div className="space-y-6">
       <div className="space-y-6 print:hidden">
         <PageHeader
+          learn={LEARN.certificates}
           back={{ href: reportsUrl("/admin/academics/reports", { class_id: classId, term_id: termId }), label: "Report cards" }}
           eyebrow={`${report.cls.name} · ${[report.year?.name, report.term.name].filter(Boolean).join(" · ")}`}
           title={one ? `Certificates for ${one.first_name} ${one.last_name}` : "Certificates"}

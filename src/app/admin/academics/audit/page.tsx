@@ -8,6 +8,7 @@ import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
+import { LEARN } from "@/lib/learn-guides";
 
 // Every change to results, recorded by the database itself (see docs/migrations/20261023_result_audit.sql).
 // Admins see everything; teachers see the classes and subjects they teach (enforced by RLS).
@@ -133,6 +134,7 @@ export default async function ResultAuditPage({
   return (
     <div className="space-y-6">
       <PageHeader
+        learn={LEARN.corrections}
         eyebrow="Academics"
         title="Results history"
         description={`Every score entered, changed or deleted, every column change, welfare rating, submission, correction request, unlock, publish and unpublish — with who did it and when. The database writes this record itself; nobody can edit or delete it.${

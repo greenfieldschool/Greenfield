@@ -47,6 +47,12 @@ user with `set test.uid` / `set test.role`, then `set role authenticated` to mak
 `String.replace` SQL containing `$$` with a string replacement (use a function), because `$$` means `$`.
 
 ## Pitfalls we hit
+- Don't use temporary tables in a migration. The Supabase SQL editor sees `create temporary table` as a table
+  without RLS and offers "enable Row Level Security"; that appends an `alter table … enable row level security`
+  after the script, which fails once the temp table is dropped ("relation … does not exist") and rolls the whole
+  run back. Put lists in a `do $$ … $$` block and read them with `jsonb_to_recordset(…)` or inline `values`.
+- The editor also warns "destructive operations" for `drop policy/trigger/function if exists` used to replace them.
+  Expected; say so in the migration's header so the school isn't alarmed.
 - Policies on two tables that query each other (A's policy reads B, B's policy reads A) fail every query with
   "infinite recursion detected in policy". Do cross-table checks in a `security definer` helper instead of a
   subquery in the policy. PGlite reproduces it, so test the old policies first.
