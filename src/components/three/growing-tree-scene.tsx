@@ -24,7 +24,9 @@ type Growth = { p: number };
  * "stages": the whole story, flower → falling petals → tree in flower, with the camera pulling back.
  */
 export type SceneVariant = "hero" | "stages";
-export type SceneFrame = { x: number; y: number };
+// yBloom: where the flower sits once it is fully open (on phones the headline has gone by then, so it moves to the
+// middle); the frame eases from y to yBloom as it opens. Leave it out to keep y.
+export type SceneFrame = { x: number; y: number; yBloom?: number };
 
 type Segment = {
   start: THREE.Vector3;
@@ -198,16 +200,20 @@ function Smooth({ progress, growth }: { progress: { current: number }; growth: G
 function CameraRig({ growth, variant, frame }: { growth: Growth; variant: SceneVariant; frame: SceneFrame }) {
   const look = useMemo(() => new THREE.Vector3(), []);
   const lean = useMemo(() => new THREE.Vector2(), []);
+  // Only a mouse moves the camera: on a touch screen the "pointer" is wherever the finger scrolls, which would drag
+  // the flower off centre.
+  const mouse = useMemo(() => typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches, []);
   useFrame(({ camera, pointer, size }) => {
     if (variant === "hero") {
       const t = smooth(BLOOM[0] - 0.04, BLOOM[1], growth.p);
-      // A slow drift towards the mouse (nothing on touch screens, where the pointer stays put).
-      lean.lerp(pointer, 0.04);
+      // A slow drift towards the mouse.
+      if (mouse) lean.lerp(pointer, 0.04);
+      const frameY = THREE.MathUtils.lerp(frame.y, frame.yBloom ?? frame.y, t);
       // Tall, narrow screens (phones) see less from side to side, so the camera stands further back.
       const fit = Math.pow(Math.max(1, 0.9 / (size.width / size.height)), 0.6);
       const z = THREE.MathUtils.lerp(3.5, 2.35, t) * fit;
       camera.position.set(frame.x + lean.x * 0.3, THREE.MathUtils.lerp(-0.25, -0.45, t) + lean.y * 0.12, z);
-      look.set(frame.x, THREE.MathUtils.lerp(-0.95, -0.9, t) + frame.y, 0);
+      look.set(frame.x, THREE.MathUtils.lerp(-0.95, -0.9, t) + frameY, 0);
     } else {
       const c = smooth(CAMERA[0], CAMERA[1], growth.p);
       // The crown is wider than it is tall: on narrow pictures (phone stories) step back so it fits side to side.

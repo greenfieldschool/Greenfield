@@ -17,7 +17,7 @@ often mid-range Android on mobile data, so every animation has to earn its cost 
   | Scene | Where | Phones |
   |---|---|---|
   | `HeroBloom` (`growing-tree-scene` with `variant="hero"`): the first screen is pinned for about two screens while a hibiscus bud opens into full bloom (scene progress 0.06 → 0.31), with pollen (`Sparkles`) and a camera that moves in and follows the mouse; the headline drifts away and a closing line comes in. Reduced motion: not pinned, photo slideshow. `off` tier: pinned, photos | home hero | lite scene; the camera steps back on tall screens and `frame` puts the flower above the text |
-  | `StagesGrowth` (`variant="stages"`): the story carries on from full bloom: petals fall and a sapling rises (creche, 0.32–0.58), it branches (primary, –0.82), the crown fills and flowers (secondary, –1); scroll drives it beside pinned cards | home "three stages" | `StageStories`: full-screen stories with time bars, tap right/left, swipe, hold to pause, auto-advance (6.5 s), only while on screen; one branching level less, fewer larger leaves, 200 grass blades, dpr 1.25 |
+  | `StagesGrowth` (`variant="stages"`): the story carries on from full bloom: petals fall and a sapling rises (creche, 0.32–0.58), it branches (primary, –0.82), the crown fills and flowers (secondary, –1); scroll drives it beside pinned cards | home "three stages" | `StagesScrollPhone`: pinned for about two screens while scroll grows the tree, scene on top, the current stage's card below, bars showing progress (people expect scroll to drive it, as on desktop; tap-through stories were tried and felt broken); one branching level less, fewer larger leaves, 200 grass blades, dpr 1.25 |
   The flower and the tree share one timeline (`BLOOM`, `PETAL_FALL`, `WILT`, `TREE`, `CAMERA` in the scene): keep the
   hero's end and the stages' start on the same number so the story joins up.
   | `PhotoRing`: drag-to-spin drei `<Image>` ring | gallery | lite: 640px photos (1080px on desktop); the photo grid below always shows every photo |
@@ -64,8 +64,8 @@ often mid-range Android on mobile data, so every animation has to earn its cost 
    `<View>` with one shared canvas (see the `pmndrs/react-three-next` starter).
 9. **Scroll stays native on touch.** Link scenes to scroll with framer `useScroll` writing to a ref. On computers
    with a mouse or trackpad the public site uses Lenis (`SmoothScroll` in `(site)/layout.tsx`), which still moves the
-   real scroll position, so sticky and `useScroll` keep working. Phones never get smooth-scroll; the hero is the only
-   pinned scroll section on phones (stages are tap/swipe stories instead).
+   real scroll position, so sticky and `useScroll` keep working. Phones never get smooth-scroll. On phones the hero and the
+   stages are pinned scroll sections, nothing else.
 
 ## The motion kit (use these, don't hand-roll)
 All in `src/components/motion/`. Every piece stays still for reduced motion.
@@ -190,6 +190,10 @@ Pitfalls:
 - With `hoverOnlyWhenSupported` on, a caption written `opacity-0 group-hover:opacity-100` disappears on phones for
   good. Use `can-hover:` for the hidden state.
 - To draw fewer instances without rebuilding the mesh, set `instancedMesh.count`.
+- On touch screens R3F's `pointer` is wherever the finger is while scrolling, so pointer parallax drags the subject
+  off centre: only follow the pointer when `(pointer: fine)` (see `CameraRig`).
+- Phone hero: the bud sits above the headline, then `frame.yBloom` brings the open flower to the middle once the text
+  has faded.
 - Pinned 3D scenes on tall phone screens: work out the camera distance from the canvas aspect (`size` in
   `useFrame`), or the crown/flower is cut off at the sides.
 - Parts of a scene that can't change yet (the tree before the sapling appears) should skip their per-frame work once

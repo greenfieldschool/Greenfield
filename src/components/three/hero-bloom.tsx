@@ -52,7 +52,8 @@ export function HeroBloom({ photos, children, closing }: { photos: Photo[]; chil
   const cueOpacity = useTransform(scrollYProgress, [0, 0.08], [1, 0]);
 
   const scene = tier === "lite" || tier === "full";
-  const frame: SceneFrame = wide ? { x: -0.55, y: 0 } : { x: 0, y: -0.95 };
+  // Phones: the bud sits above the headline, then the open flower moves to the middle once the text has gone.
+  const frame: SceneFrame = wide ? { x: -0.55, y: 0 } : { x: 0, y: -0.95, yBloom: -0.15 };
 
   return (
     <section
