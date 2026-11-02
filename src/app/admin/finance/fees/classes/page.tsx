@@ -10,6 +10,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { FormSection, Field } from "@/components/ui/form-section";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LEARN } from "@/lib/learn-guides";
 
 type ClassRow = {
   id: string;
@@ -64,6 +65,7 @@ export default async function AdminFeeClassesPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.feeSetup}
         back={{ href: "/admin/finance/fees", label: "Back to fee setup" }}
         eyebrow="Finance"
         title="Classes"

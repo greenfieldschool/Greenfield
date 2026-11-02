@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { ApplicationStatusBadge, formatDateTime, humanize } from "./_ui";
+import { LEARN } from "@/lib/learn-guides";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -53,7 +54,8 @@ export default async function AdminApplicationsPage({
   if (!supabase) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="Admissions" title="Applications" />
+        <PageHeader
+          learn={LEARN.admissions} eyebrow="Admissions" title="Applications" />
         <Alert tone="warning" title="Supabase is not configured.">
           Applications can&apos;t be loaded until the database connection is set up.
         </Alert>
@@ -93,6 +95,7 @@ export default async function AdminApplicationsPage({
 
   const header = (
     <PageHeader
+      learn={LEARN.admissions}
       eyebrow="Admissions"
       title="Applications"
       description={

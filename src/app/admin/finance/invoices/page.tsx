@@ -6,6 +6,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FinanceStatusBadge, fmtDate, fmtMoney } from "../_components/finance-ui";
+import { LEARN } from "@/lib/learn-guides";
 
 type InvoiceBalanceRow = {
   invoice_id: string;
@@ -41,6 +42,7 @@ export default async function AdminFinanceInvoicesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        learn={LEARN.invoices}
         back={{ href: "/admin/finance", label: "Back to finance" }}
         eyebrow="Finance"
         title="Invoices"

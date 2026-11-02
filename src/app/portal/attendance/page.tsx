@@ -6,6 +6,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { PillLinks, PortalPageHeader, statusBadge, PortalNotice, portalMessages } from "../_components/portal-ui";
+import { HELP } from "@/lib/portal-help";
 
 function formatDay(date: string) {
   const d = new Date(`${date}T00:00:00Z`);
@@ -133,7 +134,8 @@ export default async function PortalAttendancePage({
 
   return (
     <div className="space-y-6">
-      <PortalPageHeader title="Attendance" description="The most recent school days recorded by class teachers." />
+      <PortalPageHeader
+        help={HELP.attendance} title="Attendance" description="The most recent school days recorded by class teachers." />
 
       {role === "parent" && parentStudents.length > 1 ? (
         <PillLinks

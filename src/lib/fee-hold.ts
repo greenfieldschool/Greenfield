@@ -2,8 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Report cards (and certificates) in the portal are held back until the pupil's fees are paid.
 //
-// What counts: the pupil's issued invoices (not draft or void) that still have a balance and belong to the report's
-// term or an earlier one. An invoice with no term counts when it was issued before the term ended. Invoices for a
+// What counts: the pupil's invoices that still have a balance and belong to the report's term or an earlier one.
+// Every status counts except void: the app saves new invoices as "draft" and never changes that, and parents
+// already see drafts as bills. An invoice with no term counts when it was issued before the term ended. Invoices for a
 // later term (e.g. next term's fees sent out early) never hold back this term's report card.
 // Staff are not affected: the school can still print report cards from the dashboard.
 
@@ -40,7 +41,7 @@ export async function feeHolds(
     .limit(1000);
   if (error) return null;
 
-  const open = ((data ?? []) as BalanceRow[]).filter((r) => r.status !== "draft" && r.status !== "void" && Number(r.balance) > 0);
+  const open = ((data ?? []) as BalanceRow[]).filter((r) => r.status !== "void" && Number(r.balance) > 0);
   if (!open.length) return out;
 
   const termIds = Array.from(new Set(open.map((r) => r.academic_term_id).filter((v): v is string => Boolean(v) && v !== term.id)));

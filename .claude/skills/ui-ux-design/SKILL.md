@@ -37,7 +37,9 @@ skill says where the code goes; this one says how the screen should work for the
 9. **Accessible?** Every input has a label or `aria-label` naming the pupil and the field; visible focus ring;
    status text, not just colour; `aria-current` on the selected tab/chip; contrast at least slate-500 on white.
 10. **Help where the work is.** Every admin workflow page links to its Learn Centre guide ("How this works",
-    `PageHeader learn={LEARN.x}`). When the workflow changes, change the guide in the same commit.
+    `PageHeader learn={LEARN.x}`); every portal page links to its answer on `/portal/help` (`help={HELP.x}`). When
+    the workflow changes, change the guide or answer in the same commit. Write help as the person would ask it
+    ("I have paid, but it still shows that I owe"), answer in two or three sentences, end with the one action.
 11. **Same words, same parts.** Use the design system (`PageHeader`, `Card`, `StatCard`, `LinkTabs`, `Badge`,
     `Alert`, `EmptyState`, `SubmitButton`, `gf-*` classes) and the glossary below.
 
@@ -55,6 +57,10 @@ skill says where the code goes; this one says how the screen should work for the
   scored yet"), never a bare dash.
 - **Held, not hidden** (portal fee hold): when something exists but is withheld, say it is ready, why it's held, the
   exact amount, the one action that releases it ("Pay fees"), and what to do if they already paid.
+- **Help pages**: staff Learn Centre (search box, category cards, each guide with an "Admins" tag when needed and
+  an "Open <page>" link back) and the portal help page (questions as `<details>`, filtered by parent/pupil, real data
+  where it helps: the school's payment IDs and each child's transfer text; "Still need help?" with call, WhatsApp and
+  email). Help links are plain `<a>` so `#id` opens and highlights the answer.
 - **Printable documents** (certificates): size everything in `cqw` inside a `container-type: inline-size` wrapper so
   one design works on a phone and on paper; give each its own `@page` size.
 

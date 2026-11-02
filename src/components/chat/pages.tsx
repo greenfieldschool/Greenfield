@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
+  CircleHelp,
   ArrowLeft,
   BellRing,
   Clock,
@@ -37,9 +38,13 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { LEARN, learnHref } from "@/lib/learn-guides";
 import { Composer, LiveRefresh, MessageMenu, MessageScroller } from "./client";
 
 export type ChatBase = "/portal/messages" | "/admin/messages";
+
+/** Staff get the Learn Centre guide; parents get the portal help page. */
+const helpHref = (base: ChatBase) => (base === "/admin/messages" ? learnHref(LEARN.messages) : "/portal/help#messages");
 
 // --- Layout ------------------------------------------------------------------------------------------------
 
@@ -69,6 +74,10 @@ function ListHeader({ base, role }: { base: ChatBase; role: ChatRole }) {
           <Settings className="h-4 w-4" aria-hidden="true" />
           <span className="sr-only">Message settings</span>
         </Link>
+        <a href={helpHref(base)} className={buttonClasses({ variant: "ghost", size: "sm" })} title="How messages work">
+          <CircleHelp className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">How messages work</span>
+        </a>
         <Link href={`${base}/new`} className={buttonClasses({ variant: "primary", size: "sm" })}>
           <MessageCirclePlus className="h-4 w-4" aria-hidden="true" />
           New
@@ -638,6 +647,10 @@ export async function ChatSettings({ base }: { base: ChatBase }) {
           Messages
         </Link>
         <h1 className="mt-2 text-2xl font-bold text-slate-900">Message settings</h1>
+        <a href={helpHref(base)} className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-green-700 hover:underline">
+          <CircleHelp className="h-4 w-4" aria-hidden="true" />
+          How messages work
+        </a>
       </div>
 
       <form action={saveChatSettings} className="space-y-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card sm:p-6">

@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatLagosDate } from "@/lib/lagos-dates";
 import { firstOrNull } from "@/lib/relations";
 import { failWithToast, NO_DB_MESSAGE } from "../../../../_components/feedback";
+import { LEARN } from "@/lib/learn-guides";
 
 type AttemptRow = {
   id: string;
@@ -135,6 +136,7 @@ export default async function AdminExamAttemptMarkingPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.marking}
         back={{ href: `/admin/exams/sessions/${sessionId}/attempts`, label: "Back to attempts" }}
         eyebrow="Exams"
         title="Manual marking"

@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
+import { LEARN } from "@/lib/learn-guides";
 
 type YearRow = { id: string; name: string };
 type TermRow = { id: string; name: string };
@@ -133,6 +134,7 @@ export default async function AdminAssessmentsPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.assessments}
         eyebrow="Academics"
         title="Assessments"
         description="Create assessments and enter scores."

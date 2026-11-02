@@ -16,6 +16,7 @@ import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
+import { LEARN } from "@/lib/learn-guides";
 
 type GuardianRow = {
   id: string;
@@ -65,7 +66,8 @@ export default async function AdminGuardianDetailPage({
   if (!guardian) {
     return (
       <div className="space-y-6">
-        <PageHeader back={{ href: "/admin/guardians", label: "Back to guardians" }} title="Guardian not found" />
+        <PageHeader
+          learn={LEARN.guardians} back={{ href: "/admin/guardians", label: "Back to guardians" }} title="Guardian not found" />
         <Card>
           <EmptyState
             icon={UserX}
@@ -371,6 +373,7 @@ export default async function AdminGuardianDetailPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.guardians}
         back={{ href: "/admin/guardians", label: "Back to guardians" }}
         eyebrow="Guardian"
         title={guardianFullName}

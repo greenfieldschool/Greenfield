@@ -22,6 +22,7 @@ import {
   parseDescriptionAndTargets,
   targetProgress
 } from "@/lib/exam-targets";
+import { LEARN } from "@/lib/learn-guides";
 
 type SessionRow = {
   id: string;
@@ -109,7 +110,8 @@ export default async function AdminExamSessionEditPage({
   if (loadErrorMsg) {
     return (
       <div className="space-y-6">
-        <PageHeader back={{ href: "/admin/exams/sessions", label: "Back to sessions" }} eyebrow="Exams" title="Edit session" />
+        <PageHeader
+          learn={LEARN.sessions} back={{ href: "/admin/exams/sessions", label: "Back to sessions" }} eyebrow="Exams" title="Edit session" />
         <Alert tone="warning" title="Session editor temporarily unavailable">
           {loadErrorMsg}
         </Alert>
@@ -121,7 +123,8 @@ export default async function AdminExamSessionEditPage({
   if (!session) {
     return (
       <div className="space-y-6">
-        <PageHeader back={{ href: "/admin/exams/sessions", label: "Back to sessions" }} eyebrow="Exams" title="Session not found" />
+        <PageHeader
+          learn={LEARN.sessions} back={{ href: "/admin/exams/sessions", label: "Back to sessions" }} eyebrow="Exams" title="Session not found" />
         <Card>
           <EmptyState
             icon={CalendarX}
@@ -261,6 +264,7 @@ export default async function AdminExamSessionEditPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.sessions}
         back={{ href: "/admin/exams/sessions", label: "Back to sessions" }}
         eyebrow="Exams"
         title="Edit session"

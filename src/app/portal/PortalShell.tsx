@@ -20,7 +20,8 @@ import {
   Users,
   MessagesSquare,
   X,
-  type LucideIcon
+  type LucideIcon,
+  CircleHelp
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { WHATSAPP_URL, WhatsAppIcon } from "@/components/whatsapp-button";
@@ -36,7 +37,8 @@ const studentNav: NavItem[] = [
   { href: "/portal/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/portal/activities", label: "Activities", icon: Smile },
   { href: "/portal/incidents", label: "Health", icon: HeartPulse },
-  { href: "/portal/students", label: "My profile", icon: User }
+  { href: "/portal/students", label: "My profile", icon: User },
+  { href: "/portal/help", label: "Help", icon: CircleHelp }
 ];
 
 const parentNav: NavItem[] = [
@@ -49,7 +51,8 @@ const parentNav: NavItem[] = [
   { href: "/portal/discipline", label: "Discipline", icon: ShieldCheck },
   { href: "/portal/activities", label: "Activities", icon: Smile },
   { href: "/portal/incidents", label: "Health", icon: HeartPulse },
-  { href: "/portal/profile", label: "My profile", icon: User }
+  { href: "/portal/profile", label: "My profile", icon: User },
+  { href: "/portal/help", label: "Help", icon: CircleHelp }
 ];
 
 function isActive(pathname: string, item: NavItem) {

@@ -24,6 +24,7 @@ import {
 } from "@/lib/exam-targets";
 import UrlToast from "@/components/url-toast";
 import QuestionImageField from "../../_components/QuestionImageField";
+import { LEARN } from "@/lib/learn-guides";
 
 type TestRow = {
   id: string;
@@ -561,6 +562,8 @@ export default async function AdminExamTestDetailPage({
       <UrlToast />
 
       <PageHeader
+
+        learn={LEARN.tests}
         back={{ href: "/admin/exams/tests", label: "Back to tests" }}
         eyebrow="Exams"
         title={test.name}

@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { LEARN } from "@/lib/learn-guides";
 
 const smallInputClass =
   "h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-brand-green-500 focus:ring-4 focus:ring-brand-green-500/15";
@@ -222,6 +223,7 @@ export default async function AdminSubjectsPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.subjects}
         eyebrow="Academics"
         title="Subjects"
         description={

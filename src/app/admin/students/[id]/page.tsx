@@ -20,6 +20,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { DetailList } from "../../applications/_ui";
+import { LEARN } from "@/lib/learn-guides";
 
 function studentStatusTone(status: string): BadgeTone {
   switch (status) {
@@ -488,7 +489,8 @@ export default async function AdminStudentDetailPage({
   if (!student) {
     return (
       <div className="space-y-6">
-        <PageHeader back={BACK} eyebrow="Student" title="Student not found" />
+        <PageHeader
+          learn={LEARN.studentAccounts} back={BACK} eyebrow="Student" title="Student not found" />
         <Alert tone="warning" title="We couldn't find this student.">
           They may have been removed, or the link is incorrect.
         </Alert>
@@ -864,7 +866,8 @@ export default async function AdminStudentDetailPage({
   return (
     <div className="space-y-6">
       <UrlToast key={toastKey} />
-      <PageHeader back={BACK} eyebrow="Student" title={fullName} />
+      <PageHeader
+        learn={LEARN.studentAccounts} back={BACK} eyebrow="Student" title={fullName} />
 
       <Card>
         <CardBody className="flex flex-col gap-5 sm:flex-row sm:items-center">

@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { classNameKey } from "@/lib/class-names";
 import { deleteClassAction, mergeClassAction } from "../actions";
+import { LEARN } from "@/lib/learn-guides";
 
 type ClassRow = { id: string; level: string; name: string; active: boolean };
 
@@ -185,6 +186,7 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.classes}
         back={{ href: "/admin/classes", label: "All classes" }}
         eyebrow="Classes"
         title={<span className="capitalize">{title}</span>}

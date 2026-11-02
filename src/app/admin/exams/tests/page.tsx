@@ -30,6 +30,7 @@ import {
 } from "@/lib/exam-targets";
 import { fetchAllRows } from "@/lib/fetch-all";
 import { failWithToast, NO_DB_MESSAGE } from "../_components/feedback";
+import { LEARN } from "@/lib/learn-guides";
 
 type SubjectRow = { id: string; name: string };
 
@@ -358,6 +359,8 @@ export default async function AdminExamTestsPage({
       <UrlToast />
 
       <PageHeader
+
+        learn={LEARN.tests}
         back={{ href: "/admin/exams", label: "Back to exams" }}
         eyebrow="Exams"
         title="Tests"

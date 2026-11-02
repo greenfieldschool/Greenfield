@@ -12,6 +12,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LinkTabs } from "@/components/ui/tabs";
+import { LEARN } from "@/lib/learn-guides";
 
 const PATH = "/admin/messages/moderation";
 
@@ -304,6 +305,7 @@ export default async function MessageModerationPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.moderation}
         eyebrow="Messages"
         title="Moderation"
         description="Keep class chats safe and on-topic. Removing a message hides it from the chat but keeps the original in the school record."

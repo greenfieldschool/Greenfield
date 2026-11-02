@@ -10,6 +10,7 @@ import { FormSection, Field } from "@/components/ui/form-section";
 import { ButtonLink } from "@/components/ui/button";
 import { currencyPrefix } from "../../_components/finance-ui";
 import { lagosLocalToDate } from "../../_components/finance-server";
+import { LEARN } from "@/lib/learn-guides";
 
 type GuardianRow = { id: string; full_name: string };
 
@@ -149,6 +150,7 @@ export default async function AdminNewPaymentPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.recordingPayments}
         back={{ href: "/admin/finance/payments", label: "Back to payments" }}
         eyebrow="Finance"
         title="Record payment"

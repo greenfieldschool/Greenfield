@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ChevronLeft, UserX, type LucideIcon } from "lucide-react";
+import { ChevronLeft, CircleHelp, UserX, type LucideIcon } from "lucide-react";
+import { helpHref, type PortalHelp } from "@/lib/portal-help";
 import { Logo } from "@/components/ui/logo";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -16,6 +17,7 @@ export function PortalPageHeader({
   description,
   actions,
   back,
+  help,
   className
 }: {
   eyebrow?: ReactNode;
@@ -23,6 +25,8 @@ export function PortalPageHeader({
   description?: ReactNode;
   actions?: ReactNode;
   back?: { href: string; label: string };
+  /** Adds a "Help" link to that answer on /portal/help. */
+  help?: PortalHelp;
   className?: string;
 }) {
   return (
@@ -40,6 +44,16 @@ export function PortalPageHeader({
         {eyebrow ? <div className="text-sm font-medium text-brand-green-600">{eyebrow}</div> : null}
         <h1 className="mt-1 font-display text-3xl font-semibold text-slate-900">{title}</h1>
         {description ? <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">{description}</p> : null}
+        {help ? (
+          // A plain link (full page load) so the help page opens the matching answer.
+          <a
+            href={helpHref(help)}
+            className="-ml-1 mt-1 inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-1 text-sm font-semibold text-brand-green-700 hover:underline print:hidden"
+          >
+            <CircleHelp className="h-4 w-4" aria-hidden="true" />
+            Help
+          </a>
+        ) : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>

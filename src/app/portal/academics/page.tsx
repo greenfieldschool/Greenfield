@@ -9,11 +9,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PortalPageHeader, PortalNotice } from "../_components/portal-ui";
 import { loadPortalReport } from "./_load";
 import { FeeHoldNotice, ReportPickers, termLabel } from "./_parts";
+import { HELP } from "@/lib/portal-help";
 
 function EmptyAcademics({ message }: { message: string }) {
   return (
     <div className="space-y-6">
-      <PortalPageHeader title="Report card" description="Term results published by the school." />
+      <PortalPageHeader
+        help={HELP.reportCards} title="Report card" description="Term results published by the school." />
       <Card>
         <EmptyState icon={BookOpen} title="Nothing to show yet" description={message} />
       </Card>
@@ -44,6 +46,7 @@ export default async function PortalAcademicsPage({
     <div className="space-y-6">
       <div className="print:hidden">
         <PortalPageHeader
+          help={HELP.reportCards}
           eyebrow={termLabel(latest) || undefined}
           title="Report card"
           description={role === "parent" ? `${student.first_name} ${student.last_name} · ${report.cls.name}` : report.cls.name}

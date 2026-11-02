@@ -13,6 +13,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Field } from "@/components/ui/form-section";
 import { formatLagosDate } from "@/lib/lagos-dates";
 import { safeFilterTerm } from "@/lib/postgrest";
+import { LEARN } from "@/lib/learn-guides";
 
 type StudentRow = {
   id: string;
@@ -162,6 +163,7 @@ export default async function AdminStudentsPage({
   return (
     <div className="space-y-6">
       <PageHeader
+        learn={LEARN.studentAccounts}
         eyebrow="Admin"
         title="Students"
         description={`${totalStudents} student${totalStudents !== 1 ? "s" : ""} total · ${activeCount + enrolledCount} active/enrolled`}

@@ -24,6 +24,7 @@ import {
   fmtMoney,
   statusLabel
 } from "../../_components/finance-ui";
+import { LEARN } from "@/lib/learn-guides";
 
 type InvoiceBalanceRow = {
   invoice_id: string;
@@ -348,6 +349,7 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.invoices}
         back={{ href: "/admin/finance/invoices", label: "Back to invoices" }}
         eyebrow="Finance"
         title={`Invoice ${invoice.invoice_no ?? "—"}`}

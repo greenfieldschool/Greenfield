@@ -7,6 +7,7 @@ import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InfoItem, PortalPageHeader, portalMessages, statusBadge } from "../_components/portal-ui";
+import { HELP } from "@/lib/portal-help";
 
 function cap(v: string | null | undefined) {
   if (!v) return "—";
@@ -199,6 +200,7 @@ export default async function PortalStudentsPage() {
   return (
     <div className="space-y-6">
       <PortalPageHeader
+        help={HELP.account}
         title={role === "student" ? "My profile" : "My children"}
         description={
           role === "student"

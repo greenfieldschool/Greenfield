@@ -1,5 +1,6 @@
 import { CircleAlert, Lock } from "lucide-react";
 import { school } from "@/lib/school";
+import { HELP, helpHref } from "@/lib/portal-help";
 import type { FeeHold } from "@/lib/fee-hold";
 import { Card } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
@@ -91,7 +92,12 @@ export function FeeHoldNotice({ data, what }: { data: Ok; what: "report card" | 
             ? `It will open here as soon as the school fees are paid. Outstanding: ${money(hold.currency, hold.outstanding)} on ${hold.invoices} invoice${hold.invoices === 1 ? "" : "s"}.`
             : "It will open here once your school fees are settled. Please speak to your parent or guardian."}
         </p>
-        {isParent ? <ButtonLink href="/portal/billing">Pay fees</ButtonLink> : null}
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+          {isParent ? <ButtonLink href="/portal/billing">Pay fees</ButtonLink> : null}
+          <a href={helpHref(HELP.reportHeld)} className="text-sm font-semibold text-brand-green-700 hover:underline">
+            Why is it locked?
+          </a>
+        </div>
       </div>
       {isParent ? (
         <p className="border-t border-brand-gold-100 px-6 py-3 text-center text-xs text-slate-600">

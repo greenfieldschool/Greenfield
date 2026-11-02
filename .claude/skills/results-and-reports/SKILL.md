@@ -43,8 +43,14 @@ description: Use for anything about academic results, result sheet columns, welf
   say "joint". Admin page `/admin/academics/reports/certificates` (tabs by kind, who-gets-what list, print); portal
   `/portal/academics/certificates`. A4 landscape via `@page certificate` + `.gf-certificate` in `globals.css`; sizes
   are `cqw` so the design scales from phone to paper.
+- **Signatures** (20261103, `src/lib/signatures.ts`): `staff_signatures` (one PNG data URL + printed name per staff
+  member; RLS: staff read, only the owner writes) drawn on `/admin/profile#signature` with
+  `src/components/signature-pad.tsx` (draw or upload; paper made transparent; cropped to the ink). `school_settings`
+  (single row) holds `head_teacher_id` + `head_teacher_title`, set by admins on `/admin/settings`.
+  `loadSignatureStatus(client, classId)`: first class teacher (`teacher_class_assignments`) with a signature + the
+  head teacher. Portal reads it with the service key. No signature = blank line to sign by hand.
 - **Fee hold** (`src/lib/fee-hold.ts`): the portal report card and certificates stay hidden while the pupil has
-  unpaid issued invoices for that term or earlier (read from `finance_invoice_balances` with the service key, so the
+  unpaid invoices (any status but void; app invoices stay `draft`) for that term or earlier (read from `finance_invoice_balances` with the service key, so the
   other parent's invoices count). Parents get the amount and "Pay fees"; pupils are told to ask a parent. If fees
   can't be read, the report stays hidden ("unknown"). Admins see "Held from parents: fees owed" on Report cards.
   Staff printing is not held. Portal loading is shared in `src/app/portal/academics/_load.ts`.

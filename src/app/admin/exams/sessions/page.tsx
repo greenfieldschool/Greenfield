@@ -34,6 +34,7 @@ import UrlToast from "@/components/url-toast";
 import { safeFilterTerm } from "@/lib/postgrest";
 import { formatLagosDate, lagosEndOfDayIso, lagosStartOfDayIso, sessionVisibility } from "@/lib/lagos-dates";
 import { failWithToast, NO_DB_MESSAGE } from "../_components/feedback";
+import { LEARN } from "@/lib/learn-guides";
 
 type TestRow = { id: string; name: string };
 type ClassRow = { id: string; level: string; name: string };
@@ -289,6 +290,8 @@ export default async function AdminExamSessionsPage({
       <UrlToast />
 
       <PageHeader
+
+        learn={LEARN.sessions}
         back={{ href: "/admin/exams", label: "Back to exams" }}
         eyebrow="Exams"
         title="Sessions"

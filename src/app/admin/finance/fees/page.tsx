@@ -12,6 +12,7 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { toneStyles, type Tone } from "@/components/ui/stat-card";
 import { cn } from "@/lib/cn";
+import { LEARN } from "@/lib/learn-guides";
 
 const items: Array<{ href: string; label: string; description: string; icon: LucideIcon; tone: Tone }> = [
   { href: "/admin/finance/fees/classes", label: "Classes", description: "Manage Year/JSS/SS class names.", icon: School, tone: "blue" },
@@ -56,6 +57,7 @@ export default function AdminFinanceFeesHomePage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        learn={LEARN.feeSetup}
         back={{ href: "/admin/finance", label: "Back to finance" }}
         eyebrow="Finance"
         title="Fee setup"

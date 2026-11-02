@@ -6,6 +6,7 @@ import UrlToast from "@/components/url-toast";
 import { lagosLocalToDate, toastUrl } from "../../_components/finance-server";
 import { PageHeader } from "@/components/ui/page-header";
 import { FormSection, Field } from "@/components/ui/form-section";
+import { LEARN } from "@/lib/learn-guides";
 
 type CategoryRow = { id: string; name: string };
 
@@ -71,6 +72,7 @@ export default async function AdminNewExpensePage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.expenses}
         back={{ href: "/admin/finance/expenses", label: "Back to expenses" }}
         eyebrow="Finance"
         title="New expense"

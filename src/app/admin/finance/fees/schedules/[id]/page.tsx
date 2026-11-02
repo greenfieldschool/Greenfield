@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink } from "@/components/ui/button";
 import { fmtMoney } from "../../../_components/finance-ui";
 import { toastUrl } from "../../../_components/finance-server";
+import { LEARN } from "@/lib/learn-guides";
 
 type ScheduleRow = {
   id: string;
@@ -51,7 +52,8 @@ export default async function AdminFeeScheduleDetailPage({ params }: { params: P
   if (!scheduleRow) {
     return (
       <div className="space-y-6">
-        <PageHeader back={{ href: "/admin/finance/fees/schedules", label: "Back" }} eyebrow="Fee schedule" title="Schedule not found" />
+        <PageHeader
+          learn={LEARN.feeSetup} back={{ href: "/admin/finance/fees/schedules", label: "Back" }} eyebrow="Fee schedule" title="Schedule not found" />
         <Card>
           <EmptyState
             icon={SearchX}
@@ -123,6 +125,7 @@ export default async function AdminFeeScheduleDetailPage({ params }: { params: P
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.feeSetup}
         back={{ href: "/admin/finance/fees/schedules", label: "Back to schedules" }}
         eyebrow="Fee schedule"
         title={scheduleRow.name}

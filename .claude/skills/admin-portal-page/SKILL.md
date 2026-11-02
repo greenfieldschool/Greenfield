@@ -31,6 +31,9 @@ description: Use when building or changing a page, form, nav item or server acti
 7. Update the Learn Centre guide for the workflow (`src/app/admin/learn/page.tsx`). Give the guide an `id` from
    `LEARN` in `src/lib/learn-guides.ts` (add one if new) and pass `learn={LEARN.x}` to the page's `PageHeader`; it
    shows a "How this works" link to `/admin/learn#<id>`, and the guide is highlighted when opened that way.
+   Every guide has `page` (the page it's about, linked from the card) and `adminOnly` when teachers can't open it.
+   Portal pages: add the answer to `src/app/portal/help/page.tsx` (id from `HELP` in `src/lib/portal-help.ts`, shown
+   only to its audience) and pass `help={HELP.x}` to `PortalPageHeader`. Shared chat screens link both ways.
 
 ## Rules
 - Never capture a function, a helper declared in the component, or a method like `rows.find` inside an inline

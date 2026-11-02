@@ -8,6 +8,7 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { buttonClasses } from "@/components/ui/button";
 import { LoginFrame } from "../../_components/portal-ui";
+import { school } from "@/lib/school";
 
 type FormState =
   | { status: "idle" }
@@ -56,7 +57,17 @@ export function GuardianLoginForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <LoginFrame footer="Forgot your password? Contact the school office.">
+    <LoginFrame
+      footer={
+        <>
+          Forgot your password? Call the school office on{" "}
+          <a href={`tel:${school.phone}`} className="font-semibold underline">
+            {school.phone}
+          </a>
+          ; they will set a new one for you.
+        </>
+      }
+    >
       <Link
         href="/portal/login"
         className="-ml-1 mb-4 inline-flex min-h-[40px] items-center gap-1 rounded-lg px-1 text-sm font-medium text-slate-500 hover:text-brand-green"

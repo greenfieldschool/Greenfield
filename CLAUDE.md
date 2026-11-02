@@ -54,7 +54,8 @@ assume you can click through the real app; see the preview techniques in the ski
   `gf-label`, `gf-hint`, `gf-link`, `gf-table`, `gf-table-wrap`.
 - `docs/migrations/*.sql` every database change, run by hand in the Supabase SQL editor. `docs/schema.sql` is the
   full schema; append each new migration to it.
-- `src/app/admin/learn/page.tsx` the in-app Learn Centre. Update it when a workflow changes.
+- `src/app/admin/learn/page.tsx` the in-app Learn Centre for staff; `src/app/portal/help/page.tsx` help for parents and
+  pupils. Update them when a workflow changes, and link pages to them (`learn=` / `help=`, see the ui-ux-design skill).
 - `issues/` documents from the school describing problems. Don't commit them.
 
 ## Roles and access

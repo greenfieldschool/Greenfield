@@ -118,7 +118,7 @@ async function resolveTarget(
     .select("invoice_id")
     .eq("student_id", hit.id)
     .gt("balance", 0)
-    .in("status", ["issued", "partially_paid"])
+    .neq("status", "void")
     .order("issue_date", { ascending: true })
     .limit(1);
   return { invoiceId: ((open ?? [])[0] as { invoice_id: string } | undefined)?.invoice_id ?? null, studentId: hit.id };

@@ -6,6 +6,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { fmtDateTime, fmtMoney } from "../_components/finance-ui";
+import { LEARN } from "@/lib/learn-guides";
 
 type ExpenseRow = {
   id: string;
@@ -38,6 +39,7 @@ export default async function AdminFinanceExpensesPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.expenses}
         back={{ href: "/admin/finance", label: "Back to finance" }}
         eyebrow="Finance"
         title="Expenses"

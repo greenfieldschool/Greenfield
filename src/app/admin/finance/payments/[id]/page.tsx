@@ -13,6 +13,7 @@ import { Alert } from "@/components/ui/alert";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { FinanceStatusBadge, currencyPrefix } from "../../_components/finance-ui";
 import { lagosLocalToDate, toLagosDateTimeInput } from "../../_components/finance-server";
+import { LEARN } from "@/lib/learn-guides";
 
 type PaymentRow = {
   id: string;
@@ -190,6 +191,7 @@ export default async function AdminEditPaymentPage({ params }: { params: Promise
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.editPayment}
         back={{ href: "/admin/finance/payments", label: "Back to payments" }}
         eyebrow="Finance"
         title={

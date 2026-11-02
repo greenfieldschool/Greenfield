@@ -12,6 +12,7 @@ import { FormSection, Field } from "@/components/ui/form-section";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { fmtDate } from "../../_components/finance-ui";
+import { LEARN } from "@/lib/learn-guides";
 
 type AcademicYearRow = {
   id: string;
@@ -191,6 +192,7 @@ export default async function AdminAcademicYearsPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.calendar}
         back={{ href: "/admin/finance/fees", label: "Back to fee setup" }}
         eyebrow="Finance"
         title="Academic years & terms"

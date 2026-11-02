@@ -5,6 +5,7 @@ import { getTeacherAccess } from "@/lib/teacher-access";
 import { buildClassReport } from "@/lib/term-report";
 import { AWARD_KINDS, awardsFor, type AwardKind, type AwardTier } from "@/lib/certificates";
 import { toLagosDateInput } from "@/lib/lagos-dates";
+import { loadSignatureStatus } from "@/lib/signatures";
 import Certificate from "@/components/certificate";
 import PrintButton from "@/components/print-button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -54,6 +55,7 @@ export default async function CertificatesPage({
   const report = await buildClassReport(supabase, classId, termId);
   if (!report) return <Alert tone="danger">That class or term could not be found.</Alert>;
 
+  const sigs = await loadSignatureStatus(supabase, classId);
   const all = report.students.map((r) => ({ r, awards: awardsFor(report, r) }));
   const pupils = studentId ? all.filter((x) => x.r.student.id === studentId) : all;
   const count = (k: AwardKind | null) => pupils.reduce((n, x) => n + x.awards.filter((a) => !k || a.kind === k).length, 0);
@@ -84,6 +86,49 @@ export default async function CertificatesPage({
               ? "Everything is in, but scores can still change until the report cards are published. Print after publishing to be safe."
               : "Some scores, welfare ratings or comments are still missing, so positions and awards may change. Print after the report cards are published."}
           </Alert>
+        ) : null}
+
+        {sigs.ready ? (
+          <Card>
+            <CardHeader
+              title="Signatures"
+              description="Saved signatures are printed on the lines. A line without one is left blank to sign by hand."
+            />
+            <ul className="grid gap-2 px-5 py-4 sm:grid-cols-2">
+              <li className="flex items-start gap-2 text-sm">
+                <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", sigs.classTeacher ? "bg-brand-green-500" : "bg-brand-gold-500")} aria-hidden="true" />
+                <span>
+                  <span className="font-semibold text-slate-900">Class teacher: </span>
+                  {sigs.classTeacher
+                    ? `${sigs.classTeacher.name}, signature saved`
+                    : sigs.classTeachers.length
+                      ? `${sigs.classTeachers.map((t) => t.name).join(", ")} ${sigs.classTeachers.length === 1 ? "hasn't" : "haven't"} saved a signature yet. `
+                      : "No class teacher assigned. "}
+                  {!sigs.classTeacher ? (
+                    <a href="/admin/profile#signature" className="font-semibold text-brand-green-700 hover:underline">
+                      Add yours on My profile
+                    </a>
+                  ) : null}
+                </span>
+              </li>
+              <li className="flex items-start gap-2 text-sm">
+                <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", sigs.head ? "bg-brand-green-500" : "bg-brand-gold-500")} aria-hidden="true" />
+                <span>
+                  <span className="font-semibold text-slate-900">{sigs.headTitle}: </span>
+                  {sigs.head
+                    ? `${sigs.head.name}, signature saved`
+                    : sigs.headTeacher
+                      ? `${sigs.headTeacher.name} hasn't saved a signature yet.`
+                      : "Not chosen yet. "}
+                  {!sigs.headTeacher ? (
+                    <a href="/admin/settings#certificates" className="font-semibold text-brand-green-700 hover:underline">
+                      Choose in Settings (admins)
+                    </a>
+                  ) : null}
+                </span>
+              </li>
+            </ul>
+          </Card>
         ) : null}
 
         <LinkTabs
@@ -145,7 +190,9 @@ export default async function CertificatesPage({
       {shown.length ? (
         <div className="space-y-6 print:space-y-0">
           {shown.flatMap(({ r, awards }) =>
-            awards.map((a) => <Certificate key={`${r.student.id}:${a.key}`} report={report} student={r} award={a} issuedOn={issuedOn} />)
+            awards.map((a) => (
+              <Certificate key={`${r.student.id}:${a.key}`} report={report} student={r} award={a} issuedOn={issuedOn} signatures={sigs} />
+            ))
           )}
         </div>
       ) : null}

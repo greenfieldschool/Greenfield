@@ -10,6 +10,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LEARN } from "@/lib/learn-guides";
 
 type AssessmentRow = {
   id: string;
@@ -113,6 +114,7 @@ export default async function AdminAssessmentDetailPage({ params }: { params: Pr
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.assessments}
         back={{ href: "/admin/academics/assessments", label: "Back to assessments" }}
         eyebrow="Academics"
         title="Assessment scores"

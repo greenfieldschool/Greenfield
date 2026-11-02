@@ -13,6 +13,7 @@ import { deleteClassAction, mergeClassAction } from "./actions";
 import { cn } from "@/lib/cn";
 import { classNameKey } from "@/lib/class-names";
 import UrlToast from "@/components/url-toast";
+import { LEARN } from "@/lib/learn-guides";
 
 type ClassRow = { id: string; level: string; name: string; active: boolean };
 type StudentRow = { class_id: string | null; status: string };
@@ -68,6 +69,7 @@ export default async function AdminClassesPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.classes}
         eyebrow="Core"
         title="Classes"
         description="Open a class to see the children in it and correct anything that was registered wrongly (name, admission number, class or status). Admins can also delete or merge a class from there."

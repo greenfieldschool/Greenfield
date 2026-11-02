@@ -6,6 +6,7 @@ import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PillLinks, PortalPageHeader, PortalNotice, portalMessages } from "../_components/portal-ui";
+import { HELP } from "@/lib/portal-help";
 
 function severityTone(severity: number): BadgeTone {
   if (severity >= 4) return "red";
@@ -135,7 +136,8 @@ export default async function PortalIncidentsPage({
 
   return (
     <div className="space-y-6">
-      <PortalPageHeader title="Health & incidents" description="Health notes and incidents recorded at school." />
+      <PortalPageHeader
+        help={HELP.health} title="Health & incidents" description="Health notes and incidents recorded at school." />
 
       {role === "parent" && parentStudents.length > 1 ? (
         <PillLinks

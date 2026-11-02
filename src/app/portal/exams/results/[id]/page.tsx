@@ -11,6 +11,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { PortalNotice, PortalPageHeader, ScoreRing, portalMessages } from "../../../_components/portal-ui";
 import { marksLabel, questionTypeLabel } from "../../../_components/exam-labels";
 import { Celebrate } from "@/components/motion/celebrate";
+import { HELP } from "@/lib/portal-help";
 
 function cheer(p: number) {
   if (p >= 80) return "Excellent work!";
@@ -22,7 +23,8 @@ function cheer(p: number) {
 function ResultNotice({ icon, title, message }: { icon: typeof Hourglass; title: string; message: string }) {
   return (
     <div className="space-y-6">
-      <PortalPageHeader back={{ href: "/portal/exams/results", label: "Results" }} title={title} />
+      <PortalPageHeader
+        help={HELP.exams} back={{ href: "/portal/exams/results", label: "Results" }} title={title} />
       <Card>
         <EmptyState
           icon={icon}
@@ -159,6 +161,7 @@ export default async function PortalExamResultDetailPage({ params }: { params: P
   return (
     <div className="space-y-6">
       <PortalPageHeader
+        help={HELP.exams}
         back={{ href: "/portal/exams/results", label: "Results" }}
         title={test?.name ?? "Exam result"}
         description={`Released ${formatLagosDate(releasedAt)}`}

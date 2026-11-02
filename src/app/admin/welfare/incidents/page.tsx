@@ -12,6 +12,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SeverityBadge, deleteLinkClasses, pillButtonClasses, shortDate, welfareBack } from "../_ui";
 import { buttonClasses } from "@/components/ui/button";
+import { LEARN } from "@/lib/learn-guides";
 
 type StudentRow = { id: string; first_name: string; last_name: string; class_id: string | null };
 type YearRow = { id: string; name: string };
@@ -131,6 +132,7 @@ export default async function AdminWelfareIncidentsPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.welfareRecords}
         eyebrow="Welfare"
         title="Incidents / Health"
         description="Record welfare incidents and health notes."

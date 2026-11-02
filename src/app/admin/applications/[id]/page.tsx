@@ -20,6 +20,7 @@ import {
   formatDateTime,
   humanize
 } from "../_ui";
+import { LEARN } from "@/lib/learn-guides";
 
 // Keys stored in admissions_applications.data that the edit forms can change.
 const APPLICATION_DATA_KEYS = [
@@ -101,7 +102,8 @@ export default async function AdminApplicationDetailPage({
   if (!supabase) {
     return (
       <div className="space-y-6">
-        <PageHeader back={BACK} eyebrow="Admissions application" title="Application" />
+        <PageHeader
+          learn={LEARN.admissions} back={BACK} eyebrow="Admissions application" title="Application" />
         <Alert tone="warning" title="Supabase is not configured.">
           This application can&apos;t be loaded until the database connection is set up.
         </Alert>
@@ -118,7 +120,8 @@ export default async function AdminApplicationDetailPage({
   if (error || !row) {
     return (
       <div className="space-y-6">
-        <PageHeader back={BACK} eyebrow="Admissions application" title="Application not found" />
+        <PageHeader
+          learn={LEARN.admissions} back={BACK} eyebrow="Admissions application" title="Application not found" />
         <Alert tone="warning" title="We couldn't find this application.">
           It may have been removed, or the link is incorrect.
         </Alert>
@@ -365,6 +368,7 @@ export default async function AdminApplicationDetailPage({
     <div className="space-y-6">
       <UrlToast key={toastKey} />
       <PageHeader
+        learn={LEARN.admissions}
         back={BACK}
         eyebrow="Admissions application"
         title={row.parent_name ?? "Application"}

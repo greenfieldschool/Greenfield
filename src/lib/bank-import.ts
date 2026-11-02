@@ -36,7 +36,7 @@ export async function loadMatchContext(supabase: SupabaseClient): Promise<MatchC
         .from("finance_invoice_balances")
         .select("invoice_id, invoice_no, student_id, issue_date, status, balance")
         .gt("balance", 0)
-        .in("status", ["issued", "partially_paid"])
+        .neq("status", "void")
         .order("invoice_id")
     )
   ]);

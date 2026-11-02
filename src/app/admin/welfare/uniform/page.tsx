@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { deleteLinkClasses, welfareBack } from "../_ui";
+import { LEARN } from "@/lib/learn-guides";
 
 type StudentRow = { id: string; first_name: string; last_name: string };
 type YearRow = { id: string; name: string };
@@ -111,6 +112,7 @@ export default async function AdminWelfareUniformPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.welfareRecords}
         eyebrow="Welfare"
         title="Uniform checks"
         description="Record dressing/uniform compliance."

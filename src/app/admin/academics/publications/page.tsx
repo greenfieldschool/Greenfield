@@ -11,6 +11,7 @@ import { FormSection, Field } from "@/components/ui/form-section";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink } from "@/components/ui/button";
+import { LEARN } from "@/lib/learn-guides";
 
 type YearRow = { id: string; name: string };
 
@@ -109,6 +110,7 @@ export default async function AdminAcademicsPublicationsPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.reportCards}
         eyebrow="Academics"
         title="Result publications"
         description="Publish or unpublish student results visibility in the portal."

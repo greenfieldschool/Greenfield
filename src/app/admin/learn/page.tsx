@@ -1,51 +1,70 @@
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   BookOpen,
-  CalendarDays,
-  ClipboardList,
   GraduationCap,
   HeartPulse,
-  Library,
   MessagesSquare,
-  SlidersHorizontal,
   Timer,
-  UserPlus,
-  Users,
   Wallet
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { toneStyles, type Tone } from "@/components/ui/stat-card";
 import { cn } from "@/lib/cn";
-import { LEARN } from "@/lib/learn-guides";
+import { LEARN, type LearnGuide } from "@/lib/learn-guides";
+import { Badge } from "@/components/ui/badge";
+import { LearnSearch } from "./learn-search";
 
+type Guide = {
+  id: LearnGuide;
+  name: string;
+  /** The page the guide is about; each guide card links to it. */
+  page: { href: string; label: string };
+  /** Only admins can open the page, so teachers know it isn't for them. */
+  adminOnly?: boolean;
+  steps: string[];
+};
+
+type Category = { title: string; icon: LucideIcon; tone: Tone; guides: Guide[] };
+
+// Guides for staff. Each has an id from LEARN, and the page it is about passes the same id to its PageHeader,
+// which shows "How this works" linking straight here (#id). Update the guide when the workflow changes.
 export default function AdminLearnCentrePage() {
-  const categories = [
+  const categories: Category[] = [
     {
-      title: "Core Student Lifecycle",
+      title: "Pupils, Parents & Staff",
       icon: GraduationCap,
-      tone: "blue" as Tone,
+      tone: "blue",
       guides: [
         {
+          id: LEARN.admissions,
           name: "Admissions & Enrollment Workflow",
+          page: { href: "/admin/students/applications", label: "Student applications" },
+          adminOnly: true,
           steps: [
-            "Applicant completes the public admission form wizard at (/apply).",
-            "Go to Core > Student applications (/admin/students/applications) to inspect pending profiles.",
-            "Clicking 'Approve' assigns an admission number and inserts the student record into the 'students' table.",
-            "Student level automatically syncs to match the selected class's level (e.g. primary Playgroup vs creche)."
+            "Families apply online with the admission form on the school website (/apply).",
+            "Open Core > Student applications (/admin/students/applications) to see applications waiting for a decision.",
+            "Clicking 'Approve' gives the child an admission number and adds them to the Students list.",
+            "The child's level (creche, primary, secondary) follows the class you choose, e.g. Playgroup is primary."
           ]
         },
         {
+          id: LEARN.studentAccounts,
           name: "Student Portal Accounts (Sign-in)",
+          page: { href: "/admin/students", label: "Students" },
+          adminOnly: true,
           steps: [
-            "Locate the enrolled student in Core > Students (/admin/students).",
-            "Inside their detail view, find the 'Portal Account' configuration.",
-            "Set a secure password and generate the account. This registers a virtual email (e.g. [admission_number]@students.greenfield.local) inside Supabase Auth."
+            "Find the pupil in Core > Students (/admin/students) and open their page.",
+            "Under 'Portal Account', set a password and create the account.",
+            "Pupils sign in at the portal with their admission number and that password. Give it to them privately; you can reset it from the same place."
           ]
         },
         {
+          id: LEARN.classes,
           name: "Checking a Class and Fixing Wrong Registrations",
+          page: { href: "/admin/classes", label: "Classes" },
           steps: [
             "Open Core > Classes (/admin/classes) to see every class and how many current students it has.",
             "Click a class to list its children. Admins can correct the name, admission number, class or status on a row and press 'Save'.",
@@ -54,16 +73,43 @@ export default function AdminLearnCentrePage() {
             "Classes registered twice (e.g. 'Reception' and 'RECEPTION', or 'Year 1' and 'YEAR1') are listed under 'Classes registered twice' at the top of the Classes page, with the one that has the most students marked 'Keep'. Press 'Merge into …' on the duplicate: its students, results, attendance, fees, exam sessions, subjects and teachers move to the class you keep, then it is deleted.",
             "A class created by mistake that nobody is in can be removed under 'Delete a class nobody is in'. A class that still has fees, results, attendance or exams cannot be deleted; merge it into another class, or deactivate it under Finance > Fee setup > Classes to hide it while keeping its records."
           ]
+        },
+        {
+          id: LEARN.guardians,
+          name: "Parents, Guardians and Portal Accounts",
+          page: { href: "/admin/guardians", label: "Guardians" },
+          adminOnly: true,
+          steps: [
+            "Open Core > Guardians (/admin/guardians) and add the parent or guardian. An email address is needed for a portal account; a phone number helps the office.",
+            "Open the guardian and use 'Link a student' to connect each of their children, with the relationship (mother, father, guardian …). A child can have several guardians and each one sees the child in the portal.",
+            "Under 'Portal access', create the account with a first password and give it to the parent privately (it can be printed). Parents can't reset their own password: reset it here when they forget.",
+            "Parents sign in at the portal with their email address. They see report cards, fees & billing, attendance, discipline, health notes, activities and messages for their linked children only.",
+            "Invoices are addressed to one guardian, but report cards and the unpaid-fees hold go by the child, so every guardian of the child sees the same."
+          ]
+        },
+        {
+          id: LEARN.staffAccounts,
+          name: "Staff Accounts and Roles",
+          page: { href: "/admin/users", label: "Staff & users" },
+          adminOnly: true,
+          steps: [
+            "Open Core > Staff & users (/admin/users). Invite a member of staff by email with their role: Admin, Teacher, Front desk or Nurse. They get an email to set their password.",
+            "No email? Use 'Manual link' to make a one-time sign-in link and send it to that person only. Anyone with the link can sign in as them.",
+            "Change a person's role from the list. Admins see everything; teachers see only their classes and subjects; Front desk and Nurse see the areas they need.",
+            "After giving someone the Teacher role, assign their classes and subjects under Academics > Teacher assignments, or they will see no classes."
+          ]
         }
       ]
     },
     {
-      title: "Examination & Assessment Lifecycle",
+      title: "Exams (CBT)",
       icon: Timer,
-      tone: "violet" as Tone,
+      tone: "violet",
       guides: [
         {
+          id: LEARN.tests,
           name: "Creating Tests & Setting Up Questions",
+          page: { href: "/admin/exams/tests", label: "Tests" },
           steps: [
             "Go to Operations > Exams > Tests (/admin/exams/tests).",
             "Create a new test with its name, subject, duration (minutes) and the number of objective and theory questions you plan to set (e.g. 30 and 5).",
@@ -77,7 +123,9 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.sessions,
           name: "Scheduling Exam Sessions",
+          page: { href: "/admin/exams/sessions", label: "Exam sessions" },
           steps: [
             "Go to Operations > Exams > Sessions (/admin/exams/sessions).",
             "Create a session linking a Test to a specific Class, Academic Year, and Academic Term.",
@@ -89,22 +137,27 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.marking,
           name: "Marking and Reviewing Scores",
+          page: { href: "/admin/exams/sessions", label: "Exam sessions" },
           steps: [
-            "Access the active session's 'Attempts' list in (/admin/exams/sessions/[id]/attempts).",
-            "Review submissions by student, evaluate automatically graded answers, and manually score essays.",
-            "Publish results to release final reports directly to the student portal."
+            "Open Exams > Sessions, click the session, then 'Attempts' to see every pupil's submission.",
+            "Objective answers are marked automatically. Open an attempt to mark theory and essay answers by hand.",
+            "When marking is done, release the results from the session page ('Attempts & results release'); pupils then see them under Exam results in the portal. Use 'Copy CBT scores' on the result sheet to bring the scores into a term result column."
           ]
         }
       ]
     },
     {
-      title: "Academics & Configurations",
+      title: "Academics & Results",
       icon: BookOpen,
-      tone: "green" as Tone,
+      tone: "green",
       guides: [
         {
+          id: LEARN.subjects,
           name: "Adding Subjects",
+          page: { href: "/admin/academics/subjects", label: "Subjects" },
+          adminOnly: true,
           steps: [
             "Open Academics > Subjects (/admin/academics/subjects).",
             "Add a new subject name (e.g. English Language) and tag it to a broad school section (creche, primary, secondary).",
@@ -113,7 +166,10 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.duplicateSubjects,
           name: "Removing Duplicate Subjects",
+          page: { href: "/admin/academics/subjects", label: "Subjects" },
+          adminOnly: true,
           steps: [
             "Open Academics > Subjects. Likely duplicates (e.g. 'HEALTH HABIT' and 'Health habit', 'ICT' and 'I.C.T') are listed at the top.",
             "Click 'Merge into …' to move the duplicate's results, CBT tests and class assignments onto the subject you keep. The duplicate is then deleted.",
@@ -124,6 +180,8 @@ export default function AdminLearnCentrePage() {
         {
           id: LEARN.classSubjects,
           name: "Assigning Subjects to Classes",
+          page: { href: "/admin/academics/class-subjects", label: "Class subjects" },
+          adminOnly: true,
           steps: [
             "Open Academics > Class subjects (/admin/academics/class-subjects) and pick a class.",
             "Tick every subject the class takes and click 'Save subjects'. Use 'Copy subjects from another class' to start from a similar class.",
@@ -133,6 +191,8 @@ export default function AdminLearnCentrePage() {
         {
           id: LEARN.teachers,
           name: "Assigning Teachers to Classes and Subjects",
+          page: { href: "/admin/academics/teachers", label: "Teacher assignments" },
+          adminOnly: true,
           steps: [
             "Open Academics > Teacher assignments (/admin/academics/teachers). Teachers must first have the Teacher role under Staff & users.",
             "Class teacher: pick the teacher, choose 'Class teacher' and tick one or more classes (use 'All creche classes' etc. to tick a whole level). They get those classes' students, attendance and every subject each class takes (set under Class subjects).",
@@ -145,6 +205,7 @@ export default function AdminLearnCentrePage() {
         {
           id: LEARN.results,
           name: "Entering Term Results (Result management)",
+          page: { href: "/admin/academics/results", label: "Class result sheet" },
           steps: [
             "Open Result management > Class result sheet. Pick the class, subject and term (e.g. RECEPTION · Quantitative Reasoning · 2026/2027 First Term) and click Open sheet. Every pupil in the class is listed automatically.",
             "A new sheet opens with 1st CA (20), 2nd CA (20), Exam (Objective) (30) and Exam (Theory) (30), total 100. You can change the columns with Edit columns if a subject is assessed differently.",
@@ -158,6 +219,7 @@ export default function AdminLearnCentrePage() {
         {
           id: LEARN.corrections,
           name: "Final Scores, Corrections and the Results History",
+          page: { href: "/admin/academics/corrections", label: "Correction requests" },
           steps: [
             "When a subject's scores are all entered and checked against the marked scripts, the subject teacher clicks 'Submit as final' on the result sheet. The sheet is then locked: nobody (teachers or admins) can type over its scores or change its columns. Publishing a class's report cards locks every sheet and welfare rating for that class and term.",
             "Found a mistake on a final sheet? Click 'Request a correction', change only the wrong boxes, write why (e.g. 'script shows 15, keyed 17') and click 'Send to admin'. Nothing changes until an admin approves it. You can withdraw a request while it is waiting.",
@@ -167,7 +229,10 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.resultColumns,
           name: "Result Sheet Columns for the Whole School or a Level",
+          page: { href: "/admin/academics/config", label: "Grading & layouts" },
+          adminOnly: true,
           steps: [
             "Open Academics > Grading & layouts (/admin/academics/config) > Result sheet columns.",
             "Set the whole-school default, and a different set for creche, primary or secondary if they are assessed differently.",
@@ -177,6 +242,7 @@ export default function AdminLearnCentrePage() {
         {
           id: LEARN.welfare,
           name: "Weekly Welfare Scores (out of 100 every week)",
+          page: { href: "/admin/welfare/scores", label: "Welfare scores" },
           steps: [
             "Welfare is scored every week, out of 100 per pupil. At the end of term the weekly scores are averaged into one welfare score out of 100. The final score on the report card = (academic average + welfare) ÷ 2.",
             "The marks: Attendance 15, Punctuality 10, Uniform & appearance 10, Conduct 15, Politeness & respect 10, Honesty 5, Cooperation & relationship with others 5, Attentiveness & self-control 5, Leadership & responsibility 5, Participation (sports, clubs, crafts) 20 = 100. Admins can change them under Welfare > Welfare criteria, per level.",
@@ -190,6 +256,7 @@ export default function AdminLearnCentrePage() {
         {
           id: LEARN.reportCards,
           name: "Report Cards and Publishing",
+          page: { href: "/admin/academics/reports", label: "Report cards" },
           steps: [
             "Open Academics > Report cards (/admin/academics/reports) and pick the class and term.",
             "The checklist shows what is missing: subjects not fully scored, pupils without welfare ratings, attendance, and comments. Each line links to the page that fixes it.",
@@ -203,29 +270,37 @@ export default function AdminLearnCentrePage() {
         {
           id: LEARN.certificates,
           name: "Certificates of Achievement",
+          page: { href: "/admin/academics/reports", label: "Report cards" },
           steps: [
             "Open Academics > Report cards, pick the class and term, then click 'Certificates'.",
             "Certificates are given automatically from the report cards: 1st, 2nd and 3rd in class on the final score (gold, silver and bronze seals), the best score in each subject, and Gold, Silver or Bronze for welfare (the marks are set per level with the welfare criteria).",
-            "Use the tabs to print only one kind (e.g. Class positions for prize-giving day). Check the 'Who gets a certificate' list, then click Print. Each certificate prints on its own A4 landscape page; sign them by hand.",
+            "Use the tabs to print only one kind (e.g. Class positions for prize-giving day). Check the 'Who gets a certificate' list, then click Print. Each certificate prints on its own A4 landscape page.",
+            "Signatures: each member of staff signs once under My profile > Your signature, with a finger, stylus or mouse, or by uploading a photo of their signature on white paper. The class teacher's signature goes on their class's certificates; an admin chooses whose signature goes on the head teacher's line (and its title, e.g. Principal) under Settings. The Certificates page shows which signatures are in. A line with no saved signature is left blank to sign by hand.",
+            "Saved signatures also appear on the certificates parents open in the portal. Only the person who saved a signature can change or remove it.",
             "Print after publishing: until then scores, positions and awards can still change.",
             "Parents see their child's certificates on the portal under the report card ('View certificates') and can print them, once fees are paid."
           ]
         },
         {
+          id: LEARN.calendar,
           name: "Academic Calendars (Years & Terms)",
+          page: { href: "/admin/finance/fees/academic-years", label: "Academic years & terms" },
+          adminOnly: true,
           steps: [
-            "Open Operations > Finance > Academic config (/admin/finance/fees/academic-years).",
-            "Add the Academic Year (e.g. 2026/2027) and toggle it 'Active'.",
-            "Add Academic Terms (e.g. Term 1, Term 2) linking them to the year.",
-            "Set active terms to dictate global database mappings for current grades and reports."
+            "Open Finance > Fee setup > Academic years & terms (/admin/finance/fees/academic-years).",
+            "Add the academic year (e.g. 2026/2027) with its start and end dates and make it 'Active'. Only one year is active at a time.",
+            "Add its terms (First, Second, Third term) with start and end dates. The term dates decide the weeks on the welfare score sheet and the 'Next term begins' date on report cards.",
+            "Mark the current term active: pages open on it by default (result sheets, welfare scores, report cards)."
           ]
         },
         {
           id: LEARN.grading,
           name: "Assessment Weights & Grading scales",
+          page: { href: "/admin/academics/config", label: "Grading & layouts" },
+          adminOnly: true,
           steps: [
             "Open Academics > Grading & layouts (/admin/academics/config).",
-            "Configure Grading scale thresholds (e.g. A = 70 to 100) per level. They grade every subject total, the academic average and the term total.",
+            "Set the grading scale per level (school default: 80–100 A Excellent, 70–79 B Very Good, 60–69 C Good, 50–59 D Pass, 0–49 F Fail). It grades every subject total, the academic average and the final score.",
             "Assessment weights only apply to assessments created on the Assessments page, not to the result sheet."
           ]
         }
@@ -234,10 +309,12 @@ export default function AdminLearnCentrePage() {
     {
       title: "Messages",
       icon: MessagesSquare,
-      tone: "blue" as Tone,
+      tone: "blue",
       guides: [
         {
+          id: LEARN.messages,
           name: "How Messages Work (Teachers and Parents)",
+          page: { href: "/admin/messages", label: "Messages" },
           steps: [
             "Open Messages (/admin/messages for staff, Messages in the parent portal). Who can talk to whom follows enrolment: when a pupil moves class, their parents move to the new class's spaces automatically.",
             "Every class has two spaces: Announcements (teachers of the class post, parents read) and the Parents' chat (parents talk to each other; the class teacher and admins can read it, and parents are told so).",
@@ -247,7 +324,9 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.moderation,
           name: "Keeping Chats Safe (Moderation)",
+          page: { href: "/admin/messages/moderation", label: "Moderation" },
           steps: [
             "Anyone can report a message with the ⋯ menu. Reports go to Messages > Moderation (admins).",
             "Admins can remove a message (with a reason), dismiss a report, or mute a parent in a class chat for 1, 7 or 30 days. Class teachers can remove messages and mute in their own class spaces.",
@@ -261,13 +340,42 @@ export default function AdminLearnCentrePage() {
     {
       title: "Finance",
       icon: Wallet,
-      tone: "gold" as Tone,
+      tone: "gold",
       guides: [
+        {
+          id: LEARN.feeSetup,
+          name: "Setting Up Fees (fee types, components and schedules)",
+          page: { href: "/admin/finance/fees", label: "Fee setup" },
+          adminOnly: true,
+          steps: [
+            "Set fees up once a year under Finance > Fee setup, in this order: academic year and terms, fee types (with their payment IDs), fee components, then a fee schedule for each class.",
+            "Fee types & payment IDs: the kinds of money the school receives, e.g. School fees (SF), Uniform (UNI). Each has the short payment ID parents write on bank transfers.",
+            "Fee components: the lines that make up a bill (Tuition, Books, Transport …). Link each to its fee type, so payments and reports know what the money was for. Linking a budget sector is optional.",
+            "Fee schedules: create one for each class, for one term (choose the term) or for the whole year (leave the term blank). Open it and add each component with its amount.",
+            "A schedule is a price list: changing it does not change invoices already made from it. Fix those on the invoice itself."
+          ]
+        },
+        {
+          id: LEARN.invoices,
+          name: "Creating Invoices",
+          page: { href: "/admin/finance/invoices", label: "Invoices" },
+          adminOnly: true,
+          steps: [
+            "Open Finance > Invoices > New invoice. Choose the guardian it is addressed to, the pupil it is for, the year and term, and the due date. The invoice number (e.g. INV-2026-00012) is given automatically.",
+            "Always pick the pupil and the term. Bank matching uses the pupil, and the report-card hold uses the term.",
+            "On the next screen press 'Generate from fee schedule' to fill in the lines from the class's schedule, or add lines one by one.",
+            "Discounts, waivers, penalties and write-offs go under 'Add adjustment', so the original fees stay visible on the invoice.",
+            "New invoices are labelled 'draft', but parents see them straight away under Fees & billing, with the balance and the exact text to write on a bank transfer. They count as owed (for debtors and the report-card hold) until the balance is 0.",
+            "Payments reduce the balance on their own (see 'Allocations' on the invoice)."
+          ]
+        },
         {
           id: LEARN.feeHold,
           name: "Report Cards and Unpaid Fees",
+          page: { href: "/admin/academics/reports", label: "Report cards" },
+          adminOnly: true,
           steps: [
-            "Parents and pupils only see a published report card (and its certificates) on the portal once the pupil's fees are paid: every issued invoice for that term and earlier terms with nothing left to pay. Draft and void invoices don't count; invoices for a later term don't hold back this term.",
+            "Parents and pupils only see a published report card (and its certificates) on the portal once the pupil's fees are paid: every invoice for that term and earlier terms with nothing left to pay. Voided invoices don't count; invoices for a later term don't hold back this term.",
             "Until then the parent sees 'report card is ready' with the amount owed, a 'Pay fees' button, and a note that bank transfers can take a little while to be recorded. The pupil is asked to speak to their parent.",
             "As soon as the payment is recorded (by hand, from the bank statement or an alert), the report card opens on its own. There is nothing else to do.",
             "Admins see who is held on Academics > Report cards: the Publish box counts them and each pupil shows 'Held from parents: fees owed'. Staff can still print any report card."
@@ -276,6 +384,8 @@ export default function AdminLearnCentrePage() {
         {
           id: LEARN.recordingPayments,
           name: "Recording Payments by Student and Class",
+          page: { href: "/admin/finance/payments", label: "Payments" },
+          adminOnly: true,
           steps: [
             "Open Finance > Payments > Record payment and pick the Student — the list is grouped by class. Picking an invoice instead fills in its student automatically.",
             "The Payments page shows each payment's student and class. Filter by class and dates to get the total collected for a class; the 'Amount collected per class' table compares classes.",
@@ -285,6 +395,8 @@ export default function AdminLearnCentrePage() {
         {
           id: LEARN.paymentIds,
           name: "Payment IDs and Bank Statements (automatic matching)",
+          page: { href: "/admin/finance/payments/import", label: "Bank statement & alerts" },
+          adminOnly: true,
           steps: [
             "Every fee type has a short payment ID (School fees = SF, Uniform = UNI ...). See or change them under Finance > Fees > Fee types & payment IDs. Print them on fee notices.",
             "A payment ID is 2 to 8 capital letters or numbers with no spaces. New fee types get one from the first letters of their name (School fees = SF, Sports and Games = SAG; a one-word name uses its first three letters, Uniform = UNI). If two would clash, a number is added (SF2). INV, NGN, GRE, POS, TRF and NIP can't be used because they already appear in bank descriptions.",
@@ -292,65 +404,88 @@ export default function AdminLearnCentrePage() {
             "Monthly statement: open Finance > Payments > Bank statement & alerts, upload the bank's CSV (or paste the rows) and press 'Read and match'. Payments already added before are skipped, so adding the same month twice is safe.",
             "Sure matches are recorded as payments straight away: a known admission number, a payment ID that matches one of the child's unpaid invoices, and an amount that is not more than what is owed.",
             "Anything else waits under 'Needs a look' with a note saying why (no payment ID, two children named, amount too big, unknown child). Press Confirm on the suggestion, type the admission number or invoice number, or Ignore the line.",
-            "Bank email alerts can be recorded automatically too: see docs/BANK_ALERTS.md for the one-time setup. Alerts go through the same matching and the same inbox."
+            "Bank email alerts can be recorded automatically too, after a one-time setup by the school's IT person (the steps are in the project's BANK_ALERTS guide). Alerts go through the same matching and the same inbox."
           ]
         },
         {
+          id: LEARN.editPayment,
           name: "Editing or Voiding a Payment",
+          page: { href: "/admin/finance/payments", label: "Payments" },
+          adminOnly: true,
           steps: [
-            "Open Operations > Finance > Payments (/admin/finance/payments) and click the payment to change.",
+            "Open Finance > Payments (/admin/finance/payments) and click the payment to change.",
             "Correct the guardian, invoice, amount, method, reference, date or notes and click 'Save changes'. Invoice balances update automatically.",
             "To cancel a payment but keep a record, set Status to 'void' (it is then ignored in balances).",
             "'Delete payment' removes it and its invoice links completely and cannot be undone."
+          ]
+        },
+        {
+          id: LEARN.expenses,
+          name: "Recording Expenses",
+          page: { href: "/admin/finance/expenses", label: "Expenses" },
+          adminOnly: true,
+          steps: [
+            "Open Finance > Expenses > New expense. Only the amount is needed.",
+            "Add the category (budget sector), vendor, method, reference and date: they make the spending reports useful.",
+            "Pick the year and term to compare spending term by term. Budget sectors are set up under Fee setup > Budget sectors."
           ]
         }
       ]
     },
     {
-      title: "Welfare & Operations",
+      title: "Welfare & Attendance",
       icon: HeartPulse,
-      tone: "rose" as Tone,
+      tone: "rose",
       guides: [
         {
           id: LEARN.attendance,
           name: "Attendance Marking",
+          page: { href: "/admin/welfare/attendance", label: "Attendance" },
           steps: [
-            "Navigate to Welfare > Attendance (/admin/welfare/attendance).",
-            "Filter by class level, date, year, and term.",
-            "Select attendance state ('present', 'absent', 'late', 'excused') and click Save per student."
+            "Open Welfare > Attendance (/admin/welfare/attendance) and pick the class and date.",
+            "Mark each pupil present, absent, late or excused and save.",
+            "Attendance feeds the weekly welfare score: Attendance = days present ÷ days taken that week, Punctuality = days on time ÷ days present. Report cards show 'present X of Y days'."
           ]
         },
         {
-          name: "Creating Subject Assessments",
+          id: LEARN.welfareRecords,
+          name: "Uniform Checks, Discipline and Health Notes",
+          page: { href: "/admin/welfare/uniform", label: "Uniform checks" },
           steps: [
-            "Go to Operations > Exams > Assessments (/admin/academics/assessments).",
+            "These records feed the weekly welfare score on their own, in the week they happen: uniform checks give Uniform & appearance, discipline records take marks off Conduct. Health notes never affect any score.",
+            "Uniform checks (Welfare > Uniform): pick the pupil and date and whether the uniform was OK. Saving again for the same pupil and date replaces the earlier check. The week's mark = checks passed ÷ checks done; with no checks that week, Uniform is left out and the week is scored out of the rest.",
+            "Discipline (Welfare > Discipline): the category (e.g. Late-coming, Fighting), what happened and how serious it was, 1 (minor) to 5 (very serious). Conduct starts full every week; each record takes off its severity × the penalty for the level (1 mark per severity point unless an admin changes it under Welfare criteria).",
+            "Health & incidents (Welfare > Health & incidents): sickness, injuries and other notes, with severity. Click the status to mark it resolved.",
+            "Parents see discipline and health records in the portal. Write them in plain, factual words, as you would say them to the parent.",
+            "Pick the right term on each record. Records are also matched to the week and term by their date."
+          ]
+        },
+        {
+          id: LEARN.assessments,
+          name: "Creating Subject Assessments",
+          page: { href: "/admin/academics/assessments", label: "Assessments" },
+          steps: [
+            "Open Academics > Assessments (/admin/academics/assessments).",
             "Add a new assessment specifying the class, subject, year, term, assessment type, and maximum score.",
-            "Clicking on the created assessment redirects to the scores page where teachers can log grades."
+            "Click the assessment to enter its scores. Term results are usually entered on the Class result sheet instead."
           ]
         }
       ]
     }
   ];
 
-  const shortcuts = [
-    { href: "/admin/students", label: "Student List", icon: Users },
-    { href: "/admin/students/applications", label: "Admissions Applications", icon: UserPlus },
-    { href: "/admin/finance/fees/academic-years", label: "Academic Calendar", icon: CalendarDays },
-    { href: "/admin/academics/config", label: "Grading Scales", icon: SlidersHorizontal },
-    { href: "/admin/academics/subjects", label: "Subject Management", icon: Library },
-    { href: "/admin/exams/tests", label: "Exams & Tests", icon: ClipboardList }
-  ];
-
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Knowledge Base"
-        title="Admin Learn Centre"
-        description="A scalable documentation directory for managing the school's operational lifecycle, grading scales, admissions, examinations, and subjects."
+        eyebrow="Help"
+        title="Learn Centre"
+        description="Step-by-step guides for everyday school work: results, welfare, report cards, fees, exams and messages. Every page in the dashboard has a 'How this works' link that opens its guide here."
       />
 
+      <LearnSearch total={categories.reduce((n, c) => n + c.guides.length, 0)} />
+
       {/* Category directory */}
-      <nav aria-label="Guide categories" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <nav aria-label="Guide categories" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6" data-learn-hide-when-searching>
         {categories.map((cat, idx) => (
           <a
             key={idx}
@@ -371,7 +506,7 @@ export default function AdminLearnCentrePage() {
       {/* Guides */}
       <div className="space-y-10">
         {categories.map((cat, idx) => (
-          <section key={idx} id={`learn-${idx}`} aria-labelledby={`learn-${idx}-title`} className="scroll-mt-24">
+          <section key={idx} id={`learn-${idx}`} aria-labelledby={`learn-${idx}-title`} className="scroll-mt-24" data-learn-section>
             <div className="mb-4 flex items-center gap-3">
               <span className={cn("inline-flex h-9 w-9 items-center justify-center rounded-xl", toneStyles[cat.tone].icon)}>
                 <cat.icon className="h-[18px] w-[18px]" aria-hidden="true" />
@@ -381,50 +516,42 @@ export default function AdminLearnCentrePage() {
               </h2>
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
-              {cat.guides.map((guide, gIdx) => (
-                <Card
-                  key={gIdx}
-                  id={"id" in guide ? guide.id : undefined}
-                  className="scroll-mt-24 target:border-brand-green-300 target:ring-2 target:ring-brand-green-400/40"
-                >
-                  <CardHeader title={guide.name} />
-                  <ol className="space-y-3 px-5 py-5 sm:px-6">
-                    {guide.steps.map((step, sIdx) => (
-                      <li key={sIdx} className="flex gap-3 text-sm leading-relaxed text-slate-700">
-                        <span
-                          className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-green-50 text-xs font-semibold text-brand-green-700 ring-1 ring-inset ring-brand-green-200/70"
-                          aria-hidden="true"
-                        >
-                          {sIdx + 1}
-                        </span>
-                        <span>{step}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </Card>
+              {cat.guides.map((guide: Guide) => (
+                <div key={guide.id} id={guide.id} data-learn-guide className="scroll-mt-24 rounded-2xl target:ring-2 target:ring-brand-green-400/50">
+                  <Card className="flex h-full flex-col">
+                    <CardHeader
+                      title={guide.name}
+                      action={guide.adminOnly ? <Badge tone="slate">Admins</Badge> : undefined}
+                    />
+                    <ol className="flex-1 space-y-3 px-5 py-5 sm:px-6">
+                      {guide.steps.map((step, sIdx) => (
+                        <li key={sIdx} className="flex gap-3 text-sm leading-relaxed text-slate-700">
+                          <span
+                            className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-green-50 text-xs font-semibold text-brand-green-700 ring-1 ring-inset ring-brand-green-200/70"
+                            aria-hidden="true"
+                          >
+                            {sIdx + 1}
+                          </span>
+                          <span>{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                    <div className="border-t border-slate-100 px-5 py-3 sm:px-6">
+                      <Link
+                        href={guide.page.href}
+                        className="group inline-flex items-center gap-1.5 text-sm font-semibold text-brand-green-700 hover:underline"
+                      >
+                        Open {guide.page.label}
+                        <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden="true" />
+                      </Link>
+                    </div>
+                  </Card>
+                </div>
               ))}
             </div>
           </section>
         ))}
       </div>
-
-      {/* Quick Links */}
-      <Card>
-        <CardHeader title="Quick Shortcuts" />
-        <div className="grid gap-2 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
-          {shortcuts.map((sc) => (
-            <Link
-              key={sc.href}
-              href={sc.href}
-              className="group flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-green-200 hover:bg-brand-green-50/50 hover:text-brand-green-800"
-            >
-              <sc.icon className="h-4 w-4 text-slate-400 group-hover:text-brand-green-600" aria-hidden="true" />
-              <span className="flex-1">{sc.label}</span>
-              <ArrowRight className="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-green" aria-hidden="true" />
-            </Link>
-          ))}
-        </div>
-      </Card>
     </div>
   );
 }

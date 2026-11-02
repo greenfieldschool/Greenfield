@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { PortalPageHeader } from "../_components/portal-ui";
+import { HELP } from "@/lib/portal-help";
 
 function classText(c: ClassRow | null) {
   return c ? `${c.level.charAt(0).toUpperCase()}${c.level.slice(1)} · ${c.name}` : null;
@@ -215,6 +216,7 @@ export default async function PortalExamsPage({
     <div className="space-y-6">
       <PortalDebugLogger enabled={debug} />
       <PortalPageHeader
+        help={HELP.exams}
         title="Exams"
         description="Exams open for you right now. Make sure you have enough time before you start."
         actions={

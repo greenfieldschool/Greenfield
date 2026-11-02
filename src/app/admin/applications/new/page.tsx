@@ -7,6 +7,7 @@ import { FormSection } from "@/components/ui/form-section";
 import { Alert } from "@/components/ui/alert";
 import { ButtonLink } from "@/components/ui/button";
 import { APPLICATION_STATUSES, SelectField, SubHeading, TextField, humanize } from "../_ui";
+import { LEARN } from "@/lib/learn-guides";
 
 type AdmissionsSection = "creche" | "primary" | "secondary";
 
@@ -21,6 +22,7 @@ export default async function AdminNewApplicationPage() {
     return (
       <div className="space-y-6">
         <PageHeader
+          learn={LEARN.admissions}
           back={{ href: "/admin/students/applications", label: "Back to applications" }}
           eyebrow="Admissions"
           title="New application"
@@ -151,6 +153,7 @@ export default async function AdminNewApplicationPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        learn={LEARN.admissions}
         back={{ href: "/admin/students/applications", label: "Back to applications" }}
         eyebrow="Admissions"
         title="New application"

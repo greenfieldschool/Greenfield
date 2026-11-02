@@ -17,7 +17,9 @@ explained in the results-and-reports skill): a change to what counts as "paid" c
 - Tables: `finance_invoices` (+ `_items` with `revenue_category_id`, `_adjustments`), `finance_payment_transactions`
   (inflow/outflow, `status posted|void`), `finance_payment_allocations` (payment → invoice, unique per pair),
   views `finance_invoice_balances` (`balance` = total − posted allocations; **invoice status is not updated by
-  payments**, read the balance), `finance_guardian_balances`. Invoice numbers `INV-YYYY-00001` come from a trigger.
+  payments**, read the balance), `finance_guardian_balances`. **Invoices are created as `draft` and nothing moves
+  them to `issued`**; parents, debtors and balances treat every non-void invoice as owed, so filter with
+  `.neq("status", "void")`, never `.in("status", ["issued", …])` (bank matching and the fee hold did, and saw nothing). Invoice numbers `INV-YYYY-00001` come from a trigger.
 - **Payment IDs** (`20261101_payment_ids_bank_inbox.sql`): `revenue_categories.payment_code` (2–8 A–Z/0–9, unique,
   reserved words in `src/lib/payment-codes.ts`). Parents write `<admission number> <payment ID>` in the bank
   transfer description. Invoice page and the portal show the exact text.

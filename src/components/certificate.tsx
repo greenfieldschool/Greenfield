@@ -4,6 +4,7 @@ import { LogoMark } from "@/components/ui/logo";
 import { school } from "@/lib/school";
 import type { Award, AwardTier } from "@/lib/certificates";
 import type { ClassReport, StudentReport } from "@/lib/term-report";
+import { NO_SIGNATURES, type CertificateSignatures } from "@/lib/signatures";
 import { cn } from "@/lib/cn";
 
 // A printable certificate of achievement: A4 landscape, one per page. Every size is in cqw (a share of the
@@ -30,6 +31,7 @@ export default function Certificate({
   student,
   award,
   issuedOn,
+  signatures = NO_SIGNATURES,
   className
 }: {
   report: ClassReport;
@@ -37,6 +39,8 @@ export default function Certificate({
   award: Award;
   /** YYYY-MM-DD; the publication date, or today for a preview. */
   issuedOn: string | null;
+  /** Saved signatures for the class teacher and head teacher lines (lib/signatures.ts). */
+  signatures?: CertificateSignatures;
   className?: string;
 }) {
   const s = student.student;
@@ -93,10 +97,29 @@ export default function Certificate({
 
           {/* Signatures and seal */}
           <div className="relative mb-[1.6cqw] mt-auto grid w-full grid-cols-[1fr_auto_1fr] items-end gap-[4cqw]">
-            {["Class teacher", "Head teacher"].map((who, i) => (
-              <div key={who} className={cn("flex", i === 1 ? "order-3 justify-end" : "justify-start")}>
-                <div className="w-[24cqw] border-t border-dotted border-slate-500 pt-[0.4cqw] text-center text-slate-600" style={cq(1.1)}>
-                  {who}
+            {[
+              { role: "Class teacher", sig: signatures.classTeacher },
+              { role: signatures.headTitle, sig: signatures.head }
+            ].map(({ role, sig }, i) => (
+              <div key={i} className={cn("flex", i === 1 ? "order-3 justify-end" : "justify-start")}>
+                <div className="w-[24cqw] text-center">
+                  {/* Saved signature sits on the line; without one the line stays blank for signing by hand. */}
+                  <div className="flex h-[5.5cqw] items-end justify-center">
+                    {sig ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={sig.image} alt={`Signed by ${sig.name}`} className="max-h-full max-w-full object-contain" />
+                    ) : null}
+                  </div>
+                  <div className="border-t border-dotted border-slate-500 pt-[0.4cqw] text-slate-600" style={cq(1.1)}>
+                    {sig ? (
+                      <>
+                        <span className="font-semibold text-slate-800">{sig.name}</span>
+                        <span> · {role}</span>
+                      </>
+                    ) : (
+                      role
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

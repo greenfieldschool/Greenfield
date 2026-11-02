@@ -27,6 +27,7 @@ import { formatLagosDate } from "@/lib/lagos-dates";
 import { AttemptStatusBadge } from "../../../_components/exam-ui";
 import { firstOrNull } from "@/lib/relations";
 import { failWithToast, NO_DB_MESSAGE } from "../../../_components/feedback";
+import { LEARN } from "@/lib/learn-guides";
 
 type AttemptRow = {
   attempt_id: string;
@@ -165,6 +166,7 @@ export default async function AdminExamSessionAttemptsPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.marking}
         back={{ href: "/admin/exams/sessions", label: "Back to sessions" }}
         eyebrow="Exams"
         title="Session attempts"

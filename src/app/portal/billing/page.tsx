@@ -12,6 +12,7 @@ import { buttonClasses } from "@/components/ui/button";
 import SubmitButton from "@/components/submit-button";
 import { PortalPageHeader, portalMessages, statusBadge } from "../_components/portal-ui";
 import CopyReferenceButton from "./CopyReferenceButton";
+import { HELP } from "@/lib/portal-help";
 
 type InvoiceBalanceRow = {
   invoice_id: string;
@@ -58,7 +59,8 @@ function money(currency: string | null | undefined, n: number) {
 function BillingNotice({ message }: { message: string }) {
   return (
     <div className="space-y-6">
-      <PortalPageHeader title="Fees & billing" />
+      <PortalPageHeader
+        help={HELP.fees} title="Fees & billing" />
       <Card>
         <EmptyState icon={Receipt} title="Billing isn't available" description={message} />
       </Card>
@@ -203,6 +205,7 @@ export default async function PortalBillingPage({
   return (
     <div className="space-y-6">
       <PortalPageHeader
+        help={HELP.fees}
         title="Fees & billing"
         description="See your invoices, pay what's due and keep track of payments."
       />

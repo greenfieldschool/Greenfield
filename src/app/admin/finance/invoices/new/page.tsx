@@ -7,6 +7,7 @@ import { toastUrl } from "../../_components/finance-server";
 import { PageHeader } from "@/components/ui/page-header";
 import { FormSection, Field } from "@/components/ui/form-section";
 import { ButtonLink } from "@/components/ui/button";
+import { LEARN } from "@/lib/learn-guides";
 
 type GuardianRow = { id: string; full_name: string };
 
@@ -87,6 +88,7 @@ export default async function AdminNewInvoicePage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.invoices}
         back={{ href: "/admin/finance/invoices", label: "Back to invoices" }}
         eyebrow="Finance"
         title="New invoice"

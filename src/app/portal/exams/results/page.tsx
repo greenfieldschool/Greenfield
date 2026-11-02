@@ -8,6 +8,7 @@ import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PortalPageHeader, portalMessages } from "../../_components/portal-ui";
+import { HELP } from "@/lib/portal-help";
 
 function percentTone(p: number): BadgeTone {
   if (p >= 70) return "green";
@@ -91,6 +92,7 @@ export default async function PortalExamResultsPage() {
   return (
     <div className="space-y-6">
       <PortalPageHeader
+        help={HELP.exams}
         back={{ href: "/portal/exams", label: "Exams" }}
         title="Exam results"
         description="Results appear here once your teachers release them."

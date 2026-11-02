@@ -31,6 +31,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { safeFilterTerm } from "@/lib/postgrest";
+import { LEARN } from "@/lib/learn-guides";
 
 type ProfileRow = {
   id: string;
@@ -637,6 +638,7 @@ export default async function AdminUsersPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.staffAccounts}
         eyebrow="Admin"
         title="User Management"
         description="Invite staff, manage roles, and link users to guardians or students."

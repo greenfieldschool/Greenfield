@@ -11,6 +11,7 @@ import { FormSection, Field } from "@/components/ui/form-section";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Avatar } from "@/components/ui/avatar";
 import { buttonClasses } from "@/components/ui/button";
+import { LEARN } from "@/lib/learn-guides";
 
 type GuardianRow = {
   id: string;
@@ -59,6 +60,7 @@ export default async function AdminGuardiansPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.guardians}
         eyebrow="Admin"
         title="Guardians"
         description="Manage parents/guardians and link them to students."
