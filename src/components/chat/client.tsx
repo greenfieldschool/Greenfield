@@ -113,13 +113,15 @@ export function Composer({ conversationId, placeholder }: { conversationId: stri
           maxLength={MESSAGE_MAX}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            // Enter sends with a keyboard; on a phone the Return key makes a new line and the button sends.
+            const touch = window.matchMedia("(pointer: coarse)").matches;
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !touch) {
               e.preventDefault();
               submit();
             }
           }}
           placeholder={placeholder}
-          className="max-h-40 min-h-[2.75rem] flex-1 resize-none rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-[15px] text-slate-900 outline-none transition focus:border-brand-green-500 focus:bg-white focus:ring-4 focus:ring-brand-green-500/15"
+          className="max-h-40 min-h-[2.75rem] flex-1 resize-none rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-base text-slate-900 sm:text-[15px] outline-none transition focus:border-brand-green-500 focus:bg-white focus:ring-4 focus:ring-brand-green-500/15"
         />
         <button
           type="submit"
@@ -182,7 +184,7 @@ export function MessageMenu({
         }}
         aria-label="Message options"
         aria-expanded={open}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 opacity-60 transition hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100 focus:opacity-100"
+        className="-m-1 inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-400 opacity-60 transition hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100 focus:opacity-100"
       >
         <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
       </button>
@@ -239,7 +241,7 @@ export function MessageMenu({
                 rows={2}
                 maxLength={500}
                 required
-                className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-brand-green-500"
+                className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-base outline-none focus:border-brand-green-500 sm:text-sm"
               />
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setMode("menu")} className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50">

@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { UserX } from "lucide-react";
 import PortalDashboardView, { type ParentDashboard, type StudentDashboard } from "./PortalDashboardView";
+import { InstallPrompt } from "./_components/install-prompt";
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
   return (await Promise.race([
@@ -143,7 +144,12 @@ export default async function PortalHomePage() {
         : null
     };
 
-    return <PortalDashboardView data={{ ...data, errorMsg }} />;
+    return (
+      <div className="space-y-4">
+        <InstallPrompt />
+        <PortalDashboardView data={{ ...data, errorMsg }} />
+      </div>
+    );
   }
 
   if (role === "parent") {
@@ -185,7 +191,12 @@ export default async function PortalHomePage() {
           }
     };
 
-    return <PortalDashboardView data={{ ...data, errorMsg }} />;
+    return (
+      <div className="space-y-4">
+        <InstallPrompt />
+        <PortalDashboardView data={{ ...data, errorMsg }} />
+      </div>
+    );
   }
 
   return (

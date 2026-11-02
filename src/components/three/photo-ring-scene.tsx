@@ -116,7 +116,7 @@ export default function PhotoRingScene({
   }, []);
 
   return (
-    <div ref={host} className="h-full w-full cursor-grab touch-pan-y active:cursor-grabbing">
+    <div ref={host} data-cursor="Drag" className="h-full w-full cursor-grab touch-pan-y active:cursor-grabbing">
       <Canvas dpr={[1, 1.75]} frameloop={active ? "always" : "never"} camera={{ position: [0, 0.4, 4.5], fov: 50 }}>
         <Suspense fallback={null}>
           <Ring photos={photos} rotation={rotation.current} onFrontChange={onFrontChange} />

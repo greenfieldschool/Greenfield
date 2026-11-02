@@ -252,7 +252,7 @@ export default async function PortalExamsPage({
       <Card>
         <CardHeader title="Open now" description={sessions.length ? `${sessions.length} exam${sessions.length === 1 ? "" : "s"} available` : undefined} />
         {sessions.length ? (
-          <ul className="divide-y divide-slate-100">
+          <ul className="gf-stagger divide-y divide-slate-100">
             {sessions.map((s) => {
               const test = testsById.get(s.test_id) ?? null;
               const rowClassId = typeof s.class_id === "string" ? s.class_id : null;

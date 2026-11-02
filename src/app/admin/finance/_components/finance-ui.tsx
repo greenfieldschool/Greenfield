@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
+import { invoiceState } from "@/lib/invoice-state";
 
 // Local presentation helpers shared by the finance pages (not routable: folder starts with "_").
 
@@ -37,6 +38,22 @@ export function FinanceStatusBadge({ status, className }: { status: string | nul
   return (
     <Badge tone={statusTones[key] ?? "slate"} className={className}>
       <span className={cn(isVoid && "line-through")}>{statusLabel(key)}</span>
+    </Badge>
+  );
+}
+
+// Invoice pill from what is still owed (Unpaid, Part paid, Overdue, Paid, Cancelled), not the stored "draft".
+export function InvoiceStatusBadge({
+  invoice,
+  className
+}: {
+  invoice: { status: string | null | undefined; balance: number | string | null | undefined; invoice_total?: number | string | null; due_date?: string | null };
+  className?: string;
+}) {
+  const { state, label, tone } = invoiceState(invoice);
+  return (
+    <Badge tone={tone} className={className}>
+      <span className={cn(state === "void" && "line-through")}>{label}</span>
     </Badge>
   );
 }

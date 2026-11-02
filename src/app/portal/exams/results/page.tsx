@@ -109,7 +109,7 @@ export default async function PortalExamResultsPage() {
       <Card>
         <CardHeader title="Released results" />
         {released.length ? (
-          <ul className="divide-y divide-slate-100">
+          <ul className="gf-stagger divide-y divide-slate-100">
             {released.map((a) => {
               const session = firstOrNull(a.exam_test_sessions);
               const test = firstOrNull(session?.exam_tests);

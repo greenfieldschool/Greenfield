@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import PortalShell from "./PortalShell";
 import { ToastProvider } from "@/components/toast-provider";
 import { ServiceUnavailable } from "@/components/ui/service-unavailable";
+
+// Opened from the home screen, the portal runs full screen like an app (see app/manifest.ts).
+export const metadata: Metadata = {
+  appleWebApp: { capable: true, title: "Greenfield", statusBarStyle: "default" }
+};
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number) {
   return (await Promise.race([

@@ -156,7 +156,7 @@ export default async function PortalAttendancePage({
       ) : null}
 
       {rows.length ? (
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="gf-stagger grid gap-4 sm:grid-cols-3">
           <StatCard label="Present" value={presentCount} hint={`of the last ${rows.length} days`} icon={CalendarCheck} tone="green" />
           <StatCard label="Late" value={lateCount} icon={Clock} tone="gold" />
           <StatCard label="Absent" value={absentCount} icon={CalendarX} tone="rose" />
@@ -166,7 +166,7 @@ export default async function PortalAttendancePage({
       <Card>
         <CardHeader title="Daily record" />
         {rows.length ? (
-          <ul className="divide-y divide-slate-100">
+          <ul className="gf-stagger divide-y divide-slate-100">
             {rows.map((r) => {
               const badge = statusBadge(r.status);
               return (

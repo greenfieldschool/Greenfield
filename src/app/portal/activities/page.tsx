@@ -218,7 +218,7 @@ export default async function PortalActivitiesPage({
       <Card>
         <CardHeader title="Enrolled" description="Activities and clubs currently joined." />
         {enrollments.length ? (
-          <ul className="divide-y divide-slate-100">
+          <ul className="gf-stagger divide-y divide-slate-100">
             {enrollments.map((e) => {
               const activity = firstOrNull(e.activities);
               const badge = statusBadge(e.status);

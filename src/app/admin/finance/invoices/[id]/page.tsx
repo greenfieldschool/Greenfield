@@ -18,6 +18,7 @@ import { transferDescription } from "@/lib/payment-codes";
 import { ButtonLink } from "@/components/ui/button";
 import {
   FinanceStatusBadge,
+  InvoiceStatusBadge,
   SummaryRow,
   fmtDate,
   fmtDateTime,
@@ -413,7 +414,7 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
                 <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Invoice</div>
                 <div className="mt-1 flex flex-wrap items-center gap-3">
                   <span className="text-xl font-bold tracking-tight text-slate-900">{invoice.invoice_no ?? "—"}</span>
-                  <FinanceStatusBadge status={invoice.status} />
+                  <InvoiceStatusBadge invoice={invoice} />
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
                   <div>

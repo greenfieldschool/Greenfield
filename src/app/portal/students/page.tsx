@@ -253,7 +253,7 @@ export default async function PortalStudentsPage() {
                 ) : null}
               </div>
 
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="gf-stagger grid gap-6 md:grid-cols-2">
                 <div>
                   <div className="text-sm font-medium text-slate-700">Hobbies</div>
                   <div className="mt-2 flex flex-wrap gap-2">

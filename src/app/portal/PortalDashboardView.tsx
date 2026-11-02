@@ -19,6 +19,16 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
+// The name to greet someone by: the first name, skipping a title ("Mrs Funke Adeyemi" → "Funke"). A title alone
+// with a surname ("Mrs Adeyemi") is kept whole, as that is how the school would address them.
+const TITLES = /^(mr|mrs|ms|miss|dr|prof|chief|engr|barr|pastor|rev|alhaji|alhaja|hajia|mallam|sir|madam)\.?$/i;
+function greetingName(full: string) {
+  const parts = full.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "";
+  if (!TITLES.test(parts[0])) return parts[0];
+  return parts.length > 2 ? parts[1] : parts.join(" ");
+}
+
 export type StudentDashboard = {
   kind: "student";
   name: string;
@@ -179,7 +189,7 @@ function StudentView({
     <div className="space-y-6">
       <ErrorBanner message={data.errorMsg} />
       <Hero
-        title={`Hi, ${data.name.split(" ")[0]}!`}
+        title={`Hi, ${greetingName(data.name)}!`}
         subtitle="Your exams, results and school records in one place."
         chips={[data.classLabel, data.admissionNumber].filter(
           (v): v is string => Boolean(v),
@@ -205,7 +215,7 @@ function StudentView({
           }
         />
         {data.openExams.length ? (
-          <ul className="divide-y divide-slate-100">
+          <ul className="gf-stagger divide-y divide-slate-100">
             {data.openExams.map((e) => (
               <li
                 key={e.id}
@@ -260,7 +270,7 @@ function StudentView({
             }
           />
           {data.recentResults.length ? (
-            <ul className="divide-y divide-slate-100">
+            <ul className="gf-stagger divide-y divide-slate-100">
               {data.recentResults.map((r) => (
                 <li key={r.id}>
                   <Link
@@ -366,7 +376,7 @@ function StudentView({
         </Card>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="gf-stagger grid gap-3 sm:grid-cols-3">
         <Shortcut
           href="/portal/academics"
           label="Report card"
@@ -399,7 +409,7 @@ function ParentView({
     <div className="space-y-6">
       <ErrorBanner message={data.errorMsg} />
       <Hero
-        title={`Welcome, ${data.name.split(" ")[0]}`}
+        title={`Welcome, ${greetingName(data.name)}`}
         subtitle="Follow your children's progress, attendance and school fees."
       />
 
@@ -491,7 +501,7 @@ function ParentView({
                     <Link
                       key={l.label}
                       href={l.href}
-                      className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 px-2 py-3 text-xs font-medium text-slate-700 transition hover:border-brand-green-200 hover:bg-brand-green-50/50 hover:text-brand-green"
+                      className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 px-2 py-3 text-xs font-medium text-slate-700 transition hover:border-brand-green-200 hover:bg-brand-green-50/50 hover:text-brand-green active:scale-95 active:bg-brand-green-50"
                     >
                       <l.icon
                         className="h-[18px] w-[18px]"

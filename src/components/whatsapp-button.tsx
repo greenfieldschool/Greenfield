@@ -16,7 +16,8 @@ export function WhatsAppButton() {
       target="_blank"
       rel="noreferrer"
       aria-label="Chat with Greenfield School on WhatsApp"
-      className="fixed bottom-5 right-5 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-black/10 transition hover:scale-105 hover:brightness-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
+      // Rises above the phone action bar while that bar is showing (--gf-cta).
+      className="fixed bottom-[calc(1.25rem+var(--gf-cta,0px))] right-5 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-black/10 transition-[bottom,transform,filter] duration-300 hover:scale-105 hover:brightness-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
     >
       <WhatsAppIcon className="h-7 w-7" />
     </a>

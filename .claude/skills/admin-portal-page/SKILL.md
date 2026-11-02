@@ -40,7 +40,9 @@ description: Use when building or changing a page, form, nav item or server acti
   `"use server"` action. It builds fine and crashes in production. Plain data is fine; module level is best.
 - Never trust ids from the form for permissions; the database checks (RLS / security definer functions).
 - Text for staff and parents: plain words, no jargon. Confirm destructive actions (`ConfirmSubmitButton`).
-- Mobile first: check at 375px. Portal pages sit above a fixed bottom tab bar.
+- Mobile first: check at 375px. Portal pages sit above a fixed bottom tab bar. In the portal, lists are rows, not wide
+  tables (see the ui-ux-design skill, step 8), and a list or card grid gets `gf-stagger` so its items arrive one
+  after another. Each portal and public page eases in through its `template.tsx`.
 - Printing: shells hide themselves with `print:hidden`; printable cards use `.gf-report-card` (see globals.css).
 
 ## Pitfalls we hit

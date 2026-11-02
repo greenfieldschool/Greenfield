@@ -172,7 +172,40 @@ export default function ReportCard({
       {/* Academic */}
       <section className="mt-5">
         <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-brand-green-800">Academic performance</h3>
-        <div className="mt-2 overflow-x-auto">
+        {/* Phones: one row per subject, so nothing scrolls sideways. The full table is for wider screens and print. */}
+        <ul className="mt-2 divide-y divide-slate-200 overflow-hidden rounded-lg border border-slate-200 sm:hidden print:hidden">
+          {report.subjects.map((sub, i) => {
+            const r = student.subjects[i];
+            const breakdown = sub.columns
+              .map((c, j) => `${c.label} ${r.scores[j] === null ? "–" : fmt(r.scores[j])}/${fmt(c.max)}`)
+              .join(" · ");
+            return (
+              <li key={sub.id} className="px-3 py-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-slate-900">{sub.name}</div>
+                    {sub.columns.length ? <div className="mt-0.5 text-xs leading-snug text-slate-500">{breakdown}</div> : null}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-lg font-bold tabular-nums text-slate-900">
+                      {fmt(r.percent)}
+                      <span className="text-xs font-medium text-slate-400">/100</span>
+                    </span>
+                    <span className="inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg bg-brand-green-50 px-1.5 text-sm font-bold text-brand-green-900">
+                      {r.grade ?? "—"}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Class average {fmt(sub.classAverage)} · Highest {fmt(sub.highest)}
+                  {showPositions && r.position ? ` · ${ordinal(r.position)} in class` : ""}
+                </div>
+              </li>
+            );
+          })}
+          {!report.subjects.length ? <li className="px-3 py-3 text-center text-sm text-slate-500">No subjects recorded for this term.</li> : null}
+        </ul>
+        <div className="mt-2 hidden overflow-x-auto sm:block print:block">
           <table className="w-full min-w-[560px] border-collapse text-[13px]">
             <thead>
               <tr className="bg-brand-green-50 text-left text-[11px] font-semibold uppercase tracking-wide text-brand-green-900">

@@ -33,6 +33,7 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const moreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -40,12 +41,26 @@ export function SiteHeader() {
     setMoreOpen(false);
   }, [pathname]);
 
+  // The header slides away while scrolling down (more room to read, especially on phones) and comes back as soon as
+  // the visitor scrolls up. --gf-header tells sticky parts of the page where the header's bottom edge is.
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 8);
+      if (y < 120 || y < last - 4) setHidden(false);
+      else if (y > last + 4) setHidden(true);
+      last = y;
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const headerHidden = hidden && !open && !moreOpen;
+  useEffect(() => {
+    document.documentElement.style.setProperty("--gf-header", headerHidden ? "0px" : "72px");
+  }, [headerHidden]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -107,8 +122,9 @@ export function SiteHeader() {
 
       <header
         className={cn(
-          "sticky top-0 z-40 border-b bg-white/90 backdrop-blur-md transition-shadow",
-          scrolled ? "border-slate-200 shadow-[0_1px_12px_rgba(15,23,42,0.06)]" : "border-transparent"
+          "sticky top-0 z-40 border-b bg-white/90 backdrop-blur-md transition-[transform,box-shadow] duration-300 ease-out motion-reduce:transition-none",
+          scrolled ? "border-slate-200 shadow-[0_1px_12px_rgba(15,23,42,0.06)]" : "border-transparent",
+          headerHidden && "-translate-y-full"
         )}
       >
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-6 px-4 sm:px-6">
@@ -227,12 +243,15 @@ export function SiteHeader() {
           </div>
 
           <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Mobile">
-            {[...primaryNav, ...moreNav].map((item) => (
+            {[...primaryNav, ...moreNav].map((item, i) => (
               <Link
                 key={item.href}
                 href={item.href}
+                // Links slide in one after another as the menu opens.
+                style={{ transitionDelay: open ? `${120 + i * 35}ms` : "0ms" }}
                 className={cn(
-                  "flex items-center justify-between rounded-xl px-3 py-3 text-base font-medium",
+                  "flex items-center justify-between rounded-xl px-3 py-3 text-base font-medium transition-[transform,opacity,background-color] duration-300 ease-out active:scale-[0.98] motion-reduce:transition-none",
+                  open ? "translate-x-0 opacity-100" : "translate-x-6 opacity-0",
                   isActive(pathname, item.href) ? "bg-brand-green-50 text-brand-green" : "text-slate-800 hover:bg-slate-50"
                 )}
               >

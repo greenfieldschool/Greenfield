@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { Reveal } from "@/components/motion/reveal";
+import { TextReveal, riseDelay } from "@/components/motion/text-reveal";
 
-// Header band for public inner pages (About, Academics, Admissions, …).
+// Header band for public inner pages (About, Academics, Admissions, …). On arrival the title rises in word by word
+// (when it is plain text), then the line under it and the buttons; the glows behind drift slowly.
 export function PublicPageHero({
   eyebrow,
   title,
@@ -17,16 +20,28 @@ export function PublicPageHero({
 }) {
   return (
     <section className={cn("relative isolate overflow-hidden bg-brand-green-950 text-white", className)}>
-      <div className="pointer-events-none absolute -right-32 -top-32 -z-10 h-96 w-96 rounded-full bg-brand-gold/15 blur-3xl" aria-hidden="true" />
-      <div className="pointer-events-none absolute -bottom-40 left-1/4 -z-10 h-96 w-96 rounded-full bg-brand-green-500/20 blur-3xl" aria-hidden="true" />
+      <div className="gf-drift pointer-events-none absolute -right-32 -top-32 -z-10 h-96 w-96 rounded-full bg-brand-gold/15 blur-3xl" aria-hidden="true" />
+      <div className="gf-drift-slow pointer-events-none absolute -bottom-40 left-1/4 -z-10 h-96 w-96 rounded-full bg-brand-green-500/20 blur-3xl" aria-hidden="true" />
       <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20 lg:py-24">
-        <div className="max-w-3xl animate-fade-up">
+        <div className="max-w-3xl">
           {eyebrow ? (
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-gold-300">{eyebrow}</div>
+            <div className="gf-rise text-xs font-semibold uppercase tracking-[0.18em] text-brand-gold-300" style={riseDelay(0)}>
+              {eyebrow}
+            </div>
           ) : null}
-          <h1 className="mt-3 font-display text-4xl font-semibold leading-[1.08] sm:text-5xl lg:text-6xl">{title}</h1>
-          {description ? <p className="mt-5 max-w-2xl text-lg leading-relaxed text-brand-green-100">{description}</p> : null}
-          {children ? <div className="mt-8 flex flex-wrap gap-3">{children}</div> : null}
+          <h1 className="mt-3 font-display text-4xl font-semibold leading-[1.08] sm:text-5xl lg:text-6xl">
+            {typeof title === "string" ? <TextReveal text={title} delay={100} /> : <span className="gf-rise block">{title}</span>}
+          </h1>
+          {description ? (
+            <p className="gf-rise mt-5 max-w-2xl text-lg leading-relaxed text-brand-green-100" style={riseDelay(400)}>
+              {description}
+            </p>
+          ) : null}
+          {children ? (
+            <div className="gf-rise mt-8 flex flex-wrap gap-3" style={riseDelay(550)}>
+              {children}
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
@@ -47,11 +62,11 @@ export function SectionHeading({
   className?: string;
 }) {
   return (
-    <div className={cn("max-w-2xl", align === "center" && "mx-auto text-center", className)}>
+    <Reveal className={cn("max-w-2xl", align === "center" && "mx-auto text-center", className)}>
       {eyebrow ? <div className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-gold-700">{eyebrow}</div> : null}
       <h2 className="mt-3 font-display text-3xl font-semibold text-slate-900 sm:text-4xl">{title}</h2>
       {description ? <p className="mt-4 text-lg leading-relaxed text-slate-600">{description}</p> : null}
-    </div>
+    </Reveal>
   );
 }
 

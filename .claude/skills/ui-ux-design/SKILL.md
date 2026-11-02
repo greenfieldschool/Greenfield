@@ -34,6 +34,13 @@ skill says where the code goes; this one says how the screen should work for the
    to set it up), database update not run yet, locked, done. Every empty state says the next step.
 8. **Phone?** Check at 375px: no page-wide horizontal scroll; grids scroll inside their card with a sticky first
    column and sticky header; chip rows scroll sideways with the selected chip brought into view; tap targets ≥ 36px.
+   - Parent and pupil screens don't scroll sideways at all: a table becomes one row per item on phones (fees,
+     payments, report card subjects), with the full table kept for wider screens and print (`sm:hidden print:hidden`
+     list + `hidden sm:block print:block` table).
+   - Text fields are 16px on phones (`gf-input` does this): smaller ones make iPhones zoom the page when tapped.
+   - In a message box the phone's Return key makes a new line; only the send button sends.
+   - The portal installs to the home screen (`app/manifest.ts`, icons from `components/app-icon-art.tsx`,
+     `InstallPrompt` on the portal home, help answer `HELP.homeScreen`). Keep the icon and name in step with the brand.
 9. **Accessible?** Every input has a label or `aria-label` naming the pupil and the field; visible focus ring;
    status text, not just colour; `aria-current` on the selected tab/chip; contrast at least slate-500 on white.
 10. **Help where the work is.** Every admin workflow page links to its Learn Centre guide ("How this works",

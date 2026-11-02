@@ -172,7 +172,7 @@ export default async function PortalProfilePage() {
       <Card>
         <CardHeader title="Linked children" description="Children associated with your account." />
         {linkedStudents.length > 0 ? (
-          <ul className="divide-y divide-slate-100">
+          <ul className="gf-stagger divide-y divide-slate-100">
             {linkedStudents.map((link) => {
               const student = link.students;
               const name = `${student?.first_name ?? ""} ${student?.last_name ?? ""}`.trim();

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FinanceStatusBadge, fmtDate, fmtMoney } from "../_components/finance-ui";
+import { InvoiceStatusBadge, fmtDate, fmtMoney } from "../_components/finance-ui";
 import { LEARN } from "@/lib/learn-guides";
 
 type InvoiceBalanceRow = {
@@ -81,7 +81,7 @@ export default async function AdminFinanceInvoicesPage() {
                     <td className="whitespace-nowrap">{fmtDate(inv.issue_date)}</td>
                     <td className="whitespace-nowrap">{inv.due_date ? fmtDate(inv.due_date) : "—"}</td>
                     <td>
-                      <FinanceStatusBadge status={inv.status} />
+                      <InvoiceStatusBadge invoice={inv} />
                     </td>
                     <td className="whitespace-nowrap text-right tabular-nums">{fmtMoney(inv.invoice_total, inv.currency)}</td>
                     <td

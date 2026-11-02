@@ -37,7 +37,8 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${sans.variable} ${display.variable}`}>
+    // suppressHydrationWarning: the home page intro adds a class to <html> before React starts (IntroCurtain).
+    <html lang="en" className={`${sans.variable} ${display.variable}`} suppressHydrationWarning>
       <body className="font-sans">{children}</body>
     </html>
   );

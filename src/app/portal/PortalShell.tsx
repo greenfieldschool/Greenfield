@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -75,6 +76,7 @@ export default function PortalShell({
   children: ReactNode;
 }) {
   const pathname = usePathname() ?? "/portal";
+  const reduceMotion = useReducedMotion();
   const [moreOpen, setMoreOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -232,17 +234,21 @@ export default function PortalShell({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium",
+                  "flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors active:scale-95 motion-reduce:active:scale-100",
                   active ? "text-brand-green" : "text-slate-500"
                 )}
               >
-                <span
-                  className={cn(
-                    "relative inline-flex h-7 w-12 items-center justify-center rounded-full transition",
-                    active && "bg-brand-green-50"
-                  )}
-                >
-                  <item.icon className="h-5 w-5" aria-hidden="true" />
+                <span className="relative inline-flex h-7 w-12 items-center justify-center rounded-full">
+                  {/* The highlight slides from the old tab to the new one. */}
+                  {active ? (
+                    <motion.span
+                      layoutId={reduceMotion ? undefined : "portal-tab-pill"}
+                      transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                      className="absolute inset-0 rounded-full bg-brand-green-50"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                  <item.icon className={cn("relative h-5 w-5 transition-transform duration-300", active && "-translate-y-px scale-110")} aria-hidden="true" />
                   {item.href === "/portal/messages" && unreadMessages > 0 ? (
                     <span className="absolute -top-1 right-1.5 inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-4 text-white">
                       {unreadMessages > 9 ? "9+" : unreadMessages}
@@ -260,7 +266,7 @@ export default function PortalShell({
             aria-expanded={moreOpen}
             aria-controls="portal-more-sheet"
             className={cn(
-              "flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium",
+              "flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors active:scale-95 motion-reduce:active:scale-100",
               moreActive ? "text-brand-green" : "text-slate-500"
             )}
           >

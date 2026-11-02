@@ -13,6 +13,7 @@ import SubmitButton from "@/components/submit-button";
 import { PortalPageHeader, portalMessages, statusBadge } from "../_components/portal-ui";
 import CopyReferenceButton from "./CopyReferenceButton";
 import { HELP } from "@/lib/portal-help";
+import { invoiceState } from "@/lib/invoice-state";
 
 type InvoiceBalanceRow = {
   invoice_id: string;
@@ -221,7 +222,8 @@ export default async function PortalBillingPage({
                 <div className="text-sm font-medium text-brand-green-700">Payment reference created</div>
                 <div className="mt-1 break-all font-mono text-lg font-semibold text-slate-900">{ref}</div>
                 <p className="mt-2 text-sm text-slate-600">
-                  Use this as your Moniepoint <span className="font-semibold">merchantReference</span>.
+                  Copy it and paste it where the payment page asks for a reference, so the school can match your
+                  payment to this invoice.
                   {createdIntent ? (
                     <>
                       {" "}
@@ -241,7 +243,7 @@ export default async function PortalBillingPage({
         </Card>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="gf-stagger grid gap-4 sm:grid-cols-2">
         <StatCard
           label="Outstanding"
           value={outstanding > 0 ? `₦${asMoney(outstanding)}` : "All paid"}
@@ -255,9 +257,9 @@ export default async function PortalBillingPage({
       <Card>
         <CardHeader title="Invoices" description="Tap Pay to get a payment reference for an invoice." />
         {invoices.length ? (
-          <ul className="divide-y divide-slate-100">
+          <ul className="gf-stagger divide-y divide-slate-100">
             {invoices.map((inv) => {
-              const badge = statusBadge(inv.status);
+              const badge = invoiceState(inv);
               const due = inv.balance > 0;
               return (
                 <li
@@ -331,35 +333,25 @@ export default async function PortalBillingPage({
       <Card>
         <CardHeader title="Payment history" description="Payments recorded against your account." />
         {paymentRows.length ? (
-          <div className="gf-table-wrap">
-            <table className="gf-table min-w-[640px]">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Method</th>
-                  <th>Reference</th>
-                  <th>Status</th>
-                  <th className="text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paymentRows.map((p) => {
-                  const badge = statusBadge(p.status);
-                  return (
-                    <tr key={p.id}>
-                      <td className="whitespace-nowrap">{formatLagosDate(p.paid_at)}</td>
-                      <td className="capitalize">{p.method ?? p.provider ?? "—"}</td>
-                      <td className="font-mono text-xs text-slate-900">{p.reference ?? "—"}</td>
-                      <td>
-                        <Badge tone={badge.tone}>{badge.label}</Badge>
-                      </td>
-                      <td className="text-right font-semibold tabular-nums text-slate-900">{money(p.currency, p.amount)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          // Rows rather than a table, so nothing scrolls sideways on a phone.
+          <ul className="gf-stagger divide-y divide-slate-100">
+            {paymentRows.map((p) => {
+              const badge = statusBadge(p.status);
+              return (
+                <li key={p.id} className="flex items-start justify-between gap-4 px-5 py-4 sm:px-6">
+                  <div className="min-w-0">
+                    <div className="text-base font-semibold tabular-nums text-slate-900">{money(p.currency, p.amount)}</div>
+                    <div className="mt-0.5 text-sm text-slate-500">
+                      {formatLagosDate(p.paid_at)}
+                      <span className="capitalize"> · {p.method ?? p.provider ?? "Payment"}</span>
+                    </div>
+                    {p.reference ? <div className="mt-1 break-all font-mono text-xs text-slate-600">{p.reference}</div> : null}
+                  </div>
+                  <Badge tone={badge.tone}>{badge.label}</Badge>
+                </li>
+              );
+            })}
+          </ul>
         ) : (
           <EmptyState icon={History} title="No payments yet" />
         )}
@@ -368,36 +360,28 @@ export default async function PortalBillingPage({
       <Card>
         <CardHeader
           title="Payment references"
-          description="Created each time you tap Pay. Use the reference as the Moniepoint merchantReference."
+          description="You get a new reference each time you tap Pay. If a payment page asks for a reference, use the one for that payment."
         />
         {intentRows.length ? (
-          <div className="gf-table-wrap">
-            <table className="gf-table min-w-[520px]">
-              <thead>
-                <tr>
-                  <th>Reference</th>
-                  <th>Created</th>
-                  <th>Status</th>
-                  <th className="text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {intentRows.map((pi) => {
-                  const badge = statusBadge(pi.status);
-                  return (
-                    <tr key={pi.id}>
-                      <td className="font-mono text-xs text-slate-900">{pi.reference}</td>
-                      <td className="whitespace-nowrap">{formatLagosDate(pi.created_at)}</td>
-                      <td>
-                        <Badge tone={badge.tone}>{badge.label}</Badge>
-                      </td>
-                      <td className="text-right font-semibold tabular-nums text-slate-900">{money(pi.currency, pi.amount)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ul className="gf-stagger divide-y divide-slate-100">
+            {intentRows.map((pi) => {
+              const badge = statusBadge(pi.status);
+              return (
+                <li key={pi.id} className="px-5 py-4 sm:px-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 break-all font-mono text-sm font-semibold text-slate-900">{pi.reference}</div>
+                    <Badge tone={badge.tone}>{badge.label}</Badge>
+                  </div>
+                  <div className="mt-0.5 text-sm text-slate-500">
+                    {formatLagosDate(pi.created_at)} · <span className="tabular-nums">{money(pi.currency, pi.amount)}</span>
+                  </div>
+                  <div className="mt-2">
+                    <CopyReferenceButton value={pi.reference} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         ) : (
           <EmptyState icon={CreditCard} title="No references yet" />
         )}

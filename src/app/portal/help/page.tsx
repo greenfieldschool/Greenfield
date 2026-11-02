@@ -325,6 +325,25 @@ export default async function PortalHelpPage() {
           id: "wrong-details",
           q: audience === "parent" ? "My details are wrong, or I can't see one of my children" : "My details are wrong",
           a: <p>Please contact the school office. They can correct details and link children to your account.</p>
+        },
+        {
+          id: "home-screen",
+          q: "Can I put the portal on my phone like an app?",
+          a: (
+            <>
+              <p>Yes. Once it is on your home screen it opens full screen in one tap, with the school&apos;s crest as its icon.</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>
+                  <strong>Android:</strong> tap <strong>Add to home screen</strong> on the portal&apos;s Home page, or open
+                  the browser&apos;s menu (⋮) and choose <strong>Add to Home screen</strong> or <strong>Install app</strong>.
+                </li>
+                <li>
+                  <strong>iPhone:</strong> open the portal in <strong>Safari</strong>, tap the Share button at the bottom,
+                  then <strong>Add to Home Screen</strong>.
+                </li>
+              </ul>
+            </>
+          )
         }
       ]
     }
