@@ -28,6 +28,11 @@ description: Use for anything about academic results, result sheet columns, welf
   scaled. Health incidents never count. Ratings with `week_start` null are old whole-term ratings: a term with only
   those uses `scoreWelfareTerm` (`report.welfareMode === "term"`) until its first weekly save.
   `StudentReport.weeklyWelfare` is always the week-by-week result (the score sheet uses it); `welfare` is what counts.
+- **Compulsory weeks** (20261104; admin-only `/admin/welfare/weeks`): `welfare_compulsory_weeks` (term + Monday),
+  changed only through `set_welfare_compulsory_weeks(term, weeks[])` (admin check, replaces the list). `TermWeek.compulsory`;
+  `ClassReport.compulsoryMissing` lists compulsory weeks where some pupils' week doesn't count yet (weekly mode, rated
+  criteria only) and `completeness.ready` needs it empty. Publishing is **refused** (not "publish anyway") on both the
+  Report cards page and Result publications while it has anything in it. No weeks chosen = nothing compulsory.
   Score sheet UI: `week-strip.tsx` (weeks with status) + `weekly-grid.tsx` (client grid: live totals, copy last week,
   fill empty, unsaved warning) + Term summary tab. Logic: `src/lib/welfare.ts`.
 - **Report cards** (`/admin/academics/reports`, `/comments`, `/print`; portal `/portal/academics`): all built by

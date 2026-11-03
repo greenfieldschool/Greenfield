@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Copy, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowRight, ClipboardList, Copy, Plus, Save, Trash2 } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { welfareSources, type WelfareSource } from "@/lib/welfare";
 import UrlToast from "@/components/url-toast";
@@ -11,7 +11,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { LinkTabs } from "@/components/ui/tabs";
-import { buttonClasses } from "@/components/ui/button";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { LEARN } from "@/lib/learn-guides";
 
 const PATH = "/admin/welfare/criteria";
@@ -186,6 +186,26 @@ export default async function WelfareCriteriaPage({
         title="Welfare criteria"
         description="What welfare is scored on for each level, and how many of the 100 marks each criterion is worth. Welfare is scored every week out of 100 and averaged over the term. Teacher-rated criteria are rated 1–5 each week on the welfare score sheet; the others are worked out from that week's records."
       />
+
+      {/* Staff came here looking for where to score their class: this page only sets what is scored. */}
+      <Card className="border-brand-green-200 bg-brand-green-50/50">
+        <CardBody className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-green text-white">
+            <ClipboardList className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold text-slate-900">Scoring a class? Use the welfare score sheet</div>
+            <p className="mt-0.5 text-sm text-slate-600">
+              Pick the class and the week (Week 1, Week 2 … to the end of term). Every pupil is listed with these criteria across
+              the row; rate them all and save the whole class at once. This page only sets what is scored for each level.
+            </p>
+          </div>
+          <ButtonLink href="/admin/welfare/scores" className="shrink-0">
+            Open the score sheet
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </ButtonLink>
+        </CardBody>
+      </Card>
 
       <LinkTabs tabs={levels.map((l) => ({ key: l, label: l.charAt(0).toUpperCase() + l.slice(1), href: `${PATH}?level=${l}` }))} active={level} />
 

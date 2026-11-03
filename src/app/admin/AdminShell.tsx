@@ -9,6 +9,7 @@ import {
   BookOpen,
   Briefcase,
   CalendarCheck,
+  CalendarRange,
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
@@ -147,12 +148,13 @@ const NAV: NavGroup[] = [
     key: "welfare",
     label: "Welfare",
     items: [
-      { href: "/admin/welfare/scores", label: "Welfare scores", icon: HeartHandshake },
+      { href: "/admin/welfare/scores", label: "Welfare score sheet", icon: HeartHandshake },
       { href: "/admin/welfare/attendance", label: "Attendance", icon: CalendarCheck },
       { href: "/admin/welfare/incidents", label: "Health & incidents", icon: HeartPulse },
       { href: "/admin/welfare/discipline", label: "Discipline", icon: ShieldAlert },
       { href: "/admin/welfare/uniform", label: "Uniform", icon: Shirt },
-      { href: "/admin/welfare/criteria", label: "Welfare criteria", icon: ListChecks, adminOnly: true }
+      { href: "/admin/welfare/criteria", label: "Welfare criteria", icon: ListChecks, adminOnly: true },
+      { href: "/admin/welfare/weeks", label: "Compulsory weeks", icon: CalendarRange, adminOnly: true }
     ]
   },
   {
@@ -199,8 +201,9 @@ const SEGMENT_LABELS: Record<string, string> = {
   comments: "Comments",
   print: "Print",
   certificates: "Certificates",
-  scores: "Welfare scores",
+  scores: "Welfare score sheet",
   criteria: "Welfare criteria",
+  weeks: "Compulsory weeks",
   audit: "Results history",
   corrections: "Correction requests",
   messages: "Messages",

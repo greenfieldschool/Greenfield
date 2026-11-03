@@ -242,15 +242,16 @@ export default function AdminLearnCentrePage() {
         {
           id: LEARN.welfare,
           name: "Weekly Welfare Scores (out of 100 every week)",
-          page: { href: "/admin/welfare/scores", label: "Welfare scores" },
+          page: { href: "/admin/welfare/scores", label: "Welfare score sheet" },
           steps: [
             "Welfare is scored every week, out of 100 per pupil. At the end of term the weekly scores are averaged into one welfare score out of 100. The final score on the report card = (academic average + welfare) ÷ 2.",
             "The marks: Attendance 15, Punctuality 10, Uniform & appearance 10, Conduct 15, Politeness & respect 10, Honesty 5, Cooperation & relationship with others 5, Attentiveness & self-control 5, Leadership & responsibility 5, Participation (sports, clubs, crafts) 20 = 100. Admins can change them under Welfare > Welfare criteria, per level.",
             "Attendance, Punctuality, Uniform and Conduct are worked out for each week from that week's attendance, 'late' marks, uniform checks and discipline records, so keep those up to date. The class teacher rates the rest from 1 (Poor) to 5 (Excellent): a 4 on a 10-mark criterion gives 8 marks.",
-            "Class teachers open Welfare > Welfare scores (/admin/welfare/scores), pick the class and term, and land on this week. Pick another week from the strip of weeks; each shows whether it is fully scored.",
+            "Class teachers open Welfare > Welfare score sheet (/admin/welfare/scores), pick the class and term, and land on this week. Every pupil is listed with the criteria across the row; rate them and save the whole class at once. Pick another week from the strip of weeks; each shows whether it is fully scored.",
             "To save time: 'Copy week N into empty boxes' fills each pupil's empty boxes with last week's ratings, and 'Fill empty…' under a heading fills that column. Change only what was different, then 'Save week'. Changed boxes are blue until saved; empty ones are gold. You are warned if you leave with unsaved changes.",
             "A week counts towards the term once the pupil is rated for it. Weeks with attendance but no ratings are flagged as 'to rate'. If nothing was recorded for a criterion that week (e.g. no uniform check), it is left out and the week is scored out of the rest. Health incidents never reduce the score.",
-            "The Term summary tab shows every pupil's weekly scores, their term welfare, academic average and final score."
+            "The Term summary tab shows every pupil's weekly scores, their term welfare, academic average and final score.",
+            "Compulsory weeks (admins): under Welfare > Compulsory weeks (/admin/welfare/weeks), pick the term and tick the weeks every class must fill, for example every week except the mid-term break, then save. 'Make every week compulsory' ticks them all; 'None compulsory' clears them. Those weeks are marked 'Compulsory' on the score sheet, which lists any still to fill, and report cards can't be published until every pupil is scored for each of them."
           ]
         },
         {
@@ -264,6 +265,7 @@ export default function AdminLearnCentrePage() {
             "Write comments on the Comments page: the class teacher for every pupil, the head teacher (admin) after. 'Suggest for blanks' fills in a starting comment from the pupil's final score to edit.",
             "Click 'Print all' to print or save all report cards as PDF (one A4 page per pupil). 'Hide positions' prints them without positions.",
             "Click 'Publish report cards'. If anything is still missing you are warned first. Parents and pupils then see the same report card on the portal and can print it.",
+            "Compulsory welfare weeks are the exception: if an admin made weeks compulsory (Welfare > Compulsory weeks) and some pupils haven't been scored for one of them, the checklist shows which and publishing is blocked until they are filled, or until an admin un-ticks the week.",
             "Fees first: on the portal, a report card (and its certificates) only opens once the pupil's fees for that term and earlier terms are paid. Until then the parent sees a message with the amount owed and a 'Pay fees' button, and the pupil is asked to speak to their parent. Admins see who is held on the Report cards page ('Held from parents: fees owed'). Staff can still print report cards from the dashboard."
           ]
         },

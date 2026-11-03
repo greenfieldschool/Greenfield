@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { buildClassReport } from "@/lib/term-report";
 import SubmitButton from "@/components/submit-button";
 import UrlToast from "@/components/url-toast";
 import { firstOrNull } from "@/lib/relations";
@@ -83,6 +84,17 @@ export default async function AdminAcademicsPublicationsPage() {
 
     // Looked up here rather than via classRows: inline server actions cannot capture array methods.
     const { data: cls } = await supabase.from("classes").select("level").eq("id", classId).maybeSingle();
+
+    // Report cards need every compulsory welfare week filled (Welfare → Compulsory weeks), as on the Report cards page.
+    if (scope === "term_results") {
+      const report = await buildClassReport(supabase, classId, academicTermId);
+      if (report?.compulsoryMissing.length) {
+        pubBack(
+          `Fill the compulsory welfare weeks first (${report.compulsoryMissing.map((w) => `Week ${w.number}`).join(", ")}), or change which weeks are compulsory.`,
+          "error"
+        );
+      }
+    }
 
     const { error } = await supabase
       .from("result_publications")

@@ -42,6 +42,13 @@ async function publishReports(formData: FormData) {
   const access = await getTeacherAccess(supabase);
   if (!canManageClassReports(access, classId)) reportsBack(PATH, params, "Only the class teacher or an admin can publish", "error");
 
+  // Compulsory welfare weeks (Welfare → Compulsory weeks) must all be filled: this can't be published "anyway".
+  const report = await buildClassReport(supabase, classId, termId);
+  if (report?.compulsoryMissing.length) {
+    const weeks = report.compulsoryMissing.map((w) => `Week ${w.number}`).join(", ");
+    reportsBack(PATH, params, `Fill the compulsory welfare weeks first (${weeks}), or ask an admin to change which weeks are compulsory.`, "error");
+  }
+
   const [{ data: cls }, { data: term }] = await Promise.all([
     supabase.from("classes").select("level").eq("id", classId).maybeSingle(),
     supabase.from("academic_terms").select("academic_year_id").eq("id", termId).maybeSingle()
@@ -223,6 +230,19 @@ export default async function AdminReportCardsPage({
                   href={reportsUrl("/admin/welfare/scores", params)}
                   action="Score welfare"
                 />
+                {report.weeks.some((w) => w.compulsory) ? (
+                  <Check
+                    ok={!report.compulsoryMissing.length}
+                    label={
+                      report.compulsoryMissing.length
+                        ? `Compulsory welfare weeks · still to fill: ${report.compulsoryMissing.map((w) => `Week ${w.number} (${w.pupils} pupil${w.pupils === 1 ? "" : "s"})`).join(", ")}`
+                        : `Compulsory welfare weeks · all ${report.weeks.filter((w) => w.compulsory).length} filled`
+                    }
+                    detail="An admin chose these weeks under Welfare → Compulsory weeks. Report cards can't be published until every pupil is scored for each of them."
+                    href={reportsUrl("/admin/welfare/scores", params)}
+                    action="Score welfare"
+                  />
+                ) : null}
                 <Check
                   ok={report.daysOpened > 0}
                   label={`Attendance · taken on ${report.daysOpened} day(s)`}
@@ -290,6 +310,28 @@ export default async function AdminReportCardsPage({
                     ) : (
                       <p className="text-xs text-slate-500">Published report cards are locked. Only an admin can unpublish them.</p>
                     )
+                  ) : report.compulsoryMissing.length ? (
+                    // Not "publish anyway": compulsory weeks are a rule an admin set.
+                    <div className="space-y-2">
+                      <button type="button" disabled className={buttonClasses({ variant: "secondary" })}>
+                        <Send className="h-4 w-4" aria-hidden="true" />
+                        Publish report cards
+                      </button>
+                      <p className="text-xs text-slate-600">
+                        Fill the compulsory welfare weeks first ({report.compulsoryMissing.map((w) => `Week ${w.number}`).join(", ")}).{" "}
+                        <a href={reportsUrl("/admin/welfare/scores", params)} className="font-semibold text-brand-green-700 underline">
+                          Open the score sheet
+                        </a>
+                        {isAdmin ? (
+                          <>
+                            {" · "}
+                            <a href="/admin/welfare/weeks" className="font-semibold text-brand-green-700 underline">
+                              Change compulsory weeks
+                            </a>
+                          </>
+                        ) : null}
+                      </p>
+                    </div>
                   ) : (
                     <ConfirmActionButton
                       formAction={publishReports}

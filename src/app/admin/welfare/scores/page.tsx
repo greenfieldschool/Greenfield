@@ -277,6 +277,10 @@ export default async function WelfareScoresPage({
       })
     : [];
 
+  // Compulsory weeks (Welfare → Compulsory weeks): the ones that still have pupils to score, so far and later.
+  const compulsoryTotal = weeks.filter((w) => w.compulsory).length;
+  const compulsoryDue = (report?.compulsoryMissing ?? []).filter((w) => !w.future);
+  const compulsoryFilled = compulsoryTotal - (report?.compulsoryMissing.length ?? 0);
   const scoredWeeks = strip.filter((w) => !w.future && w.started > 0).length;
   const pastWeeks = strip.filter((w) => !w.future).length;
   const welfareValues = (report?.students ?? []).map((s) => s.welfare.percent).filter((p): p is number => p !== null);
@@ -306,7 +310,7 @@ export default async function WelfareScoresPage({
       <PageHeader
         learn={LEARN.welfare}
         eyebrow="Welfare"
-        title="Welfare scores"
+        title="Welfare score sheet"
         description="Score every pupil each week out of 100. At the end of term the weekly scores are averaged into one welfare score out of 100, and the final score on the report card is the average of the academic average and welfare."
         actions={
           <ButtonLink href="/admin/welfare/criteria" variant="secondary" size="sm">
@@ -377,14 +381,25 @@ export default async function WelfareScoresPage({
               icon={CalendarCheck}
               tone={selectedStrip && selectedStrip.done === n ? "green" : "gold"}
             />
-            <StatCard
-              label="Weeks scored so far"
-              value={`${scoredWeeks} / ${pastWeeks}`}
-              hint={`${weeks.length} weeks in the term`}
-              icon={CalendarRange}
-              tone="blue"
-              href={url({ view: "term" })}
-            />
+            {compulsoryTotal ? (
+              <StatCard
+                label="Compulsory weeks filled"
+                value={`${compulsoryFilled} / ${compulsoryTotal}`}
+                hint="every pupil scored; needed before report cards"
+                icon={CalendarRange}
+                tone={compulsoryFilled === compulsoryTotal ? "green" : "gold"}
+                href={url({ view: "term" })}
+              />
+            ) : (
+              <StatCard
+                label="Weeks scored so far"
+                value={`${scoredWeeks} / ${pastWeeks}`}
+                hint={`${weeks.length} weeks in the term`}
+                icon={CalendarRange}
+                tone="blue"
+                href={url({ view: "term" })}
+              />
+            )}
             <StatCard
               label="Class welfare this term"
               value={termAverage === null ? "—" : termAverage}
@@ -393,6 +408,22 @@ export default async function WelfareScoresPage({
               tone="violet"
             />
           </div>
+
+          {compulsoryDue.length ? (
+            <Alert tone="warning" title="Compulsory weeks still to fill">
+              <p>Report cards for this class can&apos;t be published until every pupil is scored for these weeks:</p>
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {compulsoryDue.map((w) => (
+                  <li key={w.start}>
+                    <a href={weekHref(w.start)} className="inline-flex items-center gap-1.5 rounded-lg border border-brand-gold-300 bg-white px-2.5 py-1 text-sm font-medium text-slate-800 hover:border-brand-gold-500">
+                      Week {w.number} <span className="text-xs text-slate-500">{w.range}</span>
+                      <span className="text-xs font-semibold text-brand-gold-800">· {w.pupils} to score</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </Alert>
+          ) : null}
 
           <LinkTabs
             tabs={[
@@ -418,6 +449,11 @@ export default async function WelfareScoresPage({
             </Card>
           ) : (
             <div className="space-y-3">
+              <p className="text-sm text-slate-600">
+                Weeks 1–{weeks.length} of {report.term.name}, from the term&apos;s start and end dates. Weeks that haven&apos;t started yet are
+                shown greyed out.
+                {compulsoryTotal ? " Weeks marked Compulsory must be filled before report cards can be published." : ""}
+              </p>
               <WeekStrip weeks={strip} selected={selected.start} />
               <Card>
                 <CardHeader

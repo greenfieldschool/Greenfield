@@ -199,11 +199,23 @@ export type TermWeek = {
   range: string;
   current: boolean;
   future: boolean;
+  /** An admin made this week compulsory for the term (welfare_compulsory_weeks): it must be filled before publishing. */
+  compulsory: boolean;
 };
 
-/** The school weeks of a term, Monday to Monday, plus any week that already has ratings outside the term dates. */
-export function termWeeks(startsOn: string | null, endsOn: string | null, extraWeeks: string[], today: string): TermWeek[] {
-  const starts = new Set(extraWeeks.filter(isMonday));
+/**
+ * The school weeks of a term, Monday to Monday, plus any week that already has ratings (or was made compulsory)
+ * outside the term dates.
+ */
+export function termWeeks(
+  startsOn: string | null,
+  endsOn: string | null,
+  extraWeeks: string[],
+  today: string,
+  compulsoryWeeks: string[] = []
+): TermWeek[] {
+  const compulsory = new Set(compulsoryWeeks.filter(isMonday));
+  const starts = new Set([...extraWeeks.filter(isMonday), ...compulsory]);
   if (startsOn && endsOn && isDay(startsOn.slice(0, 10)) && isDay(endsOn.slice(0, 10))) {
     const last = mondayOf(endsOn.slice(0, 10));
     for (let w = mondayOf(startsOn.slice(0, 10)), i = 0; w <= last && i < 60; w = addDays(w, 7), i++) starts.add(w);
@@ -211,7 +223,14 @@ export function termWeeks(startsOn: string | null, endsOn: string | null, extraW
   const thisWeek = mondayOf(today);
   return Array.from(starts)
     .sort()
-    .map((start, i) => ({ start, number: i + 1, range: weekRange(start), current: start === thisWeek, future: start > thisWeek }));
+    .map((start, i) => ({
+      start,
+      number: i + 1,
+      range: weekRange(start),
+      current: start === thisWeek,
+      future: start > thisWeek,
+      compulsory: compulsory.has(start)
+    }));
 }
 
 export type WelfareWeek = {

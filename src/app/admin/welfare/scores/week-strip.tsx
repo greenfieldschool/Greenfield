@@ -10,6 +10,8 @@ export type StripWeek = {
   range: string;
   current: boolean;
   future: boolean;
+  /** Chosen by an admin as a week that must be filled (Welfare → Compulsory weeks). */
+  compulsory?: boolean;
   href: string;
   /** Pupils fully scored / with at least one rating, out of total. */
   done: number;
@@ -52,6 +54,11 @@ export function WeekStrip({ weeks, selected }: { weeks: StripWeek[]; selected: s
                 Week {w.number}
                 {w.current ? <span className="rounded-full bg-brand-green-600 px-1.5 py-px text-[10px] font-semibold text-white">This week</span> : null}
               </span>
+              {w.compulsory ? (
+                <span className="mt-0.5 w-fit rounded bg-brand-gold-100 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-brand-gold-800">
+                  Compulsory
+                </span>
+              ) : null}
               <span className="text-[11px] text-slate-500">{w.range}</span>
               <span
                 className={cn(

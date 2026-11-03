@@ -91,6 +91,13 @@ export type ClassReport = {
   legacyRatings: number;
   /** False until 20261102_weekly_welfare.sql has been run. */
   weeklyReady: boolean;
+  /** False until 20261104_welfare_compulsory_weeks.sql has been run. */
+  compulsoryReady: boolean;
+  /**
+   * Compulsory weeks (chosen by an admin for the term) that some pupils haven't been scored for, in order. Report cards
+   * can't be published while this has anything in it.
+   */
+  compulsoryMissing: Array<{ start: string; number: number; range: string; future: boolean; pupils: number }>;
   grades: GradeBand[];
   /** Welfare award thresholds (Gold / Silver / Bronze from this score up), from welfare_scoring_rules. */
   welfareAwards: { gold: number; silver: number; bronze: number } | null;
@@ -288,6 +295,13 @@ export async function buildClassReport(
   // rather than showing no ratings at all.
   const { error: weekColumnError } = await supabase.from("welfare_ratings").select("week_start").limit(1);
   const weeklyReady = !weekColumnError;
+  // Weeks an admin made compulsory for this term (an error = the 20261104 update hasn't been run: nothing compulsory).
+  const { data: compulsoryData, error: compulsoryError } = await supabase
+    .from("welfare_compulsory_weeks")
+    .select("week_start")
+    .eq("academic_term_id", termId);
+  const compulsoryReady = !compulsoryError;
+  const compulsoryWeeks = ((compulsoryData ?? []) as Array<{ week_start: string }>).map((w) => String(w.week_start).slice(0, 10));
   const ratingColumns: string = weeklyReady ? "student_id, criterion_id, rating, week_start" : "student_id, criterion_id, rating";
 
   const [scores, attendance, uniform, discipline, ratings, comments] = await Promise.all([
@@ -403,7 +417,8 @@ export async function buildClassReport(
     term.starts_on,
     term.ends_on,
     weeklyRatings.map((rt) => String(rt.week_start)),
-    toLagosDateInput(new Date().toISOString())
+    toLagosDateInput(new Date().toISOString()),
+    compulsoryWeeks
   );
   const commentByStudent = new Map(comments.map((c) => [c.student_id, c] as const));
 
@@ -481,6 +496,20 @@ export async function buildClassReport(
   });
 
   const ratingCriteria = criteria.filter((c) => c.source === "rating").length;
+  // A compulsory week is filled for a pupil once that week counts (they were rated that week).
+  const compulsoryMissing =
+    welfareMode === "weekly" && ratingCriteria > 0
+      ? weeks
+          .filter((w) => w.compulsory)
+          .map((w) => ({
+            start: w.start,
+            number: w.number,
+            range: w.range,
+            future: w.future,
+            pupils: reports.filter((r) => !r.weeklyWelfare.weeks.find((x) => x.weekStart === w.start)?.counted).length
+          }))
+          .filter((w) => w.pupils > 0)
+      : [];
   const completeness = {
     subjectsComplete: subjectsOut.filter((s) => s.columns.length && s.completeCount === reports.length).length,
     subjectsSubmitted: subjectsOut.filter((s) => s.submitted).length,
@@ -496,7 +525,8 @@ export async function buildClassReport(
     completeness.subjectsSubmitted === subjectsOut.length &&
     (ratingCriteria === 0 || completeness.ratingsComplete === reports.length) &&
     completeness.classCommentsDone === reports.length &&
-    openedDates.size > 0;
+    openedDates.size > 0 &&
+    compulsoryMissing.length === 0;
 
   return {
     cls,
@@ -510,6 +540,8 @@ export async function buildClassReport(
     weeks,
     legacyRatings: legacyRatings.length,
     weeklyReady,
+    compulsoryReady,
+    compulsoryMissing,
     grades,
     welfareAwards: rules ? { gold: Number(rules.gold_min), silver: Number(rules.silver_min), bronze: Number(rules.bronze_min) } : null,
     students: onlyStudent ? reports.filter((r) => r.student.id === onlyStudent) : reports,
