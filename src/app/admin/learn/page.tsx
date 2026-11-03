@@ -444,8 +444,8 @@ export default function AdminLearnCentrePage() {
           name: "Attendance Marking",
           page: { href: "/admin/welfare/attendance", label: "Attendance" },
           steps: [
-            "Open Welfare > Attendance (/admin/welfare/attendance) and pick the class and date.",
-            "Mark each pupil present, absent, late or excused and save.",
+            "Open Welfare > Attendance (/admin/welfare/attendance) and pick the class and date, or click 'Take the register' on the welfare score sheet to open this class on a missing day of that week.",
+            "Everyone starts as Present: change the pupils who were absent, late or excused, then click 'Save register' once for the whole class. The strip of days shows which days of the week are taken and which are not.",
             "Attendance feeds the weekly welfare score: Attendance = days present ÷ days taken that week, Punctuality = days on time ÷ days present. Report cards show 'present X of Y days'."
           ]
         },
@@ -455,8 +455,9 @@ export default function AdminLearnCentrePage() {
           page: { href: "/admin/welfare/uniform", label: "Uniform checks" },
           steps: [
             "These records feed the weekly welfare score on their own, in the week they happen: uniform checks give Uniform & appearance, discipline records take marks off Conduct. Health notes never affect any score.",
-            "Uniform checks (Welfare > Uniform): pick the pupil and date and whether the uniform was OK. Saving again for the same pupil and date replaces the earlier check. The week's mark = checks passed ÷ checks done; with no checks that week, Uniform is left out and the week is scored out of the rest.",
-            "Discipline (Welfare > Discipline): the category (e.g. Late-coming, Fighting), what happened and how serious it was, 1 (minor) to 5 (very serious). Conduct starts full every week; each record takes off its severity × the penalty for the level (1 mark per severity point unless an admin changes it under Welfare criteria).",
+            "Uniform checks (Welfare > Uniform): pick the class and the day. Everyone starts as Neat: mark the pupils whose uniform wasn't right (with a note if you like) and click 'Save uniform check' once. You don't have to check every day. The week's mark = checks passed ÷ checks done; with no checks that week, Uniform is left out and the week is scored out of the rest. 'Remove this day's check' undoes a day saved by mistake.",
+            "Discipline (Welfare > Discipline): the pupil, when it happened, the category (e.g. Late-coming, Fighting), what happened and how serious it was, 1 (minor) to 5 (very serious). Conduct starts full every week; each record takes off its severity × the penalty for the level (1 mark per severity point unless an admin changes it under Welfare criteria). The date decides which week it counts in.",
+            "From the welfare score sheet: the 'This week's records' box shows what is missing for that week, and its buttons open these pages on the class and week, with 'Back to the welfare score sheet' at the top. The sheet's four record columns (Attendance, Punctuality, Uniform, Conduct) can't be typed on the sheet itself: they always come from these records.",
             "Health & incidents (Welfare > Health & incidents): sickness, injuries and other notes, with severity. Click the status to mark it resolved.",
             "Parents see discipline and health records in the portal. Write them in plain, factual words, as you would say them to the parent.",
             "Pick the right term on each record. Records are also matched to the week and term by their date."

@@ -28,6 +28,12 @@ description: Use for anything about academic results, result sheet columns, welf
   scaled. Health incidents never count. Ratings with `week_start` null are old whole-term ratings: a term with only
   those uses `scoreWelfareTerm` (`report.welfareMode === "term"`) until its first weekly save.
   `StudentReport.weeklyWelfare` is always the week-by-week result (the score sheet uses it); `welfare` is what counts.
+- **Record-based criteria are filled at the source, never typed on the score sheet** (the school's choice: a typed
+  override was built and dropped). The score sheet's "This week's records" box and the "Fill in →" column links open
+  the attendance register, uniform check sheet and discipline form on the class and day with `?back=<score sheet
+  url>` (`scoreSheetBack()` in `welfare/_ui.tsx` only allows the score sheet; `BackToScoreSheet` shows the way back).
+  Attendance and uniform are whole-class sheets saved once (everyone starts Present / Neat; `orig:` fields skip
+  unchanged pupils); discipline records take a "when it happened" date so they land in the right week.
 - **Compulsory weeks** (20261104; admin-only `/admin/welfare/weeks`): `welfare_compulsory_weeks` (term + Monday),
   changed only through `set_welfare_compulsory_weeks(term, weeks[])` (admin check, replaces the list). `TermWeek.compulsory`;
   `ClassReport.compulsoryMissing` lists compulsory weeks where some pupils' week doesn't count yet (weekly mode, rated

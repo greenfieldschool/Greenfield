@@ -10,11 +10,26 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { FormSection, Field } from "@/components/ui/form-section";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SeverityBadge, deleteLinkClasses, shortDate, welfareBack } from "../_ui";
+import { BackToScoreSheet, SeverityBadge, deleteLinkClasses, scoreSheetBack, shortDate, welfareBack, welfareBackTo } from "../_ui";
 import { buttonClasses } from "@/components/ui/button";
 import { LEARN } from "@/lib/learn-guides";
 
-type StudentRow = { id: string; first_name: string; last_name: string };
+type StudentRow = { id: string; first_name: string; last_name: string; class_id: string | null };
+
+// Today's date in Lagos (UTC+1, no daylight saving), as YYYY-MM-DD.
+function lagosToday() {
+  return new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+// Where to return after saving: this page with the same class and day, and the score sheet link if there was one.
+function disciplineUrl(classId: string, date: string, back: string | null) {
+  const params = new URLSearchParams();
+  if (classId) params.set("class_id", classId);
+  if (date) params.set("date", date);
+  if (back) params.set("back", back);
+  const q = params.toString();
+  return `/admin/welfare/discipline${q ? `?${q}` : ""}`;
+}
 type YearRow = { id: string; name: string };
 type TermRow = { id: string; name: string };
 
@@ -27,15 +42,24 @@ type DisciplineRow = {
   occurred_at: string;
 };
 
-export default async function AdminWelfareDisciplinePage() {
+export default async function AdminWelfareDisciplinePage({
+  searchParams
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
+  const sp = (await searchParams) ?? {};
+  // Opened from the welfare score sheet: this class, a day in that week, and the way back.
+  const classFilter = typeof sp.class_id === "string" ? sp.class_id : "";
+  const dayParam = typeof sp.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : "";
+  const back = scoreSheetBack(sp.back);
 
   const [{ data: studentsData }, { data: years }, { data: terms }, { data: records }] = await Promise.all([
     fetchAllRows<StudentRow>(() =>
       supabase
         .from("students")
-        .select("id, first_name, last_name")
+        .select("id, first_name, last_name, class_id")
         .order("last_name", { ascending: true })
         .order("first_name", { ascending: true })
         .order("id", { ascending: true })
@@ -55,6 +79,8 @@ export default async function AdminWelfareDisciplinePage() {
   const disciplineRows = (records ?? []) as DisciplineRow[];
 
   const studentById = new Map(students.map((s) => [s.id, s] as const));
+  const pickable = classFilter ? students.filter((s) => s.class_id === classFilter) : students;
+  const shownRows = classFilter ? disciplineRows.filter((r) => studentById.get(r.student_id)?.class_id === classFilter) : disciplineRows;
 
   async function createRecord(formData: FormData) {
     "use server";
@@ -66,6 +92,8 @@ export default async function AdminWelfareDisciplinePage() {
     const category = String(formData.get("category") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
     const severity = Number(String(formData.get("severity") ?? "1").trim() || "1");
+    const day = String(formData.get("occurred_on") ?? "").trim();
+    const returnTo = String(formData.get("return_to") ?? "").trim();
 
     if (!studentId || !description) welfareBack(PATH, "Choose a student and enter a description", "error");
     if (!Number.isFinite(severity) || severity < 1 || severity > 5) {
@@ -81,12 +109,16 @@ export default async function AdminWelfareDisciplinePage() {
       academic_term_id: termIdRaw.length ? termIdRaw : null,
       category: category.length ? category : null,
       description,
-      severity
+      severity,
+      // The day it happened (Lagos, mid-morning), so it counts in the right week on the welfare score sheet.
+      ...(/^\d{4}-\d{2}-\d{2}$/.test(day) ? { occurred_at: `${day}T10:00:00+01:00` } : {})
     });
 
     revalidatePath(PATH);
-    if (error) welfareBack(PATH, error.message, "error");
-    welfareBack(PATH, "Record created");
+    revalidatePath("/admin/welfare/scores");
+    const after = returnTo.startsWith(PATH) ? returnTo : PATH;
+    if (error) welfareBackTo(after, error.message, "error");
+    welfareBackTo(after, "Record created");
   }
 
   async function deleteRecord(formData: FormData) {
@@ -116,7 +148,7 @@ export default async function AdminWelfareDisciplinePage() {
         learn={LEARN.welfareRecords}
         eyebrow="Welfare"
         title="Discipline"
-        description="Record discipline cases and sanctions."
+        description="Record discipline cases. The welfare score sheet takes each week's records off that week's Conduct mark, by severity."
         actions={
           <a href="#new-record" className={buttonClasses({ variant: "primary" })}>
             <Plus className="h-4 w-4" aria-hidden="true" />
@@ -125,6 +157,8 @@ export default async function AdminWelfareDisciplinePage() {
         }
       />
 
+      <BackToScoreSheet href={back} what="any discipline case from that week (pick the day it happened)" />
+
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Records" value={disciplineRows.length} hint="Most recent 200" icon={ShieldAlert} tone="slate" />
         <StatCard label="This month" value={monthCount} hint="Recorded this calendar month" icon={CalendarDays} tone="blue" />
@@ -132,8 +166,8 @@ export default async function AdminWelfareDisciplinePage() {
       </div>
 
       <Card>
-        <CardHeader title="Recent records" description="Newest first." />
-        {disciplineRows.length ? (
+        <CardHeader title="Recent records" description={classFilter ? "This class, newest first." : "Newest first."} />
+        {shownRows.length ? (
           <div className="gf-table-wrap">
             <table className="gf-table min-w-[760px]">
               <thead>
@@ -149,7 +183,7 @@ export default async function AdminWelfareDisciplinePage() {
                 </tr>
               </thead>
               <tbody>
-                {disciplineRows.map((r) => {
+                {shownRows.map((r) => {
                   const s = studentById.get(r.student_id) ?? null;
                   return (
                     <tr key={r.id}>
@@ -185,6 +219,7 @@ export default async function AdminWelfareDisciplinePage() {
       </Card>
 
       <form action={createRecord} id="new-record" className="scroll-mt-24">
+        <input type="hidden" name="return_to" value={disciplineUrl(classFilter, dayParam, back)} />
         <FormSection
           title="New record"
           description="Log a discipline case for a student."
@@ -198,12 +233,15 @@ export default async function AdminWelfareDisciplinePage() {
             <Field label="Student" htmlFor="dis-student" required>
               <select id="dis-student" className="gf-select" name="student_id" defaultValue="" required>
                 <option value="">Select student</option>
-                {students.map((s) => (
+                {pickable.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.first_name} {s.last_name}
                   </option>
                 ))}
               </select>
+            </Field>
+            <Field label="When it happened" htmlFor="dis-day" required>
+              <input id="dis-day" className="gf-input" name="occurred_on" type="date" defaultValue={dayParam || lagosToday()} max={lagosToday()} required />
             </Field>
             <Field label="Category" htmlFor="dis-category" hint="Optional">
               <input id="dis-category" className="gf-input" name="category" placeholder="Late-coming, Fighting..." />

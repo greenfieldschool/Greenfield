@@ -9,11 +9,14 @@ import { CalendarCheck, CheckCircle2, Clock, Filter, Search, Users, X, XCircle }
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
-import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { LEARN } from "@/lib/learn-guides";
+import { addDays, mondayOf, weekRange } from "@/lib/welfare";
+import { BackToScoreSheet, scoreSheetBack } from "../_ui";
+import { cn } from "@/lib/cn";
 
 type ClassRow = { id: string; level: string; name: string };
 type StudentRow = { id: string; first_name: string; last_name: string; class_id: string | null };
@@ -25,20 +28,6 @@ type AttendanceRow = { student_id: string; date: string; status: string };
 
 const statuses = ["present", "absent", "late", "excused"] as const;
 
-function statusTone(status: string): BadgeTone {
-  switch (status) {
-    case "present":
-      return "green";
-    case "absent":
-      return "red";
-    case "late":
-      return "gold";
-    case "excused":
-      return "blue";
-    default:
-      return "slate";
-  }
-}
 
 // Selected-state colours for the status segmented control.
 const statusChecked: Record<(typeof statuses)[number], string> = {
@@ -53,7 +42,7 @@ function lagosToday() {
   return new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-type AttendanceFilters = { classId: string; date: string; q: string; yearId: string; termId: string };
+type AttendanceFilters = { classId: string; date: string; q: string; yearId: string; termId: string; back: string | null };
 
 function attendanceUrl(f: AttendanceFilters, toast?: { message: string; type: "success" | "error" }) {
   const params = new URLSearchParams();
@@ -62,6 +51,7 @@ function attendanceUrl(f: AttendanceFilters, toast?: { message: string; type: "s
   if (f.q) params.set("q", f.q);
   if (f.yearId) params.set("academic_year_id", f.yearId);
   if (f.termId) params.set("academic_term_id", f.termId);
+  if (f.back) params.set("back", f.back);
   if (toast) {
     params.set("toast", toast.message);
     params.set("toast_type", toast.type);
@@ -75,40 +65,54 @@ function filtersFrom(formData: FormData): AttendanceFilters {
     date: String(formData.get("date") ?? "").trim(),
     q: String(formData.get("q") ?? "").trim(),
     yearId: String(formData.get("academic_year_id") ?? "").trim(),
-    termId: String(formData.get("academic_term_id") ?? "").trim()
+    termId: String(formData.get("academic_term_id") ?? "").trim(),
+    back: scoreSheetBack(String(formData.get("back") ?? ""))
   };
 }
 
 // Server actions live at module level so they cannot capture values from the page render.
-async function markAttendance(formData: FormData) {
+// Saves the whole register at once: every pupil whose status differs from what was saved (unmarked pupils count as
+// changed, so "Save register" marks the class).
+async function saveRegister(formData: FormData) {
   "use server";
 
   const filters = filtersFrom(formData);
-  const studentId = String(formData.get("student_id") ?? "").trim();
-  const status = String(formData.get("status") ?? "").trim();
-
-  if (!studentId || !filters.date || !status) {
-    redirect(attendanceUrl(filters, { message: "Choose a student, date and status", type: "error" }));
+  if (!filters.classId || !filters.date) {
+    redirect(attendanceUrl(filters, { message: "Choose a class and a date", type: "error" }));
   }
 
   const supabase = getSupabaseServerClient();
   if (!supabase) redirect(attendanceUrl(filters, { message: "Database is not configured", type: "error" }));
 
-  const { error } = await supabase.from("student_attendance").upsert(
-    {
+  const rows: Array<Record<string, unknown>> = [];
+  for (const [key, value] of Array.from(formData.entries())) {
+    if (!key.startsWith("status:")) continue;
+    const studentId = key.slice("status:".length);
+    const status = String(value).trim();
+    if (!statuses.includes(status as (typeof statuses)[number])) continue;
+    if (status === String(formData.get(`orig:${studentId}`) ?? "").trim()) continue;
+    rows.push({
       student_id: studentId,
-      class_id: filters.classId.length ? filters.classId : null,
+      class_id: filters.classId,
       academic_year_id: filters.yearId.length ? filters.yearId : null,
       academic_term_id: filters.termId.length ? filters.termId : null,
       date: filters.date,
       status
-    },
-    { onConflict: "student_id,date" }
-  );
+    });
+  }
 
+  if (rows.length) {
+    const { error } = await supabase.from("student_attendance").upsert(rows, { onConflict: "student_id,date" });
+    if (error) redirect(attendanceUrl(filters, { message: error.message, type: "error" }));
+  }
   revalidatePath("/admin/welfare/attendance");
-  if (error) redirect(attendanceUrl(filters, { message: error.message, type: "error" }));
-  redirect(attendanceUrl(filters, { message: "Attendance saved", type: "success" }));
+  revalidatePath("/admin/welfare/scores");
+  redirect(
+    attendanceUrl(filters, {
+      message: rows.length ? `Register saved: ${rows.length} pupil${rows.length === 1 ? "" : "s"} updated` : "Nothing had changed",
+      type: "success"
+    })
+  );
 }
 
 async function filterAttendance(formData: FormData) {
@@ -163,6 +167,7 @@ export default async function AdminWelfareAttendancePage({
   const academicYearIdRaw = sp.academic_year_id;
   const academicTermIdRaw = sp.academic_term_id;
   const query = typeof sp.q === "string" ? sp.q.trim() : "";
+  const back = scoreSheetBack(sp.back);
 
   const selectedClassId = Array.isArray(classIdRaw) ? (classIdRaw[0] ?? "") : (classIdRaw ?? "");
   
@@ -216,6 +221,23 @@ export default async function AdminWelfareAttendancePage({
   const attendanceRows = ((attendanceData ?? []) as AttendanceRow[]).filter((r) => classStudentIds.has(r.student_id));
   const statusByStudentId = new Map(attendanceRows.map((r) => [r.student_id, r.status] as const));
 
+  // The school week around the chosen date: how many pupils are marked each day, so missing days stand out.
+  const monday = /^\d{4}-\d{2}-\d{2}$/.test(selectedDate) ? mondayOf(selectedDate) : mondayOf(defaultDateStr);
+  const weekDays = [0, 1, 2, 3, 4].map((i) => addDays(monday, i));
+  const { data: weekData } =
+    effectiveClassId && hasAnyClass
+      ? await supabase.from("student_attendance").select("student_id, date").eq("class_id", effectiveClassId).gte("date", weekDays[0]).lte("date", weekDays[4])
+      : { data: [] as unknown[] };
+  const markedByDay = new Map<string, number>();
+  for (const r of (weekData ?? []) as Array<{ student_id: string; date: string }>) {
+    if (!classStudentIds.has(r.student_id)) continue;
+    const d = String(r.date).slice(0, 10);
+    markedByDay.set(d, (markedByDay.get(d) ?? 0) + 1);
+  }
+  const today = defaultDateStr;
+  const dayLink = (d: string) =>
+    attendanceUrl({ classId: effectiveClassId, date: d, q: "", yearId: selectedYearId, termId: selectedTermId, back });
+
   // Compute metrics for the loaded class/date
   const totalClassStudents = classStudentIds.size;
   const presentCount = attendanceRows.filter((r) => r.status === "present").length;
@@ -243,9 +265,11 @@ export default async function AdminWelfareAttendancePage({
         learn={LEARN.attendance}
         eyebrow="Welfare"
         title="Attendance"
-        description="Record daily attendance by class group."
+        description="Take the register for a class each school day. The welfare score sheet works out Attendance and Punctuality from it."
         back={{ href: "/admin", label: "Back to admin" }}
       />
+
+      <BackToScoreSheet href={back} what="the register for each day of the week" />
 
       {/* Metrics */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -282,6 +306,7 @@ export default async function AdminWelfareAttendancePage({
             </Alert>
           ) : null}
           <form action={filterAttendance} className="flex flex-col gap-4 xl:flex-row xl:items-end">
+            {back ? <input type="hidden" name="back" value={back} /> : null}
             <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <div>
                 <label htmlFor="att-q" className="gf-label">
@@ -366,104 +391,123 @@ export default async function AdminWelfareAttendancePage({
         </CardBody>
       </Card>
 
+      {/* The week */}
+      {hasAnyClass && effectiveClassId ? (
+        <nav aria-label="Days of this week" className="flex flex-col gap-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Week of {weekRange(monday)}</div>
+          <ol className="grid grid-cols-5 gap-2">
+            {weekDays.map((d) => {
+              const marked = markedByDay.get(d) ?? 0;
+              const full = totalClassStudents > 0 && marked >= totalClassStudents;
+              const isSelected = d === selectedDate;
+              const future = d > today;
+              const label = new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
+              return (
+                <li key={d}>
+                  <a
+                    href={dayLink(d)}
+                    aria-current={isSelected ? "date" : undefined}
+                    className={cn(
+                      "flex flex-col rounded-xl border px-2 py-2 text-center transition sm:px-3",
+                      isSelected
+                        ? "border-brand-green-500 bg-brand-green-50 ring-2 ring-brand-green-500/20"
+                        : future
+                          ? "border-dashed border-slate-200 bg-slate-50 text-slate-400"
+                          : "border-slate-200 bg-white hover:border-brand-green-300"
+                    )}
+                  >
+                    <span className="text-xs font-semibold text-slate-800">{label}</span>
+                    <span className="text-[11px] text-slate-500">{Number(d.slice(8, 10))}</span>
+                    <span
+                      className={cn(
+                        "mt-1 text-[11px] font-medium",
+                        full ? "text-brand-green-700" : marked ? "text-brand-gold-800" : future ? "text-slate-400" : "text-red-700"
+                      )}
+                    >
+                      {full ? "Taken" : marked ? `${marked}/${totalClassStudents}` : future ? "—" : "Not taken"}
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+      ) : null}
+
       {/* Register */}
       <Card>
         <CardHeader
-          title="Mark attendance"
-          description={`Choose a status and save per student. Existing marks are preloaded.${dateLabel ? ` Register for ${dateLabel}.` : ""}`}
+          title="Register"
+          description={`${dateLabel ? `${dateLabel}. ` : ""}Everyone starts as Present: change the pupils who were absent, late or excused, then save the register once.`}
           action={
             students.length ? (
               <Badge tone={markedCount === students.length ? "green" : markedCount ? "gold" : "slate"} dot>
-                {markedCount}/{students.length} marked
+                {markedCount}/{students.length} saved
               </Badge>
             ) : null
           }
         />
         {students.length ? (
-          <div className="max-h-[75vh] overflow-auto">
-            <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
-              <thead>
-                <tr>
-                  <th
-                    scope="col"
-                    className="sticky left-0 top-0 z-30 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 sm:pl-6"
-                  >
-                    Student
-                  </th>
-                  <th
-                    scope="col"
-                    className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600"
-                  >
-                    Current
-                  </th>
-                  <th
-                    scope="col"
-                    className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 sm:pr-6"
-                  >
-                    Mark
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((s) => {
-                  const currentStatus = statusByStudentId.get(s.id);
-                  return (
-                    <tr key={s.id} className="group">
-                      <th
-                        scope="row"
-                        className="sticky left-0 z-10 border-b border-slate-100 bg-white px-4 py-2.5 text-left font-semibold text-slate-900 group-hover:bg-slate-50 sm:pl-6"
-                      >
+          <form action={saveRegister}>
+            <input type="hidden" name="class_id" value={effectiveClassId} />
+            <input type="hidden" name="date" value={selectedDate} />
+            <input type="hidden" name="academic_year_id" value={selectedYearId} />
+            <input type="hidden" name="academic_term_id" value={selectedTermId} />
+            <input type="hidden" name="q" value={query} />
+            {back ? <input type="hidden" name="back" value={back} /> : null}
+            <ul className="divide-y divide-slate-100">
+              {students.map((s) => {
+                const currentStatus = statusByStudentId.get(s.id);
+                return (
+                  <li key={s.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-900">
                         {s.first_name} {s.last_name}
-                      </th>
-                      <td className="border-b border-slate-100 px-4 py-2.5 group-hover:bg-slate-50">
+                      </div>
+                      <div className="text-xs">
                         {currentStatus ? (
-                          <Badge tone={statusTone(currentStatus)} dot className="capitalize">
-                            {currentStatus}
-                          </Badge>
+                          <span className="capitalize text-slate-500">Saved: {currentStatus}</span>
                         ) : (
-                          <span className="text-xs text-slate-400">Not marked</span>
+                          <span className="font-medium text-brand-gold-800">Not saved yet</span>
                         )}
-                      </td>
-                      <td className="border-b border-slate-100 px-4 py-2.5 group-hover:bg-slate-50 sm:pr-6">
-                        <form action={markAttendance} className="flex items-center gap-2">
-                          <input type="hidden" name="student_id" value={s.id} />
-                          <input type="hidden" name="class_id" value={effectiveClassId} />
-                          <input type="hidden" name="date" value={selectedDate} />
-                          <input type="hidden" name="academic_year_id" value={selectedYearId} />
-                          <input type="hidden" name="academic_term_id" value={selectedTermId} />
-                          <input type="hidden" name="q" value={query} />
-                          <fieldset className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-0.5">
-                            <legend className="sr-only">
-                              Status for {s.first_name} {s.last_name}
-                            </legend>
-                            {statuses.map((st) => (
-                              <label key={st} className="cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name="status"
-                                  value={st}
-                                  defaultChecked={(currentStatus ?? statuses[0]) === st}
-                                  className="peer sr-only"
-                                />
-                                <span
-                                  className={`inline-flex h-8 items-center rounded-lg px-2.5 text-xs font-semibold capitalize text-slate-600 transition hover:text-slate-900 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-green-500/40 ${statusChecked[st]}`}
-                                >
-                                  {st}
-                                </span>
-                              </label>
-                            ))}
-                          </fieldset>
-                          <SubmitButton variant="primary" size="sm" pendingText="Saving…">
-                            Save
-                          </SubmitButton>
-                        </form>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </div>
+                    <input type="hidden" name={`orig:${s.id}`} value={currentStatus ?? ""} />
+                    <fieldset className="grid grid-cols-4 rounded-xl border border-slate-200 bg-slate-50 p-0.5 sm:inline-flex">
+                      <legend className="sr-only">
+                        Status for {s.first_name} {s.last_name}
+                      </legend>
+                      {statuses.map((st) => (
+                        <label key={st} className="cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`status:${s.id}`}
+                            value={st}
+                            defaultChecked={(currentStatus ?? "present") === st}
+                            className="peer sr-only"
+                          />
+                          <span
+                            className={`flex h-10 items-center justify-center rounded-lg px-2.5 text-xs font-semibold capitalize text-slate-600 transition hover:text-slate-900 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-green-500/40 sm:h-8 ${statusChecked[st]}`}
+                          >
+                            {st}
+                          </span>
+                        </label>
+                      ))}
+                    </fieldset>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="sticky bottom-0 z-10 flex flex-col gap-2 rounded-b-2xl border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <p className="text-xs text-slate-500">Saves every pupil above for {dateLabel || "this day"}. Pupils already saved keep their mark unless you change it.</p>
+              <SubmitButton variant="primary" pendingText="Saving…">
+                <span className="inline-flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  Save register
+                </span>
+              </SubmitButton>
+            </div>
+          </form>
         ) : (
           <EmptyState
             icon={CalendarCheck}

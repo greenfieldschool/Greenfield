@@ -57,7 +57,8 @@ export function WeeklyGrid({
   rows,
   locked,
   hasPrevious,
-  weekLabel
+  weekLabel,
+  sourceLinks = {}
 }: {
   action: (formData: FormData) => void | Promise<void>;
   hidden: Record<string, string>;
@@ -67,6 +68,8 @@ export function WeeklyGrid({
   /** Some pupil has ratings in an earlier week. */
   hasPrevious: boolean;
   weekLabel: string;
+  /** Record-based criterion id -> the page where its records are filled in (attendance, uniform, discipline). */
+  sourceLinks?: Record<string, string>;
 }) {
   const rated = useMemo(() => criteria.filter((c) => c.rated), [criteria]);
   const fromRecords = useMemo(() => criteria.filter((c) => !c.rated), [criteria]);
@@ -238,6 +241,11 @@ export function WeeklyGrid({
                   <div className="mt-0.5 font-normal text-slate-500">
                     {c.max} marks · {c.rated ? "rate 1–5" : `from ${c.sourceLabel.toLowerCase()}`}
                   </div>
+                  {!c.rated && sourceLinks[c.id] ? (
+                    <a href={sourceLinks[c.id]} className="mt-1 inline-block text-[11px] font-semibold text-sky-800 underline-offset-2 hover:underline">
+                      Fill in →
+                    </a>
+                  ) : null}
                   {c.rated && !locked ? (
                     <select
                       value=""
@@ -358,7 +366,7 @@ export function WeeklyGrid({
               <span className="h-2.5 w-2.5 rounded-sm border border-sky-400 bg-sky-50" aria-hidden="true" /> changed, not saved yet
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-sm bg-sky-100" aria-hidden="true" /> worked out from records
+              <span className="h-2.5 w-2.5 rounded-sm bg-sky-100" aria-hidden="true" /> from the register, uniform checks and discipline records
             </span>
           </p>
         </div>
@@ -510,7 +518,9 @@ function PhoneCards({
 
                 {fromRecords.length ? (
                   <div className="rounded-xl bg-sky-50 px-3 py-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-800">Worked out from records</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-800">
+                      From the school&apos;s records <span className="font-normal normal-case tracking-normal text-slate-500">(fill in from the box above)</span>
+                    </div>
                     <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                       {fromRecords.map((c) => {
                         const a = r.auto[c.id];

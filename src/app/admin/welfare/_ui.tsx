@@ -40,3 +40,34 @@ export function shortDate(value: string | null | undefined) {
 export function welfareBack(path: string, message: string, type: "success" | "error" = "success"): never {
   redirect(`${path}?toast=${encodeURIComponent(message)}&toast_type=${type}`);
 }
+
+// Teachers reach the attendance, uniform and discipline pages from the welfare score sheet ("fill it at the source").
+// ?back=… carries the score sheet address so they can return to the same class and week; only that page is allowed.
+export function scoreSheetBack(v: unknown): string | null {
+  const s = Array.isArray(v) ? v[0] : v;
+  return typeof s === "string" && s.startsWith("/admin/welfare/scores") ? s : null;
+}
+
+/** Adds a toast to an address that may already have a query string. */
+export function withToast(url: string, message: string, type: "success" | "error" = "success") {
+  return `${url}${url.includes("?") ? "&" : "?"}toast=${encodeURIComponent(message)}&toast_type=${type}`;
+}
+
+export function welfareBackTo(url: string, message: string, type: "success" | "error" = "success"): never {
+  redirect(withToast(url, message, type));
+}
+
+/** The bar at the top of a source page when the teacher came from the score sheet. */
+export function BackToScoreSheet({ href, what }: { href: string | null; what: string }) {
+  if (!href) return null;
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-brand-green-200 bg-brand-green-50/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-slate-700">
+        Fill in {what} here. The welfare score sheet works its marks out from what you save.
+      </p>
+      <a href={href} className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand-green-700 hover:underline">
+        ← Back to the welfare score sheet
+      </a>
+    </div>
+  );
+}

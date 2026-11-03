@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { CalendarCheck, CalendarRange, HeartHandshake, Settings2, Sigma } from "lucide-react";
+import { CalendarCheck, CalendarRange, HeartHandshake, Settings2, ShieldAlert, Shirt, Sigma } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getTeacherAccess } from "@/lib/teacher-access";
 import { buildClassReport, type ClassReport } from "@/lib/term-report";
 import { resultsErrorMessage } from "@/lib/results";
-import { dayMonth, isMonday, weekRange, welfareSources } from "@/lib/welfare";
+import { addDays, dayMonth, isMonday, weekRange, welfareSources } from "@/lib/welfare";
 import UrlToast from "@/components/url-toast";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -256,6 +256,42 @@ export default async function WelfareScoresPage({
     max: Number(c.max_points),
     sourceLabel: sourceLabel[c.source] ?? c.source
   }));
+  // "Fill it at the source": what has been recorded this week for the four record-based criteria, and links that open
+  // the attendance register, uniform check and discipline pages on this class and week (with a way back here).
+  const backHere = selected ? weekHref(selected.start) : "";
+  const studentIdsHere = (report?.students ?? []).map((s) => s.student.id);
+  const weekDays = selected ? [0, 1, 2, 3, 4].map((i) => addDays(selected.start, i)) : [];
+  const todayLagos = new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 10);
+  const [{ data: weekAttendance }, { data: weekUniform }, { data: weekDiscipline }] =
+    selected && studentIdsHere.length
+      ? await Promise.all([
+          supabase.from("student_attendance").select("student_id, date").in("student_id", studentIdsHere).gte("date", weekDays[0]).lte("date", weekDays[4]),
+          supabase.from("student_uniform_checks").select("date").in("student_id", studentIdsHere).gte("date", weekDays[0]).lte("date", weekDays[4]),
+          supabase
+            .from("welfare_discipline_records")
+            .select("id")
+            .in("student_id", studentIdsHere)
+            .gte("occurred_at", `${weekDays[0]}T00:00:00+01:00`)
+            .lte("occurred_at", `${addDays(weekDays[0], 6)}T23:59:59+01:00`)
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }];
+  const registerDays = new Set(((weekAttendance ?? []) as Array<{ date: string }>).map((r) => String(r.date).slice(0, 10)));
+  const uniformDays = new Set(((weekUniform ?? []) as Array<{ date: string }>).map((r) => String(r.date).slice(0, 10)));
+  const disciplineCount = (weekDiscipline ?? []).length;
+  const pastDays = weekDays.filter((d) => d <= todayLagos);
+  const missingRegister = pastDays.filter((d) => !registerDays.has(d));
+  const dayName = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
+  const sourceLink = (path: string, date: string) => reportsUrl(path, { class_id: classId, date, back: backHere });
+  const registerHref = sourceLink("/admin/welfare/attendance", missingRegister[0] ?? pastDays[pastDays.length - 1] ?? weekDays[0] ?? "");
+  const uniformHref = sourceLink("/admin/welfare/uniform", pastDays[pastDays.length - 1] ?? weekDays[0] ?? "");
+  const disciplineHref = `${sourceLink("/admin/welfare/discipline", pastDays[pastDays.length - 1] ?? weekDays[0] ?? "")}#new-record`;
+  const sourceLinks: Record<string, string> = {};
+  for (const c of criteria) {
+    if (c.source === "attendance" || c.source === "punctuality") sourceLinks[c.id] = registerHref;
+    else if (c.source === "uniform") sourceLinks[c.id] = uniformHref;
+    else if (c.source === "conduct") sourceLinks[c.id] = disciplineHref;
+  }
+
   const gridRows: GridRow[] = selected
     ? (report?.students ?? []).map((s) => {
         const wk = s.weeklyWelfare.weeks.find((x) => x.weekStart === selected.start);
@@ -455,6 +491,73 @@ export default async function WelfareScoresPage({
                 {compulsoryTotal ? " Weeks marked Compulsory must be filled before report cards can be published." : ""}
               </p>
               <WeekStrip weeks={strip} selected={selected.start} />
+              {Object.keys(sourceLinks).length ? (
+                <Card>
+                  <CardHeader
+                    title={`This week's records · ${selected.range}`}
+                    description="Attendance, Punctuality, Uniform and Conduct are filled in from these records, not on this sheet. Fill them in where they are kept, then come back: the sheet updates."
+                  />
+                  <ul className="divide-y divide-slate-100">
+                    {[
+                      {
+                        icon: CalendarCheck,
+                        title: "Attendance register",
+                        sub: "Attendance and Punctuality",
+                        status: pastDays.length
+                          ? missingRegister.length
+                            ? `Not taken on ${missingRegister.map(dayName).join(", ")}`
+                            : `Taken on all ${pastDays.length} day${pastDays.length === 1 ? "" : "s"} so far`
+                          : "The week hasn't started",
+                        ok: pastDays.length > 0 && !missingRegister.length,
+                        href: registerHref,
+                        action: missingRegister.length ? "Take the register" : "Open the register"
+                      },
+                      {
+                        icon: Shirt,
+                        title: "Uniform checks",
+                        sub: "Uniform & appearance",
+                        status: uniformDays.size
+                          ? `Checked on ${Array.from(new Set(Array.from(uniformDays).sort().map(dayName))).join(", ")}`
+                          : "No uniform check yet this week (the mark is left out until there is one)",
+                        ok: uniformDays.size > 0,
+                        href: uniformHref,
+                        action: "Check uniforms"
+                      },
+                      {
+                        icon: ShieldAlert,
+                        title: "Discipline records",
+                        sub: "Conduct (full marks unless there's a record)",
+                        status: disciplineCount ? `${disciplineCount} record${disciplineCount === 1 ? "" : "s"} this week` : "No records this week",
+                        ok: true,
+                        href: disciplineHref,
+                        action: "Add a record"
+                      }
+                    ].map((row) => (
+                      <li key={row.title} className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <span
+                            className={cn(
+                              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+                              row.ok ? "bg-brand-green-50 text-brand-green-700" : "bg-brand-gold-50 text-brand-gold-800"
+                            )}
+                          >
+                            <row.icon className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-slate-900">
+                              {row.title} <span className="font-normal text-slate-500">· {row.sub}</span>
+                            </div>
+                            <div className={cn("text-sm", row.ok ? "text-slate-600" : "font-medium text-brand-gold-800")}>{row.status}</div>
+                          </div>
+                        </div>
+                        <ButtonLink href={row.href} variant={row.ok ? "secondary" : "primary"} size="sm" className="shrink-0">
+                          {row.action}
+                        </ButtonLink>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              ) : null}
               <Card>
                 <CardHeader
                   title={`${report.cls.name} · Week ${selected.number} · ${selected.range}`}
@@ -474,6 +577,7 @@ export default async function WelfareScoresPage({
                   locked={locked}
                   hasPrevious={hasPrevious}
                   weekLabel={`Week ${selected.number}`}
+                  sourceLinks={sourceLinks}
                 />
               </Card>
               <p className="text-xs text-slate-500">
