@@ -86,6 +86,10 @@ skill says where the code goes; this one says how the screen should work for the
 - **Submitted as final**: a subject teacher has locked a result sheet.
 
 ## Pitfalls we hit
+- On a phone the welfare score sheet opened on the four read-only columns (worked out from records), so teachers
+  thought it couldn't be filled: the columns to fill were off screen to the right. In any grid, put what the person
+  fills first, and on phones replace wide entry grids with one card per pupil and tap buttons (`PhoneCards` in
+  `weekly-grid.tsx`), rendering only one layout so form fields aren't sent twice.
 - A blank grid after a failed read looked like "nothing entered yet" and invited re-entry: show an `Alert`.
 - Client-side `Link` navigation skips `beforeunload`; use plain `<a>` for links away from a grid with unsaved edits.
 - Grid state kept the previous week's edits after switching weeks: give the grid a `key` per class/term/week.
