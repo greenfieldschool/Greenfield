@@ -35,6 +35,7 @@ import {
   Shapes,
   Shirt,
   MessagesSquare,
+  NotebookPen,
   HeartHandshake,
   ListChecks,
   ScrollText,
@@ -130,6 +131,7 @@ const NAV: NavGroup[] = [
       { href: "/admin/academics/subjects", label: "Subjects", icon: BookOpen, adminOnly: true },
       { href: "/admin/academics/class-subjects", label: "Class subjects", icon: Shapes, adminOnly: true },
       { href: "/admin/academics/teachers", label: "Teacher assignments", icon: UserCheck, adminOnly: true },
+      { href: "/admin/academics/assignments", label: "Assignments & classwork", icon: NotebookPen },
       { href: "/admin/academics/assessments", label: "Assessments", icon: ClipboardCheck },
       { href: "/admin/academics/publications", label: "Publish results", icon: Megaphone }
     ]
@@ -203,6 +205,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   certificates: "Certificates",
   scores: "Welfare score sheet",
   criteria: "Welfare criteria",
+  assignments: "Assignments & classwork",
   weeks: "Compulsory weeks",
   audit: "Results history",
   corrections: "Correction requests",

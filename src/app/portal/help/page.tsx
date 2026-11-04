@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { BookOpen, CalendarCheck, ChevronDown, FileText, Mail, MessagesSquare, Phone, Receipt, UserRound } from "lucide-react";
+import { BookOpen, CalendarCheck, ChevronDown, FileText, Mail, MessagesSquare, NotebookPen, Phone, Receipt, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
@@ -274,6 +274,47 @@ export default async function PortalHelpPage() {
           id: "report-block",
           q: "Someone sent me something upsetting",
           a: <p>Tap the ⋯ next to the message to report it to the school, or block the person. The school looks at every report.</p>
+        }
+      ]
+    },
+    {
+      id: HELP.assignments,
+      title: "Assignments and classwork",
+      icon: NotebookPen,
+      questions: [
+        {
+          id: "hand-in",
+          q: "How do I hand in an assignment?",
+          for: "student",
+          a: (
+            <p>
+              Open <A href="/portal/assignments">Assignments</A> and tap the work. Read what to do (and open the worksheet if there is one), then type your
+              answer, or tap <strong>Take a photo</strong> to photograph your exercise book, or both, and tap <strong>Hand in</strong>. You can change it until
+              your teacher marks it.
+            </p>
+          )
+        },
+        {
+          id: "late",
+          q: "I missed the due date",
+          for: "student",
+          a: (
+            <p>
+              You can usually still hand in: it shows as late. If the teacher isn&apos;t accepting late work for that piece, the page says so; speak to your
+              teacher.
+            </p>
+          )
+        },
+        {
+          id: "see-work",
+          q: "How do I see my child's assignments?",
+          for: "parent",
+          a: (
+            <p>
+              Open <A href="/portal/assignments">Assignments</A> (under More on a phone). It shows what&apos;s to do, what&apos;s late, what&apos;s been
+              handed in and the marks with the teacher&apos;s comments. Tap a piece of work to see what your child handed in. Only your child can hand work in.
+            </p>
+          )
         }
       ]
     },

@@ -472,6 +472,20 @@ export default function AdminLearnCentrePage() {
             "Add a new assessment specifying the class, subject, year, term, assessment type, and maximum score.",
             "Click the assessment to enter its scores. Term results are usually entered on the Class result sheet instead."
           ]
+        },
+        {
+          id: LEARN.assignments,
+          name: "Assignments and Classwork",
+          page: { href: "/admin/academics/assignments", label: "Assignments & classwork" },
+          steps: [
+            "Open Academics > Assignments & classwork (/admin/academics/assignments) and pick the class. Teachers see the classes and subjects they teach; class teachers can also set general work with no subject.",
+            "Under 'Set new work', choose the subject, Assignment or Classwork, a title, the instructions, the due date and time, and the total marks. Untick 'Accept work handed in after the due date' to close it at the due time. Pupils and parents see it on the portal straight away.",
+            "Open the work to add a worksheet (a PDF, Word file or photo) and change the details at any time.",
+            "Pupils hand in on the portal by typing an answer, taking a photo of their exercise book, or uploading a file. They can change it until you mark it. Work handed in after the due date shows as 'Handed in late'.",
+            "To mark: open the work. Each pupil shows what they handed in (tap a photo to see it full size). Type the mark and a comment for each one, then click 'Save marks' once. You can also mark work handed in on paper. Pupils and parents see the mark and comment as soon as you save, and a marked piece can no longer be changed by the pupil.",
+            "Send the marks to the result sheet: choose the subject's result sheet column and click 'Send marks'. Each mark is scaled to the column's total (15/20 into a 10-mark column gives 7.5). A sheet that is submitted as final or published won't change, and every change is kept in the results history.",
+            "Pupils' files are private: only the pupil, their parents and the teachers of that class and subject can open them."
+          ]
         }
       ]
     }

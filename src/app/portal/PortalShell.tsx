@@ -20,6 +20,7 @@ import {
   User,
   Users,
   MessagesSquare,
+  NotebookPen,
   X,
   type LucideIcon,
   CircleHelp
@@ -32,9 +33,10 @@ type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean;
 
 const studentNav: NavItem[] = [
   { href: "/portal", label: "Home", icon: Home, exact: true, tab: true },
+  { href: "/portal/assignments", label: "Assignments", icon: NotebookPen, tab: true },
   { href: "/portal/exams", label: "Exams", icon: FileText, exact: true, tab: true },
-  { href: "/portal/exams/results", label: "Exam results", icon: BarChart3, tab: true },
   { href: "/portal/academics", label: "Report card", icon: BookOpen, tab: true },
+  { href: "/portal/exams/results", label: "Exam results", icon: BarChart3 },
   { href: "/portal/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/portal/activities", label: "Activities", icon: Smile },
   { href: "/portal/incidents", label: "Health", icon: HeartPulse },
@@ -47,6 +49,7 @@ const parentNav: NavItem[] = [
   { href: "/portal/messages", label: "Messages", icon: MessagesSquare, tab: true },
   { href: "/portal/academics", label: "Report cards", icon: BookOpen, tab: true },
   { href: "/portal/billing", label: "Fees & billing", icon: Receipt, tab: true },
+  { href: "/portal/assignments", label: "Assignments", icon: NotebookPen },
   { href: "/portal/students", label: "My children", icon: Users },
   { href: "/portal/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/portal/discipline", label: "Discipline", icon: ShieldCheck },

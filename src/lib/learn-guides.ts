@@ -32,7 +32,8 @@ export const LEARN = {
   expenses: "expenses",
   attendance: "attendance",
   welfareRecords: "welfare-records",
-  assessments: "assessments"
+  assessments: "assessments",
+  assignments: "assignments"
 } as const;
 
 export type LearnGuide = (typeof LEARN)[keyof typeof LEARN];

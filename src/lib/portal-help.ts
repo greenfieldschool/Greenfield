@@ -15,7 +15,8 @@ export const HELP = {
   messages: "messages",
   exams: "exams",
   account: "account",
-  homeScreen: "home-screen"
+  homeScreen: "home-screen",
+  assignments: "assignments"
 } as const;
 
 export type PortalHelp = (typeof HELP)[keyof typeof HELP];
