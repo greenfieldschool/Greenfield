@@ -37,13 +37,25 @@ export function AssignmentFilePicker({
   folder,
   current,
   label = "Add a photo or file",
-  disabled = false
+  disabled = false,
+  bucket = ASSIGNMENT_BUCKET,
+  accept = ACCEPT,
+  maxBytes = MAX_FILE_BYTES,
+  hint = "Photos, PDF or Word, up to 10 MB. Photos are made smaller automatically.",
+  camera: showCamera = true
 }: {
   /** "briefs/<assignment>" or "work/<assignment>/<pupil>" (no trailing slash). */
   folder: string;
   current?: { path: string; name: string | null; type?: string | null; url?: string | null } | null;
   label?: string;
   disabled?: boolean;
+  /** Another private bucket with its own rules (lesson notes use "lesson-notes"). */
+  bucket?: string;
+  accept?: string;
+  maxBytes?: number;
+  hint?: string;
+  /** Show "Take a photo" on phones. */
+  camera?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
@@ -59,17 +71,17 @@ export function AssignmentFilePicker({
     setBusy(true);
     try {
       const ready = await shrinkPhoto(chosen);
-      if (ready.size > MAX_FILE_BYTES) {
-        setError("That file is too big. Choose one under 10 MB, or take a photo instead.");
+      if (ready.size > maxBytes) {
+        setError(`That file is too big. Choose one under ${Math.round(maxBytes / 1048576)} MB${showCamera ? ", or take a photo instead" : ""}.`);
         return;
       }
       const path = `${folder}/${storageFileName(ready.name)}`;
-      const { error: uploadError } = await supabase.storage.from(ASSIGNMENT_BUCKET).upload(path, ready, {
+      const { error: uploadError } = await supabase.storage.from(bucket).upload(path, ready, {
         contentType: ready.type || "application/octet-stream",
         upsert: false
       });
       if (uploadError) {
-        setError(/mime|type/i.test(uploadError.message) ? "That kind of file can't be uploaded. Use a photo, PDF or Word document." : "The upload didn't work. Check your connection and try again.");
+        setError(/mime|type/i.test(uploadError.message) ? "That kind of file can't be uploaded. Use a photo, PDF, Word or PowerPoint document." : "The upload didn't work. Check your connection and try again.");
         return;
       }
       setFile({ path, name: chosen.name, type: ready.type, url: URL.createObjectURL(ready) });
@@ -85,7 +97,7 @@ export function AssignmentFilePicker({
       <input type="hidden" name="file_path" value={file?.path ?? ""} />
       <input type="hidden" name="file_name" value={file?.name ?? ""} />
       <input type="hidden" name="file_type" value={file?.type ?? ""} />
-      <input ref={input} type="file" accept={ACCEPT} className="sr-only" tabIndex={-1} onChange={(e) => pick(e.target.files?.[0])} />
+      <input ref={input} type="file" accept={accept} className="sr-only" tabIndex={-1} onChange={(e) => pick(e.target.files?.[0])} />
       <input ref={camera} type="file" accept="image/*" capture="environment" className="sr-only" tabIndex={-1} onChange={(e) => pick(e.target.files?.[0])} />
 
       {file ? (
@@ -119,10 +131,12 @@ export function AssignmentFilePicker({
         </div>
       ) : disabled ? null : (
         <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={busy} onClick={() => camera.current?.click()} className={cn(buttonClasses({ variant: "secondary" }), "sm:hidden")}>
-            <Camera className="h-4 w-4" aria-hidden="true" />
-            Take a photo
-          </button>
+          {showCamera ? (
+            <button type="button" disabled={busy} onClick={() => camera.current?.click()} className={cn(buttonClasses({ variant: "secondary" }), "sm:hidden")}>
+              <Camera className="h-4 w-4" aria-hidden="true" />
+              Take a photo
+            </button>
+          ) : null}
           <button type="button" disabled={busy} onClick={() => input.current?.click()} className={buttonClasses({ variant: "secondary" })}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FileUp className="h-4 w-4" aria-hidden="true" />}
             {busy ? "Uploading…" : label}
@@ -130,7 +144,7 @@ export function AssignmentFilePicker({
         </div>
       )}
       {error ? <p className="mt-1.5 text-sm text-red-700">{error}</p> : null}
-      {!file && !disabled ? <p className="gf-hint mt-1.5">Photos, PDF or Word, up to 10 MB. Photos are made smaller automatically.</p> : null}
+      {!file && !disabled ? <p className="gf-hint mt-1.5">{hint}</p> : null}
     </div>
   );
 }

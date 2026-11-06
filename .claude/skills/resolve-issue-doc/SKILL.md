@@ -36,7 +36,8 @@ notes in capitals or plain English, each followed by a screenshot. Several unrel
 ## Pitfalls we hit
 - A new document can repeat earlier ones word for word (issues9 = issue8 plus one new item). Diff the text against
   older docs (`textutil` both) and check `git log`: say which items were already fixed and when, and only build
-  what is new.
+  what is new. issue10 = issues9 (same screenshots, reordered) plus an e-learning proposal (assignments, lesson
+  notes, video classes) and a "Published Results" section. Compare screenshots with `cmp`, not by file name.
 - "Where is X?" often means the feature exists but the page they were on doesn't lead to it (issues9: they were on
   Welfare criteria looking for the class score sheet). Link the two pages and use their words in the menu.
 - "Save the first two, then the second two" meant a stale sheet could wipe others' scores; the fix was

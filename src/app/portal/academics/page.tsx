@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PortalPageHeader, PortalNotice } from "../_components/portal-ui";
-import { loadPortalReport } from "./_load";
+import { loadPortalReport, termParams } from "./_load";
 import { FeeHoldNotice, ReportPickers, termLabel } from "./_parts";
 import { HELP } from "@/lib/portal-help";
 
@@ -39,8 +39,7 @@ export default async function PortalAcademicsPage({
   const { role, student, report, mine, latest, hold } = data;
   const released = hold.status === "clear";
   const awards = released ? awardsFor(report, mine).filter((a) => data.canRank || a.kind === "welfare") : [];
-  const certParams = new URLSearchParams({ pub: latest.id });
-  if (role === "parent") certParams.set("student_id", student.id);
+  const certParams = termParams(latest, role === "parent" ? student.id : null);
 
   return (
     <div className="space-y-6">

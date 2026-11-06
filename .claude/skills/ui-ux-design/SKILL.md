@@ -91,6 +91,12 @@ skill says where the code goes; this one says how the screen should work for the
   fills first, and on phones replace wide entry grids with one card per pupil and tap buttons (`PhoneCards` in
   `weekly-grid.tsx`), rendering only one layout so form fields aren't sent twice.
 - A blank grid after a failed read looked like "nothing entered yet" and invited re-entry: show an `Alert`.
+- A wide table made the whole page scroll sideways: an `sr-only` header label (position absolute) escaped the
+  `gf-table-wrap` scroll box. `gf-table-wrap` is now `relative`; check `document.documentElement.scrollWidth` against
+  `innerWidth` on every new page.
+- On a broadsheet the outcome (final score, grade) goes right after the pupil's name, before the subjects, so it is
+  visible on a phone without scrolling sideways. Lists of records with several actions are rows that wrap
+  (`md:flex-row`), not tables with an actions column that gets cut off.
 - Client-side `Link` navigation skips `beforeunload`; use plain `<a>` for links away from a grid with unsaved edits.
 - Grid state kept the previous week's edits after switching weeks: give the grid a `key` per class/term/week.
 - `toLocaleDateString("en-GB", { month: "short" })` gives "Sept" on some servers: format months by hand.

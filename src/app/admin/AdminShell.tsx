@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  Archive,
+  BookOpenText,
   BarChart3,
   BookMarked,
   BookOpen,
@@ -67,6 +69,8 @@ type NavItem = {
   adminOnly?: boolean;
   /** Teachers and admins only (messaging). */
   chatOnly?: boolean;
+  /** Admins plus only these roles (pages also check, and RLS decides what they see). */
+  roles?: string[];
 };
 
 type NavGroup = {
@@ -119,6 +123,7 @@ const NAV: NavGroup[] = [
       },
       { href: "/admin/academics/results/pupil", label: "Single pupil results", icon: UserRound },
       { href: "/admin/academics/reports", label: "Report cards", icon: ScrollText },
+      { href: "/admin/academics/published", label: "Published results", icon: Archive, roles: ["teacher", "front_desk"] },
       { href: "/admin/academics/corrections", label: "Correction requests", icon: FilePen },
       { href: "/admin/academics/audit", label: "Results history", icon: History },
       { href: "/admin/academics/config", label: "Grading & layouts", icon: SlidersHorizontal }
@@ -132,6 +137,7 @@ const NAV: NavGroup[] = [
       { href: "/admin/academics/class-subjects", label: "Class subjects", icon: Shapes, adminOnly: true },
       { href: "/admin/academics/teachers", label: "Teacher assignments", icon: UserCheck, adminOnly: true },
       { href: "/admin/academics/assignments", label: "Assignments & classwork", icon: NotebookPen },
+      { href: "/admin/academics/lesson-notes", label: "Lesson notes", icon: BookOpenText },
       { href: "/admin/academics/assessments", label: "Assessments", icon: ClipboardCheck },
       { href: "/admin/academics/publications", label: "Publish results", icon: Megaphone }
     ]
@@ -196,6 +202,8 @@ const SEGMENT_LABELS: Record<string, string> = {
   pupil: "Single pupil",
   assessments: "Assessments",
   publications: "Publish results",
+  published: "Published results",
+  view: "Class results",
   subjects: "Subjects",
   "class-subjects": "Class subjects",
   config: "Grading & layouts",
@@ -206,6 +214,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   scores: "Welfare score sheet",
   criteria: "Welfare criteria",
   assignments: "Assignments & classwork",
+  "lesson-notes": "Lesson notes",
   weeks: "Compulsory weeks",
   audit: "Results history",
   corrections: "Correction requests",
@@ -294,7 +303,10 @@ export default function AdminShell({ userEmail, role, unreadMessages = 0, childr
       NAV.filter((g) => isAdmin || !g.adminOnly)
         .map((g) => ({
           ...g,
-          items: g.items.filter((i) => (isAdmin || !i.adminOnly) && (!i.chatOnly || isAdmin || role === "teacher"))
+          items: g.items.filter(
+            (i) =>
+              (isAdmin || !i.adminOnly) && (!i.chatOnly || isAdmin || role === "teacher") && (!i.roles || isAdmin || i.roles.includes(role ?? ""))
+          )
         }))
         .filter((g) => g.items.length > 0),
     [isAdmin, role]

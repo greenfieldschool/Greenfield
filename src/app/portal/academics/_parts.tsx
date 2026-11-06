@@ -5,17 +5,36 @@ import type { FeeHold } from "@/lib/fee-hold";
 import { Card } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
 import { PillLinks } from "../_components/portal-ui";
-import { firstOrNull, type PortalReport } from "./_load";
+import { termParams, type PortalReport, type ReportTerm } from "./_load";
 
 type Ok = Extract<PortalReport, { kind: "ok" }>;
 
-export function termLabel(p: Ok["latest"]) {
-  return [firstOrNull(p.academic_years)?.name, firstOrNull(p.academic_terms)?.name].filter(Boolean).join(" · ");
+export function termLabel(t: ReportTerm) {
+  return [t.yearName, t.termName].filter(Boolean).join(" · ");
 }
 
-/** Child and term pickers, shared by the report card and certificates pages. */
+/** A school year as the pupil lived it: the year and the class they were in (two groups if they moved mid-year). */
+function yearKey(t: ReportTerm) {
+  return `${t.yearName ?? ""}|${t.className ?? ""}`;
+}
+
+/**
+ * Child and term pickers, shared by the report card and certificates pages. With more than one school year, a year
+ * row (e.g. "2025/2026 · JSS 1A") comes first and the term row shows that year's terms, so years of report cards
+ * stay two short rows on a phone.
+ */
 export function ReportPickers({ data, path }: { data: Ok; path: string }) {
-  const { role, parentStudents, pubs, student, latest } = data;
+  const { role, parentStudents, terms, student, latest } = data;
+  const childId = role === "parent" ? student.id : null;
+  const years: Array<{ key: string; label: string; newest: ReportTerm }> = [];
+  for (const t of terms) {
+    const key = yearKey(t);
+    if (!years.some((y) => y.key === key)) {
+      years.push({ key, label: [t.yearName, t.className].filter(Boolean).join(" · ") || "Earlier", newest: t });
+    }
+  }
+  const activeYear = yearKey(latest);
+  const yearTerms = years.length > 1 ? terms.filter((t) => yearKey(t) === activeYear) : terms;
   return (
     <>
       {role === "parent" && parentStudents.length > 1 ? (
@@ -31,20 +50,29 @@ export function ReportPickers({ data, path }: { data: Ok; path: string }) {
           />
         </div>
       ) : null}
-      {pubs.length > 1 ? (
+      {years.length > 1 ? (
+        <div className="print:hidden">
+          <PillLinks
+            label="Choose a school year"
+            items={years.map((y) => ({
+              key: y.key,
+              href: `${path}?${termParams(y.newest, childId).toString()}`,
+              label: y.label,
+              active: y.key === activeYear
+            }))}
+          />
+        </div>
+      ) : null}
+      {yearTerms.length > 1 ? (
         <div className="print:hidden">
           <PillLinks
             label="Choose a term"
-            items={pubs.map((p) => {
-              const params = new URLSearchParams({ pub: p.id });
-              if (role === "parent") params.set("student_id", student.id);
-              return {
-                key: p.id,
-                href: `${path}?${params.toString()}`,
-                label: `${firstOrNull(p.academic_years)?.name ?? ""} ${firstOrNull(p.academic_terms)?.name ?? "Term"}`.trim(),
-                active: p.id === latest.id
-              };
-            })}
+            items={yearTerms.map((t) => ({
+              key: t.key,
+              href: `${path}?${termParams(t, childId).toString()}`,
+              label: years.length > 1 ? t.termName : `${t.yearName ?? ""} ${t.termName}`.trim(),
+              active: t.key === latest.key
+            }))}
           />
         </div>
       ) : null}
@@ -60,7 +88,7 @@ function money(currency: string, amount: number) {
 /** Shown instead of the report card (or certificates) while fees are unpaid, or when fees couldn't be checked. */
 export function FeeHoldNotice({ data, what }: { data: Ok; what: "report card" | "certificates" }) {
   const hold = data.hold as Exclude<FeeHold, { status: "clear" }>;
-  const term = firstOrNull(data.latest.academic_terms)?.name ?? "term";
+  const term = data.latest.termName || "term";
   const isParent = data.role === "parent";
   const owner = isParent ? `${data.student.first_name}'s` : "Your";
 

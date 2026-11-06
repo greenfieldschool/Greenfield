@@ -10,7 +10,7 @@ import PrintButton from "@/components/print-button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PortalPageHeader, PortalNotice } from "../../_components/portal-ui";
-import { loadPortalReport } from "../_load";
+import { loadPortalReport, termParams } from "../_load";
 import { FeeHoldNotice, ReportPickers, termLabel } from "../_parts";
 import { HELP } from "@/lib/portal-help";
 
@@ -47,7 +47,7 @@ export default async function PortalCertificatesPage({
   // Parents can't read staff signatures directly; the school's service key reads them for the printed certificate.
   const service = getSupabaseServiceClient();
   const signatures = awards.length && service ? await loadSignatureStatus(service as SupabaseClient, report.cls.id) : NO_SIGNATURES;
-  const reportHref = `/portal/academics?${new URLSearchParams(role === "parent" ? { pub: latest.id, student_id: student.id } : { pub: latest.id })}`;
+  const reportHref = `/portal/academics?${termParams(latest, role === "parent" ? student.id : null).toString()}`;
 
   return (
     <div className="space-y-6">
@@ -71,7 +71,7 @@ export default async function PortalCertificatesPage({
       ) : awards.length ? (
         <div className="space-y-6 print:space-y-0">
           {awards.map((a) => (
-            <Certificate key={a.key} report={report} student={mine} award={a} issuedOn={toLagosDateInput(latest.published_at)} signatures={signatures} />
+            <Certificate key={a.key} report={report} student={mine} award={a} issuedOn={toLagosDateInput(latest.publishedAt)} signatures={signatures} />
           ))}
         </div>
       ) : (

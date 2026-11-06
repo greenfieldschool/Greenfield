@@ -29,9 +29,12 @@ export function toLagosDateInput(iso: string | null | undefined): string {
 /** ISO timestamp → "14 Oct 2026" in Lagos. */
 export function formatLagosDate(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" });
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "—";
+  // Months spelled by hand: "en-GB" gives "Sept" on some servers.
+  const d = new Date(t + LAGOS_OFFSET_MS);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
 export type SessionVisibilityInput = {

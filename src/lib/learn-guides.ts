@@ -18,6 +18,7 @@ export const LEARN = {
   resultColumns: "result-columns",
   welfare: "weekly-welfare",
   reportCards: "report-cards",
+  publishedResults: "published-results",
   certificates: "certificates",
   calendar: "academic-calendar",
   grading: "grading",
@@ -33,7 +34,8 @@ export const LEARN = {
   attendance: "attendance",
   welfareRecords: "welfare-records",
   assessments: "assessments",
-  assignments: "assignments"
+  assignments: "assignments",
+  lessonNotes: "lesson-notes"
 } as const;
 
 export type LearnGuide = (typeof LEARN)[keyof typeof LEARN];

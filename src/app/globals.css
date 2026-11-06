@@ -64,8 +64,10 @@ body {
   }
 
   /* Tables: wrap in <div className="gf-table-wrap"> inside a Card for horizontal scroll on phones. */
+  /* relative: a screen-reader-only label (sr-only, position absolute) in a wide table would otherwise escape the
+     scroll box and make the whole page scroll sideways. */
   .gf-table-wrap {
-    @apply w-full overflow-x-auto;
+    @apply relative w-full overflow-x-auto;
   }
 
   .gf-table {

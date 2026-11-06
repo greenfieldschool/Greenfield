@@ -58,5 +58,6 @@ npx tsc --noEmit -p . && npx next lint --dir src && npx next build
 UI preview without a database: copy `src/components`, `src/lib`, the route folder, `globals.css` and the
 tailwind/ts configs into a scratchpad app with `node_modules` symlinked, replace `src/lib/supabase/server.ts`
 with a fake client (`auth.getUser`, `from(table)` chain with `eq/select/order/limit/maybeSingle/then`, `rpc(name)`)
-returning sample rows, wrap the root layout in `ToastProvider`, run `npx next dev -p 39xx`, and screenshot with the
+returning sample rows (add `contains`/`or`/`not` when the page uses them; make the user client return nothing for
+tables RLS hides from that role, and replace `service.ts` too when the page reads with the service key), wrap the root layout in `ToastProvider`, run `npx next dev -p 39xx`, and screenshot with the
 built-in browser at desktop and mobile (`resize_window` preset `mobile`). Reset the viewport and stop the server after.

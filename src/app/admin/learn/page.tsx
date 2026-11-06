@@ -270,6 +270,20 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.publishedResults,
+          name: "Published Results (archive)",
+          page: { href: "/admin/academics/published", label: "Published results" },
+          steps: [
+            "Open Result management > Published results. It lists every class result that has been published to parents, newest term first.",
+            "Who sees what: admins and front desk (admissions) see every class; a class teacher sees their own classes. Subject teachers and the nurse don't see this page. Parents and pupils see only their own child's report card on the portal.",
+            "Narrow the list by session, term, level or class, or type a pupil's name or admission number to find all of their published results.",
+            "Click 'View' to see the whole class ranked on the final score, with every subject, the academic average, welfare, final score and grade. 'Print this list' prints it as a broadsheet.",
+            "Click 'Report cards' to print the class's report cards (or 'Report card' beside one pupil), and 'Excel' to download the class result as a spreadsheet.",
+            "When a class's report cards are published, a copy is saved automatically. Past terms then stay exactly as they were published, even after pupils move up a class or the grading changes. Results published before copies were kept show 'No saved copy yet'; an admin can click 'Save copies now' to keep them as they are today.",
+            "This page only shows results. To publish, unpublish or correct results, use Report cards (admins and class teachers)."
+          ]
+        },
+        {
           id: LEARN.certificates,
           name: "Certificates of Achievement",
           page: { href: "/admin/academics/reports", label: "Report cards" },
@@ -485,6 +499,20 @@ export default function AdminLearnCentrePage() {
             "To mark: open the work. Each pupil shows what they handed in (tap a photo to see it full size). Type the mark and a comment for each one, then click 'Save marks' once. You can also mark work handed in on paper. Pupils and parents see the mark and comment as soon as you save, and a marked piece can no longer be changed by the pupil.",
             "Send the marks to the result sheet: choose the subject's result sheet column and click 'Send marks'. Each mark is scaled to the column's total (15/20 into a 10-mark column gives 7.5). A sheet that is submitted as final or published won't change, and every change is kept in the results history.",
             "Pupils' files are private: only the pupil, their parents and the teachers of that class and subject can open them."
+          ]
+        },
+        {
+          id: LEARN.lessonNotes,
+          name: "Lesson Notes",
+          page: { href: "/admin/academics/lesson-notes", label: "Lesson notes" },
+          steps: [
+            "Open Academics > Lesson notes (/admin/academics/lesson-notes) and pick the class and term. Notes are listed by week, with Published and Draft counts and how many weeks have notes. Teachers see the classes and subjects they teach; class teachers can also add general notes with no subject.",
+            "Under 'New lesson note', choose the subject, the week (this week is chosen for you) and the topic, then click 'Create and add the notes'. The note is saved as a draft: only staff can see it.",
+            "On the note's page, upload the file you prepared (PDF, Word, PowerPoint, Excel or a picture, up to 20 MB) and/or type the notes. Click 'Save draft' to keep working on it later, or 'Save and publish' when it's ready.",
+            "Once published, pupils and parents of the class see it on the portal under Lesson notes, marked 'New' for a week. They can search by subject, week or topic, open it, and download it for revision.",
+            "To update a note, open it, change the text, or remove the file (×) and upload the new one, then save. Pupils see the change straight away. 'Take back to draft' hides it from pupils and parents; 'Delete lesson note' removes it and its file for good.",
+            "Admins (and the head) can open any class to see which notes have been prepared and published, and by whom.",
+            "Files are private: only the class's teachers, admins, and the pupils and parents of that class (once published) can open them, through links that last 10 minutes."
           ]
         }
       ]

@@ -73,8 +73,27 @@ description: Use for anything about academic results, result sheet columns, welf
     `decide_result_correction`). Approval applies the change; a stale request (score changed since) is refused.
   - `result_audit_log` is written only by triggers. Admins read all; teachers read their classes/subjects.
     Page: `/admin/academics/audit` ("Results history"). Corrections page: `/admin/academics/corrections`.
-- Portal report cards use the service client (class averages/positions need the whole class) after checking the
-  parent is linked to the child and the term is published.
+- **Published results** (issue 10; `/admin/academics/published`, `/view`, `/print`, `/download`; migration 20261106):
+  a read-only archive of every published class + term. On publish (Report cards page and Result publications page)
+  `archivePublishedResults()` in `src/lib/published-results.ts` builds the class report with the **service key** and
+  upserts a copy into `published_results` (whole `ClassReport` in `report`, a small `pupils` summary for the list and
+  pupil search, class/term/year names so it survives a deleted or merged class). Nobody writes the table from the
+  browser (no write grants); RLS read = `can_view_published_results(class)`: admins and front desk (admissions)
+  every class, teachers only their class-teacher classes; subject teachers, nurse, parents, pupils none. Unpublishing
+  deletes the publication, which sets `publication_id` null: the copy is kept but leaves the list; republishing
+  replaces it. Publications from before the archive have no copy: they're worked out live (service key, after
+  `scopeAllows`) and admins get "Save copies now". Pages name a result by `?copy=<id>` or `?class_id&term_id`
+  (`publishedKeyParams` / `readPublishedKey`). Always read copies with the user's own client so RLS decides.
+- **Portal report cards** (`src/app/portal/academics/_load.ts`, shared by the report card and certificates pages):
+  after checking the parent is linked to the child (or it's the pupil's own login), the terms are (1) every
+  `published_results` copy whose `pupils` contains the pupil id (`.contains("pupils", JSON.stringify([{ id }]))`,
+  service key), published or with its class deleted, whatever class the pupil is in now; plus (2) publications of the
+  pupil's **current** class with no copy yet, built live as before. A current-class publication that has a copy is
+  shown only from the copy (a pupil who joined after publishing isn't in it, so doesn't get it). Links use `?copy=`
+  or `?pub=` (`termParams()`); an old `?pub=` link opens its copy. Pickers (`_parts.tsx`): a school-year row
+  ("2025/2026 · JSS 1A") when there's more than one, then that year's terms. The fee hold uses the copy's
+  `report.term`, so it still applies per term. The class report stays on the server: `ReportCard` and `Certificate`
+  are server components; never pass `report` to a client component.
 
 ## Rules
 - Never write scores, ratings or columns around the locks, and never write to `result_audit_log` from the app.
@@ -93,6 +112,12 @@ description: Use for anything about academic results, result sheet columns, welf
   scores while the teacher policy on scores read columns. Fixed in 20261028 with definer helpers
   (`can_manage_results`, `can_manage_assessment`, `portal_can_see_assessment`). The page swallowed the error, so
   "Open sheet" looked like it did nothing and "Create sheet" showed the raw message.
+- Every report is rebuilt from pupils' **current** class (`students.class_id`; there is no class history), so a past
+  term changes once pupils move up. That's why published results are archived as copies, and the portal reads them so last year's report
+  cards survive promotion. Publications from before the archive still show only for the current class until an admin
+  saves copies ("Save copies now" on Published results).
+- supabase-js `.contains(col, [..])` with an array writes a Postgres array literal `cs.{...}`; for a jsonb column
+  pass a JSON string instead.
 - Upserts logged phantom "score entered" entries; the guard skips the insert path when the row exists.
 - A pupil with no scores ranked first on welfare alone; term total now needs both halves.
 - Attendance/uniform/discipline rows are sometimes saved without a term id; `termFilter()` also matches by the term's dates.

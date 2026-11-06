@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { buildClassReport } from "@/lib/term-report";
+import { archivePublishedResults } from "@/lib/published-results";
 import SubmitButton from "@/components/submit-button";
 import UrlToast from "@/components/url-toast";
 import { firstOrNull } from "@/lib/relations";
@@ -115,6 +116,10 @@ export default async function AdminAcademicsPublicationsPage() {
     revalidatePath("/admin/academics/publications");
     revalidatePath("/portal/academics");
     if (error) pubBack(error.message, "error");
+    // Keep a copy for Published results, so this term still shows these pupils after they move up a class.
+    const archived = scope === "term_results" ? await archivePublishedResults(classId, academicTermId) : { ok: true as const };
+    revalidatePath("/admin/academics/published");
+    if (!archived.ok) pubBack("Results published. A copy for Published results couldn't be saved; an admin can save it there.", "error");
     pubBack("Results published");
   }
 

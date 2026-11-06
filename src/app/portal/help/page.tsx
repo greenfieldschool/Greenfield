@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { BookOpen, CalendarCheck, ChevronDown, FileText, Mail, MessagesSquare, NotebookPen, Phone, Receipt, UserRound } from "lucide-react";
+import { BookOpen, BookOpenText, CalendarCheck, ChevronDown, FileText, Mail, MessagesSquare, NotebookPen, Phone, Receipt, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
@@ -160,6 +160,18 @@ export default async function PortalHelpPage() {
           )
         },
         {
+          id: "earlier-years",
+          q: "Can I still see report cards from an earlier class?",
+          a: (
+            <p>
+              Yes. Moving up a class doesn&apos;t remove anything: every term the school has published for {audience === "parent" ? "your child" : "you"} stays
+              under <A href="/portal/academics">Report card{audience === "parent" ? "s" : ""}</A>, exactly as it was published. Choose the school year (it shows the
+              class {audience === "parent" ? "your child was" : "you were"} in) and then the term. Certificates from those terms are there too. The fees rule is
+              the same for every term: a report card opens once that term&apos;s fees, and any earlier term&apos;s, are paid.
+            </p>
+          )
+        },
+        {
           id: HELP.reportHeld,
           q: "It says the report card is ready, but it won't open",
           a:
@@ -313,6 +325,45 @@ export default async function PortalHelpPage() {
             <p>
               Open <A href="/portal/assignments">Assignments</A> (under More on a phone). It shows what&apos;s to do, what&apos;s late, what&apos;s been
               handed in and the marks with the teacher&apos;s comments. Tap a piece of work to see what your child handed in. Only your child can hand work in.
+            </p>
+          )
+        }
+      ]
+    },
+    {
+      id: HELP.lessonNotes,
+      title: "Lesson notes",
+      icon: BookOpenText,
+      questions: [
+        {
+          id: "find-notes",
+          q: "Where do I find the lesson notes?",
+          a: (
+            <p>
+              Open <A href="/portal/lesson-notes">Lesson notes</A>{audience === "parent" ? " (under More on a phone)" : ""}. Notes are listed by week for the
+              current term, newest first, and new ones are marked <strong>New</strong>. Choose a subject or a week, or type part of the topic (e.g.
+              &ldquo;fractions&rdquo;) and tap <strong>Find</strong>. Tap <strong>All terms</strong> to revise from earlier terms.
+            </p>
+          )
+        },
+        {
+          id: "download-notes",
+          q: "How do I download or print a lesson note?",
+          a: (
+            <p>
+              Tap the note, then <strong>Download</strong> to save the file (PDF, Word or PowerPoint) on your phone or computer, or <strong>Open</strong> to read
+              it straight away and print it from there. If a link stops working, go back to the note and tap it again: links last 10 minutes so the notes stay
+              private to the class.
+            </p>
+          )
+        },
+        {
+          id: "missing-notes",
+          q: "A lesson note I expected isn't there",
+          a: (
+            <p>
+              Only notes the teacher has published show here; notes still being prepared don&apos;t. The list shows the class{" "}
+              {audience === "parent" ? "your child is" : "you are"} in now. If it&apos;s still missing, ask the subject teacher.
             </p>
           )
         }

@@ -21,6 +21,7 @@ import {
   Users,
   MessagesSquare,
   NotebookPen,
+  BookOpenText,
   X,
   type LucideIcon,
   CircleHelp
@@ -35,6 +36,7 @@ const studentNav: NavItem[] = [
   { href: "/portal", label: "Home", icon: Home, exact: true, tab: true },
   { href: "/portal/assignments", label: "Assignments", icon: NotebookPen, tab: true },
   { href: "/portal/exams", label: "Exams", icon: FileText, exact: true, tab: true },
+  { href: "/portal/lesson-notes", label: "Lesson notes", icon: BookOpenText },
   { href: "/portal/academics", label: "Report card", icon: BookOpen, tab: true },
   { href: "/portal/exams/results", label: "Exam results", icon: BarChart3 },
   { href: "/portal/attendance", label: "Attendance", icon: CalendarCheck },
@@ -50,6 +52,7 @@ const parentNav: NavItem[] = [
   { href: "/portal/academics", label: "Report cards", icon: BookOpen, tab: true },
   { href: "/portal/billing", label: "Fees & billing", icon: Receipt, tab: true },
   { href: "/portal/assignments", label: "Assignments", icon: NotebookPen },
+  { href: "/portal/lesson-notes", label: "Lesson notes", icon: BookOpenText },
   { href: "/portal/students", label: "My children", icon: Users },
   { href: "/portal/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/portal/discipline", label: "Discipline", icon: ShieldCheck },

@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { Award, CheckCircle2, CircleAlert, EyeOff, FileText, HeartHandshake, MessageSquareText, Printer, Send } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getTeacherAccess } from "@/lib/teacher-access";
+import { archivePublishedResults } from "@/lib/published-results";
 import { buildClassReport, ordinal } from "@/lib/term-report";
 import { feeHolds } from "@/lib/fee-hold";
 import UrlToast from "@/components/url-toast";
@@ -27,6 +28,7 @@ function revalidateReports() {
   revalidatePath(PATH);
   revalidatePath("/admin/academics/results");
   revalidatePath("/admin/academics/publications");
+  revalidatePath("/admin/academics/published");
   revalidatePath("/portal/academics");
   revalidatePath("/portal");
 }
@@ -70,8 +72,17 @@ async function publishReports(formData: FormData) {
     { onConflict: "scope,academic_year_id,academic_term_id,level,class_id" }
   );
   if (error) reportsBack(PATH, params, error.message, "error");
+  // Keep a copy for Published results, so this term still shows these pupils after they move up a class.
+  const archived = await archivePublishedResults(classId, termId);
   revalidateReports();
-  reportsBack(PATH, params, "Report cards published — parents and students can now see them");
+  reportsBack(
+    PATH,
+    params,
+    archived.ok
+      ? "Report cards published — parents and students can now see them"
+      : "Report cards published — parents and students can now see them. A copy for Published results couldn't be saved; an admin can save it there.",
+    archived.ok ? "success" : "error"
+  );
 }
 
 // Admin only, with a reason that is kept in the audit log. Unpublishing unlocks the scores for correction.
