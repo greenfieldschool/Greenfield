@@ -35,7 +35,8 @@ export const LEARN = {
   welfareRecords: "welfare-records",
   assessments: "assessments",
   assignments: "assignments",
-  lessonNotes: "lesson-notes"
+  lessonNotes: "lesson-notes",
+  onlineClasses: "online-classes"
 } as const;
 
 export type LearnGuide = (typeof LEARN)[keyof typeof LEARN];

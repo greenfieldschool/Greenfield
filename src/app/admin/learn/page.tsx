@@ -514,6 +514,19 @@ export default function AdminLearnCentrePage() {
             "Admins (and the head) can open any class to see which notes have been prepared and published, and by whom.",
             "Files are private: only the class's teachers, admins, and the pupils and parents of that class (once published) can open them, through links that last 10 minutes."
           ]
+        },
+        {
+          id: LEARN.onlineClasses,
+          name: "Online Classes",
+          page: { href: "/admin/academics/online-classes", label: "Online classes" },
+          steps: [
+            "Create the meeting in Zoom, Google Meet or Microsoft Teams first and copy its link (it starts with https://).",
+            "Open Academics > Online classes (/admin/academics/online-classes), pick the class, and fill in 'Schedule an online class': subject, topic, date, start time, how long it lasts, the meeting link and passcode, what pupils should prepare, and (optional) a published lesson note to go with it.",
+            "Pupils and parents of the class see it on the portal straight away, under Coming up. From 15 minutes before the start it moves to the top with a Join button. Use 'Open the meeting' on the class's page to start it yourself.",
+            "To reschedule, open the class and change the date or time; pupils see the new time. 'Cancel class' needs a short reason that pupils and parents see; 'It's on again' undoes it. Delete removes it and its attendance.",
+            "Attendance: when a pupil (or a parent, for a young child) taps Join on the portal, the time is recorded. After the class, open it: everyone who joined is filled in as Present and the rest as Absent. Change any that are wrong (e.g. Late) and click 'Save attendance'.",
+            "The class's page shows who is expected (every pupil in the class) and who has joined so far while it's running."
+          ]
         }
       ]
     }

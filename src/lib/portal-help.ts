@@ -17,7 +17,8 @@ export const HELP = {
   account: "account",
   homeScreen: "home-screen",
   assignments: "assignments",
-  lessonNotes: "lesson-notes"
+  lessonNotes: "lesson-notes",
+  onlineClasses: "online-classes"
 } as const;
 
 export type PortalHelp = (typeof HELP)[keyof typeof HELP];

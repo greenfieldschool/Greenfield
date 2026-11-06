@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { BookOpen, BookOpenText, CalendarCheck, ChevronDown, FileText, Mail, MessagesSquare, NotebookPen, Phone, Receipt, UserRound } from "lucide-react";
+import { BookOpen, BookOpenText, CalendarCheck, Video, ChevronDown, FileText, Mail, MessagesSquare, NotebookPen, Phone, Receipt, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
@@ -325,6 +325,44 @@ export default async function PortalHelpPage() {
             <p>
               Open <A href="/portal/assignments">Assignments</A> (under More on a phone). It shows what&apos;s to do, what&apos;s late, what&apos;s been
               handed in and the marks with the teacher&apos;s comments. Tap a piece of work to see what your child handed in. Only your child can hand work in.
+            </p>
+          )
+        }
+      ]
+    },
+    {
+      id: HELP.onlineClasses,
+      title: "Online classes",
+      icon: Video,
+      questions: [
+        {
+          id: "join-class",
+          q: "How do I join an online class?",
+          a: (
+            <p>
+              Open <A href="/portal/online-classes">Online classes</A>{audience === "parent" ? " (under More on a phone)" : ""}. From 15 minutes before the
+              start, the class shows at the top with a <strong>Join</strong> button: tap it and it opens Zoom, Google Meet or Teams. If it asks for a passcode,
+              it&apos;s shown next to the time. Install the Zoom or Teams app beforehand if the teacher uses one of those.
+            </p>
+          )
+        },
+        {
+          id: "class-attendance",
+          q: "Does joining count as attendance?",
+          a: (
+            <p>
+              Yes. Tapping <strong>Join</strong> here records that {audience === "parent" ? "your child" : "you"} joined, and the time. The teacher then
+              confirms present, late or absent. Joining with a link copied from somewhere else isn&apos;t recorded, so always join from this page.
+            </p>
+          )
+        },
+        {
+          id: "class-cancelled",
+          q: "The class was moved or cancelled",
+          a: (
+            <p>
+              When a teacher changes the time, the new time shows straight away. A cancelled class stays in the list, crossed out, with the teacher&apos;s
+              reason. If the Join button doesn&apos;t appear at the time shown, ask the teacher.
             </p>
           )
         }

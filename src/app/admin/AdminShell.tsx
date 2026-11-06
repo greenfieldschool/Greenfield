@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Archive,
   BookOpenText,
+  Video,
   BarChart3,
   BookMarked,
   BookOpen,
@@ -138,6 +139,7 @@ const NAV: NavGroup[] = [
       { href: "/admin/academics/teachers", label: "Teacher assignments", icon: UserCheck, adminOnly: true },
       { href: "/admin/academics/assignments", label: "Assignments & classwork", icon: NotebookPen },
       { href: "/admin/academics/lesson-notes", label: "Lesson notes", icon: BookOpenText },
+      { href: "/admin/academics/online-classes", label: "Online classes", icon: Video },
       { href: "/admin/academics/assessments", label: "Assessments", icon: ClipboardCheck },
       { href: "/admin/academics/publications", label: "Publish results", icon: Megaphone }
     ]
@@ -215,6 +217,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   criteria: "Welfare criteria",
   assignments: "Assignments & classwork",
   "lesson-notes": "Lesson notes",
+  "online-classes": "Online classes",
   weeks: "Compulsory weeks",
   audit: "Results history",
   corrections: "Correction requests",
