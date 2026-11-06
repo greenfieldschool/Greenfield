@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
-import { Logo } from "@/components/ui/logo";
+import { Crest } from "@/components/ui/logo";
 import { buttonClasses } from "@/components/ui/button";
 import { school } from "@/lib/school";
 import { WHATSAPP_URL } from "@/components/whatsapp-button";
@@ -67,7 +67,13 @@ export function SiteFooter() {
 
         <div className="mt-14 grid gap-10 md:grid-cols-2 lg:grid-cols-12">
           <div className="lg:col-span-4">
-            <Logo inverted />
+            <div className="flex items-center gap-4">
+              <Crest className="h-28 w-[100px] shrink-0 drop-shadow-[0_10px_24px_rgba(0,0,0,0.3)]" />
+              <div className="leading-tight">
+                <div className="font-display text-2xl font-semibold text-white">Greenfield</div>
+                <div className="mt-1 text-[0.65rem] font-semibold uppercase tracking-[0.24em] text-brand-gold-300">School · Lekki, Lagos</div>
+              </div>
+            </div>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-brand-green-200">
               Deep roots. Bright futures. A Nigerian + British blended education from creche to secondary.
             </p>

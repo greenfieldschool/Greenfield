@@ -79,6 +79,11 @@ export async function saveChatSettings(formData: FormData) {
     values.reply_weekdays_only = formData.get("reply_weekdays_only") === "on";
   }
   const { error } = await supabase.from("chat_settings").upsert(values, { onConflict: "user_id" });
+  if (!error && formData.has("email_messages_present")) {
+    await supabase
+      .from("email_preferences")
+      .upsert({ user_id: user.id, messages: formData.get("email_messages") === "on", updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+  }
   revalidatePath(`${base}`, "layout");
   redirect(`${base}/settings?toast=${encodeURIComponent(error ? error.message : "Settings saved")}&toast_type=${error ? "error" : "success"}`);
 }

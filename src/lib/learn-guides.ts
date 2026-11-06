@@ -36,7 +36,9 @@ export const LEARN = {
   assessments: "assessments",
   assignments: "assignments",
   lessonNotes: "lesson-notes",
-  onlineClasses: "online-classes"
+  onlineClasses: "online-classes",
+  announcements: "announcements",
+  email: "email"
 } as const;
 
 export type LearnGuide = (typeof LEARN)[keyof typeof LEARN];

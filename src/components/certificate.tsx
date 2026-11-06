@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Award as AwardIcon, HeartHandshake, Trophy } from "lucide-react";
-import { LogoMark } from "@/components/ui/logo";
+import { Crest, LogoMark, schoolName } from "@/components/ui/logo";
 import { school } from "@/lib/school";
 import type { Award, AwardTier } from "@/lib/certificates";
 import type { ClassReport, StudentReport } from "@/lib/term-report";
@@ -66,9 +66,9 @@ export default function Certificate({
           <LogoMark className="pointer-events-none absolute left-1/2 top-1/2 h-[34cqw] w-[31cqw] -translate-x-1/2 -translate-y-1/2 opacity-[0.045]" />
 
           {/* School */}
-          <LogoMark className="relative h-[6.2cqw] w-[5.6cqw]" />
+          <Crest className="relative h-[11.6cqw] w-[10.4cqw]" section={report.cls?.level} title={`${schoolName(report.cls?.level)} crest`} />
           <div className="relative mt-[0.6cqw] font-display font-bold uppercase tracking-[0.18em] text-brand-green-900" style={cq(2.1)}>
-            Greenfield School
+            {schoolName(report.cls?.level)}
           </div>
           <div className="relative text-slate-500" style={cq(0.95)}>
             {school.address}

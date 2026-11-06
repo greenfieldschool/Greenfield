@@ -27,6 +27,9 @@ often mid-range Android on mobile data, so every animation has to earn its cost 
   or a window under 768px. Every scene wrapper uses it. Also `useInView` (callback ref), `seeded` (the same
   "random" scene on every visit), `useReducedMotion`, and `useWebGLAvailable`, which checks once per page load and
   releases the test WebGL context.
+- **Crest**: `gf-crest-anim` (the crest assembling itself: home intro and logins), `gf-logo-hover` (nav marks) and
+  `CrestLoader` / `.gf-crest-loader` (loading screens);
+  rules and where each is used in the brand-logo skill.
 - **CSS**: `animate-fade-up` and `animate-toast-in` in `globals.css` (both switched off for reduced motion),
   `animate-spin` and `animate-pulse` for loading.
 
@@ -156,8 +159,12 @@ Pitfalls:
     the button. The hero dots sat under the stats card at 375px, so they are now hidden below `sm`.
 - Respect reduced motion everywhere: `motion-safe:` / `motion-reduce:` classes in Tailwind, `useReducedMotion` in
   scripts. Fading is fine; drop the movement.
-- Loading: use skeletons (`PageSkeleton`, `SkeletonCard`) for content and a spinner only inside a button that is
-  busy.
+- Loading: in the portal, use skeletons (`PageSkeleton`, `SkeletonCard`) for content. The public site
+  (`app/(site)/loading.tsx`) and the staff dashboard (`app/admin/loading.tsx`) use `CrestLoader`
+  (`components/motion/crest-loader.tsx`): the shield with a gold light running round its edge, breathing sun rays
+  and a sliding gold bar, CSS only, fading in after 250ms so fast page changes don't flash it, still when motion is
+  reduced. A page that needs a content-shaped placeholder adds its own `loading.tsx`, which wins. A spinner only
+  inside a button that is busy.
 - Menus and drawers on phones open from the bottom (sheet) or side, and slide and fade at about 200ms.
 
 ## The repos to learn from (current best practice)

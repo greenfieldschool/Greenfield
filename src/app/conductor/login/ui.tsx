@@ -6,7 +6,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 import { Loader2, LogIn, ShieldCheck } from "lucide-react";
 import PasswordInput from "@/components/password-input";
-import { Logo } from "@/components/ui/logo";
+import { CrestLockup } from "@/components/ui/logo";
 import { Alert } from "@/components/ui/alert";
 import { buttonClasses } from "@/components/ui/button";
 import { FieldBackdrop } from "@/components/three/field-backdrop";
@@ -65,7 +65,7 @@ export function ConductorLoginForm({ redirectTo }: { redirectTo: string }) {
 
       <div className="relative z-10 w-full max-w-md">
         <div className="mb-6 flex justify-center">
-          <Logo inverted subtitle="Exam conductor" />
+          <CrestLockup inverted subtitle="Exam conductor" />
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white p-6 shadow-lift sm:p-8">

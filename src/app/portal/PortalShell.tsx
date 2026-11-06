@@ -23,6 +23,8 @@ import {
   NotebookPen,
   BookOpenText,
   Video,
+  Bell,
+  Megaphone,
   X,
   type LucideIcon,
   CircleHelp
@@ -30,6 +32,7 @@ import {
 import { Logo } from "@/components/ui/logo";
 import { WHATSAPP_URL, WhatsAppIcon } from "@/components/whatsapp-button";
 import { cn } from "@/lib/cn";
+import { BellChime, SoundEffects, SoundToggle } from "@/components/sound";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean; tab?: boolean };
 
@@ -39,6 +42,7 @@ const studentNav: NavItem[] = [
   { href: "/portal/exams", label: "Exams", icon: FileText, exact: true, tab: true },
   { href: "/portal/lesson-notes", label: "Lesson notes", icon: BookOpenText },
   { href: "/portal/online-classes", label: "Online classes", icon: Video },
+  { href: "/portal/announcements", label: "Announcements", icon: Megaphone },
   { href: "/portal/academics", label: "Report card", icon: BookOpen, tab: true },
   { href: "/portal/exams/results", label: "Exam results", icon: BarChart3 },
   { href: "/portal/attendance", label: "Attendance", icon: CalendarCheck },
@@ -56,6 +60,7 @@ const parentNav: NavItem[] = [
   { href: "/portal/assignments", label: "Assignments", icon: NotebookPen },
   { href: "/portal/lesson-notes", label: "Lesson notes", icon: BookOpenText },
   { href: "/portal/online-classes", label: "Online classes", icon: Video },
+  { href: "/portal/announcements", label: "Announcements", icon: Megaphone },
   { href: "/portal/students", label: "My children", icon: Users },
   { href: "/portal/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/portal/discipline", label: "Discipline", icon: ShieldCheck },
@@ -75,6 +80,7 @@ export default function PortalShell({
   displayName,
   displayEmail,
   unreadMessages = 0,
+  unreadNotifications = 0,
   children
 }: {
   role: "student" | "parent";
@@ -82,6 +88,8 @@ export default function PortalShell({
   displayEmail: string;
   /** Unread messages, shown as a badge on "Messages". */
   unreadMessages?: number;
+  /** Unread notifications, shown on the bell. */
+  unreadNotifications?: number;
   children: ReactNode;
 }) {
   const pathname = usePathname() ?? "/portal";
@@ -121,6 +129,8 @@ export default function PortalShell({
 
   return (
     <div className="min-h-screen bg-canvas">
+      <SoundEffects />
+      <BellChime count={unreadNotifications} />
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 backdrop-blur-md print:hidden">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
@@ -128,6 +138,20 @@ export default function PortalShell({
             <Logo subtitle={role === "student" ? "Student portal" : "Parent portal"} />
           </Link>
 
+          <div className="flex items-center gap-1">
+          <Link
+            href="/portal/notifications"
+            aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} unread` : "Notifications"}
+            aria-current={pathname.startsWith("/portal/notifications") ? "page" : undefined}
+            className="relative inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+          >
+            <Bell className="h-[22px] w-[22px]" aria-hidden="true" />
+            {unreadNotifications > 0 ? (
+              <span className="absolute right-1 top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold leading-[18px] text-white ring-2 ring-white">
+                {unreadNotifications > 9 ? "9+" : unreadNotifications}
+              </span>
+            ) : null}
+          </Link>
           <div className="relative" ref={menuRef}>
             <button
               type="button"
@@ -152,6 +176,7 @@ export default function PortalShell({
                   <div className="truncate text-xs text-slate-500">{displayEmail}</div>
                 </div>
                 <div className="my-1 border-t border-slate-100" />
+                <SoundToggle className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" />
                 <a
                   role="menuitem"
                   href={WHATSAPP_URL}
@@ -174,6 +199,7 @@ export default function PortalShell({
                 </form>
               </div>
             ) : null}
+          </div>
           </div>
         </div>
       </header>

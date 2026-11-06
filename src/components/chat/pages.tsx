@@ -618,10 +618,13 @@ export async function ChatSettings({ base }: { base: ChatBase }) {
   const ctx = await common(base);
   if (!ctx) return null;
   if (ctx.role === "none") return <NoAccess />;
-  const [{ data: settings, error }, { data: blocks }] = await Promise.all([
+  const [{ data: settings, error }, { data: blocks }, { data: emailPrefs, error: emailError }] = await Promise.all([
     ctx.supabase.from("chat_settings").select("allow_parent_dm, reply_from, reply_to, reply_weekdays_only").eq("user_id", ctx.userId ?? "").maybeSingle(),
-    ctx.supabase.from("chat_blocks").select("blocked_id").eq("blocker_id", ctx.userId ?? "")
+    ctx.supabase.from("chat_blocks").select("blocked_id").eq("blocker_id", ctx.userId ?? ""),
+    // Before 20261110_email.sql is run there's no table: the email switch is simply not shown.
+    ctx.supabase.from("email_preferences").select("messages").eq("user_id", ctx.userId ?? "").maybeSingle()
   ]);
+  const emailMessages = (emailPrefs as { messages: boolean } | null)?.messages ?? true;
   if (error) return <MissingSetup message={error.message} />;
   const s = (settings as { allow_parent_dm: boolean; reply_from: string; reply_to: string; reply_weekdays_only: boolean } | null) ?? {
     allow_parent_dm: false,
@@ -697,6 +700,21 @@ export async function ChatSettings({ base }: { base: ChatBase }) {
             </label>
           </div>
         )}
+        {!emailError ? (
+          <div className="border-t border-slate-100 pt-5">
+            <input type="hidden" name="email_messages_present" value="1" />
+            <label className="flex items-start gap-3">
+              <input type="checkbox" name="email_messages" defaultChecked={emailMessages} className="mt-1 h-4 w-4" />
+              <span>
+                <span className="block font-semibold text-slate-900">Email me when I get a new message</span>
+                <span className="block text-sm text-slate-600">
+                  At most one email per conversation every two hours, and none if you&apos;ve already read it here. The email says who wrote, not the
+                  message itself.
+                </span>
+              </span>
+            </label>
+          </div>
+        ) : null}
         <div className="flex justify-end">
           <SubmitButton variant="primary" pendingText="Saving…">
             Save

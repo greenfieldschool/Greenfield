@@ -14,6 +14,7 @@ export const adminOnlyPrefixes = [
   "/admin/users",
   "/admin/finance",
   "/admin/settings",
+  "/admin/announcements",
   "/admin/academics/subjects",
   "/admin/academics/class-subjects",
   "/admin/academics/teachers",

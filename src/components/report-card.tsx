@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { LogoMark } from "@/components/ui/logo";
+import { Crest, schoolName } from "@/components/ui/logo";
 import { school } from "@/lib/school";
 import { ordinal, type ClassReport, type StudentReport } from "@/lib/term-report";
 import { gradeRemark } from "@/lib/results";
@@ -76,9 +76,9 @@ export default function ReportCard({
     <article className={cn("gf-report-card mx-auto max-w-[210mm] rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-card sm:p-8", className)}>
       {/* School header */}
       <header className="flex items-center gap-4 border-b-2 border-brand-green-800 pb-4">
-        <LogoMark className="h-14 w-12 shrink-0" />
+        <Crest className="h-24 w-[86px] shrink-0" section={report.cls?.level} title={`${schoolName(report.cls?.level)} crest`} />
         <div className="min-w-0 flex-1">
-          <div className="text-xl font-bold tracking-tight text-brand-green-900">Greenfield School</div>
+          <div className="text-xl font-bold tracking-tight text-brand-green-900">{schoolName(report.cls?.level)}</div>
           <div className="text-xs text-slate-600">{school.address}</div>
           <div className="text-xs text-slate-600">
             {school.phone} · {school.email}

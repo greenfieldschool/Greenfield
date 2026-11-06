@@ -76,7 +76,7 @@ export default async function PortalOnlineClassPage({
               <input type="hidden" name="id" value={o.id} />
               <input type="hidden" name="student_id" value={pupil.id} />
               <input type="hidden" name="back" value={`/portal/online-classes/${o.id}${child}`} />
-              <SubmitButton pendingText="Opening…" className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-green px-6 text-base font-semibold text-white shadow-sm transition hover:bg-brand-green-700 disabled:opacity-60 sm:w-auto">
+              <SubmitButton sound="tap" pendingText="Opening…" className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-green px-6 text-base font-semibold text-white shadow-sm transition hover:bg-brand-green-700 disabled:opacity-60 sm:w-auto">
                 <span className="inline-flex items-center gap-2">
                   <Video className="h-5 w-5" aria-hidden="true" />
                   Join {role === "parent" ? `for ${pupil.first_name}` : "now"}

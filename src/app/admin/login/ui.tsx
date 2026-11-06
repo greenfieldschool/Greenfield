@@ -5,7 +5,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 import { Loader2, LockKeyhole, ShieldCheck } from "lucide-react";
 import PasswordInput from "@/components/password-input";
-import { Logo } from "@/components/ui/logo";
+import { CrestLockup } from "@/components/ui/logo";
 import { FieldBackdrop } from "@/components/three/field-backdrop";
 import { Alert } from "@/components/ui/alert";
 import { buttonClasses } from "@/components/ui/button";
@@ -73,7 +73,7 @@ export function AdminLoginForm({ redirectTo }: { redirectTo: string }) {
         />
 
         <div className="relative">
-          <Logo inverted subtitle="Staff dashboard" />
+          <CrestLockup inverted align="start" subtitle="Staff dashboard" />
         </div>
 
         <div className="relative max-w-md">
@@ -93,7 +93,7 @@ export function AdminLoginForm({ redirectTo }: { redirectTo: string }) {
       <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6">
         <div className="w-full max-w-md">
           <div className="mb-8 flex justify-center lg:hidden">
-            <Logo subtitle="Staff dashboard" />
+            <CrestLockup size="sm" subtitle="Staff dashboard" />
           </div>
 
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-card sm:p-8">

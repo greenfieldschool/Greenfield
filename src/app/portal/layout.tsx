@@ -98,16 +98,26 @@ export default async function PortalLayout({ children }: { children: ReactNode }
     }
   }
 
+  // The bell's count (any portal user). Never blocks the page; 0 before the notifications update is run.
+  let unreadNotifications = 0;
+  try {
+    const { data } = await withTimeout(Promise.resolve(supabase.rpc("notifications_unread_count")), 2500);
+    unreadNotifications = Number(data ?? 0) || 0;
+  } catch {
+    unreadNotifications = 0;
+  }
+
   const displayEmail = user.email ?? "";
   const displayName = personName ?? displayEmail.split("@")[0];
 
   return (
-    <ToastProvider>
+    <ToastProvider sound>
       <PortalShell
         role={role === "student" ? "student" : "parent"}
         displayName={displayName}
         displayEmail={displayEmail}
         unreadMessages={unreadMessages}
+        unreadNotifications={unreadNotifications}
       >
         {children}
       </PortalShell>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ChevronLeft, CircleHelp, UserX, type LucideIcon } from "lucide-react";
 import { helpHref, type PortalHelp } from "@/lib/portal-help";
-import { Logo } from "@/components/ui/logo";
+import { CrestLockup } from "@/components/ui/logo";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/cn";
@@ -84,8 +84,8 @@ export function LoginFrame({ children, footer }: { children: ReactNode; footer?:
         aria-hidden="true"
       />
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center px-4 py-12">
-        <Link href="/" aria-label="Greenfield School home" className="mb-8">
-          <Logo inverted subtitle="Parent & student portal" />
+        <Link href="/" aria-label="Greenfield School home" className="mb-7">
+          <CrestLockup inverted subtitle="Parent & student portal" />
         </Link>
         <div className="w-full animate-fade-up rounded-3xl bg-white p-6 shadow-2xl sm:p-8">{children}</div>
         {footer ? <div className="mt-6 text-center text-sm text-brand-green-100">{footer}</div> : null}

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { BookOpen, BookOpenText, CalendarCheck, Video, ChevronDown, FileText, Mail, MessagesSquare, NotebookPen, Phone, Receipt, UserRound } from "lucide-react";
+import { Bell, BookOpen, BookOpenText, CalendarCheck, Video, ChevronDown, FileText, Mail, MessagesSquare, NotebookPen, Phone, Receipt, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
@@ -325,6 +325,52 @@ export default async function PortalHelpPage() {
             <p>
               Open <A href="/portal/assignments">Assignments</A> (under More on a phone). It shows what&apos;s to do, what&apos;s late, what&apos;s been
               handed in and the marks with the teacher&apos;s comments. Tap a piece of work to see what your child handed in. Only your child can hand work in.
+            </p>
+          )
+        }
+      ]
+    },
+    {
+      id: HELP.notifications,
+      title: "Notifications",
+      icon: Bell,
+      questions: [
+        {
+          id: "what-notifications",
+          q: "What does the bell at the top show?",
+          a: (
+            <p>
+              The bell shows how many new notifications you have. The school lets you know when a teacher sets new work, marks{" "}
+              {audience === "parent" ? "your child's" : "your"} work, shares a lesson note, or schedules, moves or cancels an online class. Tap the bell to
+              see them, then tap one to open it. It&apos;s marked as read when you open it, or tap <strong>Mark all as read</strong>.
+            </p>
+          )
+        },
+        {
+          id: "sounds",
+          q: "How do I turn the sounds off (or on)?",
+          a: (
+            <p>
+              Tap your name or picture at the top right, then <strong>Sounds</strong>: it switches between On and Off, and the phone or computer remembers
+              your choice. The portal plays a few short, quiet sounds: when something is saved or handed in, when a new notification arrives while
+              you&apos;re using it, and for a great exam result. If your device is set to reduce motion, sounds start off.
+            </p>
+          )
+        },
+        {
+          id: "notifications-phone",
+          q: "Will I get an email too?",
+          a: (
+            <p>
+              {audience === "parent" ? (
+                <>
+                  Yes, at the email address you sign in with: new work, marks, lesson notes, online classes, new messages and school announcements. Choose
+                  which ones at the bottom of <A href="/portal/notifications">Notifications</A> (&ldquo;Email me about&rdquo;), or use the &ldquo;Stop these
+                  emails&rdquo; link in any email. If you don&apos;t see them, check your Spam folder and mark them &ldquo;Not spam&rdquo;.
+                </>
+              ) : (
+                <>Pupils don&apos;t get emails: everything shows here, on the bell. Your parents get the emails.</>
+              )}
             </p>
           )
         }

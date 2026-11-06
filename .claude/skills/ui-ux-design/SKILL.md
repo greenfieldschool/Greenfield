@@ -54,6 +54,18 @@ skill says where the code goes; this one says how the screen should work for the
     motion respected, and 3D treated as decoration: loaded late, paused off screen, cut down or skipped on weak
     phones, with a finished-looking fallback. Read that file before touching `src/components/three/`.
 
+## Sound (portal only)
+- `src/lib/sound.ts` (Web Audio, no files): `playSound("tap" | "success" | "error" | "notify" | "celebrate")`. Short
+  (≤ 0.5 s) and quiet (gain ≤ 0.05). Never plays while the tab is hidden, before the person has touched the page,
+  or when they've switched sounds off (portal menu → Sounds, `localStorage gf_portal_sound`); starts off when the
+  device asks for reduced motion.
+- Wired in: portal `ToastProvider sound` (success / error toasts; staff screens pass nothing and stay quiet),
+  `Celebrate` (with the confetti), `BellChime` (unread count went up during the visit), and `data-sound="tap"` on
+  big buttons (`SubmitButton sound="tap"`, the Join buttons) via `SoundEffects` in `PortalShell`.
+- Don't add sounds to routine taps (tabs, links, menus): keep them for moments that matter. Sound never carries
+  meaning on its own; the screen always says the same thing.
+- Test without speakers by wrapping `AudioContext.prototype.createOscillator` in the preview and counting notes.
+
 ## Patterns already in the app (reuse them)
 - **Score grid** (`/admin/welfare/scores` `weekly-grid.tsx`, result sheets): sticky header and first column, empty
   cells tinted gold ("still to do"), changed cells tinted blue ("not saved yet"), live row total, column "Fill empty"

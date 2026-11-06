@@ -8006,3 +8006,745 @@ $$;
 
 revoke all on function public.join_online_class(uuid, uuid) from public, anon;
 grant execute on function public.join_online_class(uuid, uuid) to authenticated;
+
+-- Notifications (see docs/migrations/20261109_notifications.sql)
+-- ---------------------------------------------------------------------------------------------------------------
+-- Notifications
+-- ---------------------------------------------------------------------------------------------------------------
+
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  student_id uuid references public.students(id) on delete cascade,
+  kind text not null,
+  title text not null,
+  body text,
+  link text check (link is null or link like '/portal/%'),
+  ref_id uuid,
+  created_at timestamptz not null default now(),
+  read_at timestamptz
+);
+
+create index if not exists notifications_user_idx on public.notifications (user_id, created_at desc);
+create index if not exists notifications_unread_idx on public.notifications (user_id) where read_at is null;
+
+alter table public.notifications enable row level security;
+
+drop policy if exists notifications_own_select on public.notifications;
+create policy notifications_own_select
+  on public.notifications
+  for select
+  to authenticated
+  using (user_id = auth.uid());
+
+-- Written only by the triggers below; read state changes only through mark_notifications_read().
+revoke insert, update, delete on public.notifications from anon, authenticated;
+
+create or replace function public.notifications_unread_count()
+returns int
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select count(*)::int from public.notifications where user_id = auth.uid() and read_at is null;
+$$;
+
+-- Marks the signed-in person's notifications as read: the ones given, or all of them when p_ids is null.
+create or replace function public.mark_notifications_read(p_ids uuid[] default null)
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  n int;
+begin
+  update public.notifications
+  set read_at = now()
+  where user_id = auth.uid() and read_at is null and (p_ids is null or id = any(p_ids));
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+revoke all on function public.notifications_unread_count() from public, anon;
+revoke all on function public.mark_notifications_read(uuid[]) from public, anon;
+grant execute on function public.notifications_unread_count() to authenticated;
+grant execute on function public.mark_notifications_read(uuid[]) to authenticated;
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- Sending
+-- ---------------------------------------------------------------------------------------------------------------
+
+-- "Thu 12 Nov, 4:00 pm" in Lagos time.
+create or replace function public.notify_when(p_at timestamptz)
+returns text
+language sql
+stable
+set search_path = public
+as $$
+  select to_char(p_at at time zone 'Africa/Lagos', 'Dy FMDD Mon, FMHH12:MI am');
+$$;
+
+-- One notification per (person, pupil) for these pupils: the pupil's own login and each parent's. Parents' links
+-- open that child (?student_id=). Skipped when the same thing (kind + ref) was sent to them in the last 12 hours, so
+-- publishing, unpublishing and publishing again doesn't send it twice.
+create or replace function public.notify_pupils(p_students uuid[], p_kind text, p_title text, p_body text, p_path text, p_ref uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.notifications (user_id, student_id, kind, title, body, link, ref_id)
+  select r.user_id, r.student_id, p_kind, left(p_title, 200), left(p_body, 500),
+         p_path || case when r.via = 'parent' then '?student_id=' || r.student_id::text else '' end,
+         p_ref
+  from (
+    select sul.user_id, sul.student_id, 'pupil' as via
+    from public.student_user_links sul
+    where sul.student_id = any(p_students)
+    union
+    select gul.user_id, sg.student_id, 'parent' as via
+    from public.student_guardians sg
+    join public.guardian_user_links gul on gul.guardian_id = sg.guardian_id
+    where sg.student_id = any(p_students)
+  ) r
+  where r.user_id is not null
+    and not exists (
+      select 1 from public.notifications x
+      where x.user_id = r.user_id and x.student_id = r.student_id and x.kind = p_kind and x.ref_id = p_ref
+        and x.created_at > now() - interval '12 hours'
+    );
+exception when others then
+  -- Never stop the teacher's change because a notification couldn't be sent.
+  raise warning 'notify_pupils failed: %', sqlerrm;
+end;
+$$;
+
+-- Everyone in a class (pupils still at school).
+create or replace function public.notify_class(p_class uuid, p_kind text, p_title text, p_body text, p_path text, p_ref uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  select public.notify_pupils(
+    array(select s.id from public.students s where s.class_id = p_class and coalesce(s.status::text, 'active') not in ('withdrawn', 'graduated', 'transferred')),
+    p_kind, p_title, p_body, p_path, p_ref
+  );
+$$;
+
+create or replace function public.subject_label(p_subject uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((select name from public.subjects where id = p_subject), 'General');
+$$;
+
+-- Internal helpers: only the triggers use them.
+revoke all on function public.notify_when(timestamptz) from public, anon, authenticated;
+revoke all on function public.notify_pupils(uuid[], text, text, text, text, uuid) from public, anon, authenticated;
+revoke all on function public.notify_class(uuid, text, text, text, text, uuid) from public, anon, authenticated;
+revoke all on function public.subject_label(uuid) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- Triggers
+-- ---------------------------------------------------------------------------------------------------------------
+
+-- New assignment or classwork.
+create or replace function public.notify_assignment_set()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.notify_class(
+    new.class_id,
+    'assignment',
+    (case when new.kind = 'classwork' then 'New classwork: ' else 'New assignment: ' end) || new.title,
+    public.subject_label(new.subject_id) || coalesce(' · Due ' || public.notify_when(new.due_at), ''),
+    '/portal/assignments/' || new.id::text,
+    new.id
+  );
+  return new;
+end;
+$$;
+
+drop trigger if exists assignments_notify on public.assignments;
+create trigger assignments_notify
+  after insert on public.assignments
+  for each row execute function public.notify_assignment_set();
+
+-- Work marked (the first time; changing a mark afterwards doesn't send another).
+create or replace function public.notify_submission_marked()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  a public.assignments%rowtype;
+begin
+  if new.marked_at is null or (tg_op = 'UPDATE' and old.marked_at is not null) then
+    return new;
+  end if;
+  select * into a from public.assignments where id = new.assignment_id;
+  perform public.notify_pupils(
+    array[new.student_id],
+    'assignment_marked',
+    'Marked: ' || coalesce(a.title, 'your work'),
+    public.subject_label(a.subject_id)
+      || coalesce(' · ' || rtrim(to_char(new.score, 'FM999990.##'), '.') || coalesce('/' || rtrim(to_char(a.max_score, 'FM999990.##'), '.'), ''), '')
+      || case when new.feedback is not null then ' · The teacher left a comment' else '' end,
+    '/portal/assignments/' || new.assignment_id::text,
+    new.assignment_id
+  );
+  return new;
+end;
+$$;
+
+drop trigger if exists assignment_submissions_notify on public.assignment_submissions;
+create trigger assignment_submissions_notify
+  after insert or update of marked_at on public.assignment_submissions
+  for each row execute function public.notify_submission_marked();
+
+-- Lesson note published.
+create or replace function public.notify_lesson_note_published()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.status <> 'published' or (tg_op = 'UPDATE' and old.status = 'published') then
+    return new;
+  end if;
+  perform public.notify_class(
+    new.class_id,
+    'lesson_note',
+    'New lesson note: ' || new.topic,
+    public.subject_label(new.subject_id) || coalesce(' · Week ' || new.week::text, ''),
+    '/portal/lesson-notes/' || new.id::text,
+    new.id
+  );
+  return new;
+end;
+$$;
+
+drop trigger if exists lesson_notes_notify on public.lesson_notes;
+create trigger lesson_notes_notify
+  after insert or update of status on public.lesson_notes
+  for each row execute function public.notify_lesson_note_published();
+
+-- Online class scheduled, moved, cancelled or back on.
+create or replace function public.notify_online_class()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  kind text;
+  title text;
+  body text := public.subject_label(new.subject_id) || ' · ' || public.notify_when(new.starts_at);
+begin
+  if tg_op = 'INSERT' then
+    if new.status = 'cancelled' then
+      return new;
+    end if;
+    kind := 'online_class';
+    title := 'Online class: ' || new.topic;
+  elsif new.status = 'cancelled' and old.status <> 'cancelled' then
+    kind := 'online_class_cancelled';
+    title := 'Cancelled: ' || new.topic;
+    body := public.subject_label(new.subject_id) || coalesce(' · ' || new.cancel_reason, '');
+  elsif new.status = 'scheduled' and old.status = 'cancelled' then
+    kind := 'online_class_on';
+    title := 'Back on: ' || new.topic;
+  elsif new.status = 'scheduled' and new.starts_at is distinct from old.starts_at then
+    kind := 'online_class_moved';
+    title := 'New time: ' || new.topic;
+    body := body || ' (was ' || public.notify_when(old.starts_at) || ')';
+  else
+    return new;
+  end if;
+  perform public.notify_class(new.class_id, kind, title, body, '/portal/online-classes/' || new.id::text, new.id);
+  return new;
+end;
+$$;
+
+drop trigger if exists online_classes_notify on public.online_classes;
+create trigger online_classes_notify
+  after insert or update of status, starts_at on public.online_classes
+  for each row execute function public.notify_online_class();
+
+-- Email through Gmail (see docs/migrations/20261110_email.sql; schedule in 20261110b_email_schedule.sql)
+-- ---------------------------------------------------------------------------------------------------------------
+-- 1. The connected Gmail account
+-- ---------------------------------------------------------------------------------------------------------------
+
+create table if not exists public.email_settings (
+  id boolean primary key default true,
+  sender_email text not null,
+  refresh_token_enc text not null,
+  connected_at timestamptz not null default now(),
+  connected_by uuid references auth.users(id) on delete set null,
+  last_error text,
+  last_error_at timestamptz,
+  constraint email_settings_one_row check (id)
+);
+
+alter table public.email_settings enable row level security;
+revoke all on public.email_settings from anon, authenticated;
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- 2. What each person wants by email
+-- ---------------------------------------------------------------------------------------------------------------
+
+create table if not exists public.email_preferences (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  notifications boolean not null default true,
+  messages boolean not null default true,
+  announcements boolean not null default true,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.email_preferences enable row level security;
+
+drop policy if exists email_preferences_own on public.email_preferences;
+create policy email_preferences_own
+  on public.email_preferences
+  for all
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- 3. The outbox
+-- ---------------------------------------------------------------------------------------------------------------
+
+create table if not exists public.email_outbox (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  to_email text not null,
+  to_name text,
+  category text not null check (category in ('notification', 'message', 'announcement', 'test')),
+  subject text not null,
+  heading text not null,
+  body text,
+  link text check (link is null or link like '/portal/%' or link like '/admin/%'),
+  ref_id uuid,
+  conversation_id uuid,
+  message_at timestamptz,
+  priority int not null default 2,
+  status text not null default 'queued' check (status in ('queued', 'sending', 'sent', 'failed', 'skipped')),
+  attempts int not null default 0,
+  last_error text,
+  gmail_id text,
+  created_at timestamptz not null default now(),
+  claimed_at timestamptz,
+  sent_at timestamptz
+);
+
+alter table public.email_outbox add column if not exists claimed_at timestamptz;
+
+create index if not exists email_outbox_queue_idx on public.email_outbox (priority, created_at) where status = 'queued';
+create index if not exists email_outbox_sent_idx on public.email_outbox (sent_at) where status = 'sent';
+create index if not exists email_outbox_user_ref_idx on public.email_outbox (user_id, ref_id, created_at desc);
+
+alter table public.email_outbox enable row level security;
+-- Only the website's server (service key) reads and writes it. Admins see the totals through email_status().
+revoke all on public.email_outbox from anon, authenticated;
+
+-- The person's email address, if they have one and want this kind of email.
+create or replace function public.email_address_for(p_user uuid, p_category text)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select u.email
+  from auth.users u
+  left join public.email_preferences p on p.user_id = u.id
+  where u.id = p_user
+    and u.email is not null and u.email like '%@%'
+    and case p_category
+          when 'notification' then coalesce(p.notifications, true)
+          when 'message' then coalesce(p.messages, true)
+          when 'announcement' then coalesce(p.announcements, true)
+          else true
+        end;
+$$;
+
+create or replace function public.email_display_name(p_user uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select nullif(btrim(coalesce(
+    (select full_name from public.profiles where id = p_user),
+    (select g.full_name from public.guardian_user_links gul join public.guardians g on g.id = gul.guardian_id where gul.user_id = p_user limit 1),
+    ''
+  )), '');
+$$;
+
+-- Adds one email to the queue. Never raises: a problem queueing an email must not stop what caused it.
+create or replace function public.email_enqueue(
+  p_user uuid, p_category text, p_subject text, p_heading text, p_body text, p_link text, p_ref uuid,
+  p_priority int, p_conversation uuid default null, p_message_at timestamptz default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  addr text := public.email_address_for(p_user, p_category);
+begin
+  if addr is null then
+    return;
+  end if;
+  insert into public.email_outbox (user_id, to_email, to_name, category, subject, heading, body, link, ref_id, priority, conversation_id, message_at)
+  values (p_user, addr, public.email_display_name(p_user), p_category, left(p_subject, 200), left(p_heading, 200), left(p_body, 5000), p_link, p_ref, p_priority, p_conversation, p_message_at);
+exception when others then
+  raise warning 'email_enqueue failed: %', sqlerrm;
+end;
+$$;
+
+-- Portal notifications → email, for parents only (pupils have the bell). One per parent per thing in 12 hours
+-- (a parent of two children in the class gets one email, not two). Announcements are emailed by their own trigger.
+create or replace function public.email_from_notification()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.kind = 'announcement' then
+    return new;
+  end if;
+  if not exists (select 1 from public.profiles where id = new.user_id and role = 'parent') then
+    return new;
+  end if;
+  if exists (
+    select 1 from public.email_outbox o
+    where o.user_id = new.user_id and o.ref_id = new.ref_id and o.category = 'notification' and o.created_at > now() - interval '12 hours'
+  ) then
+    return new;
+  end if;
+  perform public.email_enqueue(new.user_id, 'notification', new.title, new.title, new.body, new.link, new.ref_id, 2);
+  return new;
+exception when others then
+  raise warning 'email_from_notification failed: %', sqlerrm;
+  return new;
+end;
+$$;
+
+drop trigger if exists notifications_email on public.notifications;
+create trigger notifications_email
+  after insert on public.notifications
+  for each row execute function public.email_from_notification();
+
+-- New message → email to the people who should read it: the other people in a private conversation, or the parents
+-- of the class for a post in its announcements space. Not for the class parents' chat (too many). At most one per
+-- conversation every 2 hours per person; skipped at sending time if they've read it by then.
+create or replace function public.email_from_chat_message()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  c public.chat_conversations%rowtype;
+  r record;
+  staff_roles constant text[] := array['super_admin', 'admin', 'teacher', 'front_desk', 'nurse'];
+  who text := coalesce(nullif(btrim(new.sender_name), ''), 'Someone at school');
+begin
+  if new.removed_at is not null then
+    return new;
+  end if;
+  select * into c from public.chat_conversations where id = new.conversation_id;
+  if c.id is null or c.kind = 'class_parents' then
+    return new;
+  end if;
+
+  for r in
+    select distinct x.user_id, p.role
+    from (
+      select m.user_id from public.chat_members m where c.kind = 'direct' and m.conversation_id = c.id
+      union
+      select gul.user_id
+      from public.students s
+      join public.student_guardians sg on sg.student_id = s.id
+      join public.guardian_user_links gul on gul.guardian_id = sg.guardian_id
+      where c.kind = 'class_announcements' and s.class_id = c.class_id and s.status in ('enrolled', 'active')
+    ) x
+    left join public.profiles p on p.id = x.user_id
+    where x.user_id is distinct from new.sender_id
+  loop
+    if exists (
+      select 1 from public.email_outbox o
+      where o.user_id = r.user_id and o.conversation_id = c.id and o.category = 'message' and o.created_at > now() - interval '2 hours'
+    ) then
+      continue;
+    end if;
+    perform public.email_enqueue(
+      r.user_id,
+      'message',
+      case when c.kind = 'direct' then who || ' sent you a message' else 'New class announcement from ' || who end,
+      case when c.kind = 'direct' then who || ' sent you a message' else who || ' posted in the class announcements' end,
+      'Open it on the school portal to read it and reply.',
+      case when r.role = any(staff_roles) then '/admin/messages/' else '/portal/messages/' end || c.id::text,
+      new.id,
+      1,
+      c.id,
+      new.created_at
+    );
+  end loop;
+  return new;
+exception when others then
+  raise warning 'email_from_chat_message failed: %', sqlerrm;
+  return new;
+end;
+$$;
+
+drop trigger if exists chat_messages_email on public.chat_messages;
+create trigger chat_messages_email
+  after insert on public.chat_messages
+  for each row execute function public.email_from_chat_message();
+
+-- For the website's sending job (service key only): takes up to p_limit queued emails, most important first, and
+-- marks them as being sent so two runs never send the same email.
+create or replace function public.email_claim(p_limit int)
+returns setof public.email_outbox
+language sql
+security definer
+set search_path = public
+as $$
+  update public.email_outbox o
+  set status = 'sending', attempts = o.attempts + 1, claimed_at = now()
+  where o.id in (
+    select id from public.email_outbox
+    where status = 'queued'
+    order by priority, created_at
+    limit greatest(0, least(p_limit, 100))
+    for update skip locked
+  )
+  returning o.*;
+$$;
+
+-- Emails stuck in "sending" (the job stopped half way) go back in the queue after 15 minutes; after 3 tries they fail.
+create or replace function public.email_requeue_stuck()
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  n int;
+begin
+  update public.email_outbox
+  set status = case when attempts >= 3 then 'failed' else 'queued' end,
+      last_error = coalesce(last_error, 'Stopped while sending')
+  where status = 'sending' and claimed_at < now() - interval '15 minutes';
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+-- For admins: is Gmail connected, and how is sending going?
+create or replace function public.email_status()
+returns table (sender_email text, connected_at timestamptz, last_error text, last_error_at timestamptz, sent_24h int, queued int, failed_7d int)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not coalesce(public.is_admin(), false) then
+    raise exception 'Only admins can see email settings';
+  end if;
+  return query
+  select s.sender_email, s.connected_at, s.last_error, s.last_error_at,
+         (select count(*)::int from public.email_outbox where status = 'sent' and sent_at > now() - interval '24 hours'),
+         (select count(*)::int from public.email_outbox where status in ('queued', 'sending')),
+         (select count(*)::int from public.email_outbox where status = 'failed' and created_at > now() - interval '7 days')
+  from (select 1) one
+  left join public.email_settings s on true;
+end;
+$$;
+
+revoke all on function public.email_address_for(uuid, text) from public, anon, authenticated;
+revoke all on function public.email_display_name(uuid) from public, anon, authenticated;
+revoke all on function public.email_enqueue(uuid, text, text, text, text, text, uuid, int, uuid, timestamptz) from public, anon, authenticated;
+revoke all on function public.email_claim(int) from public, anon, authenticated;
+revoke all on function public.email_requeue_stuck() from public, anon, authenticated;
+revoke all on function public.email_status() from public, anon;
+grant execute on function public.email_status() to authenticated;
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant execute on function public.email_claim(int) to service_role;
+    grant execute on function public.email_requeue_stuck() to service_role;
+    grant execute on function public.email_enqueue(uuid, text, text, text, text, text, uuid, int, uuid, timestamptz) to service_role;
+  end if;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- 4. School announcements
+-- ---------------------------------------------------------------------------------------------------------------
+
+create table if not exists public.announcements (
+  id uuid primary key default gen_random_uuid(),
+  title text not null check (length(btrim(title)) between 2 and 160),
+  body text not null check (length(btrim(body)) between 2 and 10000),
+  audience text not null check (audience in ('school', 'level', 'class')),
+  level public.school_level,
+  class_id uuid references public.classes(id) on delete cascade,
+  send_email boolean not null default true,
+  author_name text,
+  created_by uuid references auth.users(id) on delete set null default auth.uid(),
+  created_at timestamptz not null default now(),
+  constraint announcements_audience_shape check (
+    (audience = 'school' and level is null and class_id is null)
+    or (audience = 'level' and level is not null and class_id is null)
+    or (audience = 'class' and class_id is not null)
+  )
+);
+
+create index if not exists announcements_created_idx on public.announcements (created_at desc);
+
+alter table public.announcements enable row level security;
+
+-- The pupils an announcement is for (still at school).
+create or replace function public.announcement_pupils(p_audience text, p_level public.school_level, p_class uuid)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select s.id
+  from public.students s
+  left join public.classes c on c.id = s.class_id
+  where s.status in ('enrolled', 'active')
+    and (
+      p_audience = 'school'
+      or (p_audience = 'level' and c.level = p_level)
+      or (p_audience = 'class' and s.class_id = p_class)
+    );
+$$;
+
+create or replace function public.portal_sees_announcement(p_announcement uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.announcements a
+    cross join lateral public.announcement_pupils(a.audience, a.level, a.class_id) as pupil(id)
+    where a.id = p_announcement and coalesce(public.portal_sees_student(pupil.id), false)
+  );
+$$;
+
+revoke all on function public.announcement_pupils(text, public.school_level, uuid) from public, anon, authenticated;
+revoke all on function public.portal_sees_announcement(uuid) from public, anon;
+grant execute on function public.portal_sees_announcement(uuid) to authenticated;
+
+drop policy if exists announcements_admin_all on public.announcements;
+create policy announcements_admin_all
+  on public.announcements
+  for all
+  to authenticated
+  using (coalesce(public.is_admin(), false))
+  with check (coalesce(public.is_admin(), false));
+
+drop policy if exists announcements_staff_select on public.announcements;
+create policy announcements_staff_select
+  on public.announcements
+  for select
+  to authenticated
+  using (coalesce(public.is_staff(), false));
+
+drop policy if exists announcements_portal_select on public.announcements;
+create policy announcements_portal_select
+  on public.announcements
+  for select
+  to authenticated
+  using (public.portal_sees_announcement(id));
+
+-- A new announcement: a portal notification for every pupil (and parent) it's for, and, if ticked, an email to each
+-- parent once (not once per child).
+create or replace function public.announcement_sent()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  pupils uuid[] := array(select public.announcement_pupils(new.audience, new.level, new.class_id));
+  r record;
+begin
+  perform public.notify_pupils(pupils, 'announcement', new.title, left(regexp_replace(new.body, '\s+', ' ', 'g'), 160), '/portal/announcements/' || new.id::text, new.id);
+  if new.send_email then
+    for r in
+      select distinct gul.user_id
+      from public.student_guardians sg
+      join public.guardian_user_links gul on gul.guardian_id = sg.guardian_id
+      where sg.student_id = any(pupils)
+    loop
+      perform public.email_enqueue(r.user_id, 'announcement', new.title, new.title, new.body, '/portal/announcements/' || new.id::text, new.id, 3);
+    end loop;
+  end if;
+  return new;
+exception when others then
+  raise warning 'announcement_sent failed: %', sqlerrm;
+  return new;
+end;
+$$;
+
+drop trigger if exists announcements_sent on public.announcements;
+create trigger announcements_sent
+  after insert on public.announcements
+  for each row execute function public.announcement_sent();
+
+-- How many parents an announcement would email (shown before sending).
+create or replace function public.announcement_reach(p_audience text, p_level public.school_level, p_class uuid)
+returns table (pupils int, parents int, parents_with_email int)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not coalesce(public.is_admin(), false) then
+    raise exception 'Only admins can send announcements';
+  end if;
+  return query
+  with p as (select public.announcement_pupils(p_audience, p_level, p_class) as id),
+  parents as (
+    select distinct gul.user_id
+    from p join public.student_guardians sg on sg.student_id = p.id
+    join public.guardian_user_links gul on gul.guardian_id = sg.guardian_id
+  )
+  select (select count(*)::int from p),
+         (select count(*)::int from parents),
+         (select count(*)::int from parents where public.email_address_for(parents.user_id, 'announcement') is not null);
+end;
+$$;
+
+revoke all on function public.announcement_reach(text, public.school_level, uuid) from public, anon;
+grant execute on function public.announcement_reach(text, public.school_level, uuid) to authenticated;

@@ -8,6 +8,7 @@ import { FormSection } from "@/components/ui/form-section";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { LEARN } from "@/lib/learn-guides";
+import { EmailSection } from "./email-section";
 
 const PATH = "/admin/settings";
 const STAFF_ROLES = ["super_admin", "admin", "teacher", "front_desk", "nurse"];
@@ -110,6 +111,8 @@ export default async function AdminSettingsPage() {
           </form>
         )}
       </FormSection>
+
+      <EmailSection />
     </div>
   );
 }

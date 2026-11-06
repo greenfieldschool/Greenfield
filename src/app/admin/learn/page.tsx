@@ -498,7 +498,8 @@ export default function AdminLearnCentrePage() {
             "Pupils hand in on the portal by typing an answer, taking a photo of their exercise book, or uploading a file. They can change it until you mark it. Work handed in after the due date shows as 'Handed in late'.",
             "To mark: open the work. Each pupil shows what they handed in (tap a photo to see it full size). Type the mark and a comment for each one, then click 'Save marks' once. You can also mark work handed in on paper. Pupils and parents see the mark and comment as soon as you save, and a marked piece can no longer be changed by the pupil.",
             "Send the marks to the result sheet: choose the subject's result sheet column and click 'Send marks'. Each mark is scaled to the column's total (15/20 into a 10-mark column gives 7.5). A sheet that is submitted as final or published won't change, and every change is kept in the results history.",
-            "Pupils' files are private: only the pupil, their parents and the teachers of that class and subject can open them."
+            "Pupils' files are private: only the pupil, their parents and the teachers of that class and subject can open them.",
+            "Pupils and parents get a notification on the portal (the bell) when you set work and when you mark a pupil's work (only that pupil and their parents). Changing a mark later doesn't send another."
           ]
         },
         {
@@ -512,7 +513,8 @@ export default function AdminLearnCentrePage() {
             "Once published, pupils and parents of the class see it on the portal under Lesson notes, marked 'New' for a week. They can search by subject, week or topic, open it, and download it for revision.",
             "To update a note, open it, change the text, or remove the file (×) and upload the new one, then save. Pupils see the change straight away. 'Take back to draft' hides it from pupils and parents; 'Delete lesson note' removes it and its file for good.",
             "Admins (and the head) can open any class to see which notes have been prepared and published, and by whom.",
-            "Files are private: only the class's teachers, admins, and the pupils and parents of that class (once published) can open them, through links that last 10 minutes."
+            "Files are private: only the class's teachers, admins, and the pupils and parents of that class (once published) can open them, through links that last 10 minutes.",
+            "Publishing a note sends pupils and parents of the class a notification on the portal (once: taking it back to draft and publishing again the same day doesn't send it twice)."
           ]
         },
         {
@@ -525,7 +527,33 @@ export default function AdminLearnCentrePage() {
             "Pupils and parents of the class see it on the portal straight away, under Coming up. From 15 minutes before the start it moves to the top with a Join button. Use 'Open the meeting' on the class's page to start it yourself.",
             "To reschedule, open the class and change the date or time; pupils see the new time. 'Cancel class' needs a short reason that pupils and parents see; 'It's on again' undoes it. Delete removes it and its attendance.",
             "Attendance: when a pupil (or a parent, for a young child) taps Join on the portal, the time is recorded. After the class, open it: everyone who joined is filled in as Present and the rest as Absent. Change any that are wrong (e.g. Late) and click 'Save attendance'.",
-            "The class's page shows who is expected (every pupil in the class) and who has joined so far while it's running."
+            "The class's page shows who is expected (every pupil in the class) and who has joined so far while it's running.",
+            "Pupils and parents get a notification on the portal when you schedule a class, move it to another time (with the old and new time), cancel it (with your reason) or put it back on. Changing only the topic or link doesn't send one."
+          ]
+        },
+        {
+          id: LEARN.announcements,
+          name: "School Announcements",
+          page: { href: "/admin/announcements", label: "Announcements" },
+          adminOnly: true,
+          steps: [
+            "Open People > Announcements (/admin/announcements). Write a clear title and the announcement: dates, times, what to bring, who to contact.",
+            "Choose who it's for: the whole school, one section (Creche, Primary or Secondary) or one class. Pupils and parents of those classes see it on the portal under Announcements, with a notification on the bell.",
+            "Tick 'Also email parents' to email it too, from the school's Gmail. Parents who switched announcement emails off don't get one. Emails start going straight away; a free Gmail account sends about 450 a day, so a whole-school announcement to more parents than that finishes the next morning.",
+            "Check it before you click 'Send announcement': it can't be unsent or edited. If something was wrong, send a short correction."
+          ]
+        },
+        {
+          id: LEARN.email,
+          name: "Email to Parents (Gmail)",
+          page: { href: "/admin/settings#email", label: "Settings → Email" },
+          adminOnly: true,
+          steps: [
+            "The website emails parents from the school's Gmail account (greenfieldschslekki@gmail.com): their portal notifications (new work, marks, lesson notes, online classes), an alert when they get a new message, and school announcements. Pupils only get the portal bell.",
+            "Message alerts go to whoever receives the message, staff too: at most one per conversation every two hours, never if it's already been read, and they say who wrote, not what. The class parents' chat never sends emails.",
+            "Setting up is done once by whoever looks after the website (docs/email-setup.md). Then, in Settings → Email (Gmail), click 'Connect Gmail', sign in as the school account and allow sending. The website can only send; it can't read the mailbox.",
+            "Settings → Email shows how many were sent in the last 24 hours (of the daily limit), how many are waiting and how many couldn't be sent. 'Send me a test email' checks it works; 'Reconnect' fixes an expired connection; 'Disconnect' stops all emails (they wait until it's connected again).",
+            "Every parent chooses their emails on the portal (Notifications → Email me about) and every email has a 'Stop these emails' link. Staff switch message emails on or off in Messages → Settings."
           ]
         }
       ]

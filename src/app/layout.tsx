@@ -17,6 +17,8 @@ const display = Fraunces({
 });
 
 export const metadata: Metadata = {
+  // Full addresses for share images and links (opengraph-image.tsx).
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://greenfieldschool.ng"),
   title: {
     default: "Greenfield School — Creche to Secondary in Lekki, Lagos",
     template: "%s · Greenfield School"

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useState } from "react";
+import { playSound } from "@/lib/sound";
 
 export type ToastType = "success" | "error" | "info";
 
@@ -18,7 +19,8 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
+/** sound: play the portal's success / error sounds with toasts (the portal turns it on; staff screens stay quiet). */
+export function ToastProvider({ children, sound = false }: { children: React.ReactNode; sound?: boolean }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const dismissToast = useCallback((id: string) => {
@@ -29,13 +31,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     (message: string, type: ToastType = "success") => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       setToasts((prev) => [...prev, { id, message, type }]);
+      if (sound && type !== "info") playSound(type);
 
       // Auto-dismiss after 4 seconds
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
       }, 4000);
     },
-    []
+    [sound]
   );
 
   return (

@@ -1,3 +1,4 @@
+import { Crest } from "@/components/ui/logo";
 import { IntroRelease } from "./intro-release";
 
 // Runs while the page is still being read by the browser, before it paints: the first time someone lands on the home
@@ -5,43 +6,19 @@ import { IntroRelease } from "./intro-release";
 const decide = `try{if(location.pathname==="/"&&!sessionStorage.getItem("gf-intro")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){document.documentElement.classList.add("gf-intro-on");sessionStorage.setItem("gf-intro","1")}}catch(e){}`;
 
 /**
- * First visit to the home page: the crest draws itself in gold on deep green and the name rises, then the curtain
- * lifts to the hero (about 1.9 seconds, CSS only, see .gf-intro in globals.css). Hidden from screen readers; it never
- * blocks the page (it ends on its own even if scripts fail).
+ * First visit to the home page: the school crest assembles itself on deep green (edge, field, name, sun, oak, ribbon,
+ * stars: .gf-crest-anim in globals.css) with the school line under it, then the curtain lifts to the hero (about 2.5
+ * seconds, CSS only). Hidden from screen readers; it never blocks the page (it ends on its own even if scripts fail).
  */
 export function IntroCurtain() {
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: decide }} />
-      <div className="gf-intro pointer-events-none fixed inset-0 z-[80] flex-col items-center justify-center gap-5 bg-brand-green-950" aria-hidden="true">
-        <svg viewBox="0 0 40 44" className="h-24 w-[5.5rem]">
-          <path
-            className="gf-intro-fill"
-            d="M20 1.5 37 7.2v13.6c0 10.6-7.1 18.5-17 21.7C10.1 39.3 3 31.4 3 20.8V7.2L20 1.5Z"
-            fill="#0B3D2E"
-            stroke="none"
-          />
-          <path
-            d="M20 1.5 37 7.2v13.6c0 10.6-7.1 18.5-17 21.7C10.1 39.3 3 31.4 3 20.8V7.2L20 1.5Z"
-            pathLength={1}
-            fill="none"
-            stroke="#D4A017"
-            strokeWidth="1.6"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M20 33V17.5m0 0c0-4.6 3.4-8 8.4-8.2-.2 5-3.6 8.4-8.4 8.2Zm0 4.2c0-3.9-2.9-6.8-7.1-7 .2 4.2 3.1 7.1 7.1 7Z"
-            pathLength={1}
-            fill="none"
-            stroke="#EDC54C"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+      <div className="gf-intro pointer-events-none fixed inset-0 z-[80] flex-col items-center justify-center gap-6 bg-brand-green-950" aria-hidden="true">
+        <Crest className="gf-crest-anim h-[13.5rem] w-48 drop-shadow-[0_18px_40px_rgba(0,0,0,0.35)] sm:h-[15.75rem] sm:w-56" title="" />
         <div className="gf-intro-word text-center">
-          <div className="font-display text-3xl font-semibold text-white">Greenfield</div>
-          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.4em] text-brand-gold-300">School</div>
+          <div className="font-display text-2xl font-semibold text-white sm:text-3xl">Greenfield School</div>
+          <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.35em] text-brand-gold-300">Deep roots · Bright futures</div>
         </div>
       </div>
       <IntroRelease />

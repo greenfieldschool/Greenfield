@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { playSound } from "@/lib/sound";
 
 /**
  * Small gold-and-green confetti burst for a strong result (default ≥ 70%). Fires once per visit
@@ -15,6 +16,7 @@ export function Celebrate({ percent, threshold = 70 }: { percent: number; thresh
       if (cancelled) return;
       const colors = ["#D4A017", "#EDC54C", "#2F8560", "#7FC2A0", "#ffffff"];
       confetti({ particleCount: 90, spread: 75, startVelocity: 38, origin: { y: 0.35 }, colors, scalar: 0.9 });
+      playSound("celebrate");
       setTimeout(() => {
         if (!cancelled) confetti({ particleCount: 50, spread: 110, startVelocity: 28, origin: { y: 0.3 }, colors, scalar: 0.8 });
       }, 350);

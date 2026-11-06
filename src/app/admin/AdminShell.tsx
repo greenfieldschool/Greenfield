@@ -109,7 +109,8 @@ const NAV: NavGroup[] = [
       { href: "/admin/students/applications", label: "Applications", icon: UserPlus },
       { href: "/admin/classes", label: "Classes", icon: School },
       { href: "/admin/guardians", label: "Guardians", icon: UsersRound },
-      { href: "/admin/users", label: "Staff & users", icon: UserCog, adminOnly: true }
+      { href: "/admin/users", label: "Staff & users", icon: UserCog, adminOnly: true },
+      { href: "/admin/announcements", label: "Announcements", icon: Megaphone, adminOnly: true }
     ]
   },
   {
@@ -218,6 +219,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   assignments: "Assignments & classwork",
   "lesson-notes": "Lesson notes",
   "online-classes": "Online classes",
+  announcements: "Announcements",
   weeks: "Compulsory weeks",
   audit: "Results history",
   corrections: "Correction requests",
@@ -362,7 +364,7 @@ export default function AdminShell({ userEmail, role, unreadMessages = 0, childr
       <div className="flex h-full flex-col">
         {/* Brand */}
         <div className={cn("flex h-16 shrink-0 items-center gap-3 px-5", compact && "justify-center px-0")}>
-          <Link href="/admin" className="flex items-center gap-2.5" aria-label="Greenfield staff dashboard">
+          <Link href="/admin" className="gf-logo-hover flex items-center gap-2.5" aria-label="Greenfield staff dashboard">
             <LogoMark className="h-9 w-8 shrink-0" />
             {!compact ? (
               <span className="leading-none">

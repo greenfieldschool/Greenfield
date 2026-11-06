@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { buttonClasses, type ButtonSize, type ButtonVariant } from "@/components/ui/button";
+import type { SoundName } from "@/lib/sound";
 
 export default function SubmitButton({
   children,
@@ -13,7 +14,8 @@ export default function SubmitButton({
   showSpinner,
   variant,
   size,
-  formAction
+  formAction,
+  sound
 }: {
   children: ReactNode;
   pendingText?: string;
@@ -26,6 +28,8 @@ export default function SubmitButton({
   showSpinner?: boolean;
   /** Submit to a different server action than the form's own. */
   formAction?: (formData: FormData) => void | Promise<void>;
+  /** A portal sound to play when pressed (see SoundEffects). */
+  sound?: SoundName;
 }) {
   const { pending } = useFormStatus();
 
@@ -35,6 +39,7 @@ export default function SubmitButton({
     <button
       type={type ?? "submit"}
       formAction={formAction}
+      data-sound={sound}
       disabled={disabled || pending}
       aria-busy={pending}
       className={className ?? buttonClasses({ variant, size })}

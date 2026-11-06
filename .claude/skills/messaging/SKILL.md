@@ -40,5 +40,5 @@ description: Use for teacher–parent and parent–parent messaging: class annou
   unsend/archive, reported-message visibility, child moving class.
 
 ## Ideas not built yet
-Push/email notifications, attachments/photos, read receipts for announcements, translation, parents messaging the
+Push notifications (email alerts are built: see the `email` skill), attachments/photos, read receipts for announcements, translation, parents messaging the
 school office directly.
