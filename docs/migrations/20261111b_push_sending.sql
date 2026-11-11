@@ -1,6 +1,6 @@
 -- Sends phone notifications straight away. Run AFTER 20261111_push_notifications.sql, once the VAPID keys are set on
 -- Vercel. Before running it, replace PASTE_CRON_SECRET_HERE with the CRON_SECRET set on Vercel (the same one the
--- email job uses). If the website lives somewhere other than greenfieldschool.ng, change the address too.
+-- email job uses). The address must be the final one (www.): Supabase doesn't follow redirects.
 --
 -- It keeps the website address and the secret in Supabase Vault (encrypted, not readable from the website), so the
 -- database can ask the website to send alerts the moment a notification is created. A backup job every 5 minutes
@@ -15,7 +15,7 @@ create extension if not exists pg_net;
 do $$
 declare
   v_secret text := 'PASTE_CRON_SECRET_HERE';
-  v_url text := 'https://greenfieldschool.ng/api/push/send';
+  v_url text := 'https://www.greenfieldschool.ng/api/push/send';
   sid uuid;
 begin
   if v_secret = 'PASTE_CRON_SECRET_HERE' or length(v_secret) < 16 then
