@@ -11,6 +11,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PortalPageHeader } from "../_components/portal-ui";
 import { HELP } from "@/lib/portal-help";
 import { cn } from "@/lib/cn";
+import { vapidPublicKey } from "@/lib/push";
+import { PushControl } from "../_components/push-control";
 
 // Everything the school has sent this person: new work, marks, lesson notes and online classes. Newest first.
 
@@ -75,6 +77,7 @@ export default async function PortalNotificationsPage() {
   const childName = new Map(((kids ?? []) as Array<{ id: string; first_name: string }>).map((k) => [k.id, k.first_name] as const));
 
   const unread = items.filter((n) => !n.read_at).length;
+  const pushKey = vapidPublicKey();
   const now = new Date();
   const dayMs = 24 * 3600 * 1000;
   const groups = [
@@ -164,6 +167,8 @@ export default async function PortalNotificationsPage() {
           </Card>
         ))
       )}
+
+      {pushKey ? <PushControl publicKey={pushKey} role={role === "student" ? "student" : "parent"} /> : null}
 
       {role === "parent" && !prefError ? (
         <Card id="email">

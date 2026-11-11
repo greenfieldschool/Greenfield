@@ -347,6 +347,32 @@ export default async function PortalHelpPage() {
           )
         },
         {
+          id: "phone-alerts",
+          q: "Can I get alerts on my phone, like other apps?",
+          a: (
+            <>
+              <p>
+                Yes. Open <A href="/portal/notifications">Notifications</A> and tap <strong>Turn on phone notifications</strong>, then <strong>Allow</strong>{" "}
+                when your phone asks. Alerts then appear on your lock screen even when the portal is closed. Tap one to open what it&apos;s about. Tap{" "}
+                <strong>Send a test</strong> to see one.
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>
+                  <strong>Android:</strong> works in Chrome, and best from the Greenfield icon on your home screen.
+                </li>
+                <li>
+                  <strong>iPhone and iPad:</strong> first add the portal to your Home Screen (Safari → Share → <strong>Add to Home Screen</strong>), open
+                  Greenfield from there, then turn alerts on. It needs iOS 16.4 or later.
+                </li>
+              </ul>
+              <p className="mt-2">
+                Turn it on for each phone you use. To stop alerts, tap <strong>Turn off</strong> on the same page. If you share a phone, alerts go to
+                whoever last signed in on it.
+              </p>
+            </>
+          )
+        },
+        {
           id: "sounds",
           q: "How do I turn the sounds off (or on)?",
           a: (

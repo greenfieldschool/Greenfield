@@ -26,7 +26,7 @@ Every request goes through a skill.
 | [assignments](.claude/skills/assignments/SKILL.md) | Assignments and classwork: setting, handing in (photos/files), marking, sending marks to the result sheet |
 | [lesson-notes](.claude/skills/lesson-notes/SKILL.md) | Lesson notes: teachers preparing, publishing and replacing notes by class/subject/term/week/topic; pupils and parents reading and downloading them |
 | [online-classes](.claude/skills/online-classes/SKILL.md) | Online video classes: scheduling Zoom/Meet/Teams lessons, cancelling, pupils joining from the portal, online attendance |
-| [notifications](.claude/skills/notifications/SKILL.md) | Portal notifications (the bell): what sends them, who gets them, adding one for a new event |
+| [notifications](.claude/skills/notifications/SKILL.md) | Portal notifications (the bell) and phone push notifications: what sends them, who gets them, the service worker, adding one for a new event |
 | [email](.claude/skills/email/SKILL.md) | Emails through the school Gmail: connection, queue and daily limit, notification/message/announcement emails, school announcements, unsubscribe |
 | [brand-logo](.claude/skills/brand-logo/SKILL.md) | The school crest/logo, its words and colours, the browser and home-screen icons, where the crest appears |
 | [ui-ux-design](.claude/skills/ui-ux-design/SKILL.md) | Designing or reworking any screen, form, grid or flow, animation or three.js scene; "make the UI/UX as good as possible" (use with the area's skill) |

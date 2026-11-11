@@ -4,6 +4,8 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import PortalShell from "./PortalShell";
 import { ToastProvider } from "@/components/toast-provider";
 import { ServiceUnavailable } from "@/components/ui/service-unavailable";
+import { PushSetup } from "./_components/push-setup";
+import { vapidPublicKey } from "@/lib/push";
 
 // Opened from the home screen, the portal runs full screen like an app (see app/manifest.ts).
 export const metadata: Metadata = {
@@ -121,6 +123,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
       >
         {children}
       </PortalShell>
+      <PushSetup publicKey={vapidPublicKey()} unread={unreadNotifications} userKey={user.id} />
     </ToastProvider>
   );
 }
