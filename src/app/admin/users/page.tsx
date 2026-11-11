@@ -12,7 +12,9 @@ import {
   BookOpen,
   Briefcase,
   GraduationCap,
+  History,
   Link as LinkIcon,
+  Lock,
   Mail,
   School,
   Search,
@@ -31,7 +33,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { safeFilterTerm } from "@/lib/postgrest";
-import { LEARN } from "@/lib/learn-guides";
+import { LEARN, learnHref } from "@/lib/learn-guides";
+import { ROLES, ROLE_LABELS, STAFF_ROLES, assignableRoles, isAdminRole, roleChangeProblem, roleLabel } from "@/lib/roles";
+import { formatLagosDateTime } from "@/lib/lagos-dates";
 
 type ProfileRow = {
   id: string;
@@ -60,6 +64,16 @@ type GuardianUserLinkRow = {
 type StudentUserLinkRow = {
   user_id: string;
   student_id: string;
+};
+
+type RoleChangeRow = {
+  id: number;
+  user_id: string;
+  user_name: string | null;
+  old_role: string | null;
+  new_role: string | null;
+  changed_by_name: string | null;
+  changed_at: string;
 };
 
 type ClassRow = {
@@ -246,6 +260,19 @@ export default async function AdminUsersPage({
 
   const studentLinks = (studentLinksData ?? []) as StudentUserLinkRow[];
 
+  // Recent role changes (admins only; the table's RLS hides it from everyone else).
+  const { data: roleChangesData } = canInviteStaff
+    ? await supabase
+        .from("role_change_log")
+        .select("id, user_id, user_name, old_role, new_role, changed_by_name, changed_at")
+        .order("changed_at", { ascending: false })
+        .limit(8)
+    : { data: [] as unknown[] };
+  const roleChanges = (roleChangesData ?? []) as RoleChangeRow[];
+
+  const allowedRoles = assignableRoles(currentRole);
+  const inviteRoles = STAFF_ROLES.filter((r) => allowedRoles.includes(r));
+
   const guardianById = new Map(guardians.map((g) => [g.id, g] as const));
   const studentById = new Map(students.map((s) => [s.id, s] as const));
   const classById = new Map(classRows.map((c) => [c.id, c] as const));
@@ -283,17 +310,36 @@ export default async function AdminUsersPage({
       redirect(`/admin/users?toast=${encodeURIComponent("Server error — could not update role")}&toast_type=error`);
     }
 
-    if (!(await isAdminUser(supabase))) {
+    const actor = await getActor(supabase);
+    if (!actor || !isAdminRole(actor.role)) {
       redirect(usersToast("You do not have permission to change roles"));
     }
 
-    const { error } = await supabase.from("profiles").update({ role }).eq("id", userId);
+    const { data: target } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+    const fromRole = (target as { role?: string | null } | null)?.role ?? null;
+    if (!fromRole) {
+      redirect(usersToast("Could not find that account — reload and try again"));
+    }
+    if (fromRole === role) {
+      redirect(usersToast(`Role is already ${roleLabel(role)}`, "success"));
+    }
+
+    const problem = roleChangeProblem({ actorId: actor.id, actorRole: actor.role, targetId: userId, from: fromRole, to: role });
+    if (problem) {
+      redirect(usersToast(problem));
+    }
+
+    // The database checks the same rules again and records the change in the role change log.
+    const { data: updated, error } = await supabase.from("profiles").update({ role }).eq("id", userId).select("id");
     if (error) {
       redirect(usersToast(error.message));
     }
+    if (!updated?.length) {
+      redirect(usersToast("The role was not changed — reload and try again"));
+    }
 
     revalidatePath("/admin/users");
-    redirect(`/admin/users?toast=${encodeURIComponent("Role updated successfully")}&toast_type=success`);
+    redirect(usersToast(`Role changed from ${roleLabel(fromRole)} to ${roleLabel(role)}`, "success"));
   }
 
   async function updateUserFullName(formData: FormData) {
@@ -355,9 +401,14 @@ export default async function AdminUsersPage({
 
     const { data: inviterProfile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
     const inviterRole = (inviterProfile?.role ?? null) as string | null;
-    const isAllowed = inviterRole === "super_admin" || inviterRole === "admin";
-    if (!isAllowed) {
+    if (!isAdminRole(inviterRole)) {
       redirect(`/admin/users?toast=${encodeURIComponent("You do not have permission to invite staff")}&toast_type=error`);
+    }
+
+    // A new account starts as a parent, so this is a change from parent to the chosen role.
+    const inviteProblem = roleChangeProblem({ actorId: user.id, actorRole: inviterRole, targetId: null, from: "parent", to: role });
+    if (inviteProblem) {
+      redirect(usersToast(inviteProblem));
     }
 
     const service = getSupabaseServiceClient();
@@ -389,16 +440,25 @@ export default async function AdminUsersPage({
       );
     }
 
-    await service
+    // Set the role as the signed-in admin (not the server key) so the database checks it and logs who did it.
+    const { data: invitedRows, error: roleError } = await supabase
       .from("profiles")
       .update({
         role,
         email,
         full_name: fullName.length ? fullName : null
       })
-      .eq("id", inviteResult.user.id);
+      .eq("id", inviteResult.user.id)
+      .select("id");
 
     revalidatePath("/admin/users");
+    if (roleError || !invitedRows?.length) {
+      redirect(
+        usersToast(
+          `Invite sent to ${email}, but the role could not be set${roleError ? `: ${roleError.message}` : ""}. Set it in the list below.`
+        )
+      );
+    }
     redirect(`/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent(`Invite sent to ${email}. They should check their email.`)}&toast_type=success`);
   }
 
@@ -428,9 +488,14 @@ export default async function AdminUsersPage({
 
     const { data: inviterProfile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
     const inviterRole = (inviterProfile?.role ?? null) as string | null;
-    const isAllowed = inviterRole === "super_admin" || inviterRole === "admin";
-    if (!isAllowed) {
+    if (!isAdminRole(inviterRole)) {
       redirect(`/admin/users?toast=${encodeURIComponent("You do not have permission to do this")}&toast_type=error`);
+    }
+
+    // Checked for a new account here, and again below once we know whether the email already has an account.
+    const newAccountProblem = roleChangeProblem({ actorId: user.id, actorRole: inviterRole, targetId: null, from: "parent", to: role });
+    if (newAccountProblem) {
+      redirect(usersToast(newAccountProblem));
     }
 
     const service = getSupabaseServiceClient();
@@ -483,10 +548,24 @@ export default async function AdminUsersPage({
       redirect(`/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent("Could not resolve user ID — try again")}&toast_type=error`);
     }
 
-    await serviceClient
-      .from("profiles")
-      .update({ role, email, full_name: fullName.length ? fullName : null })
-      .eq("id", userId);
+    const { data: existingProfile } = await serviceClient.from("profiles").select("role").eq("id", userId).maybeSingle();
+    const fromRole = (existingProfile as { role?: string | null } | null)?.role ?? "parent";
+    const existingProblem = roleChangeProblem({ actorId: user.id, actorRole: inviterRole, targetId: userId, from: fromRole, to: role });
+    if (existingProblem) {
+      redirect(`/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent(existingProblem)}&toast_type=error`);
+    }
+
+    // Set the role as the signed-in admin (not the server key) so the database checks it and logs who did it.
+    const profileUpdate: { role: string; email: string; full_name?: string } = { role, email };
+    if (fullName.length) profileUpdate.full_name = fullName;
+    const { data: linkRows, error: roleError } = await supabase.from("profiles").update(profileUpdate).eq("id", userId).select("id");
+    if (roleError || !linkRows?.length) {
+      redirect(
+        `/admin/users?q=${encodeURIComponent(email)}&toast=${encodeURIComponent(
+          `The role could not be set${roleError ? `: ${roleError.message}` : ""}. No link was made.`
+        )}&toast_type=error`
+      );
+    }
 
     const linkResult = await serviceClient.auth.admin.generateLink({
       type: "magiclink",
@@ -625,14 +704,11 @@ export default async function AdminUsersPage({
   const parentCount = profiles.filter((p) => p.role === "parent").length;
   const studentCount = profiles.filter((p) => p.role === "student").length;
 
-  const staffRoleOptions = (
-    <>
-      <option value="admin">Admin</option>
-      <option value="teacher">Teacher</option>
-      <option value="front_desk">Front Desk</option>
-      <option value="nurse">Nurse</option>
-    </>
-  );
+  const staffRoleOptions = inviteRoles.map((r) => (
+    <option key={r} value={r}>
+      {ROLE_LABELS[r]}
+    </option>
+  ));
 
   return (
     <div className="space-y-6">
@@ -690,13 +766,11 @@ export default async function AdminUsersPage({
               </label>
               <select id="users-role" className="gf-select" name="role" defaultValue={roleFilter}>
                 <option value="">All roles</option>
-                <option value="super_admin">Super Admin</option>
-                <option value="admin">Admin</option>
-                <option value="teacher">Teacher</option>
-                <option value="front_desk">Front Desk</option>
-                <option value="nurse">Nurse</option>
-                <option value="parent">Parent</option>
-                <option value="student">Student</option>
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABELS[r]}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="flex gap-2">
@@ -845,6 +919,53 @@ export default async function AdminUsersPage({
         </Card>
       ) : null}
 
+      {/* Recent role changes */}
+      {canInviteStaff ? (
+        <Card>
+          <CardHeader
+            title={
+              <span className="flex items-center gap-2">
+                <History className="h-4 w-4 text-brand-green-600" aria-hidden="true" />
+                Recent role changes
+              </span>
+            }
+            action={
+              <a href={learnHref(LEARN.roles)} className="gf-link text-sm">
+                Roles and what each can do
+              </a>
+            }
+            description={
+              currentRole === "super_admin"
+                ? "Every change of role is recorded here and cannot be edited. You can give any role except to yourself."
+                : "Every change of role is recorded here and cannot be edited. Admins can give the roles teacher, front desk, nurse, parent and student; only a super admin can make or remove admins."
+            }
+          />
+          {roleChanges.length ? (
+            <ul className="divide-y divide-slate-100">
+              {roleChanges.map((c) => (
+                <li key={c.id} className="flex flex-col gap-1 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                  <div className="min-w-0">
+                    <a href={`/admin/users?q=${encodeURIComponent(c.user_name ?? "")}`} className="gf-link font-semibold">
+                      {c.user_name ?? "Unnamed account"}
+                    </a>{" "}
+                    <span className="text-slate-500">changed from</span>{" "}
+                    <Badge tone={roleTone(c.old_role ?? "")}>{roleLabel(c.old_role)}</Badge>{" "}
+                    <span className="text-slate-500">to</span> <Badge tone={roleTone(c.new_role ?? "")}>{roleLabel(c.new_role)}</Badge>
+                  </div>
+                  <div className="shrink-0 text-xs text-slate-500">
+                    {c.changed_by_name ? `by ${c.changed_by_name}` : "by the system"} · {formatLagosDateTime(c.changed_at)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <CardBody>
+              <p className="text-sm text-slate-500">No role changes recorded yet.</p>
+            </CardBody>
+          )}
+        </Card>
+      ) : null}
+
       {/* Users List */}
       <Card>
         <CardHeader
@@ -852,7 +973,7 @@ export default async function AdminUsersPage({
             <span className="flex flex-wrap items-center gap-2">
               Users
               {query.length ? <Badge tone="slate">Search: &quot;{query}&quot;</Badge> : null}
-              {roleFilter.length ? <Badge tone={roleTone(roleFilter)}>{roleFilter.replace("_", " ")}</Badge> : null}
+              {roleFilter.length ? <Badge tone={roleTone(roleFilter)}>{roleLabel(roleFilter)}</Badge> : null}
             </span>
           }
           description={`${profiles.length} user${profiles.length !== 1 ? "s" : ""} found${
@@ -869,7 +990,13 @@ export default async function AdminUsersPage({
               const linkedGuardian = guardianLink ? guardianById.get(guardianLink.guardian_id) ?? null : null;
               const linkedStudent = studentLink ? studentById.get(studentLink.student_id) ?? null : null;
 
-              const isStaff = ["super_admin", "admin", "teacher", "front_desk", "nurse"].includes(p.role);
+              const isStaff = (STAFF_ROLES as readonly string[]).includes(p.role);
+              const isMe = p.id === currentUser?.id;
+              const roleLocked = isMe
+                ? "This is your account. Another admin must change your role."
+                : !allowedRoles.includes(p.role as (typeof allowedRoles)[number])
+                  ? "Only a super admin can change this person's role."
+                  : null;
               const studentNeedsLink = p.role === "student" && !linkedStudent;
 
               return (
@@ -882,9 +1009,8 @@ export default async function AdminUsersPage({
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="truncate text-sm font-semibold text-slate-900">{p.full_name ?? "No name"}</span>
-                            <Badge tone={roleTone(p.role)} className="capitalize">
-                              {p.role.replace("_", " ")}
-                            </Badge>
+                            <Badge tone={roleTone(p.role)}>{roleLabel(p.role)}</Badge>
+                            {isMe ? <Badge tone="slate">You</Badge> : null}
                           </div>
                           <div className="mt-0.5 truncate text-sm text-slate-500">{emailByUserId.get(p.id) ?? "No email"}</div>
                         </div>
@@ -945,7 +1071,15 @@ export default async function AdminUsersPage({
                         ) : null}
 
                         {/* Role Selector */}
-                        {canInviteStaff ? (
+                        {canInviteStaff && roleLocked ? (
+                          <div className="flex flex-col justify-end">
+                            <span className="gf-label text-xs">Role</span>
+                            <p className="flex items-start gap-1.5 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600 ring-1 ring-inset ring-slate-200">
+                              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+                              {roleLocked}
+                            </p>
+                          </div>
+                        ) : canInviteStaff ? (
                           <form action={updateRole} className="flex items-end gap-2">
                             <input type="hidden" name="user_id" value={p.id} />
                             <div className="min-w-0 flex-1">
@@ -953,13 +1087,11 @@ export default async function AdminUsersPage({
                                 Change role
                               </label>
                               <select id={`role-${p.id}`} className="gf-select py-2" name="role" defaultValue={p.role}>
-                                <option value="super_admin">Super Admin</option>
-                                <option value="admin">Admin</option>
-                                <option value="teacher">Teacher</option>
-                                <option value="front_desk">Front Desk</option>
-                                <option value="nurse">Nurse</option>
-                                <option value="parent">Parent</option>
-                                <option value="student">Student</option>
+                                {allowedRoles.map((r) => (
+                                  <option key={r} value={r}>
+                                    {ROLE_LABELS[r]}
+                                  </option>
+                                ))}
                               </select>
                             </div>
                             <SubmitButton variant="secondary" pendingText="Updating…">
@@ -1105,7 +1237,16 @@ async function isAdminUser(supabase: NonNullable<ReturnType<typeof getSupabaseSe
   if (!user) return false;
   const { data } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   const role = (data as { role?: string | null } | null)?.role ?? null;
-  return role === "super_admin" || role === "admin";
+  return isAdminRole(role);
+}
+
+async function getActor(supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>) {
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  return { id: user.id, role: ((data as { role?: string | null } | null)?.role ?? null) as string | null };
 }
 
 function roleTone(role: string): BadgeTone {

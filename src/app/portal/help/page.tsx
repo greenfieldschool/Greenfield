@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Bell, BookOpen, BookOpenText, CalendarCheck, Video, ChevronDown, FileText, Mail, MessagesSquare, NotebookPen, Phone, Receipt, UserRound } from "lucide-react";
+import { Bell, BookOpen, BookOpenText, CalendarCheck, Video, ChevronDown, FileText, Mail, MessagesSquare, NotebookPen, Phone, Receipt, Star, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
@@ -435,6 +435,36 @@ export default async function PortalHelpPage() {
             <p>
               When a teacher changes the time, the new time shows straight away. A cancelled class stays in the list, crossed out, with the teacher&apos;s
               reason. If the Join button doesn&apos;t appear at the time shown, ask the teacher.
+            </p>
+          )
+        }
+      ]
+    },
+    {
+      id: HELP.starVideos,
+      title: "Star videos",
+      icon: Star,
+      questions: [
+        {
+          id: "star-video",
+          q: audience === "parent" ? "What is a star video, and where do I watch my child's?" : "What is a star video?",
+          a: (
+            <p>
+              Each week, teachers share a short video of a pupil who did really well in one of the class&apos;s main subjects.
+              {audience === "parent" ? " When your child is chosen you get a notification, and the video is under " : " When you're chosen, it shows under "}
+              <A href="/portal/star-videos">Star videos</A>
+              {audience === "parent" ? " (under More on a phone)" : ""}. Tap <strong>Watch</strong> to open it (Google Drive or YouTube). Only you and your
+              {audience === "parent" ? " child" : " parents"} can see it here.
+            </p>
+          )
+        },
+        {
+          id: "star-video-wont-open",
+          q: "The video won't open",
+          a: (
+            <p>
+              The video is kept where the teacher saved it. If it says you need permission, the teacher needs to share it so anyone with the link can view.
+              Please send the class teacher a message, or contact the school below.
             </p>
           )
         }

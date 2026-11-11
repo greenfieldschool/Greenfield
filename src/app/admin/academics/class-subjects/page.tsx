@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 import UrlToast from "@/components/url-toast";
-import { BookOpen, Copy, MousePointerClick, School } from "lucide-react";
+import { BookOpen, Copy, MousePointerClick, School, Star } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { FormSection, Field } from "@/components/ui/form-section";
@@ -102,6 +102,33 @@ async function copyFromClass(formData: FormData) {
   back(classId, `Added ${rows.length} subject(s) from the other class`);
 }
 
+async function saveMajorSubjects(formData: FormData) {
+  "use server";
+
+  const classId = String(formData.get("class_id") ?? "").trim();
+  if (!classId) back("", "Choose a class first", "error");
+  const picked = Array.from(
+    new Set(
+      [formData.get("major_1"), formData.get("major_2")].map((v) => String(v ?? "").trim()).filter(Boolean)
+    )
+  );
+
+  const supabase = getSupabaseServerClient();
+  if (!supabase) back(classId, "Database is not configured", "error");
+  const { error } = await supabase.rpc("set_class_major_subjects", { p_class: classId, p_subjects: picked });
+  if (error) {
+    back(
+      classId,
+      /does not exist|schema cache/i.test(error.message)
+        ? "Major subjects need a database update first: 20261112_star_videos.sql."
+        : error.message,
+      "error"
+    );
+  }
+  revalidatePath("/admin/academics/star-videos");
+  back(classId, picked.length ? `Saved ${picked.length} major subject${picked.length === 1 ? "" : "s"} for this class` : "Major subjects cleared");
+}
+
 export default async function AdminClassSubjectsPage({
   searchParams
 }: {
@@ -127,6 +154,10 @@ export default async function AdminClassSubjectsPage({
   for (const a of assignmentRows) countByClass.set(a.class_id, (countByClass.get(a.class_id) ?? 0) + 1);
 
   const cls = classRows.find((c) => c.id === classId) ?? null;
+  const { data: majorData, error: majorError } = classId
+    ? await supabase.from("class_subjects").select("subject_id").eq("class_id", classId).eq("is_major", true)
+    : { data: [], error: null };
+  const majors = ((majorData ?? []) as Array<{ subject_id: string }>).map((m) => m.subject_id);
   const assigned = new Set(assignmentRows.filter((a) => a.class_id === classId).map((a) => a.subject_id));
   // Inactive subjects are only listed if the class still has them, so they can be unticked.
   const selectable = subjectRows.filter((s) => s.active || assigned.has(s.id));
@@ -244,6 +275,49 @@ export default async function AdminClassSubjectsPage({
                       title="No active subjects"
                       description="No active subjects. Add some on the Subjects page first."
                     />
+                  )}
+                </FormSection>
+              </form>
+
+              <form action={saveMajorSubjects}>
+                <input type="hidden" name="class_id" value={cls.id} />
+                <FormSection
+                  title="Major subjects"
+                  description="The two subjects teachers share a weekly star video for (a pupil who did well that week). Choose from the subjects ticked above."
+                  footer={
+                    majorError ? null : (
+                      <SubmitButton variant="secondary" pendingText="Saving…">
+                        <span className="inline-flex items-center gap-2">
+                          <Star className="h-4 w-4" aria-hidden="true" />
+                          Save major subjects
+                        </span>
+                      </SubmitButton>
+                    )
+                  }
+                >
+                  {majorError ? (
+                    <Alert tone="warning" title="Needs a database update">
+                      Run docs/migrations/20261112_star_videos.sql in Supabase to choose major subjects.
+                    </Alert>
+                  ) : assigned.size ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {[0, 1].map((i) => (
+                        <Field key={i} label={`Major subject ${i + 1}`} htmlFor={`major-${i + 1}`}>
+                          <select id={`major-${i + 1}`} className="gf-select" name={`major_${i + 1}`} defaultValue={majors[i] ?? ""}>
+                            <option value="">None</option>
+                            {subjectRows
+                              .filter((s) => assigned.has(s.id))
+                              .map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name}
+                                </option>
+                              ))}
+                          </select>
+                        </Field>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500">Tick and save this class&apos;s subjects first.</p>
                   )}
                 </FormSection>
               </form>

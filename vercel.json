@@ -2,5 +2,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "crons": [{ "path": "/api/email/send", "schedule": "0 6 * * *" }]
+  "crons": [
+    { "path": "/api/email/send", "schedule": "0 6 * * *" },
+    { "path": "/api/management-pack/save", "schedule": "30 23 * * *" }
+  ]
 }

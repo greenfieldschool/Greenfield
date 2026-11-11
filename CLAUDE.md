@@ -19,6 +19,7 @@ Every request goes through a skill.
 |---|---|
 | [resolve-issue-doc](.claude/skills/resolve-issue-doc/SKILL.md) | The user attaches an `issues/*.docx` / `.pdf` with screenshots of problems to fix |
 | [admin-portal-page](.claude/skills/admin-portal-page/SKILL.md) | Building or changing any page, form or server action in `/admin` or `/portal` |
+| [role-management](.claude/skills/role-management/SKILL.md) | Who can give or change account roles, the role change log, role options on `/admin/users`, the roles guide |
 | [supabase-migration](.claude/skills/supabase-migration/SKILL.md) | Any database change: tables, RLS policies, functions, triggers, views |
 | [results-and-reports](.claude/skills/results-and-reports/SKILL.md) | Result sheets, welfare scores, report cards, locks, corrections, results history |
 | [finance-payments](.claude/skills/finance-payments/SKILL.md) | Fees, invoices, payments, debtors, payment IDs, bank statements or bank email alerts |
@@ -26,9 +27,11 @@ Every request goes through a skill.
 | [assignments](.claude/skills/assignments/SKILL.md) | Assignments and classwork: setting, handing in (photos/files), marking, sending marks to the result sheet |
 | [lesson-notes](.claude/skills/lesson-notes/SKILL.md) | Lesson notes: teachers preparing, publishing and replacing notes by class/subject/term/week/topic; pupils and parents reading and downloading them |
 | [online-classes](.claude/skills/online-classes/SKILL.md) | Online video classes: scheduling Zoom/Meet/Teams lessons, cancelling, pupils joining from the portal, online attendance |
+| [star-videos](.claude/skills/star-videos/SKILL.md) | Star of the week videos: major subjects per class, teachers posting weekly video links, families watching on the portal, the KPI in the management pack |
 | [notifications](.claude/skills/notifications/SKILL.md) | Portal notifications (the bell) and phone push notifications: what sends them, who gets them, the service worker, adding one for a new event |
 | [email](.claude/skills/email/SKILL.md) | Emails through the school Gmail: connection, queue and daily limit, notification/message/announcement emails, school announcements, unsubscribe |
 | [brand-logo](.claude/skills/brand-logo/SKILL.md) | The school crest/logo, its words and colours, the browser and home-screen icons, where the crest appears |
+| [management-pack](.claude/skills/management-pack/SKILL.md) | The weekly/monthly management information pack for leadership (`/admin/management-pack`): figures, comparisons, notes, saved history and the nightly save, printing |
 | [ui-ux-design](.claude/skills/ui-ux-design/SKILL.md) | Designing or reworking any screen, form, grid or flow, animation or three.js scene; "make the UI/UX as good as possible" (use with the area's skill) |
 | [deploy](.claude/skills/deploy/SKILL.md) | Committing, pushing and checking the Vercel deployment |
 

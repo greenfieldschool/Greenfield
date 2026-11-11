@@ -6,6 +6,7 @@ export const LEARN = {
   classes: "classes",
   guardians: "guardians",
   staffAccounts: "staff-accounts",
+  roles: "roles",
   tests: "exam-tests",
   sessions: "exam-sessions",
   marking: "exam-marking",
@@ -38,7 +39,9 @@ export const LEARN = {
   lessonNotes: "lesson-notes",
   onlineClasses: "online-classes",
   announcements: "announcements",
-  email: "email"
+  email: "email",
+  managementPack: "management-pack",
+  starVideos: "star-videos"
 } as const;
 
 export type LearnGuide = (typeof LEARN)[keyof typeof LEARN];

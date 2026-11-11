@@ -37,6 +37,7 @@ import {
   Settings,
   Shapes,
   Shirt,
+  Star,
   MessagesSquare,
   NotebookPen,
   HeartHandshake,
@@ -91,13 +92,14 @@ type AdminShellProps = {
 
 const STORAGE_KEY = "gf_admin_sidebar_collapsed";
 
-// Admin-only sections mirror adminOnlyPrefixes in src/lib/route-access.ts (enforced by src/middleware.ts) and RLS.
+// Results items (roles: ["teacher"]) mirror resultsPrefixes there. Admin-only sections mirror adminOnlyPrefixes in src/lib/route-access.ts (enforced by src/middleware.ts) and RLS.
 const NAV: NavGroup[] = [
   {
     key: "overview",
     label: "Overview",
     items: [
       { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+      { href: "/admin/management-pack", label: "Management pack", icon: BarChart3, adminOnly: true },
       { href: "/admin/messages", label: "Messages", icon: MessagesSquare, chatOnly: true }
     ]
   },
@@ -121,14 +123,15 @@ const NAV: NavGroup[] = [
         href: "/admin/academics/results",
         label: "Class result sheet",
         icon: FileSpreadsheet,
-        excludes: ["/admin/academics/results/pupil"]
+        excludes: ["/admin/academics/results/pupil"],
+        roles: ["teacher"]
       },
-      { href: "/admin/academics/results/pupil", label: "Single pupil results", icon: UserRound },
-      { href: "/admin/academics/reports", label: "Report cards", icon: ScrollText },
+      { href: "/admin/academics/results/pupil", label: "Single pupil results", icon: UserRound, roles: ["teacher"] },
+      { href: "/admin/academics/reports", label: "Report cards", icon: ScrollText, roles: ["teacher"] },
       { href: "/admin/academics/published", label: "Published results", icon: Archive, roles: ["teacher", "front_desk"] },
-      { href: "/admin/academics/corrections", label: "Correction requests", icon: FilePen },
-      { href: "/admin/academics/audit", label: "Results history", icon: History },
-      { href: "/admin/academics/config", label: "Grading & layouts", icon: SlidersHorizontal }
+      { href: "/admin/academics/corrections", label: "Correction requests", icon: FilePen, roles: ["teacher"] },
+      { href: "/admin/academics/audit", label: "Results history", icon: History, roles: ["teacher"] },
+      { href: "/admin/academics/config", label: "Grading & layouts", icon: SlidersHorizontal, roles: ["teacher"] }
     ]
   },
   {
@@ -141,8 +144,9 @@ const NAV: NavGroup[] = [
       { href: "/admin/academics/assignments", label: "Assignments & classwork", icon: NotebookPen },
       { href: "/admin/academics/lesson-notes", label: "Lesson notes", icon: BookOpenText },
       { href: "/admin/academics/online-classes", label: "Online classes", icon: Video },
-      { href: "/admin/academics/assessments", label: "Assessments", icon: ClipboardCheck },
-      { href: "/admin/academics/publications", label: "Publish results", icon: Megaphone }
+      { href: "/admin/academics/star-videos", label: "Star videos", icon: Star },
+      { href: "/admin/academics/assessments", label: "Assessments", icon: ClipboardCheck, roles: ["teacher"] },
+      { href: "/admin/academics/publications", label: "Publish results", icon: Megaphone, roles: ["teacher"] }
     ]
   },
   {
@@ -195,6 +199,8 @@ const NAV: NavGroup[] = [
 // Friendly names for breadcrumb segments.
 const SEGMENT_LABELS: Record<string, string> = {
   admin: "Dashboard",
+  "management-pack": "Management pack",
+  history: "History",
   students: "Students",
   applications: "Applications",
   classes: "Classes",
@@ -219,6 +225,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   assignments: "Assignments & classwork",
   "lesson-notes": "Lesson notes",
   "online-classes": "Online classes",
+  "star-videos": "Star videos",
   announcements: "Announcements",
   weeks: "Compulsory weeks",
   audit: "Results history",

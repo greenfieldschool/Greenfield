@@ -93,10 +93,27 @@ export default function AdminLearnCentrePage() {
           page: { href: "/admin/users", label: "Staff & users" },
           adminOnly: true,
           steps: [
-            "Open Core > Staff & users (/admin/users). Invite a member of staff by email with their role: Admin, Teacher, Front desk or Nurse. They get an email to set their password.",
-            "No email? Use 'Manual link' to make a one-time sign-in link and send it to that person only. Anyone with the link can sign in as them.",
-            "Change a person's role from the list. Admins see everything; teachers see only their classes and subjects; Front desk and Nurse see the areas they need.",
-            "After giving someone the Teacher role, assign their classes and subjects under Academics > Teacher assignments, or they will see no classes."
+            "Open Core > Staff & users (/admin/users). Invite a member of staff by email with their role: Teacher, Front desk or Nurse (a super admin can also choose Admin or Super admin). They get an email to set their password.",
+            "No email? Use 'Generate login link' to make a one-time sign-in link and send it to that person only. Anyone with the link can sign in as them.",
+            "Change a person's role from the list. You only see the roles you are allowed to give, and you can't change your own role. 'Roles and what each can do' below explains each role and who can give it.",
+            "After giving someone the Teacher role, assign their classes and subjects under Academics > Teacher assignments, or they will see no classes.",
+            "Every role change is recorded under 'Recent role changes' on the same page: whose account, from which role to which, who changed it and when. The record can't be edited or deleted."
+          ]
+        },
+        {
+          id: LEARN.roles,
+          name: "Roles and What Each Can Do",
+          page: { href: "/admin/users", label: "Staff & users" },
+          adminOnly: true,
+          steps: [
+            "Super admin: everything an admin can do. Only a super admin can make someone an admin or super admin, or take that role away. The school always keeps at least one super admin: the last one can't be demoted.",
+            "Admin: the whole staff dashboard, including the sections only admins can open: Staff & users, Announcements, Finance, Settings, Subjects, Class subjects, Teacher assignments, Welfare criteria, Compulsory weeks, Message moderation and Job posts. Admins work on every class. They can give the roles Teacher, Front desk, Nurse, Parent and Student, but can't change the role of an admin or super admin.",
+            "Teacher: the staff dashboard without the admin-only sections, and only for their own classes. A class teacher sees their whole class and all its subjects; a subject teacher sees only the subjects they are assigned in that class (set under Academics > Teacher assignments). Teachers can message the parents of their classes.",
+            "Front desk and Nurse: the staff dashboard without the admin-only sections. They are not limited to particular classes: they can see every class's pupils, attendance, welfare and health records. They can't open result sheets, report cards, correction requests or results history, and can't publish results: only admins and teachers work on results. Front desk can still read Published results. Neither uses Messages.",
+            "Parent: the parent portal only (/portal), for the children linked to them under Core > Guardians. Everyone who signs up on the website starts as a parent.",
+            "Student: the pupil portal only, for their own record once their account is linked to them (Core > Students, or 'Student link' on Staff & users).",
+            "Staff who open the portal are sent to the dashboard, and parents and pupils can't open the dashboard. Exam conductors (/conductor) are open to staff and to accounts linked to a conductor.",
+            "Changing roles: nobody can change their own role, so ask another admin. Every role change is recorded on Staff & users. If a section you need is missing from your menu, ask an admin whether your role is right."
           ]
         }
       ]
@@ -185,7 +202,8 @@ export default function AdminLearnCentrePage() {
           steps: [
             "Open Academics > Class subjects (/admin/academics/class-subjects) and pick a class.",
             "Tick every subject the class takes and click 'Save subjects'. Use 'Copy subjects from another class' to start from a similar class.",
-            "The Result sheet then only offers that class's subjects, with quick links to switch between them."
+            "The Result sheet then only offers that class's subjects, with quick links to switch between them.",
+            "Under 'Major subjects', choose the class's two main subjects (for example English and Mathematics) and click 'Save major subjects'. Teachers post a star of the week video for each of them every week."
           ]
         },
         {
@@ -532,6 +550,19 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.starVideos,
+          name: "Star of the Week Videos",
+          page: { href: "/admin/academics/star-videos", label: "Star videos" },
+          steps: [
+            "Every week, each class shares a short video of a pupil who did well in each of its two major subjects. An admin chooses the two subjects on Class subjects ('Major subjects').",
+            "Record the video and save it to Google Drive or YouTube (unlisted). Set sharing so anyone with the link can view, or parents won't be able to open it. Then copy the link.",
+            "Open Academics > Star videos (/admin/academics/star-videos), pick the class (this week is shown; use the arrows for an earlier week). For each major subject, choose the pupil, paste the link, add a sentence on why they're the star, and click 'Post video'.",
+            "The page suggests the pupils with the best marks on that subject's work marked this week. It's a hint: you choose. The class teacher can post for both subjects; a subject teacher only for their subject.",
+            "The pupil and their parents get a notification (and an email or phone alert if they have them on) and can watch it under Star videos on the portal. Only that child's family sees it. Choosing a different pupil notifies the new pupil's family; changing only the link doesn't send another.",
+            "Leadership sees every class's videos, with links, in the management pack, and which classes haven't posted yet. 'Remove video' takes it off the portal."
+          ]
+        },
+        {
           id: LEARN.announcements,
           name: "School Announcements",
           page: { href: "/admin/announcements", label: "Announcements" },
@@ -554,6 +585,25 @@ export default function AdminLearnCentrePage() {
             "Setting up is done once by whoever looks after the website (docs/email-setup.md). Then, in Settings → Email (Gmail), click 'Connect Gmail', sign in as the school account and allow sending. The website can only send; it can't read the mailbox.",
             "Settings → Email shows how many were sent in the last 24 hours (of the daily limit), how many are waiting and how many couldn't be sent. 'Send me a test email' checks it works; 'Reconnect' fixes an expired connection; 'Disconnect' stops all emails (they wait until it's connected again).",
             "Every parent chooses their emails on the portal (Notifications → Email me about) and every email has a 'Stop these emails' link. Staff switch message emails on or off in Messages → Settings."
+          ]
+        },
+        {
+          id: LEARN.managementPack,
+          name: "Management Pack (weekly and monthly)",
+          page: { href: "/admin/management-pack", label: "Management pack" },
+          adminOnly: true,
+          steps: [
+            "Open Overview > Management pack (/admin/management-pack). It opens on this week. Click Monthly for the month, and use the arrows or the list to look at an earlier week or month. Weeks run Monday to Sunday.",
+            "Each figure is shown next to the same figure for the period before, with the change. Green means good news, red means it needs a look, grey means neither (for example, more emails sent). While a week or month is still running, it is compared with the same days of the period before (Monday to Wednesday against last Monday to Wednesday), so a half-finished week doesn't look like a fall.",
+            "'Worth a look' picks out what stands out: attendance under 90%, a class with low attendance, serious or unresolved incidents, overdue fees, a drop in fees collected, applications or correction requests waiting.",
+            "The sections: pupils and admissions, attendance, fees and money, welfare and behaviour, teaching and learning, star of the week videos (with a link to each video and which classes haven't posted), staff, and communication. Figures marked 'As of today' (pupils on roll, fees still owed) are a count right now and have no comparison.",
+            "Heads' actions: what the heads (admin accounts) did in the dashboard to manage pupils and staff, counted from the records themselves: incidents and discipline recorded, pupils' tests unlocked, star videos, head's report card comments, results published, correction requests decided (and how many hours they took on average), locked result sheets reopened, teachers assigned to classes or subjects, reported messages dealt with, messages and announcements sent, and payments, expenses and invoices recorded. A table shows each head's actions by area. Nothing is typed in: a head's work counts when they do it in the dashboard under their own login.",
+            "Staff: how many staff have an account (by role), new staff accounts, teachers with no class or subject (they can't take registers or enter results), and a table of the work each teacher recorded: registers taken, work set, work marked, lesson notes and online classes, least first, with last period's total. Work counts for whoever entered it, so a register an admin took for a class counts for the admin. From the third school day of a week, 'Worth a look' names teachers with a class or subject who have recorded nothing. Staff attendance and leave aren't recorded in the system, so they aren't in the pack.",
+            "Attendance = pupils present or late ÷ pupils marked on the registers. 'Registers taken' compares registers marked with every class on every weekday, so public holidays and half-term lower it.",
+            "The figures come straight from what staff record: registers, incidents, payments, expenses, assignments and so on. If a figure looks wrong, check that the records were entered (for example, payments recorded or registers taken).",
+            "The pack is read only: nothing is typed into it. Every figure comes from what heads, teachers and the office record day to day in the dashboard: registers, payments and expenses, incidents and discipline, assignments and marking, lesson notes, online classes, star videos, applications and staff accounts. To change a figure, correct the record where it was entered.",
+            "History: every finished week and month is saved automatically the night after it ends, exactly as the figures stood then, and recent ones that were missed are filled in overnight. Opening a past week or month shows that saved copy (it says when it was kept). Click History to see the saved weeks or months side by side. Saved copies can't be changed or deleted. 'Today's figures' shows a past week worked out again from today's records, for example after late corrections; the saved copy stays as it was.",
+            "To share it, click 'Print or save as PDF' and choose 'Save as PDF' as the printer. The menus and buttons are left out of the printout."
           ]
         }
       ]

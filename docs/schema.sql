@@ -100,6 +100,8 @@ create policy "profiles_staff_select"
   to authenticated
   using (public.is_staff());
 
+-- Lets people edit their own name and photo. The profiles_guard_role trigger (20261111_lock_role_changes.sql) stops
+-- them changing their own role or email through it.
 create policy "profiles_update_own_name"
   on public.profiles
   for update
@@ -8749,6 +8751,231 @@ $$;
 revoke all on function public.announcement_reach(text, public.school_level, uuid) from public, anon;
 grant execute on function public.announcement_reach(text, public.school_level, uuid) to authenticated;
 
+-- Management pack history (see docs/migrations/20261111_management_pack_history.sql)
+create table if not exists public.mi_pack_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  view text not null check (view in ('week', 'month')),
+  -- The Monday ("2026-11-09") for a week, "2026-11" for a month.
+  period_key text not null,
+  period_start date not null,
+  period_end date not null,
+  -- The whole pack (figures, comparisons, notes) as it was shown when saved.
+  data jsonb not null,
+  source text not null default 'automatic' check (source in ('automatic', 'manual')),
+  saved_by uuid references auth.users(id) on delete set null,
+  saved_by_name text,
+  saved_at timestamptz not null default now(),
+  unique (view, period_key)
+);
+
+create index if not exists mi_pack_snapshots_view_start_idx on public.mi_pack_snapshots(view, period_start desc);
+
+alter table public.mi_pack_snapshots enable row level security;
+
+drop policy if exists mi_pack_snapshots_admin_select on public.mi_pack_snapshots;
+create policy mi_pack_snapshots_admin_select on public.mi_pack_snapshots
+  for select to authenticated
+  using (coalesce(public.is_admin(), false));
+
+-- Read only for everyone signed in. Only the website's nightly job (service key, which bypasses these rules) writes.
+drop policy if exists mi_pack_snapshots_admin_insert on public.mi_pack_snapshots;
+drop policy if exists mi_pack_snapshots_admin_update on public.mi_pack_snapshots;
+revoke insert, update, delete on public.mi_pack_snapshots from anon, authenticated;
+revoke all on public.mi_pack_snapshots from anon;
+
+-- Star of the week videos (see docs/migrations/20261112_star_videos.sql)
+alter table public.class_subjects add column if not exists is_major boolean not null default false;
+
+-- At most two major subjects per class.
+create or replace function public.class_subjects_major_limit()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.is_major and (
+    select count(*) from public.class_subjects
+    where class_id = new.class_id and is_major and subject_id <> new.subject_id
+  ) >= 2 then
+    raise exception 'A class can have at most two major subjects';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists class_subjects_major_limit on public.class_subjects;
+create trigger class_subjects_major_limit
+  before insert or update of is_major on public.class_subjects
+  for each row execute function public.class_subjects_major_limit();
+
+-- Admins set a class's major subjects in one go (clears the old ones first, so swapping never trips the limit).
+create or replace function public.set_class_major_subjects(p_class uuid, p_subjects uuid[])
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  wanted uuid[] := coalesce(p_subjects, '{}'::uuid[]);
+begin
+  if not coalesce(public.is_admin(), false) then
+    raise exception 'Only admins can choose major subjects';
+  end if;
+  if cardinality(wanted) > 2 then
+    raise exception 'A class can have at most two major subjects';
+  end if;
+  if exists (
+    select 1 from unnest(wanted) w(id)
+    where not exists (select 1 from public.class_subjects cs where cs.class_id = p_class and cs.subject_id = w.id)
+  ) then
+    raise exception 'Choose subjects this class takes';
+  end if;
+  update public.class_subjects set is_major = false where class_id = p_class and is_major;
+  update public.class_subjects set is_major = true where class_id = p_class and subject_id = any(wanted);
+end;
+$$;
+
+revoke all on function public.set_class_major_subjects(uuid, uuid[]) from public, anon;
+grant execute on function public.set_class_major_subjects(uuid, uuid[]) to authenticated;
+
+create table if not exists public.star_videos (
+  id uuid primary key default gen_random_uuid(),
+  class_id uuid not null references public.classes(id) on delete cascade,
+  subject_id uuid not null references public.subjects(id) on delete cascade,
+  -- The Monday of the week (Lagos).
+  week_start date not null check (extract(isodow from week_start) = 1),
+  student_id uuid not null references public.students(id) on delete cascade,
+  video_url text not null check (video_url ~* '^https://[^[:space:]]+$' and length(video_url) <= 1000),
+  reason text check (reason is null or length(reason) <= 500),
+  academic_term_id uuid references public.academic_terms(id) on delete set null,
+  author_name text,
+  created_by uuid references auth.users(id) on delete set null default auth.uid(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (class_id, subject_id, week_start)
+);
+
+create index if not exists star_videos_week_idx on public.star_videos(week_start);
+create index if not exists star_videos_student_idx on public.star_videos(student_id);
+
+drop trigger if exists star_videos_set_updated_at on public.star_videos;
+create trigger star_videos_set_updated_at
+  before update on public.star_videos
+  for each row execute procedure public.set_updated_at();
+
+-- A video must be for one of the class's major subjects and a pupil in that class.
+create or replace function public.star_video_valid(p_class uuid, p_subject uuid, p_student uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from public.class_subjects where class_id = p_class and subject_id = p_subject and is_major)
+     and exists (select 1 from public.students where id = p_student and class_id = p_class);
+$$;
+
+revoke all on function public.star_video_valid(uuid, uuid, uuid) from public, anon;
+grant execute on function public.star_video_valid(uuid, uuid, uuid) to authenticated;
+
+alter table public.star_videos enable row level security;
+
+drop policy if exists star_videos_staff_select on public.star_videos;
+create policy star_videos_staff_select on public.star_videos
+  for select to authenticated
+  using (public.can_manage_results(class_id, subject_id));
+
+drop policy if exists star_videos_staff_insert on public.star_videos;
+create policy star_videos_staff_insert on public.star_videos
+  for insert to authenticated
+  with check (public.can_manage_results(class_id, subject_id) and public.star_video_valid(class_id, subject_id, student_id));
+
+drop policy if exists star_videos_staff_update on public.star_videos;
+create policy star_videos_staff_update on public.star_videos
+  for update to authenticated
+  using (public.can_manage_results(class_id, subject_id))
+  with check (public.can_manage_results(class_id, subject_id) and public.star_video_valid(class_id, subject_id, student_id));
+
+drop policy if exists star_videos_staff_delete on public.star_videos;
+create policy star_videos_staff_delete on public.star_videos
+  for delete to authenticated
+  using (public.can_manage_results(class_id, subject_id));
+
+drop policy if exists star_videos_portal_select on public.star_videos;
+create policy star_videos_portal_select on public.star_videos
+  for select to authenticated
+  using (public.portal_sees_student(student_id));
+
+revoke all on public.star_videos from anon;
+
+-- Tell the pupil and their parents (bell, email, phone) when their child is chosen, or when the video changes to
+-- another child. A new link for the same child doesn't notify again.
+create or replace function public.notify_star_video()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  first_name text;
+  subject text := public.subject_label(new.subject_id);
+begin
+  if tg_op = 'UPDATE' and old.student_id = new.student_id then
+    return new;
+  end if;
+  select s.first_name into first_name from public.students s where s.id = new.student_id;
+  perform public.notify_pupils(
+    array[new.student_id],
+    'star_video',
+    coalesce(first_name, 'Your child') || ' is a star of the week in ' || subject || '!',
+    coalesce(nullif(new.reason, ''), coalesce(new.author_name, 'The teacher') || ' shared a video of ' || coalesce(first_name, 'your child') || ' doing well this week.'),
+    '/portal/star-videos',
+    new.id
+  );
+  return new;
+exception when others then
+  raise warning 'notify_star_video failed: %', sqlerrm;
+  return new;
+end;
+$$;
+
+drop trigger if exists star_videos_notify on public.star_videos;
+create trigger star_videos_notify
+  after insert or update of student_id on public.star_videos
+  for each row execute function public.notify_star_video();
+
+-- Record who did what (see docs/migrations/20261113_record_who_did_what.sql)
+alter table public.teacher_class_assignments
+  add column if not exists assigned_by uuid references auth.users(id) on delete set null default auth.uid();
+alter table public.teacher_subject_assignments
+  add column if not exists assigned_by uuid references auth.users(id) on delete set null default auth.uid();
+
+alter table public.welfare_incidents alter column reported_by set default auth.uid();
+alter table public.welfare_discipline_records alter column reported_by set default auth.uid();
+alter table public.finance_payment_transactions alter column received_by set default auth.uid();
+alter table public.finance_expenses alter column created_by set default auth.uid();
+alter table public.finance_invoices alter column created_by set default auth.uid();
+
+-- Registers are saved as upserts: stamp the person on a new mark and when a mark changes.
+create or replace function public.student_attendance_stamp_recorder()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if auth.uid() is not null and (tg_op = 'INSERT' or new.status is distinct from old.status or old.recorded_by is null) then
+    new.recorded_by := auth.uid();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists student_attendance_stamp_recorder on public.student_attendance;
+create trigger student_attendance_stamp_recorder
+  before insert or update on public.student_attendance
+  for each row execute function public.student_attendance_stamp_recorder();
+
 -- ---------------------------------------------------------------------------------------------------------------
 -- Phone notifications (see docs/migrations/20261111_push_notifications.sql; sending: 20261111b_push_sending.sql)
 -- ---------------------------------------------------------------------------------------------------------------
@@ -8976,3 +9203,260 @@ revoke all on function public.push_done(uuid[]) from public, anon, authenticated
 grant execute on function public.push_claim(int) to service_role;
 grant execute on function public.push_done(uuid[]) to service_role;
 grant select, update, delete on public.push_subscriptions to service_role;
+
+-- Lock role changes and log them (see docs/migrations/20261111_lock_role_changes.sql)
+
+create table if not exists public.role_change_log (
+  id bigint generated always as identity primary key,
+  user_id uuid not null,
+  user_name text,
+  old_role public.app_role,
+  new_role public.app_role,
+  changed_by uuid,
+  changed_by_name text,
+  changed_at timestamptz not null default now()
+);
+
+create index if not exists role_change_log_changed_at_idx on public.role_change_log (changed_at desc);
+create index if not exists role_change_log_user_idx on public.role_change_log (user_id, changed_at desc);
+
+alter table public.role_change_log enable row level security;
+
+drop policy if exists "role_change_log_admin_read" on public.role_change_log;
+create policy "role_change_log_admin_read"
+  on public.role_change_log
+  for select
+  to authenticated
+  using (coalesce(public.is_admin(), false));
+
+revoke insert, update, delete, truncate on public.role_change_log from anon, authenticated;
+grant select on public.role_change_log to authenticated;
+
+-- True for the server key and the SQL editor (no signed-in user, not the public key).
+create or replace function public.role_change_trusted_caller()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select auth.uid() is null
+     and coalesce(nullif(auth.role(), ''), 'service_role') not in ('anon', 'authenticated');
+$$;
+
+revoke all on function public.role_change_trusted_caller() from public, anon, authenticated;
+
+-- The plain-language reason a role change is refused, or NULL when it is allowed.
+-- Mirrors roleChangeProblem() in src/lib/roles.ts; keep the two in step.
+create or replace function public.role_change_problem(
+  p_actor uuid,
+  p_actor_role public.app_role,
+  p_target uuid,
+  p_old public.app_role,
+  p_new public.app_role
+)
+returns text
+language sql
+immutable
+set search_path = public
+as $$
+  select case
+    when p_old is not distinct from p_new then null
+    when p_actor_role is null or p_actor_role not in ('super_admin', 'admin') then
+      'Only an admin can change roles.'
+    when p_actor = p_target then
+      'You cannot change your own role. Ask another admin.'
+    when p_actor_role = 'super_admin' then null
+    when p_old in ('super_admin', 'admin') then
+      'Only a super admin can change the role of an admin or super admin.'
+    when p_new in ('super_admin', 'admin') then
+      'Only a super admin can make someone an admin or super admin.'
+    else null
+  end;
+$$;
+
+revoke all on function public.role_change_problem(uuid, public.app_role, uuid, public.app_role, public.app_role)
+  from public, anon, authenticated;
+
+create or replace function public.profiles_guard_role()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  trusted boolean := coalesce(public.role_change_trusted_caller(), false);
+  actor uuid := auth.uid();
+  actor_role public.app_role;
+  old_role public.app_role;
+  problem text;
+begin
+  if tg_op = 'DELETE' then
+    old_role := old.role;
+  elsif tg_op = 'UPDATE' then
+    old_role := old.role;
+  else
+    old_role := null;
+  end if;
+
+  if not trusted then
+    select p.role into actor_role from public.profiles p where p.id = actor;
+
+    if tg_op = 'UPDATE' then
+      -- People who are not admins may only edit their own name and photo.
+      if actor_role is null or actor_role not in ('super_admin', 'admin') then
+        if new.id is distinct from old.id
+           or new.email is distinct from old.email
+           or new.created_at is distinct from old.created_at then
+          raise exception 'You can only change your own name and photo.' using errcode = '42501';
+        end if;
+      end if;
+      problem := public.role_change_problem(actor, actor_role, old.id, old.role, new.role);
+    elsif tg_op = 'INSERT' then
+      -- New accounts start as parents. Anything else is a role change from parent.
+      problem := public.role_change_problem(actor, actor_role, new.id, 'parent', new.role);
+    else
+      -- Removing someone's profile takes their role away.
+      if old.role in ('super_admin', 'admin') or actor = old.id then
+        problem := public.role_change_problem(actor, actor_role, old.id, old.role, 'parent');
+      end if;
+    end if;
+
+    if problem is not null then
+      raise exception '%', problem using errcode = '42501';
+    end if;
+  end if;
+
+  -- The school must always keep at least one super admin.
+  if old_role = 'super_admin' and (tg_op = 'DELETE' or new.role is distinct from 'super_admin') then
+    perform pg_advisory_xact_lock(hashtext('greenfield_last_super_admin'));
+    if not exists (select 1 from public.profiles p where p.role = 'super_admin' and p.id <> old.id) then
+      raise exception 'This is the last super admin. Make someone else a super admin first.' using errcode = '42501';
+    end if;
+  end if;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.profiles_guard_role() from public, anon, authenticated;
+
+drop trigger if exists profiles_guard_role on public.profiles;
+create trigger profiles_guard_role
+  before insert or update or delete on public.profiles
+  for each row execute procedure public.profiles_guard_role();
+
+create or replace function public.profiles_log_role_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor uuid := auth.uid();
+begin
+  if new.role is distinct from old.role then
+    insert into public.role_change_log (user_id, user_name, old_role, new_role, changed_by, changed_by_name)
+    values (
+      new.id,
+      coalesce(nullif(new.full_name, ''), new.email),
+      old.role,
+      new.role,
+      actor,
+      (select coalesce(nullif(p.full_name, ''), p.email) from public.profiles p where p.id = actor)
+    );
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.profiles_log_role_change() from public, anon, authenticated;
+
+drop trigger if exists profiles_log_role_change on public.profiles;
+create trigger profiles_log_role_change
+  after update of role on public.profiles
+  for each row execute procedure public.profiles_log_role_change();
+
+-- Result sheets: admins and teachers only (see docs/migrations/20261111b_results_admins_and_teachers.sql)
+-- Result sheets: admins and teachers only. Run AFTER 20261111_lock_role_changes.sql (either order works).
+--
+-- Until now, front desk and nurse accounts could open, fill in and change every result sheet (columns and scores)
+-- and publish results, like an admin. The school decided only admins and teachers work on results:
+--   * admins: every class and subject (unchanged);
+--   * teachers: only the subjects they teach in their classes (unchanged);
+--   * front desk and nurse: no access to result sheet columns or scores, and cannot publish results.
+-- Front desk can still read the Published results archive (finished, published report cards), as before.
+-- Assignments, lesson notes, online classes and star videos are NOT changed by this update.
+--
+-- Safe to run twice. The SQL editor may warn about "destructive operations": they are the "drop policy if exists"
+-- lines that replace the old rules. Nothing is deleted.
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- Who may work on a result sheet: admins, and teachers for the subjects they teach in that class.
+-- ---------------------------------------------------------------------------------------------------------------
+create or replace function public.can_edit_results(p_class uuid, p_subject uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(public.is_admin(), false)
+    or (public.current_role() is not distinct from 'teacher' and coalesce(public.teacher_teaches(p_class, p_subject), false));
+$$;
+
+-- Same check for one result column, looked up without going through academic_assessments' own rules.
+create or replace function public.can_manage_assessment(p_assessment uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select public.can_edit_results(a.class_id, a.subject_id) from public.academic_assessments a where a.id = p_assessment),
+    false
+  );
+$$;
+
+revoke all on function public.can_edit_results(uuid, uuid) from public, anon;
+revoke all on function public.can_manage_assessment(uuid) from public, anon;
+-- Policies run as the signed-in user, so the user needs execute on the helpers they call.
+grant execute on function public.can_edit_results(uuid, uuid) to authenticated;
+grant execute on function public.can_manage_assessment(uuid) to authenticated;
+
+-- Result columns (and the scores below, through can_manage_assessment).
+drop policy if exists academic_assessments_staff_all on public.academic_assessments;
+create policy academic_assessments_staff_all
+  on public.academic_assessments
+  for all
+  to authenticated
+  using (public.can_edit_results(class_id, subject_id))
+  with check (public.can_edit_results(class_id, subject_id));
+
+drop policy if exists academic_assessment_scores_staff_all on public.academic_assessment_scores;
+create policy academic_assessment_scores_staff_all
+  on public.academic_assessment_scores
+  for all
+  to authenticated
+  using (public.can_manage_assessment(assessment_id))
+  with check (public.can_manage_assessment(assessment_id));
+
+-- Publishing: admins, or the class teacher. Only admins may unpublish (unpublish_term_results, with a reason).
+drop policy if exists result_publications_staff_write on public.result_publications;
+create policy result_publications_staff_write
+  on public.result_publications
+  for insert
+  to authenticated
+  with check (coalesce(public.is_admin(), false) or coalesce(public.teacher_has_class(class_id), false));
+
+drop policy if exists result_publications_staff_update on public.result_publications;
+create policy result_publications_staff_update
+  on public.result_publications
+  for update
+  to authenticated
+  using (coalesce(public.is_admin(), false) or coalesce(public.teacher_has_class(class_id), false))
+  with check (coalesce(public.is_admin(), false) or coalesce(public.teacher_has_class(class_id), false));

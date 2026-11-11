@@ -37,6 +37,14 @@ export function formatLagosDate(iso: string | null | undefined): string {
   return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
+/** ISO timestamp → "14 Oct 2026, 09:05" in Lagos. */
+export function formatLagosDateTime(iso: string | null | undefined): string {
+  const day = formatLagosDate(iso);
+  if (day === "—" || !iso) return day;
+  const d = new Date(new Date(iso).getTime() + LAGOS_OFFSET_MS);
+  return `${day}, ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+}
+
 export type SessionVisibilityInput = {
   active: boolean;
   status: string;

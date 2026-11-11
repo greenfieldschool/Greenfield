@@ -1,6 +1,7 @@
 // Who may open which area. Used by src/middleware.ts (the first gate); pages and RLS still check on their own.
 //
-//  /admin      staff (super_admin, admin, teacher, front_desk, nurse). Some sections are admins only.
+//  /admin      staff (super_admin, admin, teacher, front_desk, nurse). Some sections are admins only; results
+//              pages are admins and teachers only.
 //  /portal     parents and students. Staff are sent to /admin.
 //  /conductor  staff, or accounts linked to an exam conductor.
 // Signed-out visitors are sent to that area's login page.
@@ -20,7 +21,21 @@ export const adminOnlyPrefixes = [
   "/admin/academics/teachers",
   "/admin/welfare/criteria",
   "/admin/welfare/weeks",
-  "/admin/messages/moderation"
+  "/admin/messages/moderation",
+  "/admin/management-pack"
+];
+
+// Results: admins and teachers only (front desk and nurse have no access to result sheets).
+// Keep in step with `roles: ["teacher"]` items in AdminShell and with can_edit_results() in the database.
+// /admin/academics/published is NOT here: front desk can read the published archive.
+export const resultsPrefixes = [
+  "/admin/academics/results",
+  "/admin/academics/reports",
+  "/admin/academics/corrections",
+  "/admin/academics/audit",
+  "/admin/academics/config",
+  "/admin/academics/assessments",
+  "/admin/academics/publications"
 ];
 
 // Pages each area serves to everyone (sign-in, sign-out, "not allowed").
@@ -64,6 +79,7 @@ export function decideAccess(path: string, signedIn: boolean, role: string | nul
   if (area === "admin") {
     if (!isStaff) return { action: "redirect", to: "/admin/unauthorized" };
     if (!isAdmin && adminOnlyPrefixes.some((p) => under(path, p))) return { action: "redirect", to: "/admin" };
+    if (!isAdmin && role !== "teacher" && resultsPrefixes.some((p) => under(path, p))) return { action: "redirect", to: "/admin" };
     return { action: "allow" };
   }
   if (area === "portal") {

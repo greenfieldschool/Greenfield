@@ -6,6 +6,10 @@ description: Use for anything about academic results, result sheet columns, welf
 # Results, welfare and report cards
 
 ## How it fits together
+- **Who works on results:** admins (every class) and teachers (subjects they teach). Front desk and nurse have no
+  access (`can_edit_results()`, `resultsPrefixes` in `route-access.ts`, `roles: ["teacher"]` nav items; migration
+  20261111b). Front desk can only read Published results. Test: `node results-access-pglite-test.mjs <repo>` (this
+  folder; needs `@electric-sql/pglite@0.2.17`).
 - **Result sheet** (`/admin/academics/results`): one sheet per class + subject + term. Columns are
   `academic_assessments` with `on_result_sheet = true` (`title`, `max_score`, `position`, `component_group`
   ca/exam/other). Subject score = sum of scores / sum of column maxima × 100 (`subjectPercent` in `src/lib/results.ts`).

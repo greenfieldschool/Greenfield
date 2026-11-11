@@ -19,6 +19,7 @@ export const HELP = {
   assignments: "assignments",
   lessonNotes: "lesson-notes",
   onlineClasses: "online-classes",
+  starVideos: "star-videos",
   notifications: "notifications"
 } as const;
 
