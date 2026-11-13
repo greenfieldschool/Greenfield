@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, KeyRound, UserMinus, Users } from "lucide-react";
+import { ExternalLink, KeyRound, Trash2, UserMinus, Users } from "lucide-react";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -21,6 +21,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { DetailList } from "../../applications/_ui";
 import { LEARN } from "@/lib/learn-guides";
+import { fetchAllRows } from "@/lib/fetch-all";
+import { STATUS_LABELS, isOffRoll, reasonLabel, usageSummary } from "@/lib/student-deactivation";
+import { DeactivatePanel, type KeepOption } from "./deactivate-panel";
+import { deleteStudentAction, reactivateStudentAction } from "./deactivation-actions";
 
 function studentStatusTone(status: string): BadgeTone {
   switch (status) {
@@ -33,6 +37,7 @@ function studentStatusTone(status: string): BadgeTone {
     case "graduated":
       return "violet";
     case "withdrawn":
+    case "transferred":
       return "red";
     default:
       return "slate";
@@ -92,6 +97,19 @@ type StudentRow = {
   classes: Array<{ id: string; level: string; name: string }>;
   status: string;
   date_of_birth: string | null;
+  deactivation_reason?: string | null;
+  deactivation_note?: string | null;
+  deactivated_at?: string | null;
+  duplicate_of?: string | null;
+};
+
+type StatusLogRow = {
+  id: string;
+  action: string;
+  reason: string | null;
+  reason_other: string | null;
+  done_by_name: string | null;
+  created_at: string;
 };
 
 type AdmissionsApplicationRow = {
@@ -213,6 +231,50 @@ export default async function AdminStudentDetailPage({
     .eq("student_id", studentId)
     .maybeSingle();
   const existingPortalUserId = (existingPortalLink as { user_id?: string } | null)?.user_id ?? null;
+
+  // Deactivation (issue 11): admins only. The other pupils a duplicate can point to, this record's log, and what is
+  // attached to it (to say whether it can be deleted outright).
+  const offRoll = isOffRoll(student?.status);
+  const [keepRows, statusLogRes, usageRes, keptRes] = isAdmin && student
+    ? await Promise.all([
+        offRoll
+          ? Promise.resolve([] as Array<{ id: string; first_name: string; last_name: string; admission_number: string | null; class_id: string | null; status: string }>)
+          : fetchAllRows<{ id: string; first_name: string; last_name: string; admission_number: string | null; class_id: string | null; status: string }>(() =>
+              supabase
+                .from("students")
+                .select("id, first_name, last_name, admission_number, class_id, status")
+                .in("status", ["applied", "enrolled", "active"])
+                .neq("id", studentId)
+                .order("last_name")
+                .order("first_name")
+                .order("id")
+            ),
+        supabase
+          .from("student_status_log")
+          .select("id, action, reason, reason_other, done_by_name, created_at")
+          .eq("student_id", studentId)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        student.status === "inactive" ? supabase.rpc("student_usage", { p_student: studentId }) : Promise.resolve({ data: null }),
+        student.duplicate_of
+          ? supabase.from("students").select("id, first_name, last_name, admission_number").eq("id", student.duplicate_of).maybeSingle()
+          : Promise.resolve({ data: null })
+      ])
+    : [[], { data: [] }, { data: null }, { data: null }];
+  const statusLog = ((statusLogRes as { data: unknown }).data ?? []) as StatusLogRow[];
+  const usage = ((usageRes as { data: unknown }).data ?? null) as Record<string, number> | null;
+  const attached = usageSummary(usage);
+  const keptRecord = ((keptRes as { data: unknown }).data ?? null) as { id: string; first_name: string; last_name: string; admission_number: string | null } | null;
+  const nameKey = (a: string, b: string) => `${a} ${b}`.toLowerCase().replace(/[^a-z]/g, "");
+  const thisNameKey = student ? nameKey(student.first_name, student.last_name) : "";
+  const classNameById = new Map(classOptions.map((c) => [c.id, c.name]));
+  const keepOptions: KeepOption[] = keepRows.map((k) => ({
+    id: k.id,
+    label: [`${k.first_name} ${k.last_name}`, k.admission_number, k.class_id ? classNameById.get(k.class_id) : null].filter(Boolean).join(" · "),
+    likely: nameKey(k.first_name, k.last_name) === thisNameKey
+  }));
+  const lastDeactivation = statusLog.find((l) => l.action === "deactivated") ?? null;
+  const canDelete = student?.status === "inactive" && ["duplicate", "test_record"].includes(student.deactivation_reason ?? "") && usage !== null && attached.length === 0;
 
   async function createPortalAccount(formData: FormData) {
     "use server";
@@ -551,16 +613,20 @@ export default async function AdminStudentDetailPage({
                 placeholder="(optional)"
               />
             </Field>
-            <Field label="Status" htmlFor="student-status" required>
-              <select id="student-status" className="gf-select" name="status" required defaultValue={student.status}>
-                <option value="applied">Applied</option>
-                <option value="enrolled">Enrolled</option>
-                <option value="active">Active</option>
-                <option value="graduated">Graduated</option>
-                <option value="withdrawn">Withdrawn</option>
-                <option value="transferred">Transferred</option>
-              </select>
-            </Field>
+            {offRoll ? (
+              <Field label="Status" htmlFor="student-status" hint="Use Reactivate at the top of the page to bring this pupil back.">
+                <input type="hidden" name="status" value={student.status} />
+                <input id="student-status" className="gf-input" value={STATUS_LABELS[student.status] ?? student.status} readOnly disabled />
+              </Field>
+            ) : (
+              <Field label="Status" htmlFor="student-status" required hint="To mark a pupil as left, graduated or a duplicate, use Deactivate pupil.">
+                <select id="student-status" className="gf-select" name="status" required defaultValue={student.status}>
+                  <option value="applied">Applied</option>
+                  <option value="enrolled">Enrolled</option>
+                  <option value="active">Active</option>
+                </select>
+              </Field>
+            )}
             <Field label="Level" htmlFor="student-level" required>
               <select id="student-level" className="gf-select" name="level" required defaultValue={student.level}>
                 <option value="creche">Creche</option>
@@ -860,6 +926,36 @@ export default async function AdminStudentDetailPage({
           </form>
         </div>
       </FormSection>
+
+      {!offRoll ? (
+        <FormSection
+          title="Deactivate pupil"
+          description="For duplicate or test records, and pupils who have left. Choose the reason from the list; it is recorded with your name."
+        >
+          <DeactivatePanel studentId={studentId} studentName={fullName} keepOptions={keepOptions} />
+        </FormSection>
+      ) : null}
+
+      {statusLog.length ? (
+        <Card>
+          <CardHeader title="Deactivation history" description="Every deactivation and reactivation of this record." />
+          <CardBody>
+            <ul className="space-y-3 text-sm">
+              {statusLog.map((l) => (
+                <li key={l.id} className="border-l-2 border-slate-200 pl-3">
+                  <div className="font-semibold text-slate-900">
+                    {l.action === "deactivated" ? "Deactivated" : l.action === "reactivated" ? "Reactivated" : "Deleted"}
+                    {l.action === "deactivated" ? ` · ${reasonLabel(l.reason, l.reason_other)}` : ""}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {formatLagosDate(l.created_at)} · {l.done_by_name ?? "Admin"}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardBody>
+        </Card>
+      ) : null}
     </div>
   ) : null;
 
@@ -867,7 +963,7 @@ export default async function AdminStudentDetailPage({
     <div className="space-y-6">
       <UrlToast key={toastKey} />
       <PageHeader
-        learn={LEARN.studentAccounts} back={BACK} eyebrow="Student" title={fullName} />
+        learn={LEARN.deactivatePupils} back={BACK} eyebrow="Student" title={fullName} />
 
       <Card>
         <CardBody className="flex flex-col gap-5 sm:flex-row sm:items-center">
@@ -877,7 +973,7 @@ export default async function AdminStudentDetailPage({
               <dt className="text-xs font-medium text-slate-500">Status</dt>
               <dd className="mt-1">
                 <Badge tone={studentStatusTone(student.status)} dot>
-                  {capitalize(student.status)}
+                  {STATUS_LABELS[student.status] ?? capitalize(student.status)}
                 </Badge>
               </dd>
             </div>
@@ -902,6 +998,69 @@ export default async function AdminStudentDetailPage({
           </dl>
         </CardBody>
       </Card>
+
+      {isAdmin && offRoll ? (
+        <Alert tone="warning" title={student.status === "inactive" ? "This record is deactivated" : `Marked as ${(STATUS_LABELS[student.status] ?? student.status).toLowerCase()}`}>
+          <div className="space-y-3">
+            <p>
+              Reason: <strong>{reasonLabel(student.deactivation_reason, student.deactivation_note)}</strong>
+              {student.deactivated_at ? ` · ${formatLagosDate(student.deactivated_at)}` : ""}
+              {lastDeactivation?.done_by_name ? ` · by ${lastDeactivation.done_by_name}` : ""}
+            </p>
+            {keptRecord ? (
+              <p>
+                The record kept is{" "}
+                <Link className="gf-link" href={`/admin/students/${keptRecord.id}`}>
+                  {keptRecord.first_name} {keptRecord.last_name}
+                  {keptRecord.admission_number ? ` (${keptRecord.admission_number})` : ""}
+                </Link>
+                . Parents linked here were also linked there.
+              </p>
+            ) : null}
+            {student.status === "inactive" ? (
+              <p>It is off class lists, registers, result sheets and report cards, and parents no longer see it in the portal.</p>
+            ) : (
+              <p>Their records are kept and they stay on past report cards.</p>
+            )}
+            <div className="flex flex-wrap items-start gap-3 pt-1">
+              <form action={reactivateStudentAction}>
+                <input type="hidden" name="student_id" value={studentId} />
+                <ConfirmSubmitButton
+                  className={buttonClasses({ variant: "secondary", size: "sm" })}
+                  confirmMessage={`Reactivate ${fullName}? They go back to ${student.status === "inactive" ? "their class and " : ""}the list of current pupils.`}
+                >
+                  Reactivate
+                </ConfirmSubmitButton>
+              </form>
+            </div>
+            {student.status === "inactive" && ["duplicate", "test_record"].includes(student.deactivation_reason ?? "") ? (
+              canDelete ? (
+                <form action={deleteStudentAction} className="flex flex-wrap items-end gap-2 border-t border-amber-200 pt-3">
+                  <input type="hidden" name="student_id" value={studentId} />
+                  <div className="min-w-0 flex-1">
+                    <label htmlFor="confirm-name" className="gf-label">
+                      Delete permanently: type <strong>{fullName}</strong> to confirm
+                    </label>
+                    <input id="confirm-name" name="confirm_name" className="gf-input" autoComplete="off" required />
+                  </div>
+                  <ConfirmSubmitButton
+                    className={buttonClasses({ variant: "danger", size: "sm" })}
+                    confirmMessage={`Permanently delete ${fullName}? This cannot be undone. It stays listed in the removal log.`}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    Delete permanently
+                  </ConfirmSubmitButton>
+                </form>
+              ) : attached.length ? (
+                <p className="border-t border-amber-200 pt-3 text-xs">
+                  It can&apos;t be deleted permanently because it has {attached.join(", ")} attached. Leaving it deactivated is safe: it
+                  appears nowhere.
+                </p>
+              ) : null
+            ) : null}
+          </div>
+        </Alert>
+      ) : null}
 
       {sideColumn ? (
         <div className="grid gap-6 lg:grid-cols-3">

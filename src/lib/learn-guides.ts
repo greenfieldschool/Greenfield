@@ -3,6 +3,8 @@
 export const LEARN = {
   admissions: "admissions",
   studentAccounts: "student-accounts",
+  deactivatePupils: "deactivating-pupils",
+  inventory: "inventory",
   classes: "classes",
   guardians: "guardians",
   staffAccounts: "staff-accounts",

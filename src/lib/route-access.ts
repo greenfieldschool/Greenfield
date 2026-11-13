@@ -22,7 +22,9 @@ export const adminOnlyPrefixes = [
   "/admin/welfare/criteria",
   "/admin/welfare/weeks",
   "/admin/messages/moderation",
-  "/admin/management-pack"
+  "/admin/management-pack",
+  "/admin/students/deactivation-log",
+  "/admin/inventory"
 ];
 
 // Results: admins and teachers only (front desk and nurse have no access to result sheets).

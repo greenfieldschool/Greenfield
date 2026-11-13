@@ -62,12 +62,27 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.deactivatePupils,
+          name: "Deactivating a Pupil (duplicates, test records, leavers)",
+          page: { href: "/admin/students", label: "Students" },
+          adminOnly: true,
+          steps: [
+            "Open the pupil's page from Students and scroll to 'Deactivate pupil' (admins only). Choose the reason from the list: Duplicate record, Test or dummy record, Left the school, Moved to another school, Graduated, or Other. Only Other asks you to type the reason.",
+            "Duplicate record: choose the record to keep (records with the same name are listed first). The duplicate's parents are also linked to the record kept, so no family loses access. The duplicate's results and fees are NOT moved, because results are locked once final; it keeps them and is simply hidden.",
+            "Duplicates, test records and Other are taken out of their class, so they no longer appear on class lists, registers, result sheets or report cards, and parents no longer see them in the portal. Left the school, Moved school and Graduated keep their class and records, so past report cards still include them.",
+            "Changed your mind? Open the pupil (Students → Status: Deactivated) and press Reactivate: they go back to their class and status.",
+            "Permanent delete is only offered for a duplicate or test record with nothing attached (no results, fees, attendance, exams, welfare …). Type the pupil's name to confirm. If anything is attached it stays deactivated, which is safe: it appears nowhere.",
+            "Every deactivation, reactivation and delete is recorded with the reason, the date and who did it: see Students → Deactivation log. Deleted records stay listed there by name and admission number.",
+            "The Status box when editing a pupil only offers Applied, Enrolled and Active. Leaving always goes through Deactivate so a reason is recorded."
+          ]
+        },
+        {
           id: LEARN.classes,
           name: "Checking a Class and Fixing Wrong Registrations",
           page: { href: "/admin/classes", label: "Classes" },
           steps: [
             "Open Core > Classes (/admin/classes) to see every class and how many current students it has.",
-            "Click a class to list its children. Admins can correct the name, admission number, class or status on a row and press 'Save'.",
+            "Click a class to list its children. Admins can correct the name, admission number, class or status (Applied, Enrolled, Active) on a row and press 'Save'. To mark a child as left, graduated or a duplicate, use Deactivate on the child's own page so the reason is recorded.",
             "Changing the class moves the child to that class (their level follows the new class).",
             "Use the notice at the top of the Classes page to find current students who have no class yet.",
             "Classes registered twice (e.g. 'Reception' and 'RECEPTION', or 'Year 1' and 'YEAR1') are listed under 'Classes registered twice' at the top of the Classes page, with the one that has the most students marked 'Keep'. Press 'Merge into …' on the duplicate: its students, results, attendance, fees, exam sessions, subjects and teachers move to the class you keep, then it is deleted.",
@@ -593,7 +608,7 @@ export default function AdminLearnCentrePage() {
           page: { href: "/admin/management-pack", label: "Management pack" },
           adminOnly: true,
           steps: [
-            "Open Overview > Management pack (/admin/management-pack). It opens on this week. Click Monthly for the month, and use the arrows or the list to look at an earlier week or month. Weeks run Monday to Sunday.",
+            "Open Management > Management pack (/admin/management-pack). It opens on this week. Click Monthly for the month, and use the arrows or the list to look at an earlier week or month. Weeks run Monday to Sunday.",
             "Each figure is shown next to the same figure for the period before, with the change. Green means good news, red means it needs a look, grey means neither (for example, more emails sent). While a week or month is still running, it is compared with the same days of the period before (Monday to Wednesday against last Monday to Wednesday), so a half-finished week doesn't look like a fall.",
             "'Worth a look' picks out what stands out: attendance under 90%, a class with low attendance, serious or unresolved incidents, overdue fees, a drop in fees collected, applications or correction requests waiting.",
             "The sections: pupils and admissions, attendance, fees and money, welfare and behaviour, teaching and learning, star of the week videos (with a link to each video and which classes haven't posted), staff, and communication. Figures marked 'As of today' (pupils on roll, fees still owed) are a count right now and have no comparison.",
@@ -604,6 +619,24 @@ export default function AdminLearnCentrePage() {
             "The pack is read only: nothing is typed into it. Every figure comes from what heads, teachers and the office record day to day in the dashboard: registers, payments and expenses, incidents and discipline, assignments and marking, lesson notes, online classes, star videos, applications and staff accounts. To change a figure, correct the record where it was entered.",
             "History: every finished week and month is saved automatically the night after it ends, exactly as the figures stood then, and recent ones that were missed are filled in overnight. Opening a past week or month shows that saved copy (it says when it was kept). Click History to see the saved weeks or months side by side. Saved copies can't be changed or deleted. 'Today's figures' shows a past week worked out again from today's records, for example after late corrections; the saved copy stays as it was.",
             "To share it, click 'Print or save as PDF' and choose 'Save as PDF' as the printer. The menus and buttons are left out of the printout."
+          ]
+        },
+        {
+          id: LEARN.inventory,
+          name: "Inventory (school assets)",
+          page: { href: "/admin/inventory", label: "Inventory" },
+          adminOnly: true,
+          steps: [
+            "Open Management > Inventory (/admin/inventory). It is one register with six sections to start with: Uniforms and school wear, Classroom furniture, Classroom facilities and equipment, Office, Laboratory, and Computers and ICT. Admins only.",
+            "Press 'Add item' and choose the section. Each line is one kind of item in one place, e.g. 'Pupils' chairs' in Year 2. Pick the item from the usual list or type any other item, choose Primary School, College or Whole school, and the location.",
+            "Count how many are New, Good, Fair, Damaged and Due for replacement: the total is added up for you. So '30 chairs, 5 of them broken' is one line, not two. Set 'Last counted on' when you do a stock count.",
+            "Add up to 6 pictures per item from a phone or computer. Big photos are made smaller automatically so they stay under the 2MB limit.",
+            "'Save and add another' keeps you in the same section, for going round a room quickly.",
+            "To change counts later, open the item, change the numbers and save. Every change is kept in the item's History with who made it.",
+            "Inventory history (Management > Inventory history) lists every change across the whole inventory, newest first: items added, counts or locations changed (e.g. 'Damaged: 0 → 4'), deactivated (with the reason) or reactivated, and every section, usual item or location added, renamed, hidden or shown again under Sections & locations, always with who did it and when. Filter by section, by what happened, by what it's about (items or the set-up lists), by dates, or search an item or a person, then Print.",
+            "Inventory can't be deleted. For an item that is gone or was entered by mistake, open it and use Deactivate: choose the reason from the list (Damaged beyond repair / written off, Lost or missing, Stolen, Sold, Donated or given away, Entered by mistake / duplicate line, or Other, the only one where you type the reason). It stops counting in the register and the report, but the item and its history stay. Tick 'Deactivated' on the register to see them, and use Reactivate if it was a mistake.",
+            "Inventory report: totals by section, by part of the school and by location, with how many are in each condition, plus a 'Needs repair or replacing' list for planning and the budget. Filter Primary or College, then 'Print report' (choose 'Save as PDF' to keep a copy).",
+            "Sections & locations: add a new section (e.g. Library, Sports store), add items to a section's usual list, add rooms and stores, or untick 'In use' to hide one. Classrooms were added from the class list."
           ]
         }
       ]

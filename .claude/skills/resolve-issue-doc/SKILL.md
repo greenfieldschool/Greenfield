@@ -20,6 +20,20 @@ notes in capitals or plain English, each followed by a screenshot. Several unrel
    Read each image. The same image can be reused for two items (that happened in issue3), so read the text around it.
    Note the date in the screenshot's taskbar: it tells you which deployment the user was on.
 3. **List the items** back to the user in one line each before fixing.
+3a. **Treat each request as the problem, not the design.** The documents are written by school staff, not
+   software people. They describe what they want in the words and shapes they know (an "icon", a fixed list of
+   categories, "delete", "one page per section"), and that is often not the best way to build it. For every item,
+   ask what they are really trying to achieve and whether there is a simpler, safer or more useful way:
+   - Fixed lists in the request (categories, item names, sections) → usually data the school can edit, seeded with
+     their list, not hard-coded pages.
+   - "Delete" for real records → usually archive/deactivate (reversible, keeps history and audit), with a permanent
+     delete only for records nothing depends on, or a merge for duplicates.
+   - Several near-identical modules → one module with a filter (section, category, location).
+   - Limits stated as rules ("max 2MB") → meet the intent kindly (shrink photos in the browser before upload rather
+     than rejecting them).
+   - Check whether something already built does the job, and extend it rather than adding a parallel feature.
+   Say briefly what you'll do differently and why, in plain language, before building. For large items, get the
+   user's go-ahead on the approach. Keep everything the school actually needs; improve the how, not the what.
 4. **Check whether an item is already fixed**: `git log --format='%h %ad %s' --date=iso` and compare with the
    screenshot date. Recent commits often already cover older items; say so instead of redoing them.
 5. **Reproduce crashes** ("Application error: a server-side exception has occurred … Digest"). We never have the
@@ -34,6 +48,9 @@ notes in capitals or plain English, each followed by a screenshot. Several unrel
    subjects, …). Don't commit `issues/` files.
 
 ## Pitfalls we hit
+- issue11 = issue10 (same three screenshots, from 16 Oct and 3 Nov) plus two new requests: an inventory module with
+  six hard-coded categories, and a "Deactivate icon" that was also described as "permanently deleted". See step 3a:
+  one asset register with editable categories, and archive + merge rather than plain delete.
 - A new document can repeat earlier ones word for word (issues9 = issue8 plus one new item). Diff the text against
   older docs (`textutil` both) and check `git log`: say which items were already fixed and when, and only build
   what is new. issue10 = issues9 (same screenshots, reordered) plus an e-learning proposal (assignments, lesson

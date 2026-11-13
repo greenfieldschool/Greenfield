@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { STATUS_LABELS } from "@/lib/student-deactivation";
 import { AlertTriangle, ChevronRight, FileText, Layers, Plus, Search, UserCheck, Users, X } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -37,6 +38,7 @@ function statusTone(status: string): BadgeTone {
     case "graduated":
       return "violet";
     case "withdrawn":
+    case "transferred":
       return "red";
     default:
       return "slate";
@@ -75,6 +77,12 @@ export default async function AdminStudentsPage({
   const levelFilter = (searchParams.level ?? "").trim();
   const classFilter = (searchParams.class_id ?? "").trim();
   const statusFilter = (searchParams.status ?? "").trim();
+
+  const {
+    data: { user: viewer }
+  } = await supabase.auth.getUser();
+  const { data: viewerProfile } = viewer ? await supabase.from("profiles").select("role").eq("id", viewer.id).maybeSingle() : { data: null };
+  const isAdmin = ["admin", "super_admin"].includes(String((viewerProfile as { role?: string } | null)?.role ?? ""));
 
   // Fetch all active classes for filter dropdown options
   const { data: classesData } = await supabase
@@ -116,6 +124,8 @@ export default async function AdminStudentsPage({
   if (levelFilter.length > 0) studentQuery = studentQuery.eq("level", levelFilter);
   if (classFilter.length > 0) studentQuery = studentQuery.eq("class_id", classFilter);
   if (statusFilter.length > 0) studentQuery = studentQuery.eq("status", statusFilter);
+  // Deactivated records (duplicates, test records) only show when asked for.
+  else studentQuery = studentQuery.neq("status", "inactive");
 
   const { data: studentList } = await studentQuery
     .order("last_name", { ascending: true })
@@ -169,6 +179,11 @@ export default async function AdminStudentsPage({
         description={`${totalStudents} student${totalStudents !== 1 ? "s" : ""} total · ${activeCount + enrolledCount} active/enrolled`}
         actions={
           <>
+            {isAdmin ? (
+              <ButtonLink href="/admin/students/deactivation-log" variant="ghost">
+                Deactivation log
+              </ButtonLink>
+            ) : null}
             <ButtonLink href="/admin/students/applications" variant="secondary">
               <FileText className="h-4 w-4" aria-hidden="true" />
               View applications
@@ -263,13 +278,14 @@ export default async function AdminStudentsPage({
               </Field>
               <Field label="Status" htmlFor="students-status">
                 <select id="students-status" className="gf-select" name="status" defaultValue={statusFilter}>
-                  <option value="">All statuses</option>
+                  <option value="">All statuses (not deactivated)</option>
                   <option value="applied">Applied</option>
                   <option value="enrolled">Enrolled</option>
                   <option value="active">Active</option>
                   <option value="graduated">Graduated</option>
-                  <option value="withdrawn">Withdrawn</option>
-                  <option value="transferred">Transferred</option>
+                  <option value="withdrawn">Left the school</option>
+                  <option value="transferred">Moved school</option>
+                  <option value="inactive">Deactivated (duplicates, test records)</option>
                 </select>
               </Field>
             </div>
@@ -356,7 +372,7 @@ export default async function AdminStudentsPage({
                       <td>{cls ? cls.name : <span className="text-slate-400">No class</span>}</td>
                       <td>
                         <Badge tone={statusTone(s.status)} dot>
-                          {capitalize(s.status)}
+                          {STATUS_LABELS[s.status] ?? capitalize(s.status)}
                         </Badge>
                       </td>
                       <td className="text-right">

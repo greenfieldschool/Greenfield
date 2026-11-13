@@ -15,7 +15,9 @@ export default function SubmitButton({
   variant,
   size,
   formAction,
-  sound
+  sound,
+  name,
+  value
 }: {
   children: ReactNode;
   pendingText?: string;
@@ -30,6 +32,9 @@ export default function SubmitButton({
   formAction?: (formData: FormData) => void | Promise<void>;
   /** A portal sound to play when pressed (see SoundEffects). */
   sound?: SoundName;
+  /** Sent with the form when this button is the one pressed (e.g. "Save and add another"). */
+  name?: string;
+  value?: string;
 }) {
   const { pending } = useFormStatus();
 
@@ -39,6 +44,8 @@ export default function SubmitButton({
     <button
       type={type ?? "submit"}
       formAction={formAction}
+      name={name}
+      value={value}
       data-sound={sound}
       disabled={disabled || pending}
       aria-busy={pending}

@@ -17,6 +17,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   ClipboardList,
+  Boxes,
   FileSpreadsheet,
   FileText,
   GraduationCap,
@@ -99,8 +100,18 @@ const NAV: NavGroup[] = [
     label: "Overview",
     items: [
       { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-      { href: "/admin/management-pack", label: "Management pack", icon: BarChart3, adminOnly: true },
       { href: "/admin/messages", label: "Messages", icon: MessagesSquare, chatOnly: true }
+    ]
+  },
+  {
+    key: "management",
+    label: "Management",
+    adminOnly: true,
+    items: [
+      { href: "/admin/management-pack", label: "Management pack", icon: BarChart3 },
+      { href: "/admin/inventory", label: "Inventory", icon: Boxes, excludes: ["/admin/inventory/report", "/admin/inventory/history"] },
+      { href: "/admin/inventory/report", label: "Inventory report", icon: ClipboardList },
+      { href: "/admin/inventory/history", label: "Inventory history", icon: History }
     ]
   },
   {
@@ -227,6 +238,9 @@ const SEGMENT_LABELS: Record<string, string> = {
   "online-classes": "Online classes",
   "star-videos": "Star videos",
   announcements: "Announcements",
+  "deactivation-log": "Deactivation log",
+  inventory: "Inventory",
+  report: "Report",
   weeks: "Compulsory weeks",
   audit: "Results history",
   corrections: "Correction requests",

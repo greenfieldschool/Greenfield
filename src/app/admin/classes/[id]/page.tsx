@@ -30,7 +30,10 @@ type StudentRow = {
 };
 
 const UNASSIGNED = "unassigned";
-const statuses = ["active", "enrolled", "applied", "graduated", "withdrawn", "transferred"] as const;
+const statuses = ["active", "enrolled", "applied", "graduated", "withdrawn", "transferred", "inactive"] as const;
+// Leaving (graduated, left, moved school, deactivated) is done with Deactivate on the pupil's page, so a reason is
+// recorded; here a current pupil can only be switched between these.
+const editableStatuses = ["active", "enrolled", "applied"] as const;
 const currentStatuses = new Set(["active", "enrolled"]);
 const levelOrder: Record<string, number> = { creche: 0, primary: 1, secondary: 2 };
 
@@ -325,10 +328,11 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
                           aria-label="Status"
                           defaultValue={s.status}
                           disabled={!canEdit}
+                          title={(editableStatuses as readonly string[]).includes(s.status) ? undefined : "Use Reactivate on the pupil's page to change this"}
                         >
-                          {statuses.map((st) => (
+                          {((editableStatuses as readonly string[]).includes(s.status) ? editableStatuses : [s.status]).map((st) => (
                             <option key={st} value={st}>
-                              {st}
+                              {st === "withdrawn" ? "left the school" : st === "transferred" ? "moved school" : st === "inactive" ? "deactivated" : st}
                             </option>
                           ))}
                         </select>
