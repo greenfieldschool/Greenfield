@@ -77,9 +77,18 @@ picker, comparisons, the automatic notes, printing. A figure that reads a new ta
   stamping `student_attendance.recorded_by` (on a new or changed mark). Before it, registers had no recorder, so the
   Staff table's "Registers" column was always 0. A new figure that credits a person must check its column is really
   set (by the code, a default or a trigger); test: `who-did-what-pglite-test.mjs` in this folder.
-- `MiTable.wide` makes a many-column table span the card; first-column cells don't wrap (names stay on one line).
+- `MiTable.wide` makes a many-column table span the card (needed from 5 columns: the inventory "By section" table
+  was cut off at laptop width two-up); first-column cells don't wrap (names stay on one line).
 - Table cells are `MiCell` = text or `{ text, href }` (a link; external ones open in a new tab). Columns whose cells
   are all numbers/money/percent are right-aligned automatically; text columns stay left.
+- Inventory (section `inventory`, **monthly pack only**, last section): read only when `p.view === "month"` (the
+  queries resolve to null for weeks). Period figures come from `inventory_log` (subject `item`): added, changed,
+  deactivated (`action = archived`), and "pieces newly marked damaged or due for replacement" = the rise in
+  `qty_damaged` + `qty_replace` recorded in each log row. "As of" figures come from active `inventory_items`.
+  Tables: by section (wide), deactivated this month with reasons (`deactivateReasonLabel`), who updated the inventory
+  (all subjects). Snapshot ids `invDamaged`, `invReplace`; metric id `invNewlyDamaged`. History column `invReplace`
+  is `monthOnly` in `history-view.tsx`. Notes: lost/stolen deactivations, pieces due for replacement. Details of the
+  inventory itself: inventory skill.
 - Star of the week videos (section `stars`, headline tile, history `starVideosRate`, staff "Star videos" column) are
   documented in the star-videos skill. Expected = active classes' major subjects × Mondays in the period.
 - RLS: the page is admin-only and admins can read these tables. Two totals admins can't read through RLS

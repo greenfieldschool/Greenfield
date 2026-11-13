@@ -8,6 +8,7 @@ import { fetchAllRows } from "@/lib/fetch-all";
 import { formatLagosDate, toLagosDateInput } from "@/lib/lagos-dates";
 import { addDays, lagosToday, weekdaysBetween, type MiPeriod, type MiRange } from "@/lib/mi-periods";
 import { videoHost } from "@/lib/star-videos";
+import { deactivateReasonLabel } from "@/lib/inventory";
 
 export type MiFormat = "count" | "money" | "percent";
 
@@ -183,7 +184,10 @@ export async function loadMiPack(
     announcementRows,
     chatReportRows,
     testUnlockRows,
-    invoiceRows
+    invoiceRows,
+    inventoryItems,
+    inventorySections,
+    inventoryLog
   ] = await Promise.all([
     safe(() => all(() => supabase.from("students").select("id, status, level, first_name, last_name, created_at, updated_at").order("id"))),
     safe(async () => (await supabase.from("classes").select("id, level, name, active")).data as Row[] | null),
@@ -404,7 +408,36 @@ export async function loadMiPack(
     actorRows(() => supabase.from("announcements").select("id, created_by, created_at").gte("created_at", fromIso).lt("created_at", toIso).order("id")),
     actorRows(() => supabase.from("chat_reports").select("id, resolved_by, resolved_at").gte("resolved_at", fromIso).lt("resolved_at", toIso).order("id")),
     actorRows(() => supabase.from("exam_attempts").select("id, unlocked_by, unlocked_at").gte("unlocked_at", fromIso).lt("unlocked_at", toIso).order("id")),
-    actorRows(() => supabase.from("finance_invoices").select("id, created_by, created_at").gte("created_at", fromIso).lt("created_at", toIso).order("id"))
+    actorRows(() => supabase.from("finance_invoices").select("id, created_by, created_at").gte("created_at", fromIso).lt("created_at", toIso).order("id")),
+    // Inventory: end-of-month pack only (admins read it through RLS). Null when the inventory update isn't run.
+    p.view === "month"
+      ? safe(async () => {
+          const first = await supabase.from("inventory_items").select("id").limit(1);
+          if (first.error) return null;
+          return all(() =>
+            supabase
+              .from("inventory_items")
+              .select("id, section_id, quantity, qty_new, qty_good, qty_fair, qty_damaged, qty_replace, last_checked_on")
+              .is("archived_at", null)
+              .order("id")
+          );
+        })
+      : Promise.resolve(null),
+    p.view === "month" ? safe(async () => (await supabase.from("inventory_sections").select("id, name, sort").order("sort")).data as Row[] | null) : Promise.resolve(null),
+    p.view === "month"
+      ? safe(async () => {
+          const first = await supabase.from("inventory_log").select("id, subject").limit(1);
+          if (first.error) return null;
+          return all(() =>
+            supabase
+              .from("inventory_log")
+              .select("id, item_name, action, subject, changes, done_by, done_by_name, created_at")
+              .gte("created_at", fromIso)
+              .lt("created_at", toIso)
+              .order("id")
+          );
+        })
+      : Promise.resolve(null)
   ]);
 
   const classById = new Map<string, { level: string; name: string; active: boolean }>();
@@ -1015,6 +1048,108 @@ export async function loadMiPack(
     link: { href: "/admin/users", label: "Open staff & users" }
   };
 
+  // ---------- Inventory (end of month only) ----------
+  // Period figures come from the inventory's own change log; "as at" figures from the register (active items).
+  const invLog = inventoryLog ? inventoryLog.filter((r) => (r.subject ?? "item") === "item") : null;
+  const invAdded = pair(invLog && invLog.filter((r) => r.action === "added"), "created_at");
+  const invChanged = pair(invLog && invLog.filter((r) => r.action === "changed"), "created_at");
+  const invDeactivated = pair(invLog && invLog.filter((r) => r.action === "archived"), "created_at");
+  // Pieces newly marked damaged or due for replacement: the rise in those counts recorded in the period.
+  const rise = (r: Row) => {
+    const c = (r.changes ?? {}) as Record<string, { from?: unknown; to?: unknown } | unknown>;
+    if (r.action === "added") return Number((c as Record<string, unknown>).qty_damaged ?? 0) + Number((c as Record<string, unknown>).qty_replace ?? 0);
+    let n = 0;
+    for (const k of ["qty_damaged", "qty_replace"]) {
+      const ch = c[k] as { from?: unknown; to?: unknown } | undefined;
+      if (ch && Number(ch.to ?? 0) > Number(ch.from ?? 0)) n += Number(ch.to ?? 0) - Number(ch.from ?? 0);
+    }
+    return n;
+  };
+  const invNewlyDamaged = pair(invLog, "created_at", rise);
+  type InvTotals = { lines: number; pieces: number; damaged: number; replace: number; stale: number };
+  const invTotals: InvTotals | null = inventoryItems
+    ? inventoryItems.reduce<InvTotals>(
+        (t, r) => ({
+          lines: t.lines + 1,
+          pieces: t.pieces + Number(r.quantity ?? 0),
+          damaged: t.damaged + Number(r.qty_damaged ?? 0),
+          replace: t.replace + Number(r.qty_replace ?? 0),
+          stale: t.stale + (!r.last_checked_on || String(r.last_checked_on) < addDays(today, -90) ? 1 : 0)
+        }),
+        { lines: 0, pieces: 0, damaged: 0, replace: 0, stale: 0 }
+      )
+    : null;
+  const invSectionRows = (inventorySections ?? []).map((sec) => {
+    const rows = (inventoryItems ?? []).filter((r) => r.section_id === sec.id);
+    const sum = (k: string) => rows.reduce((n, r) => n + Number(r[k] ?? 0), 0);
+    return [String(sec.name), String(rows.length), String(sum("quantity")), String(sum("qty_damaged")), String(sum("qty_replace"))];
+  }).filter((r) => r[1] !== "0");
+  const invDeactivatedRows = (invLog ?? [])
+    .filter((r) => r.action === "archived" && bucketOf(p, r.created_at as string) === "cur")
+    .map((r) => {
+      const c = (r.changes ?? {}) as Record<string, unknown>;
+      return [
+        String(r.item_name),
+        deactivateReasonLabel(typeof c.reason === "string" ? c.reason : null, typeof c.reason_note === "string" ? c.reason_note : null),
+        String(r.done_by_name ?? "—"),
+        formatLagosDate(String(r.created_at))
+      ];
+    });
+  const invByPerson = new Map<string, number>();
+  for (const r of inventoryLog ?? []) {
+    if (bucketOf(p, r.created_at as string) !== "cur") continue;
+    const who = String(r.done_by_name ?? "Unknown");
+    invByPerson.set(who, (invByPerson.get(who) ?? 0) + 1);
+  }
+  const invLostOrStolen = (invLog ?? []).filter((r) => {
+    const reason = ((r.changes ?? {}) as Record<string, unknown>).reason;
+    return r.action === "archived" && (reason === "lost" || reason === "stolen") && bucketOf(p, r.created_at as string) === "cur";
+  }).length;
+
+  const inventorySection: MiSection = {
+    key: "inventory",
+    title: "Inventory",
+    description: "What the school owns at the end of the month, its condition, and what changed in the register this month.",
+    metrics: [
+      m("Items added to the register", invAdded, "count", "none", "New lines in the inventory"),
+      m("Counts and details updated", invChanged, "count", "none", "Changes to existing items, e.g. after a stock count"),
+      m("Pieces newly marked damaged or due for replacement", invNewlyDamaged, "count", "down", undefined, "invNewlyDamaged"),
+      m("Items deactivated", invDeactivated, "count", "down", "Written off, lost, stolen, sold, given away or entered by mistake")
+    ],
+    snapshots: invTotals
+      ? [
+          { label: "Items on the register", value: invTotals.lines, format: "count", hint: "Lines, each one kind of item in one place" },
+          { label: "Total pieces", value: invTotals.pieces, format: "count" },
+          { id: "invDamaged", label: "Damaged pieces", value: invTotals.damaged, format: "count", hint: "Need repair" },
+          { id: "invReplace", label: "Pieces due for replacement", value: invTotals.replace, format: "count", hint: "To budget for" },
+          { label: "Items not counted in 3 months", value: invTotals.stale, format: "count", hint: "No “last counted” date in the last 90 days" }
+        ]
+      : undefined,
+    tables: [
+      {
+        title: "By section",
+        columns: ["Section", "Items", "Pieces", "Damaged", "To replace"],
+        rows: invSectionRows,
+        empty: "Nothing recorded in the inventory yet.",
+        wide: true
+      },
+      {
+        title: "Deactivated this month",
+        columns: ["Item", "Reason", "By", "Date"],
+        rows: invDeactivatedRows,
+        empty: "No items were deactivated this month."
+      },
+      {
+        title: "Who updated the inventory",
+        columns: ["Person", "Changes"],
+        rows: [...invByPerson.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, String(v)]),
+        empty: "Nobody changed the inventory this month."
+      }
+    ],
+    unavailable: inventoryItems && inventoryLog ? undefined : "The inventory needs its database update (20261113c_inventory.sql).",
+    link: { href: "/admin/inventory/report", label: "Open the inventory report" }
+  };
+
   // ---------- Things to look at ----------
   const notes: MiNote[] = [];
   const word = p.previousWord;
@@ -1050,6 +1185,10 @@ export async function loadMiPack(
   if (avgDecide.cur !== null && avgDecide.cur > 72)
     notes.push({ tone: "warning", text: `Result correction requests took ${Math.round(avgDecide.cur / 24)} days on average to decide.` });
   if (unassigned.length) notes.push({ tone: "info", text: `${unassigned.length} teacher${unassigned.length === 1 ? " has" : "s have"} no class or subject assigned.` });
+  if (p.view === "month" && invLostOrStolen)
+    notes.push({ tone: "warning", text: `${invLostOrStolen} inventory item${invLostOrStolen === 1 ? " was" : "s were"} deactivated as lost or stolen this month.` });
+  if (p.view === "month" && invTotals && invTotals.replace > 0)
+    notes.push({ tone: "info", text: `${formatMi(invTotals.replace, "count")} inventory piece${invTotals.replace === 1 ? " is" : "s are"} due for replacement (see the inventory report).` });
   if (!notes.length) notes.push({ tone: "success", text: "Nothing stands out this period." });
 
   return {
@@ -1064,6 +1203,18 @@ export async function loadMiPack(
       { ...starSection.metrics[1], label: "Star videos posted (of expected)" }
     ],
     notes,
-    sections: [pupils, attendanceSection, money, welfare, teaching, starSection, staffSection, headsSection, communication]
+    sections: [
+      pupils,
+      attendanceSection,
+      money,
+      welfare,
+      teaching,
+      starSection,
+      staffSection,
+      headsSection,
+      communication,
+      // End-of-month pack only.
+      ...(p.view === "month" ? [inventorySection] : [])
+    ]
   };
 }

@@ -15,7 +15,7 @@ import type { SavedPack } from "@/lib/mi-history";
 // Saved management packs, one row per finished week or month, with the key figures side by side so leadership can
 // see how they moved over time. Pure presentation (the design preview uses it too).
 
-const COLUMNS: Array<{ id: string; label: string; format: MiFormat }> = [
+const COLUMNS: Array<{ id: string; label: string; format: MiFormat; monthOnly?: boolean }> = [
   { id: "attendance", label: "Attendance", format: "percent" },
   { id: "collected", label: "Fees collected", format: "money" },
   { id: "spent", label: "Spent", format: "money" },
@@ -26,7 +26,9 @@ const COLUMNS: Array<{ id: string; label: string; format: MiFormat }> = [
   { id: "teachersActive", label: "Teachers active", format: "count" },
   { id: "starVideosRate", label: "Star videos", format: "percent" },
   { id: "headActions", label: "Head actions", format: "count" },
-  { id: "owed", label: "Still owed", format: "money" }
+  { id: "owed", label: "Still owed", format: "money" },
+  // The inventory is in the end-of-month pack only.
+  { id: "invReplace", label: "Inventory due for replacement", format: "count", monthOnly: true }
 ];
 
 /** A figure from a saved pack by its id (period figures and "as of" figures alike). */
@@ -73,6 +75,7 @@ export function HistoryView({
   basePath?: string;
 }) {
   const word = view === "week" ? "week" : "month";
+  const columns = COLUMNS.filter((c) => !c.monthOnly || view === "month");
   const packHref = (key: string) => `${basePath}?view=${view}&period=${key}`;
   const list = rows.length ? lines(view, rows) : [];
   const saved = (r: SavedPack) => `${formatLagosDate(r.savedAt)}${r.source === "automatic" ? " · automatic" : r.savedByName ? ` · ${r.savedByName}` : ""}`;
@@ -141,7 +144,7 @@ export function HistoryView({
                   <span className="text-sm font-semibold text-brand-green-700">Open</span>
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  {COLUMNS.map((c) => (
+                  {columns.map((c) => (
                     <div key={c.id} className="flex justify-between gap-2">
                       <dt className="text-slate-500">{c.label}</dt>
                       <dd className="font-semibold tabular-nums text-slate-900">{formatMi(figure(l.row.pack, c.id), c.format)}</dd>
@@ -162,7 +165,7 @@ export function HistoryView({
                   <thead>
                     <tr>
                       <th>{view === "week" ? "Week" : "Month"}</th>
-                      {COLUMNS.map((c) => (
+                      {columns.map((c) => (
                         <th key={c.id} className="text-right">
                           {c.label}
                         </th>
@@ -179,7 +182,7 @@ export function HistoryView({
                               {l.name}
                             </Link>
                           </td>
-                          <td colSpan={COLUMNS.length} className="text-sm text-slate-500">
+                          <td colSpan={columns.length} className="text-sm text-slate-500">
                             Not saved yet. Recent weeks and months are filled in automatically overnight.
                           </td>
                           <td />
@@ -191,7 +194,7 @@ export function HistoryView({
                               {l.name}
                             </Link>
                           </td>
-                          {COLUMNS.map((c) => (
+                          {columns.map((c) => (
                             <td key={c.id} className="whitespace-nowrap text-right tabular-nums">
                               {formatMi(figure(l.row.pack, c.id), c.format)}
                             </td>

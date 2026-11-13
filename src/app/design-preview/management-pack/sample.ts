@@ -160,7 +160,45 @@ export function sampleTables(today: string): Record<string, Row[]> {
     announcements: spread("an", 10, "created_at", () => ({ created_by: "x1" })),
     career_applications: spread("ca", 6, "created_at"),
     chat_messages: spread("cm", 900, "created_at", (i) => ({ removed_at: null, sender_id: i % 12 === 0 ? head() : `t${i % 15}` })),
-    email_outbox: spread("em", 1400, "sent_at", () => ({ status: "sent" }))
+    email_outbox: spread("em", 1400, "sent_at", () => ({ status: "sent" })),
+    // Inventory (end-of-month pack): six sections, ~60 lines, and a change log across the last months.
+    inventory_sections: ["Uniforms and school wear", "Classroom furniture", "Classroom facilities and equipment", "Office", "Laboratory", "Computers and ICT"].map(
+      (name, i) => ({ id: `is${i}`, name, sort: (i + 1) * 10 })
+    ),
+    inventory_items: Array.from({ length: 60 }, (_, i) => {
+      const damaged = i % 7 === 0 ? 2 + (i % 3) : 0;
+      const replace = i % 11 === 0 ? 1 + (i % 2) : 0;
+      const good = 5 + (i % 20);
+      return {
+        id: `ii${i}`,
+        section_id: `is${i % 6}`,
+        archived_at: null,
+        qty_new: i % 5 === 0 ? 4 : 0,
+        qty_good: good,
+        qty_fair: i % 4,
+        qty_damaged: damaged,
+        qty_replace: replace,
+        quantity: (i % 5 === 0 ? 4 : 0) + good + (i % 4) + damaged + replace,
+        last_checked_on: i % 3 === 0 ? null : addDays(today, -(i * 3))
+      };
+    }),
+    inventory_log: [
+      ...spread("il", 70, "created_at", (i) => ({
+        subject: "item",
+        item_name: ["Pupils' chairs", "Ceiling fan", "Desktop computer", "Microscope", "Whiteboard", "Sportswear / sports kit"][i % 6],
+        action: i % 4 === 0 ? "added" : "changed",
+        changes: i % 4 === 0 ? { quantity: 10, qty_damaged: i % 8 === 0 ? 1 : 0 } : { qty_damaged: { from: 0, to: i % 3 }, qty_good: { from: 10, to: 10 - (i % 3) } },
+        done_by_name: i % 2 ? "Mrs Adeyemi" : "Mr Johnson"
+      })),
+      ...spread("ild", 6, "created_at", (i) => ({
+        subject: "item",
+        item_name: ["Old projector", "Laptop", "Standing fan", "Office chair", "Test tubes", "Printer"][i],
+        action: "archived",
+        changes: { reason: ["written_off", "stolen", "sold", "mistake", "lost", "other"][i], reason_note: i === 5 ? "Given to the PTA office" : null },
+        done_by_name: "Mrs Adeyemi"
+      })),
+      ...spread("ils", 4, "created_at", () => ({ subject: "location", item_name: "Bursary", action: "changed", changes: {}, done_by_name: "Mr Johnson" }))
+    ]
   };
 }
 

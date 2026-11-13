@@ -38,6 +38,9 @@ uniform checks are welfare (`/admin/welfare/uniform`), not this.
   `_item-form.tsx`), `src/components/inventory-photo-picker.tsx` (shrinks photos below 2MB, uploads from the
   browser). Nav: Management group in `AdminShell`. Learn Centre: `LEARN.inventory`.
 
+- Management pack: the monthly pack has an Inventory section built from `inventory_items` and `inventory_log`
+  (management-pack skill). A new log action or field that matters to leadership may need adding there too.
+
 ## Rules
 - Sections, usual items and locations are data, not code. Don't add a page per section.
 - Counts by condition on one line ("30 chairs, 5 damaged"), never one line per condition.
