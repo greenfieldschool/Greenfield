@@ -89,8 +89,13 @@ export type ClassReport = {
   weeks: TermWeek[];
   /** Whole-term ratings saved before weekly scoring (ignored once the term has weekly ratings). */
   legacyRatings: number;
-  /** False until 20261102_weekly_welfare.sql has been run. */
+  /** False until 20261102_weekly_welfare.sql has been run (or when the check itself failed, see weeklyCheckError). */
   weeklyReady: boolean;
+  /**
+   * Set when checking for the weekly welfare update failed for some other reason than the update not being run
+   * (permissions, a timeout, the network): the database's own message, so the page doesn't wrongly ask for the update.
+   */
+  weeklyCheckError: string | null;
   /** False until 20261104_welfare_compulsory_weeks.sql has been run. */
   compulsoryReady: boolean;
   /**
@@ -124,6 +129,16 @@ type AssessmentRow = {
   position: number;
   component_group: string | null;
 };
+
+/**
+ * True when a database error means a column or table isn't there yet (a database update not run), as opposed to
+ * a permission problem, a timeout or a network error. 42703 / 42P01 come from Postgres, PGRST204 / PGRST205 from
+ * the Supabase API's cached copy of the schema.
+ */
+function isMissingColumnError(error: { code?: string | null; message?: string | null }): boolean {
+  if (["42703", "42P01", "PGRST204", "PGRST205"].includes(String(error.code ?? ""))) return true;
+  return /column .* does not exist|relation .* does not exist|could not find the .* (column|table)/i.test(error.message ?? "");
+}
 
 function asGroup(v: string | null): ComponentGroup {
   return v === "ca" || v === "exam" ? v : "other";
@@ -295,6 +310,7 @@ export async function buildClassReport(
   // rather than showing no ratings at all.
   const { error: weekColumnError } = await supabase.from("welfare_ratings").select("week_start").limit(1);
   const weeklyReady = !weekColumnError;
+  const weeklyCheckError = weekColumnError && !isMissingColumnError(weekColumnError) ? weekColumnError.message || "Unknown error" : null;
   // Weeks an admin made compulsory for this term (an error = the 20261104 update hasn't been run: nothing compulsory).
   const { data: compulsoryData, error: compulsoryError } = await supabase
     .from("welfare_compulsory_weeks")
@@ -540,6 +556,7 @@ export async function buildClassReport(
     weeks,
     legacyRatings: legacyRatings.length,
     weeklyReady,
+    weeklyCheckError,
     compulsoryReady,
     compulsoryMissing,
     grades,

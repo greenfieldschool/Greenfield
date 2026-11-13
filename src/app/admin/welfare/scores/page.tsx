@@ -384,6 +384,11 @@ export default async function WelfareScoresPage({
           </Link>
           .
         </Alert>
+      ) : report.weeklyCheckError ? (
+        <Alert tone="danger" title="Couldn't check the weekly welfare set-up">
+          The database gave this message: <code>{report.weeklyCheckError}</code>. Refresh the page; if it keeps happening, send this
+          message to whoever looks after the website. Until it is fixed, report cards keep using the whole-term ratings.
+        </Alert>
       ) : !report.weeklyReady ? (
         <Alert tone="warning" title="Weekly welfare scoring needs a database update">
           Ask whoever looks after the website to run <code>20261102_weekly_welfare.sql</code> in Supabase. Until then report cards keep

@@ -128,4 +128,9 @@ description: Use for anything about academic results, result sheet columns, welf
 - Weeks are Lagos dates: `lagosDay()` for timestamps (`occurred_at`), `mondayOf()` for the week. Month names are
   spelled by hand (`en-GB` gives "Sept" on some servers).
 - Before 20261102 is run there is no `week_start` column: `buildClassReport` probes for it (`weeklyReady`) and falls
-  back to whole-term ratings instead of silently showing none.
+  back to whole-term ratings instead of silently showing none. Only a "column/table doesn't exist" error
+  (`isMissingColumnError`: 42703, 42P01, PGRST204, PGRST205) means "not run yet"; any other error goes to
+  `weeklyCheckError` and the score sheet shows the database's real message. (Nov 2026: the page told the school to run
+  20261102 again after they had run it, because every probe error was treated as "missing". When a "needs a database
+  update" message is reported after the SQL was run, first check in the SQL editor that the column really exists in
+  the project the live site uses, then `notify pgrst, 'reload schema';`.)
