@@ -308,7 +308,9 @@ export async function buildClassReport(
   type RatingRow = { student_id: string; criterion_id: string; rating: number; week_start: string | null };
   // Before the weekly migration is run there is no week_start column: fall back to whole-term ratings
   // rather than showing no ratings at all.
-  const { error: weekColumnError } = await supabase.from("welfare_ratings").select("week_start").limit(1);
+  // limit(0) reads no rows: it only checks the column exists. ("limit 1" made a teacher's request scan the whole table
+  // through the row-level rules looking for one row they may see, which timed out and showed the warning wrongly.)
+  const { error: weekColumnError } = await supabase.from("welfare_ratings").select("week_start").eq("class_id", classId).limit(0);
   const weeklyReady = !weekColumnError;
   const weeklyCheckError = weekColumnError && !isMissingColumnError(weekColumnError) ? weekColumnError.message || "Unknown error" : null;
   // Weeks an admin made compulsory for this term (an error = the 20261104 update hasn't been run: nothing compulsory).

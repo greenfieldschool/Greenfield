@@ -134,3 +134,15 @@ description: Use for anything about academic results, result sheet columns, welf
   20261102 again after they had run it, because every probe error was treated as "missing". When a "needs a database
   update" message is reported after the SQL was run, first check in the SQL editor that the column really exists in
   the project the live site uses, then `notify pgrst, 'reload schema';`.)
+  The probe must read **no rows** (`.eq("class_id", classId).limit(0)`). It was `limit(1)` on the whole table: for a
+  teacher, RLS checks every row of every class looking for one they may see, which hit the API's statement timeout
+  (a few seconds for logged-in users) on the live site, so teachers got the "run the update" warning while admins didn't.
+  The SQL editor has no such timeout, so impersonating the teacher there looked fine. Never probe a big RLS table with an
+  unfiltered `limit(1)`.
+- Who scores welfare: admins, non-teaching staff, and the **class teacher** (`teacher_has_class`); subject-only teachers
+  are refused by design (database and `canManageClassReports`). The page decides "class teacher" from
+  `getTeacherAccess`, which reads `teacher_class_assignments` as the teacher, so it needs the policy
+  `teacher_class_assignments_teacher_select` (20260224, restated in 20261113d). Without it the database would still
+  accept the save, but the page says "Only the class teacher or an admin can score welfare". When a teacher reports a
+  welfare problem, run the check in the user's notes (impersonate the teacher in a `begin … rollback`, try a save inside a
+  `do` block and `raise exception` with the findings, so nothing is kept and the result shows in the SQL editor).
