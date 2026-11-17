@@ -6,6 +6,8 @@ import { ToastProvider } from "@/components/toast-provider";
 import { ServiceUnavailable } from "@/components/ui/service-unavailable";
 import { PushSetup } from "./_components/push-setup";
 import { vapidPublicKey } from "@/lib/push";
+import { isAdmissionLoginEmail } from "@/lib/admission-login";
+import { TemporaryPasswordBanner } from "./_components/temporary-password-banner";
 
 // Opened from the home screen, the portal runs full screen like an app (see app/manifest.ts).
 export const metadata: Metadata = {
@@ -109,8 +111,10 @@ export default async function PortalLayout({ children }: { children: ReactNode }
     unreadNotifications = 0;
   }
 
-  const displayEmail = user.email ?? "";
-  const displayName = personName ?? displayEmail.split("@")[0];
+  // Pupils' sign-in email is made from their admission number; it isn't a real address, so don't show it.
+  const displayEmail = isAdmissionLoginEmail(user.email) ? "" : (user.email ?? "");
+  const mustChangePassword = Boolean((user.user_metadata as { must_change_password?: boolean } | null)?.must_change_password);
+  const displayName = personName ?? (displayEmail.split("@")[0] || "My account");
 
   return (
     <ToastProvider sound>
@@ -121,6 +125,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
         unreadMessages={unreadMessages}
         unreadNotifications={unreadNotifications}
       >
+        {mustChangePassword ? <TemporaryPasswordBanner /> : null}
         {children}
       </PortalShell>
       <PushSetup publicKey={vapidPublicKey()} unread={unreadNotifications} userKey={user.id} />

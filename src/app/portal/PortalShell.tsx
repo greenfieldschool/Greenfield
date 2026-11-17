@@ -28,7 +28,8 @@ import {
   Megaphone,
   X,
   type LucideIcon,
-  CircleHelp
+  CircleHelp,
+  KeyRound
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { WHATSAPP_URL, WhatsAppIcon } from "@/components/whatsapp-button";
@@ -180,6 +181,15 @@ export default function PortalShell({
                 </div>
                 <div className="my-1 border-t border-slate-100" />
                 <SoundToggle className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" />
+                <Link
+                  role="menuitem"
+                  href="/portal/change-password"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  <KeyRound className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                  Change password
+                </Link>
                 <a
                   role="menuitem"
                   href={WHATSAPP_URL}

@@ -20,7 +20,9 @@ Every request goes through a skill.
 | [resolve-issue-doc](.claude/skills/resolve-issue-doc/SKILL.md) | The user attaches an `issues/*.docx` / `.pdf` with screenshots of problems to fix |
 | [admin-portal-page](.claude/skills/admin-portal-page/SKILL.md) | Building or changing any page, form or server action in `/admin` or `/portal` |
 | [pupil-records](.claude/skills/pupil-records/SKILL.md) | Deactivating, reactivating or deleting pupil records (duplicates, test records, leavers), the reason list and the deactivation log |
+| [admission-and-accounts](.claude/skills/admission-and-accounts/SKILL.md) | Admission numbers (format, automatic numbering, clashes), adding pupils and duplicate checks, portal accounts and passwords for pupils and parents, login slips |
 | [role-management](.claude/skills/role-management/SKILL.md) | Who can give or change account roles, the role change log, role options on `/admin/users`, the roles guide |
+| [data-modelling](.claude/skills/data-modelling/SKILL.md) | Designing or reviewing how data is stored: tables, keys, identifiers, constraints, history, imports, deduplication, indexes (before supabase-migration) |
 | [supabase-migration](.claude/skills/supabase-migration/SKILL.md) | Any database change: tables, RLS policies, functions, triggers, views |
 | [results-and-reports](.claude/skills/results-and-reports/SKILL.md) | Result sheets, welfare scores, report cards, locks, corrections, results history |
 | [finance-payments](.claude/skills/finance-payments/SKILL.md) | Fees, invoices, payments, debtors, payment IDs, bank statements or bank email alerts |
@@ -34,7 +36,7 @@ Every request goes through a skill.
 | [brand-logo](.claude/skills/brand-logo/SKILL.md) | The school crest/logo, its words and colours, the browser and home-screen icons, where the crest appears |
 | [inventory](.claude/skills/inventory/SKILL.md) | The school inventory / asset register (`/admin/inventory`): sections, usual items, locations, counts by condition, pictures, history, report |
 | [management-pack](.claude/skills/management-pack/SKILL.md) | The weekly/monthly management information pack for leadership (`/admin/management-pack`): figures, comparisons, notes, saved history and the nightly save, printing |
-| [ui-ux-design](.claude/skills/ui-ux-design/SKILL.md) | Designing or reworking any screen, form, grid or flow, animation or three.js scene; "make the UI/UX as good as possible" (use with the area's skill) |
+| [ui-ux-design](.claude/skills/ui-ux-design/SKILL.md) | Designing or reworking any screen, form, grid or flow, animation, UI sound or three.js scene; "make the UI/UX as good as possible" (use with the area's skill) |
 | [deploy](.claude/skills/deploy/SKILL.md) | Committing, pushing and checking the Vercel deployment |
 
 ## Stack

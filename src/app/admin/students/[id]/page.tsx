@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, KeyRound, Trash2, UserMinus, Users } from "lucide-react";
+import { ExternalLink, Trash2, UserMinus, Users } from "lucide-react";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -7,7 +7,7 @@ import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import SubmitButton from "@/components/submit-button";
 import StudentPhotoUploader from "./StudentPhotoUploader";
 import UrlToast from "@/components/url-toast";
-import PasswordInput from "@/components/password-input";
+import { AccountQuickActions } from "../../accounts/accounts-table";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import { firstOrNull } from "@/lib/relations";
 import { formatLagosDate } from "@/lib/lagos-dates";
@@ -66,15 +66,6 @@ async function isStaffUser(supabase: NonNullable<ReturnType<typeof getSupabaseSe
   if (!user) return false;
   const { data } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   return STAFF_ROLES.includes(String(data?.role ?? ""));
-}
-
-function admissionNumberToEmail(admissionNumberRaw: string) {
-  const admissionNumber = admissionNumberRaw.trim().toLowerCase();
-  const domain = (process.env.NEXT_PUBLIC_STUDENT_LOGIN_EMAIL_DOMAIN ?? "students.greenfield.local")
-    .trim()
-    .toLowerCase();
-  const normalizedUser = admissionNumber.replace(/[^a-z0-9._-]/g, "");
-  return `${normalizedUser}@${domain}`;
 }
 
 type StudentRow = {
@@ -231,6 +222,16 @@ export default async function AdminStudentDetailPage({
     .eq("student_id", studentId)
     .maybeSingle();
   const existingPortalUserId = (existingPortalLink as { user_id?: string } | null)?.user_id ?? null;
+  let portalLastSignIn: string | null = null;
+  if (isAdmin && existingPortalUserId) {
+    const service = getSupabaseServiceClient();
+    const { data: authUser } = service ? await service.auth.admin.getUserById(existingPortalUserId) : { data: null };
+    portalLastSignIn = authUser?.user?.last_sign_in_at ?? null;
+  }
+  const { data: viewerProfile } = currentUser
+    ? await supabase.from("profiles").select("full_name, email").eq("id", currentUser.id).maybeSingle()
+    : { data: null };
+  const viewerName = String((viewerProfile as { full_name?: string | null } | null)?.full_name || (viewerProfile as { email?: string | null } | null)?.email || "an admin");
 
   // Deactivation (issue 11): admins only. The other pupils a duplicate can point to, this record's log, and what is
   // attached to it (to say whether it can be deleted outright).
@@ -275,111 +276,6 @@ export default async function AdminStudentDetailPage({
   }));
   const lastDeactivation = statusLog.find((l) => l.action === "deactivated") ?? null;
   const canDelete = student?.status === "inactive" && ["duplicate", "test_record"].includes(student.deactivation_reason ?? "") && usage !== null && attached.length === 0;
-
-  async function createPortalAccount(formData: FormData) {
-    "use server";
-
-    const admissionNumberRaw = String(formData.get("admission_number") ?? "").trim();
-    const password = String(formData.get("password") ?? "").trim();
-
-    if (!admissionNumberRaw || password.length < 8) {
-      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Invalid admission number or password too short")}&toast_type=error`);
-    }
-
-    const supabase = getSupabaseServerClient();
-    if (!supabase) redirect(toastUrl(studentId, NO_DB));
-
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-    if (!user) {
-      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("You must be logged in")}&toast_type=error`);
-    }
-
-    const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-    const role = (me?.role ?? null) as string | null;
-    const isAllowed = role === "super_admin" || role === "admin";
-    if (!isAllowed) {
-      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("You do not have permission to do this")}&toast_type=error`);
-    }
-
-    const service = getSupabaseServiceClient();
-    if (!service) {
-      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Service client unavailable — check server config")}&toast_type=error`);
-    }
-
-    const email = admissionNumberToEmail(admissionNumberRaw);
-    const studentFullName = `${String(formData.get("student_first_name") ?? "").trim()} ${String(
-      formData.get("student_last_name") ?? ""
-    ).trim()}`.trim();
-
-    const { data: created, error } = await service.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: studentFullName.length ? { full_name: studentFullName } : undefined
-    });
-
-    if (error || !created.user) {
-      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent(error?.message ?? "Failed to create portal account")}&toast_type=error`);
-    }
-
-    await service
-      .from("profiles")
-      .upsert({ id: created.user.id, role: "student", email, full_name: studentFullName.length ? studentFullName : null }, { onConflict: "id" });
-
-    await service.from("student_user_links").upsert(
-      {
-        user_id: created.user.id,
-        student_id: studentId
-      },
-      { onConflict: "user_id" }
-    );
-
-    revalidatePath(`/admin/students/${studentId}`);
-    redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Portal account created successfully")}&toast_type=success`);
-  }
-
-  async function resetPortalPassword(formData: FormData) {
-    "use server";
-
-    const password = String(formData.get("password") ?? "").trim();
-    const userId = String(formData.get("user_id") ?? "").trim();
-
-    if (!userId || password.length < 8) {
-      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Password must be at least 8 characters")}&toast_type=error`);
-    }
-
-    const supabase = getSupabaseServerClient();
-    if (!supabase) redirect(toastUrl(studentId, NO_DB));
-
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-    if (!user) {
-      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("You must be logged in")}&toast_type=error`);
-    }
-
-    const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-    const role = (me?.role ?? null) as string | null;
-    const isAllowed = role === "super_admin" || role === "admin";
-    if (!isAllowed) {
-      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("You do not have permission to do this")}&toast_type=error`);
-    }
-
-    const service = getSupabaseServiceClient();
-    if (!service) {
-      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Service client unavailable — check server config")}&toast_type=error`);
-    }
-
-    const { error } = await service.auth.admin.updateUserById(userId, { password, email_confirm: true });
-    if (error) {
-      redirect(`/admin/students/${studentId}?toast=${encodeURIComponent(error.message ?? "Failed to reset password")}&toast_type=error`);
-    }
-
-    revalidatePath(`/admin/students/${studentId}`);
-    redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Portal password updated successfully")}&toast_type=success`);
-  }
 
   async function updateStudent(formData: FormData) {
     "use server";
@@ -604,13 +500,22 @@ export default async function AdminStudentDetailPage({
                 defaultValue={student.date_of_birth ?? ""}
               />
             </Field>
-            <Field label="Admission number" htmlFor="student-admission_number">
+            <Field
+              label="Admission number"
+              htmlFor="student-admission_number"
+              hint={
+                existingPortalUserId
+                  ? "Also the pupil's portal sign-in: if you change it, they sign in with the new number and the same password."
+                  : "Leave empty for an enrolled pupil and the next number is given automatically."
+              }
+            >
               <input
                 id="student-admission_number"
-                className="gf-input"
+                className="gf-input font-mono uppercase"
                 name="admission_number"
                 defaultValue={student.admission_number ?? ""}
-                placeholder="(optional)"
+                autoCapitalize="characters"
+                spellCheck={false}
               />
             </Field>
             {offRoll ? (
@@ -835,66 +740,40 @@ export default async function AdminStudentDetailPage({
 
   const sideColumn = isAdmin ? (
     <div className="space-y-6">
-      {existingPortalUserId ? (
-        <form action={resetPortalPassword}>
-          <input type="hidden" name="user_id" value={existingPortalUserId} />
-          <FormSection
-            title="Portal account"
-            description="Students sign in using admission number and password."
-            footer={
-              <SubmitButton variant="primary" pendingText="Saving…">
-                <KeyRound className="h-4 w-4" aria-hidden="true" />
-                Reset portal password
-              </SubmitButton>
-            }
-          >
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <Badge tone="green" dot>
-                  Active
-                </Badge>
-                Portal account exists
-              </div>
-              <PasswordInput id="portal-new-password" label="New password" name="password" minLength={8} required />
-              <p className="gf-hint">At least 8 characters.</p>
-            </div>
-          </FormSection>
-        </form>
-      ) : (
-        <form action={createPortalAccount}>
-          <input type="hidden" name="student_first_name" value={student.first_name} />
-          <input type="hidden" name="student_last_name" value={student.last_name} />
-          <FormSection
-            title="Portal account"
-            description="Students sign in using admission number and password."
-            footer={
-              <SubmitButton variant="primary" pendingText="Creating…">
-                Create portal account
-              </SubmitButton>
-            }
-          >
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <Badge tone="slate">Not set up</Badge>
-                No portal account yet
-              </div>
-              <Field label="Admission number" htmlFor="portal-admission_number">
-                <input
-                  id="portal-admission_number"
-                  className="gf-input"
-                  name="admission_number"
-                  defaultValue={student.admission_number ?? ""}
-                  required
-                />
-              </Field>
-              <div>
-                <PasswordInput id="portal-password" label="Password" name="password" minLength={8} required />
-                <p className="gf-hint">At least 8 characters.</p>
-              </div>
-            </div>
-          </FormSection>
-        </form>
-      )}
+      <Card>
+        <CardHeader
+          title="Portal account"
+          description="Pupils sign in with their admission number and a password."
+          action={
+            <Link href={`/admin/accounts?q=${encodeURIComponent(student.admission_number ?? `${student.first_name} ${student.last_name}`)}`} className="gf-link text-sm">
+              All accounts
+            </Link>
+          }
+        />
+        <CardBody className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            {existingPortalUserId ? <Badge tone="green" dot>Has an account</Badge> : <Badge tone="slate">No account yet</Badge>}
+            {existingPortalUserId ? <span className="text-slate-600">{portalLastSignIn ? `Last signed in ${formatLagosDate(portalLastSignIn)}` : "Never signed in"}</span> : null}
+          </div>
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Signs in with</div>
+            <div className="mt-0.5 font-mono text-lg font-semibold text-slate-900">{student.admission_number ?? "No admission number yet"}</div>
+          </div>
+          <AccountQuickActions
+            kind="pupil"
+            id={studentId}
+            hasAccount={Boolean(existingPortalUserId)}
+            canCreate={Boolean(student.admission_number) && student.status !== "inactive"}
+            cannotCreateReason={student.admission_number ? "This record is deactivated." : "Give the pupil an admission number first (edit their details, or Accounts & passwords → Give them numbers)."}
+            schoolName="Greenfield School"
+            printedBy={viewerName}
+          />
+          <p className="gf-hint">
+            For safety nobody can see a password, only set a new one. The new one is shown once, with a login slip to
+            print. Changing the admission number moves the sign-in too; the password stays the same.
+          </p>
+        </CardBody>
+      </Card>
 
       <FormSection title="Profile" description="Profile enrichment fields (admin-managed).">
         <div className="space-y-5">

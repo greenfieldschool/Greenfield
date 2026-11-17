@@ -8,7 +8,8 @@ description: Use for deactivating, reactivating or deleting pupil records (dupli
 ## When to use
 "Remove this duplicate pupil", "delete test pupils", "mark as left / graduated", the reason list, the deactivation
 log, anything that changes a pupil's status to or from graduated / withdrawn / transferred / inactive. Editing a
-pupil's name, class or photo is admin-portal-page; parents and guardians are on the guardian pages.
+pupil's name, class or photo is admin-portal-page; parents and guardians are on the guardian pages. Admission
+numbers, adding pupils, the duplicate check before adding, and portal accounts are admission-and-accounts.
 
 ## Where things live
 - Database: `docs/migrations/20261113b_student_deactivation.sql`.

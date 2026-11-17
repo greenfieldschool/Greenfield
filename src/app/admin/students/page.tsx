@@ -188,9 +188,17 @@ export default async function AdminStudentsPage({
               <FileText className="h-4 w-4" aria-hidden="true" />
               View applications
             </ButtonLink>
-            <ButtonLink href="/admin/students/applications/new">
-              <Plus className="h-4 w-4" aria-hidden="true" />
+            {isAdmin ? (
+              <ButtonLink href="/admin/accounts" variant="ghost">
+                Accounts &amp; passwords
+              </ButtonLink>
+            ) : null}
+            <ButtonLink href="/admin/students/applications/new" variant="secondary">
               New application
+            </ButtonLink>
+            <ButtonLink href="/admin/students/new">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add a pupil
             </ButtonLink>
           </>
         }
@@ -232,7 +240,7 @@ export default async function AdminStudentsPage({
             hint={`Unlinked portal account${unlinkedCount !== 1 ? "s" : ""} — fix now`}
             icon={AlertTriangle}
             tone="gold"
-            href="/admin/users?role=student"
+            href={isAdmin ? "/admin/accounts?tab=unlinked" : "/admin/users?role=student"}
           />
         ) : (
           <StatCard label="Portal" value="—" hint="All portal accounts linked" icon={AlertTriangle} tone="slate" />

@@ -21,6 +21,8 @@ import {
   humanize
 } from "../_ui";
 import { LEARN } from "@/lib/learn-guides";
+import { findPossibleDuplicates, linkOrCreateGuardian, STRONG_MATCH } from "@/lib/pupil-intake";
+import { PossibleDuplicates } from "@/components/possible-duplicates";
 
 // Keys stored in admissions_applications.data that the edit forms can change.
 const APPLICATION_DATA_KEYS = [
@@ -205,7 +207,7 @@ export default async function AdminApplicationDetailPage({
     .maybeSingle();
   const existingStudentId = (existingStudent as { id?: string } | null)?.id ?? null;
 
-  async function approveApplication() {
+  async function approveApplication(formData: FormData) {
     "use server";
 
     const supabaseAction = getSupabaseServerClient();
@@ -242,7 +244,7 @@ export default async function AdminApplicationDetailPage({
 
     const { data: appRow } = await supabaseAction
       .from("admissions_applications")
-      .select("id, status, section, data")
+      .select("id, status, section, data, parent_name, phone, email")
       .eq("id", params.id)
       .maybeSingle();
 
@@ -267,6 +269,24 @@ export default async function AdminApplicationDetailPage({
     }
 
     const payload = (appRow.data as Record<string, unknown>) ?? {};
+
+    // Is this child already at the school? Asked again here, whatever the page showed.
+    const dupCheck = await findPossibleDuplicates(supabaseAction, {
+      first: typeof payload.first_name === "string" ? payload.first_name : "",
+      last: typeof payload.last_name === "string" ? payload.last_name : "",
+      dob: typeof payload.dob === "string" && payload.dob.length ? payload.dob : null,
+      phones: [String(appRow.phone ?? "")],
+      emails: [String(appRow.email ?? "")]
+    });
+    const strongDup = dupCheck.rows.filter((d) => d.strength >= STRONG_MATCH);
+    if (strongDup.length && formData.get("confirm_different") !== "on") {
+      redirect(
+        approveErrorUrl(
+          params.id,
+          `This child may already be at the school (${strongDup.map((d) => d.full_name + (d.admission_number ? ` ${d.admission_number}` : "")).join(", ")}). Open that record, or tick "This is a different child" and approve again.`
+        )
+      );
+    }
     const section = (appRow.section as string | null) ?? null;
     const level = section === "creche" || section === "primary" || section === "secondary" ? section : null;
 
@@ -324,7 +344,7 @@ export default async function AdminApplicationDetailPage({
         hobbies,
         admissions_application_id: params.id
       })
-      .select("id")
+      .select("id, admission_number")
       .maybeSingle();
 
     if (createError || !createdStudent?.id) {
@@ -334,6 +354,20 @@ export default async function AdminApplicationDetailPage({
           `The student record could not be created${createError?.message ? `: ${createError.message}` : "."} Check the student's first and last name and try again.`
         )
       );
+    }
+
+    // The parent on the application becomes the child's guardian (reusing their record if they already have a child here).
+    const parentLink = await linkOrCreateGuardian(supabaseAction, createdStudent.id as string, {
+      name: (appRow.parent_name as string | null) ?? null,
+      phone: (appRow.phone as string | null) ?? null,
+      email: (appRow.email as string | null) ?? null
+    });
+    if (strongDup.length) {
+      await supabaseAction.rpc("log_account_action", {
+        p_action: "duplicate_override",
+        p_student: createdStudent.id,
+        p_detail: `Approved although similar to ${strongDup.map((d) => d.full_name + (d.admission_number ? ` (${d.admission_number})` : "")).join(", ")}`.slice(0, 480)
+      });
     }
 
     const { error: enrollError } = await supabaseAction
@@ -349,8 +383,26 @@ export default async function AdminApplicationDetailPage({
       );
     }
 
-    redirect(`/admin/students/${createdStudent.id}`);
+    const done = [
+      "Approved and enrolled",
+      createdStudent.admission_number ? `admission number ${createdStudent.admission_number}` : null,
+      parentLink.note
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    redirect(`/admin/students/${createdStudent.id}?toast=${encodeURIComponent(done)}&toast_type=success`);
   }
+
+  const possibleDuplicates = existingStudentId
+    ? { rows: [], available: true }
+    : await findPossibleDuplicates(supabase, {
+        first: typeof data.first_name === "string" ? data.first_name : "",
+        last: typeof data.last_name === "string" ? data.last_name : "",
+        dob: typeof data.dob === "string" && data.dob.length ? data.dob : null,
+        phones: [String(row.phone ?? "")],
+        emails: [String(row.email ?? "")]
+      });
+  const strongDuplicate = possibleDuplicates.rows.some((d) => d.strength >= STRONG_MATCH);
 
   const sectionOptions = [
     { value: "", label: "(none)" },
@@ -392,7 +444,7 @@ export default async function AdminApplicationDetailPage({
                 View student
               </ButtonLink>
             ) : (
-              <form action={approveApplication}>
+              <form action={approveApplication} id="approve-form">
                 <SubmitButton variant="primary" pendingText="Approving…">
                   <UserCheck className="h-4 w-4" aria-hidden="true" />
                   Approve
@@ -402,6 +454,26 @@ export default async function AdminApplicationDetailPage({
           </>
         }
       />
+
+      {possibleDuplicates.rows.length ? (
+        <div>
+          <PossibleDuplicates rows={possibleDuplicates.rows} />
+          {strongDuplicate ? (
+            <label className="mt-3 flex items-start gap-3 rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-amber-300">
+              <input
+                type="checkbox"
+                name="confirm_different"
+                form="approve-form"
+                className="mt-0.5 h-5 w-5 rounded border-slate-300 text-brand-green focus:ring-brand-green"
+              />
+              <span>
+                <strong>This is a different child.</strong> I&apos;ve checked the records above; approve anyway. (Your name is
+                recorded with this choice.)
+              </span>
+            </label>
+          ) : null}
+        </div>
+      ) : null}
 
       {approveError ? (
         <Alert tone="danger" title="This application could not be approved.">

@@ -3,6 +3,58 @@
 Read this before adding or changing any animation, transition or 3D scene. Most visitors are parents on phones,
 often mid-range Android on mobile data, so every animation has to earn its cost there first.
 
+## Motion principles (read first)
+Motion is information about change. Before animating anything, name its job; if it has none, don't animate.
+1. **Purpose.** Each animation does one of: show where something came from or went (a sheet rising from the button
+   that opened it), show that the system heard you (press states), show a change of state (a saved cell fading
+   from blue), direct attention once (a new notification), or express the brand on the public site. Staff screens
+   use only the first three.
+2. **Frequency sets the budget.** Something seen 50 times a day (press, toggle, row save) is ≤ 150 ms and nearly
+   invisible. Something seen once a visit (page arrival) can be 300–500 ms. Something seen once a session (the
+   intro curtain) can be longer and expressive. Never make a frequent action wait for motion.
+3. **Timing tokens** (use these numbers, don't invent new ones):
+   | Token | Duration | Use |
+   |---|---|---|
+   | instant | 100 ms | press, hover colour, checkbox |
+   | quick | 150–200 ms | menus, toggles, tooltips, toasts leaving |
+   | standard | 250–300 ms | sheets, dialogs, cards entering, toasts entering |
+   | gentle | 400–500 ms | page arrival, large panels, reveal on scroll |
+   | expressive | 600–1100 ms | public-site headlines, intro, celebrations only |
+   Distance matters: bigger movement needs a little more time; a phone-width move takes less than a desktop one.
+4. **Easing tokens** (already used in `globals.css`):
+   - Enter / settle: `cubic-bezier(0.2, 0.7, 0.2, 1)` (fast start, long soft landing). Things arriving decelerate.
+   - Exit: `cubic-bezier(0.4, 0, 1, 1)` (ease-in), and ~30% shorter than the entrance. Things leaving accelerate away.
+   - Move on screen (A → B): `cubic-bezier(0.6, 0, 0.2, 1)` / `(0.76, 0, 0.24, 1)` (ease-in-out).
+   - Playful overshoot: `cubic-bezier(0.3, 1.4, 0.5, 1)` for small brand moments only (crest star). Never on data.
+   - Springs (framer): `{ type: "spring", stiffness: 400, damping: 30 }` for direct manipulation (drag, tab
+     highlight); critically damped, no visible wobble on admin screens.
+   - Linear only for progress and continuous rotation (spinners).
+5. **Choreography.** One focal movement at a time. Related things move together; a group enters in reading order
+   with 30–60 ms between list items (`gf-stagger`), 90–150 ms between cards, 70–90 ms between headline words, and
+   the whole group done within ~400 ms on app screens. Cap staggers at ~6 items; the rest arrive with the sixth.
+   Parent before children: a panel opens, then its contents fade in.
+6. **Continuity.** An element that changes keeps its identity: the same card grows into the detail, a row that's
+   saved stays in place and changes tint. Never fade out and fade in a different element where one could move.
+7. **Feedback within 100 ms.** Any press shows a state change at once (`active:` styles), even if the server takes
+   seconds; then a spinner inside the button after ~300 ms (`SubmitButton`), then the result.
+8. **Reduced motion is a different design, not no design.** With `prefers-reduced-motion: reduce`, replace movement
+   with a short opacity fade (≤ 150 ms) or an instant change; keep every state change visible (colour, text).
+   Parallax, scroll-driven scenes, auto-playing carousels and confetti stop entirely.
+9. **Never block.** Content is usable while it animates; nothing waits for an animation's end to accept a click;
+   loading animations appear only after ~250 ms so fast responses don't flash.
+10. **Print and screenshots**: animated elements must rest in their final state when printed
+    (`@media print { * { animation: none !important; transition: none !important } }` is in `globals.css` or the
+    print view sets it).
+
+### Motion review checklist
+- [ ] Each animation's job named in one phrase; decoration removed from staff screens.
+- [ ] Durations and easings from the tokens above; exits shorter than entrances.
+- [ ] Only `transform` and `opacity` animate (no `transition-all`, no width/height/top).
+- [ ] Press feedback on every tappable thing; tap equivalents for every hover.
+- [ ] Reduced-motion version checked and still clear.
+- [ ] Nothing waits on motion; nothing flashes on fast loads.
+- [ ] Sound (if any) starts with the visual change, not after (sound.md).
+
 ## What we have
 - **Libraries**: `three` 0.169, `@react-three/fiber` 8 (React Three Fiber, "R3F"), `@react-three/drei` 9, and
   `framer-motion` 11 (scroll progress, page motion). Don't add a second animation library (GSAP, anime.js …) for

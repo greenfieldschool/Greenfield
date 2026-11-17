@@ -24,6 +24,7 @@ export const adminOnlyPrefixes = [
   "/admin/messages/moderation",
   "/admin/management-pack",
   "/admin/students/deactivation-log",
+  "/admin/accounts",
   "/admin/inventory"
 ];
 

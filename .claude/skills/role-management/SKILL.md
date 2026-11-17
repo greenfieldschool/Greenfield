@@ -79,3 +79,10 @@ node pglite-role-test.mjs base.sql before
 node pglite-role-test.mjs base.sql after <repo>/docs/migrations/20261111_lock_role_changes.sql
 ```
 Then `npx tsc --noEmit -p . && npx next lint --dir src && npx next build`.
+
+## Email sync exception (Nov 2026)
+`profiles_guard_role` was redefined in `docs/migrations/20261117b_single_source_fixes.sql` with one addition at the top:
+an UPDATE where only `email`/`updated_at` change is allowed while `app.profile_email_sync = 'on'`, which only the
+security definer `sync_profile_email()` (trigger `on_auth_user_email_changed` on `auth.users`) sets. Role rules are
+unchanged (`pglite-role-test.mjs` passes with it). When you redefine the guard, keep that block.
+

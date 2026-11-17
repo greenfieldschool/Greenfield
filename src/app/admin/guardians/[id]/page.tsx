@@ -17,6 +17,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { LEARN } from "@/lib/learn-guides";
+import { formatLagosDate } from "@/lib/lagos-dates";
+import { AccountQuickActions } from "../../accounts/accounts-table";
 
 type GuardianRow = {
   id: string;
@@ -134,6 +136,16 @@ export default async function AdminGuardianDetailPage({
     .maybeSingle();
 
   const portalUserId = (portalLinkData as { user_id?: string } | null)?.user_id ?? null;
+  let portalLastSignIn: string | null = null;
+  let portalLoginEmail: string | null = null;
+  if (isAdmin && portalUserId) {
+    const service = getSupabaseServiceClient();
+    const { data: authUser } = service ? await service.auth.admin.getUserById(portalUserId) : { data: null };
+    portalLastSignIn = authUser?.user?.last_sign_in_at ?? null;
+    portalLoginEmail = authUser?.user?.email ?? null;
+  }
+  const { data: viewerProfile } = isAdmin && currentUser ? await supabase.from("profiles").select("full_name, email").eq("id", currentUser.id).maybeSingle() : { data: null };
+  const viewerName = String((viewerProfile as { full_name?: string | null } | null)?.full_name || (viewerProfile as { email?: string | null } | null)?.email || "an admin");
 
   async function updateGuardianProfile(formData: FormData) {
     "use server";
@@ -264,6 +276,7 @@ export default async function AdminGuardianDetailPage({
       },
       { onConflict: "user_id" }
     );
+    await supabase.rpc("log_account_action", { p_action: "account_created", p_guardian: guardianId, p_user: created.user.id, p_detail: "Password typed by the admin" });
 
     revalidatePath(`/admin/guardians/${guardianId}`);
     redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Portal account created successfully")}&toast_type=success`);
@@ -305,6 +318,7 @@ export default async function AdminGuardianDetailPage({
     if (error) {
       redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent(error.message ?? "Failed to reset password")}&toast_type=error`);
     }
+    await supabase.rpc("log_account_action", { p_action: "password_reset", p_guardian: guardianId, p_user: userId, p_detail: "Password typed by the admin" });
 
     revalidatePath(`/admin/guardians/${guardianId}`);
     redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Portal password updated successfully")}&toast_type=success`);
@@ -615,21 +629,42 @@ export default async function AdminGuardianDetailPage({
             <Card>
               <CardHeader
                 title="Portal access"
-                description="Create a parent portal account and set/reset the password (for printing). Parents cannot reset passwords themselves."
-                action={portalUserId ? <Badge tone="green" dot>Active</Badge> : <Badge tone="slate">None</Badge>}
+                description="Parents sign in with their email. Nobody can see a password, only set a new one."
+                action={
+                  <a href={`/admin/accounts?tab=parents&q=${encodeURIComponent(guardianEmail ?? "")}`} className="gf-link text-sm">
+                    All accounts
+                  </a>
+                }
               />
               <CardBody className="space-y-4">
                 {!guardianEmail ? (
                   <Alert tone="warning">Add an email address for this guardian before creating portal access.</Alert>
                 ) : null}
 
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  {portalUserId ? <Badge tone="green" dot>Has an account</Badge> : <Badge tone="slate">No account yet</Badge>}
+                  {portalUserId ? <span className="text-slate-600">{portalLastSignIn ? `Last signed in ${formatLagosDate(portalLastSignIn)}` : "Never signed in"}</span> : null}
+                </div>
+                {portalUserId && portalLoginEmail ? (
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Signs in with</div>
+                    <div className="mt-0.5 break-all font-mono text-sm font-semibold text-slate-900">{portalLoginEmail}</div>
+                  </div>
+                ) : null}
+                <AccountQuickActions
+                  kind="parent"
+                  id={guardianId}
+                  hasAccount={Boolean(portalUserId)}
+                  canCreate={Boolean(guardianEmail)}
+                  cannotCreateReason="Add an email address first."
+                  schoolName="Greenfield School"
+                  printedBy={viewerName}
+                />
+
                 {portalUserId ? (
-                  <>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <div className="text-sm font-semibold text-slate-900">Account exists</div>
-                      <div className="mt-0.5 break-all font-mono text-xs text-slate-600">User ID: {portalUserId}</div>
-                    </div>
-                    <form action={resetPortalPassword} className="space-y-4">
+                  <details className="rounded-xl border border-slate-200 px-4 py-3 text-sm">
+                    <summary className="cursor-pointer font-medium text-slate-700">Type a password yourself instead</summary>
+                    <form action={resetPortalPassword} className="mt-3 space-y-4">
                       <input type="hidden" name="user_id" value={portalUserId} />
                       <PasswordInput id="guardian-reset-password" label="New password" name="password" minLength={8} required />
                       <SubmitButton
@@ -640,9 +675,11 @@ export default async function AdminGuardianDetailPage({
                         Reset password
                       </SubmitButton>
                     </form>
-                  </>
+                  </details>
                 ) : (
-                  <form action={createPortalAccount} className="space-y-4">
+                  <details className="rounded-xl border border-slate-200 px-4 py-3 text-sm">
+                    <summary className="cursor-pointer font-medium text-slate-700">Use a different email or type the password yourself</summary>
+                  <form action={createPortalAccount} className="mt-3 space-y-4">
                     <Field label="Email" htmlFor="guardian-portal-email" required>
                       <input
                         id="guardian-portal-email"
@@ -662,6 +699,7 @@ export default async function AdminGuardianDetailPage({
                       Create portal account
                     </SubmitButton>
                   </form>
+                  </details>
                 )}
               </CardBody>
             </Card>

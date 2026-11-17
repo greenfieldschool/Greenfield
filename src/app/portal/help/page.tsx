@@ -547,10 +547,15 @@ export default async function PortalHelpPage() {
           a:
             audience === "parent" ? (
               <p>
-                Sign in with your email address and the password the school gave you. If you forget it, call the school office: they will set a new one for you.
+                Sign in with your email address and the password the school gave you, then choose your own under{" "}
+                <A href="/portal/change-password">Choose your password</A>. If you forget it, call the school office: they will give you a new one
+                (nobody at the school can see your old one).
               </p>
             ) : (
-              <p>Sign in with your admission number and the password the school gave you. If you forget it, ask your class teacher or the school office.</p>
+              <p>
+                Sign in with your admission number, typed exactly as it is on your report card, and the password the school gave you. Then choose your own
+                under <A href="/portal/change-password">Choose your password</A>. If you forget it, ask the school office for a new one.
+              </p>
             )
         },
         {

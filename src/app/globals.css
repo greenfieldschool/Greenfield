@@ -486,6 +486,28 @@ html.gf-intro-on .gf-draw path {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  /* Printouts show everything in its resting state, never half-way through an entrance animation. */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .gf-draw path {
+    stroke-dashoffset: 0;
+  }
+  /* Login slips (Accounts & passwords, pupil and parent pages): only the slips print while they are open. */
+  body.gf-print-slips * {
+    visibility: hidden;
+  }
+  body.gf-print-slips .gf-slips,
+  body.gf-print-slips .gf-slips * {
+    visibility: visible;
+  }
+  body.gf-print-slips .gf-slips {
+    position: absolute;
+    inset: 0 0 auto 0;
+  }
   .gf-report-card {
     break-after: page;
     break-inside: avoid-page;

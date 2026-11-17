@@ -46,19 +46,47 @@ export default function AdminLearnCentrePage() {
           steps: [
             "Families apply online with the admission form on the school website (/apply).",
             "Open Core > Student applications (/admin/students/applications) to see applications waiting for a decision.",
-            "Clicking 'Approve' gives the child an admission number and adds them to the Students list.",
+            "Before approving, check the 'Might already be at the school' box on the application: it lists pupils with the same or a similar name, the same date of birth, or the same parent phone or email. If it is the same child, open their record instead of approving.",
+            "Clicking 'Approve' adds the child to the Students list as enrolled and gives them the next admission number automatically (Accounts & passwords → Number format).",
             "The child's level (creche, primary, secondary) follows the class you choose, e.g. Playgroup is primary."
+          ]
+        },
+        {
+          id: LEARN.addPupil,
+          name: "Adding a Pupil (new, or from another portal)",
+          page: { href: "/admin/students/new", label: "Add a pupil" },
+          steps: [
+            "Families who apply online come in through Applications. For a child the office registers directly, or one moving over from the old portal, use Students → Add a pupil.",
+            "Type the name and date of birth first. As you type, the page checks for the same child already on the system (same or similar name, same date of birth, same parent phone or email) and offers 'Open this record' so nobody is entered twice.",
+            "Admission number: leave 'Give the next number' chosen and the school's next number is used. For a pupil from another portal choose 'Keep their existing number' and type it; the page tells you at once if another pupil already has it, in any spelling (GRE/2026/7 and gre 2026 007 count as the same).",
+            "If the child really is a different person with a similar name, tick 'This is a different child' and save. That choice is recorded with your name."
           ]
         },
         {
           id: LEARN.studentAccounts,
           name: "Student Portal Accounts (Sign-in)",
-          page: { href: "/admin/students", label: "Students" },
+          page: { href: "/admin/accounts", label: "Accounts & passwords" },
           adminOnly: true,
           steps: [
-            "Find the pupil in Core > Students (/admin/students) and open their page.",
-            "Under 'Portal Account', set a password and create the account.",
-            "Pupils sign in at the portal with their admission number and that password. Give it to them privately; you can reset it from the same place."
+            "Pupils sign in at the portal with their admission number and a password. Accounts are made on Accounts & passwords (People menu), one at a time or a whole class at once.",
+            "If a pupil's admission number is changed on their page, their sign-in changes with it. Their password stays the same.",
+            "Forgotten passwords: reset them on Accounts & passwords or on the pupil's page. Nobody can see an old password."
+          ]
+        },
+        {
+          id: LEARN.accounts,
+          name: "Accounts & Passwords (pupils and parents)",
+          page: { href: "/admin/accounts", label: "Accounts & passwords" },
+          adminOnly: true,
+          steps: [
+            "Open People → Accounts & passwords. The Pupils tab lists every pupil on roll with their admission number, whether they have a portal account and when they last signed in. The Parents tab does the same for parents (they sign in with their email). Click a name to open the record; the record links back here.",
+            "Use the chips (No account, Never signed in, No number) and the class box to narrow the list, tick the people you want (or 'Choose all'), then press Create accounts or Reset passwords. Up to 40 are done per press; if you chose more, press again to continue.",
+            "The new temporary passwords appear once, in a box at the top. Press 'Print login slips' to print one slip per person (two across an A4 page, with cut lines), or 'Copy all'. After you close the box they can't be shown again: for safety the school never sees passwords, it can only set new ones. Each person chooses their own password when they first sign in.",
+            "Pupils without an admission number can't have an account. The gold box offers 'Give them numbers': numbers follow the school's format, oldest record first.",
+            "No owner lists sign-ins that aren't linked to anybody (often an account made twice). Type the pupil's admission number or the parent's email and press Link.",
+            "Number format: the school uses GRE/{YYYY}/{N}, for example GRE/2026/007. The year is the year the school session started, so a pupil who joins in January 2027 (2026/27 session) gets 2026. The running number starts again at 001 each session. New numbers always start after the highest one already used, so they never repeat. Only the developers can change the format: on the Number format tab press 'Ask for a change', fill in the new format and say why, and send it. It shows as 'Waiting for the developers' until they approve or turn it down (you can withdraw it meanwhile). Changing the format never changes existing numbers.",
+            "If two pupils already share a number, a red box at the top lists them. Give one a new number (or deactivate the duplicate).",
+            "History shows every number given or changed, account created, password reset and link made, with who did it and when."
           ]
         },
         {
@@ -97,7 +125,7 @@ export default function AdminLearnCentrePage() {
           steps: [
             "Open Core > Guardians (/admin/guardians) and add the parent or guardian. An email address is needed for a portal account; a phone number helps the office.",
             "Open the guardian and use 'Link a student' to connect each of their children, with the relationship (mother, father, guardian …). A child can have several guardians and each one sees the child in the portal.",
-            "Under 'Portal access', create the account with a first password and give it to the parent privately (it can be printed). Parents can't reset their own password: reset it here when they forget.",
+            "Under 'Portal access', create the account with a first password and give it to the parent privately (it can be printed). Parents can't reset their own password: reset it here when they forget. To do many parents at once, or print login slips, use People → Accounts & passwords → Parents.",
             "Parents sign in at the portal with their email address. They see report cards, fees & billing, attendance, discipline, health notes, activities and messages for their linked children only.",
             "Invoices are addressed to one guardian, but report cards and the unpaid-fees hold go by the child, so every guardian of the child sees the same."
           ]

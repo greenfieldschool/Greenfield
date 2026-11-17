@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
-import { SOUND_CHANGE_EVENT, playSound, setSoundEnabled, soundEnabled, unlockSound, type SoundName } from "@/lib/sound";
+import { playSound, setSoundEnabled, soundEnabled, unlockSound, watchSoundSetting, type SoundName } from "@/lib/sound";
 
 const NAMES: SoundName[] = ["tap", "success", "error", "notify", "celebrate"];
 
@@ -16,7 +16,10 @@ export function SoundEffects() {
     const onClick = (e: MouseEvent) => {
       const el = (e.target as Element | null)?.closest?.("[data-sound]");
       const name = el?.getAttribute("data-sound") as SoundName | null;
-      if (name && NAMES.includes(name)) playSound(name);
+      if (!name || !NAMES.includes(name)) return;
+      // A disabled button or a click that only moves focus makes no sound.
+      if ((el as HTMLButtonElement).disabled || el?.getAttribute("aria-disabled") === "true") return;
+      playSound(name);
     };
     window.addEventListener("pointerdown", unlock, { passive: true });
     window.addEventListener("keydown", unlock);
@@ -35,9 +38,8 @@ export function SoundToggle({ className }: { className?: string }) {
   const [on, setOn] = useState<boolean | null>(null);
   useEffect(() => {
     setOn(soundEnabled());
-    const sync = (e: Event) => setOn(Boolean((e as CustomEvent<boolean>).detail));
-    window.addEventListener(SOUND_CHANGE_EVENT, sync);
-    return () => window.removeEventListener(SOUND_CHANGE_EVENT, sync);
+    // Follows the switch when it is changed in another tab too.
+    return watchSoundSetting(setOn);
   }, []);
   if (on === null) return null;
   return (

@@ -122,6 +122,7 @@ const NAV: NavGroup[] = [
       { href: "/admin/students/applications", label: "Applications", icon: UserPlus },
       { href: "/admin/classes", label: "Classes", icon: School },
       { href: "/admin/guardians", label: "Guardians", icon: UsersRound },
+      { href: "/admin/accounts", label: "Accounts & passwords", icon: KeyRound, adminOnly: true },
       { href: "/admin/users", label: "Staff & users", icon: UserCog, adminOnly: true },
       { href: "/admin/announcements", label: "Announcements", icon: Megaphone, adminOnly: true }
     ]
@@ -216,6 +217,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   applications: "Applications",
   classes: "Classes",
   guardians: "Guardians",
+  accounts: "Accounts & passwords",
   users: "Staff & users",
   academics: "Academics",
   results: "Result sheet",

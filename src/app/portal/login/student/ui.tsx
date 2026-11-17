@@ -8,20 +8,12 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { buttonClasses } from "@/components/ui/button";
 import { LoginFrame } from "../../_components/portal-ui";
+import { admissionNumberToEmail } from "@/lib/admission-login";
 
 type FormState =
   | { status: "idle" }
   | { status: "submitting" }
   | { status: "error"; message: string };
-
-function admissionNumberToEmail(admissionNumberRaw: string) {
-  const admissionNumber = admissionNumberRaw.trim().toLowerCase();
-  const domain = (process.env.NEXT_PUBLIC_STUDENT_LOGIN_EMAIL_DOMAIN ?? "students.greenfield.local")
-    .trim()
-    .toLowerCase();
-  const normalizedUser = admissionNumber.replace(/[^a-z0-9._-]/g, "");
-  return `${normalizedUser}@${domain}`;
-}
 
 export function StudentLoginForm({ redirectTo }: { redirectTo: string }) {
   const [admissionNumber, setAdmissionNumber] = useState("");
@@ -48,7 +40,13 @@ export function StudentLoginForm({ redirectTo }: { redirectTo: string }) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setState({ status: "error", message: error.message });
+      const wrong = /invalid login|invalid credentials/i.test(error.message);
+      setState({
+        status: "error",
+        message: wrong
+          ? "That admission number and password don't match. Type the number exactly as it is on your report card (small or capital letters are both fine). Forgotten your password? Ask the school office for a new one."
+          : error.message
+      });
       return;
     }
 
