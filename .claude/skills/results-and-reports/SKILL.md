@@ -110,16 +110,20 @@ description: Use for anything about academic results, result sheet columns, welf
   `ensure_result_sheet` failed) → the sheet.
 - Keep the PGlite tests for locks/corrections passing when touching these triggers (see supabase-migration skill).
 - Report-card numbers must come from `buildClassReport`; don't recompute elsewhere.
+- A list of a class's pupils **for a term** (sheets, report cards) uses `classPupilsInTerm(supabase, classId, termId)`,
+  never `.from("students").eq("class_id", …)`. It only decides who is listed; it never writes or unlocks results.
 
 ## Pitfalls we hit
 - "infinite recursion detected in policy for relation academic_assessments": the parent policy on columns read
   scores while the teacher policy on scores read columns. Fixed in 20261028 with definer helpers
   (`can_manage_results`, `can_manage_assessment`, `portal_can_see_assessment`). The page swallowed the error, so
   "Open sheet" looked like it did nothing and "Create sheet" showed the raw message.
-- Every report is rebuilt from pupils' **current** class (`students.class_id`; there is no class history), so a past
-  term changes once pupils move up. That's why published results are archived as copies, and the portal reads them so last year's report
-  cards survive promotion. Publications from before the archive still show only for the current class until an admin
-  saves copies ("Save copies now" on Published results).
+- Reports used to be rebuilt from pupils' **current** class (`students.class_id`), so a past term changed once pupils
+  moved up. Since 20261118b the roster of a class **for a term** comes from the class history (`student_class_terms`)
+  through `classPupilsInTerm()` (`src/lib/class-history.ts`, used by `buildClassReport`, the result sheet, its CSV
+  template, bulk upload, CBT import and the pupil results page); see the pupil-class-history skill. Published copies in
+  `published_results` are still the frozen record and the portal reads them first. Publications from before the archive
+  show only for the current class until an admin saves copies ("Save copies now" on Published results).
 - supabase-js `.contains(col, [..])` with an array writes a Postgres array literal `cs.{...}`; for a jsonb column
   pass a JSON string instead.
 - Upserts logged phantom "score entered" entries; the guard skips the insert path when the row exists.

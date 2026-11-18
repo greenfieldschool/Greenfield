@@ -14,6 +14,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
 import { LEARN } from "@/lib/learn-guides";
+import { classPupilsInTerm } from "@/lib/class-history";
 
 // One pupil, every subject for a term: for a late joiner, a single correction before the sheet is final, or
 // checking one child's results. Same rules as the class result sheet (only changed boxes are saved; final and
@@ -41,8 +42,9 @@ async function savePupil(formData: FormData) {
   const supabase = getSupabaseServerClient();
   if (!supabase || !classId || !termId || !studentId) back(params, "Choose a class, term and pupil first", "error");
 
-  const { data: pupil } = await supabase.from("students").select("id").eq("id", studentId).eq("class_id", classId).maybeSingle();
-  if (!pupil) back(params, "That pupil is not in this class", "error");
+  // In the class that term (class history), not only now.
+  const { data: inClass } = await classPupilsInTerm(supabase, classId, termId);
+  if (!inClass.some((p) => p.id === studentId)) back(params, "That pupil was not in this class that term", "error");
 
   const { data: colData, error: colError } = await supabase
     .from("academic_assessments")
@@ -124,14 +126,7 @@ export default async function PupilResultsPage({
   const termIdOrActive = termId || termRows.find((t) => t.is_active)?.id || "";
   const cls = classRows.find((c) => c.id === classId) ?? null;
 
-  const { data: pupilsData } = classId
-    ? await supabase
-        .from("students")
-        .select("id, first_name, last_name, admission_number")
-        .eq("class_id", classId)
-        .order("last_name")
-        .order("first_name")
-    : { data: [] };
+  const { data: pupilsData } = classId ? await classPupilsInTerm(supabase, classId, termIdOrActive) : { data: [] };
   const pupils = (pupilsData ?? []) as Array<{ id: string; first_name: string; last_name: string; admission_number: string | null }>;
   const pupil = pupils.find((p) => p.id === studentId) ?? null;
 

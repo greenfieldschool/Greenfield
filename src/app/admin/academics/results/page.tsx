@@ -35,6 +35,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { LEARN } from "@/lib/learn-guides";
+import { classPupilsInTerm } from "@/lib/class-history";
 
 type YearRow = { id: string; name: string };
 type TermRow = { id: string; name: string; academic_year_id: string };
@@ -330,7 +331,8 @@ async function importCbtScores(formData: FormData) {
       .select("student_id, obtained_marks, max_marks, submitted_at")
       .eq("session_id", sessionId)
       .not("submitted_at", "is", null),
-    supabase.from("students").select("id").eq("class_id", ctx.classId)
+    // Pupils in the class that term (class history), so a past term's sheet keeps the pupils since moved up.
+    classPupilsInTerm(supabase, ctx.classId, ctx.termId)
   ]);
 
   const inClass = new Set(((classStudents ?? []) as Array<{ id: string }>).map((s) => s.id));
@@ -368,7 +370,7 @@ async function bulkUpload(formData: FormData) {
 
   const [{ data: colData }, { data: studentData }] = await Promise.all([
     sheetColumns(supabase, ctx),
-    supabase.from("students").select("id, first_name, last_name, admission_number").eq("class_id", ctx.classId)
+    classPupilsInTerm(supabase, ctx.classId, ctx.termId)
   ]);
   const columns = (colData ?? []) as ColumnRow[];
   const pupils = (studentData ?? []) as StudentRow[];
@@ -595,12 +597,8 @@ export default async function AdminResultSheetPage({
   if (ready) {
     const [{ data: studentsData, error: studentsError }, { data: columnsData, error: columnsError }, { data: gradesData }, { data: pubData }, { data: sessionsData }] =
       await Promise.all([
-        supabase
-          .from("students")
-          .select("id, first_name, last_name, admission_number")
-          .eq("class_id", classId)
-          .order("last_name", { ascending: true })
-          .order("first_name", { ascending: true }),
+        // Pupils in the class that term (class history); a past term keeps the pupils since moved up.
+        classPupilsInTerm(supabase, classId, termId),
         sheetColumns(supabase, ctx),
         cls
           ? supabase

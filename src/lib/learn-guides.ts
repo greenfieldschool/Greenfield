@@ -6,6 +6,7 @@ export const LEARN = {
   accounts: "accounts-and-passwords",
   addPupil: "adding-pupils",
   deactivatePupils: "deactivating-pupils",
+  classHistory: "class-history",
   inventory: "inventory",
   classes: "classes",
   guardians: "guardians",

@@ -25,6 +25,7 @@ export const adminOnlyPrefixes = [
   "/admin/management-pack",
   "/admin/students/deactivation-log",
   "/admin/accounts",
+  "/admin/students/class-history",
   "/admin/inventory"
 ];
 

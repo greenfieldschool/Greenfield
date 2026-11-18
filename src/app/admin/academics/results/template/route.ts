@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { canTeach, getTeacherAccess } from "@/lib/teacher-access";
+import { classPupilsInTerm } from "@/lib/class-history";
 
 // The result sheet as a CSV for Excel: Admission no, Pupil name, one column per assessment (with any scores
 // already saved). Fill it in, copy the rows and paste them into "Bulk upload" on the result sheet.
@@ -31,12 +32,7 @@ export async function GET(request: NextRequest) {
       .eq("on_result_sheet", true)
       .order("position", { ascending: true })
       .order("created_at", { ascending: true }),
-    supabase
-      .from("students")
-      .select("id, first_name, last_name, admission_number")
-      .eq("class_id", classId)
-      .order("last_name", { ascending: true })
-      .order("first_name", { ascending: true })
+    classPupilsInTerm(supabase, classId, termId)
   ]);
   const columns = (cols ?? []) as Array<{ id: string; title: string | null; max_score: number }>;
   const students = (pupils ?? []) as Array<{ id: string; first_name: string; last_name: string; admission_number: string | null }>;

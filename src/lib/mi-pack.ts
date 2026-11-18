@@ -187,7 +187,8 @@ export async function loadMiPack(
     invoiceRows,
     inventoryItems,
     inventorySections,
-    inventoryLog
+    inventoryLog,
+    classHistoryConflicts
   ] = await Promise.all([
     safe(() => all(() => supabase.from("students").select("id, status, level, first_name, last_name, created_at, updated_at").order("id"))),
     safe(async () => (await supabase.from("classes").select("id, level, name, active")).data as Row[] | null),
@@ -437,7 +438,9 @@ export async function loadMiPack(
               .order("id")
           );
         })
-      : Promise.resolve(null)
+      : Promise.resolve(null),
+    // Pupils whose records put them in two classes in one term, waiting for an admin (class history).
+    supabase.from("student_class_term_conflicts").select("id", { count: "exact", head: true }).eq("status", "open")
   ]);
 
   const classById = new Map<string, { level: string; name: string; active: boolean }>();
@@ -1170,6 +1173,12 @@ export async function loadMiPack(
     notes.push({ tone: "info", text: `Fees collected are ${Math.round((1 - collected.cur / collected.prev) * 100)}% lower than ${word}.` });
   const waitingApps = pupils.snapshots?.[1].value;
   if (waitingApps) notes.push({ tone: "info", text: `${waitingApps} admission application${waitingApps === 1 ? " is" : "s are"} waiting for a reply.` });
+  const classConflicts = classHistoryConflicts.error ? 0 : (classHistoryConflicts.count ?? 0);
+  if (classConflicts)
+    notes.push({
+      tone: "info",
+      text: `${classConflicts} pupil${classConflicts === 1 ? "'s class for a term needs" : "s' classes for a term need"} checking (Pupils → Class history), so past report cards list the right pupils.`
+    });
   if (waitingCorrections) notes.push({ tone: "info", text: `${waitingCorrections} result correction request${waitingCorrections === 1 ? " is" : "s are"} waiting for a decision.` });
   // Early in a week everyone is still at zero: only point out quiet teachers once three school days have passed.
   if (quietTeachers.length && schoolDays.cur >= 3) {

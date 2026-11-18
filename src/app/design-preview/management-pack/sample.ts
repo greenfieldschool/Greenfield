@@ -165,6 +165,7 @@ export function sampleTables(today: string): Record<string, Row[]> {
     inventory_sections: ["Uniforms and school wear", "Classroom furniture", "Classroom facilities and equipment", "Office", "Laboratory", "Computers and ICT"].map(
       (name, i) => ({ id: `is${i}`, name, sort: (i + 1) * 10 })
     ),
+    student_class_term_conflicts: [{ id: "cc1", status: "open" }, { id: "cc2", status: "open" }, { id: "cc3", status: "resolved" }],
     inventory_items: Array.from({ length: 60 }, (_, i) => {
       const damaged = i % 7 === 0 ? 2 + (i % 3) : 0;
       const replace = i % 11 === 0 ? 1 + (i % 2) : 0;

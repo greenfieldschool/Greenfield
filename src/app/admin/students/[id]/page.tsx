@@ -25,6 +25,7 @@ import { fetchAllRows } from "@/lib/fetch-all";
 import { STATUS_LABELS, isOffRoll, reasonLabel, usageSummary } from "@/lib/student-deactivation";
 import { DeactivatePanel, type KeepOption } from "./deactivate-panel";
 import { reactivateStudentAction, requestDeleteAction, withdrawDeleteRequestAction } from "./deactivation-actions";
+import { ClassHistoryCard } from "./class-history-card";
 
 function studentStatusTone(status: string): BadgeTone {
   switch (status) {
@@ -648,6 +649,8 @@ export default async function AdminStudentDetailPage({
           />
         )}
       </Card>
+
+      <ClassHistoryCard studentId={studentId} isAdmin={isAdmin} />
 
       <form action={addGuardian}>
         <FormSection

@@ -105,6 +105,21 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.classHistory,
+          name: "Class History and Moving Pupils Up at the End of the Session",
+          page: { href: "/admin/students/class-history", label: "Class history" },
+          adminOnly: true,
+          steps: [
+            "The school keeps a record of which class each pupil was in every term. Past report cards and result sheets use it, so a pupil who has moved up still appears on last term's report cards for their old class.",
+            "It keeps itself up to date: when a term is made active, every pupil on roll is recorded in their class for that term; when you change a pupil's class during the term, the term follows; a new pupil is recorded in their class.",
+            "Once a term is over (its end date has passed) or a class's term results are published, that term is closed for the class: changing a pupil's class afterwards counts from the next term and the closed term keeps the old class.",
+            "Moving pupils up at the end of the session: publish the third term's results (or wait until the term's end date), then change each pupil's class, then make the new session's first term active. Either order of the last two works. If you move pupils before the third term is closed, correct those terms on the pupil's page.",
+            "When the record was first filled in from past scores, registers and report cards, some pupils showed up in two classes in the same term. They are listed under Students → Class history → Needs checking. Choose the class they were really in and press Save; nothing else about their results is changed.",
+            "To correct one pupil, open their page: the Class history card lists each term with how it was set and by whom. Use 'Correct a term' (admins only).",
+            "Every change is listed under Students → Class history → Recent changes, with the date and who made it."
+          ]
+        },
+        {
           id: LEARN.classes,
           name: "Checking a Class and Fixing Wrong Registrations",
           page: { href: "/admin/classes", label: "Classes" },

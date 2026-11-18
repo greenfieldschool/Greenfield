@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllRows } from "@/lib/fetch-all";
+import { classPupilsInTerm } from "@/lib/class-history";
 import { gradeFor, round2, subjectPercent, type ComponentGroup, type GradeBand } from "@/lib/results";
 import { toLagosDateInput } from "@/lib/lagos-dates";
 import {
@@ -213,12 +214,9 @@ export async function buildClassReport(
           .limit(1)
           .maybeSingle()
       : Promise.resolve({ data: null }),
-    supabase
-      .from("students")
-      .select("id, first_name, middle_name, last_name, admission_number, sex, date_of_birth, passport_photo_url, profile_photo_url")
-      .eq("class_id", classId)
-      .order("last_name", { ascending: true })
-      .order("first_name", { ascending: true }),
+    // The pupils who were in the class that term (class history), so last term's report cards still list the
+    // pupils who have since moved up.
+    classPupilsInTerm(supabase, classId, termId),
     supabase.from("class_subjects").select("subject_id").eq("class_id", classId),
     supabase
       .from("grading_scales")

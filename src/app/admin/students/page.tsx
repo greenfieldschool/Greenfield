@@ -180,9 +180,14 @@ export default async function AdminStudentsPage({
         actions={
           <>
             {isAdmin ? (
-              <ButtonLink href="/admin/students/deactivation-log" variant="ghost">
-                Deactivation log
-              </ButtonLink>
+              <>
+                <ButtonLink href="/admin/students/class-history" variant="ghost">
+                  Class history
+                </ButtonLink>
+                <ButtonLink href="/admin/students/deactivation-log" variant="ghost">
+                  Deactivation log
+                </ButtonLink>
+              </>
             ) : null}
             <ButtonLink href="/admin/students/applications" variant="secondary">
               <FileText className="h-4 w-4" aria-hidden="true" />

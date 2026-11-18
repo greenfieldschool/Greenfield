@@ -54,7 +54,12 @@ numbers, adding pupils, the duplicate check before adding, and portal accounts a
   Duplicate/Test record + nothing attached, with the name typed to confirm. Everything else stays deactivated, which
   is safe.
 - Inactive records leave their class (`class_id` null, remembered) so every class roster, register, result sheet
-  and report drops them with no query changes; reactivation restores the class. Leavers keep their class so past
+  and report drops them with no query changes; reactivation restores the class. Their row for the current term in
+  the class history goes too (the `students_class_history` trigger), and `class_members_in_term` skips `inactive`
+  records for past terms (pupil-class-history skill).
+- `student_usage_unchecked` (the one skip list; `student_usage` is its admin-only wrapper, 20261118) also skips
+  `student_class_terms` and `student_class_term_conflicts` (20261118b): class history alone doesn't stop a
+  duplicate or test record from being deleted (it is deleted with it; the change log keeps the name). Leavers keep their class so past
   report cards still include them.
 - Status selects in edit forms (pupil page, class page grid) only offer applied / enrolled / active; off-roll
   pupils show their status read-only with Reactivate.

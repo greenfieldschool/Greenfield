@@ -23,6 +23,7 @@ Every request goes through a skill.
 | [admission-and-accounts](.claude/skills/admission-and-accounts/SKILL.md) | Admission numbers (format, automatic numbering, clashes), adding pupils and duplicate checks, portal accounts and passwords for pupils and parents, login slips |
 | [role-management](.claude/skills/role-management/SKILL.md) | Who can give or change account roles, the role change log, role options on `/admin/users`, the roles guide |
 | [data-modelling](.claude/skills/data-modelling/SKILL.md) | Designing or reviewing how data is stored: tables, keys, identifiers, constraints, history, imports, deduplication, indexes (before supabase-migration) |
+| [pupil-class-history](.claude/skills/pupil-class-history/SKILL.md) | Which class a pupil was in each term, moving pupils up at session end, past-term rosters on report cards/result sheets, the Class history page |
 | [supabase-migration](.claude/skills/supabase-migration/SKILL.md) | Any database change: tables, RLS policies, functions, triggers, views |
 | [results-and-reports](.claude/skills/results-and-reports/SKILL.md) | Result sheets, welfare scores, report cards, locks, corrections, results history |
 | [finance-payments](.claude/skills/finance-payments/SKILL.md) | Fees, invoices, payments, debtors, payment IDs, bank statements or bank email alerts |

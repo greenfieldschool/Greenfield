@@ -40,6 +40,10 @@ picker, comparisons, the automatic notes, printing. A figure that reads a new ta
   finished first, then gaps in the last 8 weeks and 3 months, at most 4 saves a night; never overwrites.
 - Help: Learn Centre guide `LEARN.managementPack` ("Management Pack (weekly and monthly)").
 
+- Class history: per-class figures come from rows that carry their own `class_id` (attendance, star videos), so
+  they need no class history. The pack only reads `student_class_term_conflicts` (open count) for a "Worth a look"
+  note (pupil-class-history skill).
+
 ## Rules
 - **Online only (decided 11 Nov 2026):** leadership asked for the pack to be viewed in `/admin/management-pack`, not
   emailed. Don't add an email of the pack unless they ask again.

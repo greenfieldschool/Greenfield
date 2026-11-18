@@ -74,9 +74,9 @@ first. The aim is data the school can trust in five years, after staff turnover,
 | Role | `profiles.role` | none (guarded by `profiles_guard_role`, logged in `role_change_log`) |
 | Pupil identity and current status | `students` | status changes only through `deactivate_student` / `reactivate_student` (trigger-guarded, logged) |
 | Admission number | `students.admission_number` (unique on `admission_key`) | pupil sign-in email: moved by trigger; `account_log` / `student_status_log` keep snapshots on purpose |
-| Pupil's current class | `students.class_id` | none |
+| Pupil's current class | `students.class_id` | the current term's row in `student_class_terms`: kept in step by the `students_class_history` trigger (unless the term is closed) |
 | Pupil's section (creche/primary/secondary) | `classes.level` | `students.level`: set from the class by `students_00_level_follows_class` on every insert or class change, and moved by `classes_level_to_students` when a class's section changes (20261117b); typed by hand only for pupils with no class |
-| Which class a pupil was in during a past term | **no single home**: inferred from `academic_assessments.class_id`, `welfare_ratings.class_id`, `student_attendance.class_id`, `published_results` | gap: promotion overwrites `students.class_id` |
+| Which class a pupil was in during a term | `student_class_terms` (one row per pupil per term; written only by triggers and `set_student_class_for_term`, logged in `student_class_term_log`) | `class_name` / `class_level` snapshots on purpose; `class_id` on scores, welfare, attendance and comments stays as the class the record was made in; read through `class_members_in_term` (pupil-class-history skill). Backfill clashes listed in `student_class_term_conflicts` for an admin |
 | Scores | `academic_assessment_scores` (append/edit with `result_audit_log`, locks) | report figures derived in `buildClassReport`; frozen in `published_results` (snapshot, on purpose) |
 | Parent contact | `guardians.email` / `phone` | the parent's sign-in email (`auth.users`) can differ from `guardians.email`: **flagged on Accounts, not reconciled** |
 | Parent ↔ child | `student_guardians` | none |
@@ -120,6 +120,9 @@ next change, or a session of its own.
   number, rolling back their save. The guard now lets the flagged email sync through, and nothing else.
 - Exact-duplicate cleanup must merge dependents before adding a unique index (supabase-migration pitfalls).
 - Results are locked and audited, so duplicates are linked (`duplicate_of`), never merged (pupil-records skill).
+- Past class membership had no home: promotion overwrote `students.class_id` and last term's report cards changed.
+  Fixed with an effective-dated table (`student_class_terms`, per-term rows), a backfill that lists clashes instead of
+  guessing, and "closed" terms that a later class change can't rewrite (pupil-class-history skill).
 
 ## Verify
 - PGlite: each write path is refused when it breaks the rule (insert, update, upsert, the function, an import);

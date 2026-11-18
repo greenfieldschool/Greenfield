@@ -241,6 +241,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   "star-videos": "Star videos",
   announcements: "Announcements",
   "deactivation-log": "Deactivation log",
+  "class-history": "Class history",
   inventory: "Inventory",
   report: "Report",
   weeks: "Compulsory weeks",
