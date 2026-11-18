@@ -29,7 +29,10 @@ type LogRow = {
 const ACTION = {
   deactivated: { label: "Deactivated", tone: "gold" },
   reactivated: { label: "Reactivated", tone: "green" },
-  deleted: { label: "Deleted", tone: "red" }
+  deleted: { label: "Deleted by the developers", tone: "red" },
+  delete_requested: { label: "Developers asked to delete", tone: "blue" },
+  delete_request_withdrawn: { label: "Delete request withdrawn", tone: "slate" },
+  delete_rejected: { label: "Developers said no to deleting", tone: "violet" }
 } as const;
 
 export default async function DeactivationLogPage() {
@@ -59,7 +62,7 @@ export default async function DeactivationLogPage() {
         back={{ href: "/admin/students", label: "Back to students" }}
         eyebrow="Students"
         title="Deactivation log"
-        description="Every pupil record that was deactivated, brought back or deleted, with the reason and who did it."
+        description="Every pupil record that was deactivated, brought back, asked to be deleted or deleted by the developers, with the reason and who did it."
       />
       {missing ? (
         <Alert tone="warning" title="Not set up yet">
@@ -103,6 +106,7 @@ export default async function DeactivationLogPage() {
                         </td>
                         <td>
                           {reasonLabel(r.reason, r.reason_other)}
+                          {r.action.startsWith("delete") && r.reason_other ? <span className="text-slate-600"> · &ldquo;{r.reason_other}&rdquo;</span> : null}
                           {r.kept_student_id && r.reason === "duplicate" ? (
                             <>
                               {" · "}

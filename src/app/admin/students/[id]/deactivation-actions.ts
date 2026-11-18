@@ -61,17 +61,36 @@ export async function reactivateStudentAction(formData: FormData) {
   back(studentId, "Pupil reactivated", "success");
 }
 
-export async function deleteStudentAction(formData: FormData) {
+// Permanent deletion is for the developers only (20261118_developer_only_pupil_delete.sql). Admins ask, with a reason;
+// a developer approves or rejects the request in the database.
+export async function requestDeleteAction(formData: FormData) {
   const studentId = String(formData.get("student_id") ?? "").trim();
   const confirmName = String(formData.get("confirm_name") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
   if (!studentId) redirect("/admin/students");
   if (!confirmName.trim()) back(studentId, "Type the pupil's name to confirm");
+  if (reason.length < 5) back(studentId, "Say why it should be deleted, so the developers can check");
   const supabase = getSupabaseServerClient();
   if (!supabase) back(studentId, "Database is not configured — nothing was saved");
 
-  const { error } = await supabase.rpc("delete_student", { p_student: studentId, p_confirm_name: confirmName });
+  const { error } = await supabase.rpc("request_student_delete", { p_student: studentId, p_confirm_name: confirmName, p_reason: reason });
   if (error) back(studentId, friendly(error.message));
 
-  revalidatePath("/admin/students");
-  redirect(`/admin/students?toast=${encodeURIComponent("Pupil record deleted. It is still listed in the removal log.")}&toast_type=success`);
+  revalidatePath(`/admin/students/${studentId}`);
+  revalidatePath("/admin/students/deactivation-log");
+  back(studentId, "Sent to the developers. The record stays deactivated until they decide.", "success");
+}
+
+export async function withdrawDeleteRequestAction(formData: FormData) {
+  const studentId = String(formData.get("student_id") ?? "").trim();
+  const requestId = String(formData.get("request_id") ?? "").trim();
+  if (!studentId) redirect("/admin/students");
+  const supabase = getSupabaseServerClient();
+  if (!supabase) back(studentId, "Database is not configured — nothing was saved");
+
+  const { error } = await supabase.rpc("withdraw_student_delete_request", { p_request: requestId });
+  if (error) back(studentId, friendly(error.message));
+
+  revalidatePath(`/admin/students/${studentId}`);
+  back(studentId, "Request withdrawn", "success");
 }

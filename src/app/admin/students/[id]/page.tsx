@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, Trash2, UserMinus, Users } from "lucide-react";
+import { ExternalLink, Send, UserMinus, Users } from "lucide-react";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -24,7 +24,7 @@ import { LEARN } from "@/lib/learn-guides";
 import { fetchAllRows } from "@/lib/fetch-all";
 import { STATUS_LABELS, isOffRoll, reasonLabel, usageSummary } from "@/lib/student-deactivation";
 import { DeactivatePanel, type KeepOption } from "./deactivate-panel";
-import { deleteStudentAction, reactivateStudentAction } from "./deactivation-actions";
+import { reactivateStudentAction, requestDeleteAction, withdrawDeleteRequestAction } from "./deactivation-actions";
 
 function studentStatusTone(status: string): BadgeTone {
   switch (status) {
@@ -43,6 +43,15 @@ function studentStatusTone(status: string): BadgeTone {
       return "slate";
   }
 }
+
+const STATUS_LOG_ACTIONS: Record<string, string> = {
+  deactivated: "Deactivated",
+  reactivated: "Reactivated",
+  deleted: "Deleted",
+  delete_requested: "Developers asked to delete it",
+  delete_request_withdrawn: "Delete request withdrawn",
+  delete_rejected: "Developers said no to deleting it"
+};
 
 function capitalize(v: string) {
   return v ? v.charAt(0).toUpperCase() + v.slice(1) : v;
@@ -236,7 +245,7 @@ export default async function AdminStudentDetailPage({
   // Deactivation (issue 11): admins only. The other pupils a duplicate can point to, this record's log, and what is
   // attached to it (to say whether it can be deleted outright).
   const offRoll = isOffRoll(student?.status);
-  const [keepRows, statusLogRes, usageRes, keptRes] = isAdmin && student
+  const [keepRows, statusLogRes, usageRes, keptRes, deleteReqRes] = isAdmin && student
     ? await Promise.all([
         offRoll
           ? Promise.resolve([] as Array<{ id: string; first_name: string; last_name: string; admission_number: string | null; class_id: string | null; status: string }>)
@@ -259,9 +268,29 @@ export default async function AdminStudentDetailPage({
         student.status === "inactive" ? supabase.rpc("student_usage", { p_student: studentId }) : Promise.resolve({ data: null }),
         student.duplicate_of
           ? supabase.from("students").select("id, first_name, last_name, admission_number").eq("id", student.duplicate_of).maybeSingle()
-          : Promise.resolve({ data: null })
+          : Promise.resolve({ data: null }),
+        student.status === "inactive"
+          ? supabase
+              .from("student_delete_requests")
+              .select("id, status, reason, requested_by_name, requested_at, decided_by_name, decision_note, decided_at")
+              .eq("student_id", studentId)
+              .order("requested_at", { ascending: false })
+              .limit(3)
+          : Promise.resolve({ data: [] })
       ])
-    : [[], { data: [] }, { data: null }, { data: null }];
+    : [[], { data: [] }, { data: null }, { data: null }, { data: [] }];
+  const deleteRequests = ((deleteReqRes as { data: unknown }).data ?? []) as Array<{
+    id: string;
+    status: string;
+    reason: string;
+    requested_by_name: string | null;
+    requested_at: string;
+    decided_by_name: string | null;
+    decision_note: string | null;
+    decided_at: string | null;
+  }>;
+  const pendingDelete = deleteRequests.find((r) => r.status === "pending") ?? null;
+  const lastDeleteDecision = deleteRequests.find((r) => r.status === "rejected") ?? null;
   const statusLog = ((statusLogRes as { data: unknown }).data ?? []) as StatusLogRow[];
   const usage = ((usageRes as { data: unknown }).data ?? null) as Record<string, number> | null;
   const attached = usageSummary(usage);
@@ -823,8 +852,9 @@ export default async function AdminStudentDetailPage({
               {statusLog.map((l) => (
                 <li key={l.id} className="border-l-2 border-slate-200 pl-3">
                   <div className="font-semibold text-slate-900">
-                    {l.action === "deactivated" ? "Deactivated" : l.action === "reactivated" ? "Reactivated" : "Deleted"}
+                    {STATUS_LOG_ACTIONS[l.action] ?? l.action}
                     {l.action === "deactivated" ? ` · ${reasonLabel(l.reason, l.reason_other)}` : ""}
+                    {l.action.startsWith("delete") && l.reason_other ? `: “${l.reason_other}”` : ""}
                   </div>
                   <div className="text-xs text-slate-500">
                     {formatLagosDate(l.created_at)} · {l.done_by_name ?? "Admin"}
@@ -913,22 +943,50 @@ export default async function AdminStudentDetailPage({
               </form>
             </div>
             {student.status === "inactive" && ["duplicate", "test_record"].includes(student.deactivation_reason ?? "") ? (
-              canDelete ? (
-                <form action={deleteStudentAction} className="flex flex-wrap items-end gap-2 border-t border-amber-200 pt-3">
+              pendingDelete ? (
+                <div className="space-y-2 border-t border-amber-200 pt-3 text-sm">
+                  <p>
+                    <strong>Waiting for the developers to delete it.</strong> Asked by {pendingDelete.requested_by_name ?? "an admin"} on{" "}
+                    {formatLagosDate(pendingDelete.requested_at)}: &ldquo;{pendingDelete.reason}&rdquo;
+                  </p>
+                  <form action={withdrawDeleteRequestAction}>
+                    <input type="hidden" name="student_id" value={studentId} />
+                    <input type="hidden" name="request_id" value={pendingDelete.id} />
+                    <SubmitButton variant="ghost" size="sm" pendingText="Withdrawing…">
+                      Withdraw the request
+                    </SubmitButton>
+                  </form>
+                </div>
+              ) : canDelete ? (
+                <form action={requestDeleteAction} className="space-y-3 border-t border-amber-200 pt-3">
                   <input type="hidden" name="student_id" value={studentId} />
-                  <div className="min-w-0 flex-1">
-                    <label htmlFor="confirm-name" className="gf-label">
-                      Delete permanently: type <strong>{fullName}</strong> to confirm
-                    </label>
-                    <input id="confirm-name" name="confirm_name" className="gf-input" autoComplete="off" required />
+                  <p className="text-sm">
+                    Only the developers can delete a record permanently. If this one should go, ask them here; it stays
+                    deactivated (and hidden everywhere) until they decide.
+                  </p>
+                  {lastDeleteDecision ? (
+                    <p className="text-xs">
+                      Last time the developers said no ({lastDeleteDecision.decided_by_name}, {formatLagosDate(lastDeleteDecision.decided_at)}): {lastDeleteDecision.decision_note}
+                    </p>
+                  ) : null}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="confirm-name" className="gf-label">
+                        Type <strong>{fullName}</strong> to confirm
+                      </label>
+                      <input id="confirm-name" name="confirm_name" className="gf-input" autoComplete="off" required />
+                    </div>
+                    <div>
+                      <label htmlFor="delete-reason" className="gf-label">
+                        Why should it be deleted?
+                      </label>
+                      <input id="delete-reason" name="reason" className="gf-input" autoComplete="off" required minLength={5} placeholder="e.g. Made while training staff" />
+                    </div>
                   </div>
-                  <ConfirmSubmitButton
-                    className={buttonClasses({ variant: "danger", size: "sm" })}
-                    confirmMessage={`Permanently delete ${fullName}? This cannot be undone. It stays listed in the removal log.`}
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    Delete permanently
-                  </ConfirmSubmitButton>
+                  <SubmitButton variant="secondary" size="sm" pendingText="Sending…">
+                    <Send className="h-4 w-4" aria-hidden="true" />
+                    Ask the developers to delete
+                  </SubmitButton>
                 </form>
               ) : attached.length ? (
                 <p className="border-t border-amber-200 pt-3 text-xs">
