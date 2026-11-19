@@ -65,7 +65,7 @@ export default async function SpendingWalletPage({ searchParams }: { searchParam
     <div className="space-y-6">
       <UrlToast key={searchParams?.toast ?? "none"} />
       <PageHeader
-        learn={LEARN.spending}
+        learn={LEARN.paystackWallet}
         back={{ href: "/admin/spending", label: "Back to spending requests" }}
         eyebrow="Spending requests"
         title="Expenses wallet"

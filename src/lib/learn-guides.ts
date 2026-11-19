@@ -38,6 +38,7 @@ export const LEARN = {
   editPayment: "edit-payment",
   expenses: "expenses",
   spending: "spending-requests",
+  paystackWallet: "paystack-wallet",
   attendance: "attendance",
   welfareRecords: "welfare-records",
   assessments: "assessments",

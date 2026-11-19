@@ -70,7 +70,7 @@ export default function AdminLearnCentrePage() {
           steps: [
             "Pupils sign in at the portal with their admission number and a password. Accounts are made on Accounts & passwords (People menu), one at a time or a whole class at once.",
             "If a pupil's admission number is changed on their page, their sign-in changes with it. Their password stays the same.",
-            "Forgotten passwords: reset them on Accounts & passwords or on the pupil's page. Nobody can see an old password."
+            "Lost slip: an admin can look the school's temporary password up again until the end of term. Forgotten own password: give a new temporary one on Accounts & passwords or on the pupil's page (nobody can see a password the pupil chose)."
           ]
         },
         {
@@ -81,7 +81,9 @@ export default function AdminLearnCentrePage() {
           steps: [
             "Open People → Accounts & passwords. The Pupils tab lists every pupil on roll with their admission number, whether they have a portal account and when they last signed in. The Parents tab does the same for parents (they sign in with their email). Click a name to open the record; the record links back here.",
             "Use the chips (No account, Never signed in, No number) and the class box to narrow the list, tick the people you want (or 'Choose all'), then press Create accounts or Reset passwords. Up to 40 are done per press; if you chose more, press again to continue.",
-            "The new temporary passwords appear once, in a box at the top. Press 'Print login slips' to print one slip per person (two across an A4 page, with cut lines), or 'Copy all'. After you close the box they can't be shown again: for safety the school never sees passwords, it can only set new ones. Each person chooses their own password when they first sign in.",
+            "The new temporary passwords appear in a box at the top, with the date each works until (the end of term). Press 'Print login slips' to print one slip per person (two across an A4 page, with cut lines), or 'Copy all'.",
+            "A family lost the slip? Until the end of term an admin can look the temporary password up again: tick the person (the 'Still on school password' chip lists them) and press 'Show passwords', or use 'Show temporary password' on the pupil's or parent's page. Every look-up is recorded in History with your name.",
+            "Each person is asked to choose their own password when they sign in. Once they do, the school's copy is deleted and nobody, not even admins, can see their password: give a new temporary one if they forget it. At the end of term anyone still on a school password must choose their own the next time they sign in.",
             "Pupils without an admission number can't have an account. The gold box offers 'Give them numbers': numbers follow the school's format, oldest record first.",
             "No owner lists sign-ins that aren't linked to anybody (often an account made twice). Type the pupil's admission number or the parent's email and press Link.",
             "Number format: the school uses GRE/{YYYY}/{N}, for example GRE/2026/007. The year is the year the school session started, so a pupil who joins in January 2027 (2026/27 session) gets 2026. The running number starts again at 001 each session. New numbers always start after the highest one already used, so they never repeat. Only the developers can change the format: on the Number format tab press 'Ask for a change', fill in the new format and say why, and send it. It shows as 'Waiting for the developers' until they approve or turn it down (you can withdraw it meanwhile). Changing the format never changes existing numbers.",
@@ -536,6 +538,24 @@ export default function AdminLearnCentrePage() {
             "The cashier (or an approver) checks the receipts and accepts, which closes the request and turns each receipt into an expense record, so it's counted once in Expenses and the management pack. Or they send it back with a reason.",
             "Super admins choose who can approve (and up to how much) and who can pay out under Who approves; every change is recorded. Cashiers record each top-up of the wallet on the Wallet page and compare its list with Paystack's.",
             "Nothing is ever deleted: requests are cancelled with a reason, and every step shows in the request's History with who did it and when. You can switch the emails off at the bottom of the Spending requests page."
+          ]
+        },
+        {
+          id: LEARN.paystackWallet,
+          name: "The Paystack Expenses Wallet (setting it up and topping it up)",
+          page: { href: "/admin/spending/wallet", label: "Expenses wallet" },
+          adminOnly: true,
+          steps: [
+            "What it is: expense payments go out of the Paystack balance of the company the school works with (U Estate), not the school's main account. Only the money moved into that balance can be spent from the app, and every payment still needs an approval and a code from the business phone.",
+            "First, protect the account: in Paystack, click the red 'Setup 2FA' banner and turn on two-step sign-in. Everyone who signs in to that Paystack account should do the same.",
+            "Check the activation status at the top of the Paystack dashboard. 'Pre-Approved' means Paystack is still checking the business and may pause payouts; reply quickly to any email from Paystack (reviews@paystack.com) until it says 'Approved'.",
+            "Switch on transfers: payouts only work when 'Transfers' (with 'Balance') appears in Paystack's left menu, and only for a Registered Business. If it isn't there, open Settings and check the business type is Registered Business (upgrade with the CAC documents if it says Starter). If it is already Registered, press Support (bottom right) and ask Paystack to enable Transfers from the balance by API for the business, quoting its business ID (shown under the name, top left).",
+            "Keep the code check on: in Paystack's Settings, under the transfer preferences, leave 'confirm transfers with OTP' switched on, and make sure the code goes to a phone the bursar or principal holds, never a developer's.",
+            "Get the account the school pays into: in Paystack go to Settings > Accounts and create the PT Account (Paystack's top-up account for Nigerian businesses; it's free). It is an ordinary bank account number (Paystack-Titan or Paystack MFB). Money transferred into it from the school's main account tops up the balance within minutes and shows as 'Auto Topup' on Paystack's Balance page.",
+            "Each time the school tops up: transfer from the school's main account to the PT Account, then record it here on the Wallet page (amount, date, bank reference). Keep about a week's spending in the wallet, not more.",
+            "Each month: compare the Wallet page's top-ups and 'Paid through Paystack' list with Paystack's Balance history. The balance shown here is the company's whole Paystack balance, so compare the lists, not just the total.",
+            "You don't need Subaccounts or Transaction Splits for this: they split money customers pay in. If the company already has a webhook set in Settings > API Keys & Webhooks, leave it; payments still finish and record through the code step and 'Check with Paystack'.",
+            "Test once transfers are on: the balance appears on this page; then ask for a small amount (e.g. ₦100) as a Pay me back request, approve it, and pay it through Paystack to see the whole flow work."
           ]
         }
       ]
