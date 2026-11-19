@@ -79,6 +79,16 @@ numbers, adding pupils, the duplicate check before adding, and portal accounts a
 - The delete request row itself pointed at the pupil, so it counted as "attached" and blocked its own approval:
   history and request tables go in the skip list.
 
+## Expert review
+Before calling the work done, answer these as a school registrar and records manager (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Records are evidence.** Deactivate with a reason; a leaver keeps their history, leaving date and destination where
+  known (transfer letters and references depend on it).
+- **Retention.** Ask how long records are kept after a pupil leaves (NDPA 2023) and what is archived versus removed;
+  permanent deletion stays with developers, for records nothing depends on.
+- **Duplicates are linked, not merged blindly.** Locked results stay where they are; a person decides.
+- **Who sees a leaver's record** is narrower than who sees a current pupil's.
+
 ## Verify
 - `node delete-requests-pglite-test.mjs <repo>/docs/schema.sql <repo>/docs/migrations/20261118_developer_only_pupil_delete.sql`
   ([delete-requests-pglite-test.mjs](delete-requests-pglite-test.mjs), 27 checks; needs the supabase-migration

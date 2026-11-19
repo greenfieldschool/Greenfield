@@ -60,6 +60,18 @@ uniform checks are welfare (`/admin/welfare/uniform`), not this.
 - PGlite: an `insert … select` from a table RLS hides inserts zero rows and "succeeds"; test refusals with literal
   ids, read them as the owner first.
 
+## Expert review
+Before calling the work done, answer these as a school facilities and asset manager (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Asset lifecycle.** Bought, recorded, placed with someone responsible, checked, repaired, and disposed of with a
+  reason and a second person's say-so. Ask which step a change touches.
+- **Count, don't overwrite.** A termly physical count is the check; differences are recorded with who counted, not
+  quietly changed.
+- **Valuable items one by one, consumables by count.** Laptops and projectors need a tag or serial number and a
+  custodian; chairs and markers are counted by condition.
+- **Pictures are evidence.** Condition photos carry the date taken and who added them.
+- **Reports answer leadership's questions:** what needs repair or replacing, what is missing, and what it will cost.
+
 ## Verify
 - PGlite with a `storage` stub: teacher can't read or write items or upload; admin add/change/deactivate/
   reactivate all logged (with the reason); deactivating without a reason, a bad reason or Other without text refused;

@@ -39,6 +39,9 @@ explained in the results-and-reports skill): a change to what counts as "paid" c
 - Other payment sources: Moniepoint webhook `src/app/api/payments/moniepoint/webhook/route.ts` (online, via
   `finance_payment_intents`), manual `payments/new`.
 
+- Expenses: `finance_expenses` is admins only, never deleted (`finance_void_expense` with a reason, 20261119). Spending
+  requests post their receipts here when they close (`spending-requests` skill); read spending with `.is("voided_at", null)`.
+
 ## Steps (changing how payments are matched)
 1. Edit `bank-match.ts`; add the case to a throwaway test (see Verify) before touching pages.
 2. A line is **auto** only when: known admission number or invoice number, payment ID matches an unpaid invoice of
@@ -63,6 +66,24 @@ explained in the results-and-reports skill): a change to what counts as "paid" c
 - Statements export differently (debit/credit columns, or one signed Amount column, or Amount + CR/DR type). All three
   are handled in `parseStatement`; a header row is needed to tell credits from debits reliably.
 - Server-action body limit is about 1 MB: a very large CSV must be split by month.
+
+## Expert review
+Before calling the work done, answer these as a school bursar and chartered accountant (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Every naira is traceable** from the source document (invoice, receipt, bank line) to the record and to the bank.
+  Reconcile the bank to the records at least monthly and list differences for a person to explain.
+- **Never edit posted money.** Mistakes are reversed or voided with a reason, and both entries stay. Nothing is
+  deleted.
+- **Segregation of duties.** The person who records money is not the only one who approves or reconciles it. Ask
+  who can do each step before building it.
+- **Counted once.** Know which table is the record of each kind of money (fees owed, fees paid, money spent) and
+  make every report read it from there.
+- **Totals reproduce.** The same filter gives the same total next month; a figure on a report can be clicked back to
+  its records.
+- **Parents' trust.** A clear balance, a receipt for every payment and no surprise charges. Correct mistakes in the
+  family's favour first, then investigate.
+- **Nigerian practice.** Most money moves by transfer with messy narrations; cash is limited by CBN rules; stamp duty
+  applies to transfers of ₦10,000 or more. Check current rules rather than relying on memory.
 
 ## Verify
 ```bash

@@ -95,6 +95,20 @@ ui-ux-design; for certificate/report card content, results-and-reports.
 - The second word keeps "SCHOOL"'s letter spacing (52/6 units a letter on the full crest, 68/6 on merch) and the
   gold rules and diamonds move out to fit. A word longer than ~9 letters will hit the shield edge: shorten it.
 
+## Expert review
+Before calling the work done, answer these as a brand identity designer (30+ years of crests, print and embroidery) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **The school owns the crest.** Changes to its words, colours or shapes need the school's sign-off; propose,
+  don't decide.
+- **One master, many outputs.** Every use (screen, favicon, home-screen icon, certificate, report card, email,
+  embroidery) comes from the one drawing, with the right version for the size and background.
+- **Clear space and minimum size.** Never crop, stretch, rotate, recolour outside the palette or place on a busy
+  background. Below the size where words can be read, use the simplified mark.
+- **Contrast and reproduction.** Check it on white, on brand green, in one colour and in black-and-white print
+  (report cards are often photocopied).
+- **Official documents carry the official version** and are identical every term, so a parent can tell a real
+  certificate or report card from a forged one.
+
 ## Verify
 - `npx tsc --noEmit -p .`, `npx next lint --dir src`.
 - Dev server, open `/design-preview/logo`; check `/icon`, `/apple-icon`, `/app-icon/512`, `/app-icon/512-maskable`

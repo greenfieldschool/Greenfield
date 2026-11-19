@@ -45,6 +45,18 @@ skill (`assignments`); video classes are not built yet.
 - On phones the portal filters pushed the notes off the first screen: subjects became chips and the box shrank to a
   topic search and a week select.
 
+## Expert review
+Before calling the work done, answer these as a curriculum lead and head of department (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Follow the scheme of work.** Notes sit under the term's week and topic so a head of department can see gaps
+  against the Nigerian curriculum (and the WAEC/NECO syllabus for senior classes).
+- **Quality before publishing.** Ask the school whether a head of department should review notes before families see
+  them; don't add a review step without asking.
+- **Low data, small screens.** Typed notes and small files open on a cheap phone; a 20 MB scan of a textbook does not.
+- **Copyright.** Teachers share their own notes and short extracts, not whole textbooks.
+- **Keep what was taught.** Replacing a file changes what families see; think about whether the old version is
+  needed before it is removed.
+
 ## Verify
 - `node .claude/skills/lesson-notes/pglite-test.mjs docs/migrations/20261107_lesson_notes.sql` from a scratchpad folder
   with `@electric-sql/pglite@0.2.17` installed (35 checks: subject teacher, class teacher, other teacher, admin,

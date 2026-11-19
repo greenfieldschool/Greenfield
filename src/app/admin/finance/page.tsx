@@ -62,7 +62,7 @@ export default async function AdminFinancePage() {
   const [{ count: invoiceCount }, { count: paymentCount }, { count: expenseCount }] = await Promise.all([
     supabase.from("finance_invoices").select("id", { count: "exact", head: true }),
     supabase.from("finance_payment_transactions").select("id", { count: "exact", head: true }),
-    supabase.from("finance_expenses").select("id", { count: "exact", head: true })
+    supabase.from("finance_expenses").select("id", { count: "exact", head: true }).is("voided_at", null)
   ]);
 
   return (

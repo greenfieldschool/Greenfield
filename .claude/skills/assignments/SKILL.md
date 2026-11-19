@@ -38,6 +38,20 @@ description: Use for assignments and classwork: teachers setting and marking wor
 - PGlite tests need a `storage` schema stub (`storage.buckets`, `storage.objects` with RLS on) for the bucket and
   its policies (`scratchpad/pgtest/test-assignments.mjs` covers pupil, classmate, parent, other parent, teachers).
 
+## Expert review
+Before calling the work done, answer these as a head of department and assessment lead (30+ years of teaching and marking) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Clear task, clear deadline, clear marking.** Instructions say what to hand in, how it will be marked and the
+  due time in Lagos time. A pupil or parent should never have to message the teacher to understand the task.
+- **Feedback beats scores.** Make it quick for teachers to give a short comment with the mark, and show it first to
+  the family.
+- **Fairness for pupils without devices or data.** Paper work can be marked without a submission; late work follows
+  a stated rule (accepted or not) and is never silently refused.
+- **Academic honesty.** Keep the hand-in time and the original file; a submission can't be changed after marking.
+- **Marks that reach the result sheet are high-stakes.** They go through the same locks, scaling and history as
+  typed scores (results-and-reports).
+- **Neutral words to families.** "Not handed in" states a fact; avoid wording that shames a child.
+
 ## Verify
 - `node test-assignments.mjs docs/migrations/20261105_assignments.sql` (PGlite), tsc, lint, build, and the
   preview app at 375px for the portal pages.

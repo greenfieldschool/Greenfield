@@ -519,7 +519,23 @@ export default function AdminLearnCentrePage() {
           steps: [
             "Open Finance > Expenses > New expense. Only the amount is needed.",
             "Add the category (budget sector), vendor, method, reference and date: they make the spending reports useful.",
-            "Pick the year and term to compare spending term by term. Budget sectors are set up under Fee setup > Budget sectors."
+            "Pick the year and term to compare spending term by term. Budget sectors are set up under Fee setup > Budget sectors.",
+            "Spending requests add their receipts here by themselves when they close (with a link back to the request), so don't type those again.",
+            "A mistake is never deleted: open Void on the row, choose why, and it stays on record crossed out. Records that came from a spending request are corrected by the developers so the request stays right."
+          ]
+        },
+        {
+          id: LEARN.spending,
+          name: "Spending Requests (asking for money, approving, paying, receipts)",
+          page: { href: "/admin/spending", label: "Spending requests" },
+          steps: [
+            "Anyone on staff: open Spending requests > Ask for money. Choose Advance (money before you buy), Pay a supplier (the school pays the seller; add their invoice or quote) or Pay me back (add your receipt). Pick the category, type the amount and what it's for, and give the bank account. The bank's name for the account is checked with the bank.",
+            "Approvers get an email and a count on the menu. Open the request, look at anything flagged (new bank details, possible split purchase, over budget) and Approve, Send back (with what to change) or Decline (with a reason). Requests above the two-approval amount need two approvers; the last must have a limit that covers the amount. Nobody can approve their own request.",
+            "The cashier pays approved requests from the Paystack expenses wallet: press Pay through Paystack and type the code sent to the business phone. If Paystack is down or not connected, pay from the bank app, in cash or by POS and record it with the reference and a photo of the slip. Someone who approved a request can only pay it if it's small, and must say why.",
+            "Advances: add a photo of each receipt (or choose why there isn't one, e.g. a keke fare), hand any change to the cashier, and press Send for checking. Receipts plus change must equal what you were paid. Reminders start two days before the due date; an overdue advance stops you getting a new one, and the cashier and approvers are told after 3 days.",
+            "The cashier (or an approver) checks the receipts and accepts, which closes the request and turns each receipt into an expense record, so it's counted once in Expenses and the management pack. Or they send it back with a reason.",
+            "Super admins choose who can approve (and up to how much) and who can pay out under Who approves; every change is recorded. Cashiers record each top-up of the wallet on the Wallet page and compare its list with Paystack's.",
+            "Nothing is ever deleted: requests are cancelled with a reason, and every step shows in the request's History with who did it and when. You can switch the emails off at the bottom of the Spending requests page."
           ]
         }
       ]

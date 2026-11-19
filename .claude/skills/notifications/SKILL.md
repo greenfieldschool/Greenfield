@@ -76,6 +76,18 @@ have no notifications yet (they have the Messages badge).
 - `Notification.requestPermission()` must run from a tap, never on page load (browsers block or penalise it).
 - A subscription made with other VAPID keys gets 403 from the push service; `turnOnPush` replaces it.
 
+## Expert review
+Before calling the work done, answer these as a product notifications and alerting specialist (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Every alert is for the right person and asks for, or reports, something that matters to them.** Too many alerts
+  and people switch them all off, including the important ones.
+- **Group and de-duplicate.** One alert for twins, one for a batch; never the same news twice on two channels at once
+  without reason.
+- **Respect the night.** Think about Lagos night-time for phone alerts that aren't urgent.
+- **Lock-screen privacy.** The words on a phone's lock screen must be fine for anyone to read: no marks, health or
+  discipline details.
+- **Land on the thing.** Every alert opens the exact item it is about.
+
 ## Verify
 - `node .claude/skills/notifications/push-pglite-test.mjs <repo>/docs/migrations/20261109_notifications.sql
   <repo>/docs/migrations/20261111_push_notifications.sql` (30 checks: own rows only, queueing, claim/retry/expiry,

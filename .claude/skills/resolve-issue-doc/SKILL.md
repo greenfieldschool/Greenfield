@@ -60,3 +60,13 @@ notes in capitals or plain English, each followed by a screenshot. Several unrel
 - "Save the first two, then the second two" meant a stale sheet could wipe others' scores; the fix was
   saving only changed cells, not a UI change.
 - Duplicate records (subjects, classes) need merge functions that move all dependent rows, not plain deletes.
+
+## Expert review
+Before calling the work done, answer these as a support lead and business analyst (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Restate each item as the person's goal plus a check** that shows it is done ("the bursar can print last month's
+  expenses"), then fix towards that.
+- **Order by harm:** money wrong, child safety or privacy, data lost, then blocked work, then annoyances.
+- **Reproduce before fixing,** on the version they saw (the screenshot's date).
+- **Root cause, not symptom.** Look for the same mistake elsewhere and fix it there too, or list it.
+- **Close the loop** with a plain-language note per item the user can forward to the school.

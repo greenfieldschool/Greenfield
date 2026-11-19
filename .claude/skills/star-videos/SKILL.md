@@ -57,6 +57,14 @@ KPI figures.
   `src/middleware.ts`, start it through `npm --prefix <folder> run dev` from `.claude/launch.json`. Delete the
   folder and the launch entry before running `tsc`/`build` (the root tsconfig includes every `.ts`).
 
+## Expert review
+Before calling the work done, answer these as a safeguarding lead and school media officer (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Consent before filming.** Images of children need the parent's consent (NDPA 2023). Before widening who sees a
+  video, ask how the school records consent.
+- **Links travel.** "Anyone with the link" can be forwarded; avoid a child's full name in the video title.
+- **Fair recognition.** Watch that the same pupils aren't always chosen; suggestions are a hint, the teacher decides.
+
 ## Verify
 ```bash
 npx tsc --noEmit -p . && npx next lint --dir src && npx next build

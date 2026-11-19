@@ -38,6 +38,21 @@ parents get by email and how they switch it off. Portal-only notifications (the 
 - The OAuth app must be *In production* (Testing tokens die after 7 days). Changing EMAIL_TOKEN_KEY means reconnecting.
 - Every email: List-Unsubscribe + List-Unsubscribe-Post headers and a visible "Stop these emails" link.
 
+## Expert review
+Before calling the work done, answer these as an email deliverability and school communications lead (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Deliverability.** One consistent sender name, plain text plus HTML, no link shorteners, no spammy words, an
+  unsubscribe on every email. If the school moves to its own domain, set SPF, DKIM and DMARC first.
+- **Send less, send better.** Group several events into one email where you can (a daily summary beats ten single
+  emails), and never email the same thing twice. Every email must be worth the reader's attention.
+- **Keep headroom.** The daily Gmail limit is shared; urgent emails (approvals, safety) need priority over bulk.
+  Watch failures, and tell an admin when sending stops.
+- **Minimum personal data.** Say what happened and link to the portal or dashboard; never put another child's
+  details, marks or health information in an email.
+- **Test it** in Gmail, Outlook and a phone mail app, in light and dark mode.
+- **Work emails versus family emails.** Staff work alerts are not marketing, but they still need a way to be
+  switched off and turned back on.
+
 ## Verify
 - `node .claude/skills/email/pglite-test.mjs docs/migrations/20261110_email.sql` (34 checks; runs
   20261109_notifications.sql first, path set inside).

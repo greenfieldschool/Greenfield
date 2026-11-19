@@ -51,6 +51,24 @@ description: Use when building or changing a page, form, nav item or server acti
 - Supabase upsert with rows that have different keys fills missing columns with NULL; batch rows by shape.
 - Pages render nothing locally without `.env.local`, and `next build` marks them static. That's expected.
 
+## Expert review
+Before calling the work done, answer these as a senior web engineer (30+ years building data-heavy business systems) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **One job per page.** Name the role and the job the page does. The first screen shows that job's next action; the
+  rest is one click away (ui-ux-design does the screen; this skill makes it hold up).
+- **Server actions are the real API.** Validate every field on the server, never trust ids or amounts from the form,
+  and let the database decide permission. A double click, a refresh after posting or the back button must not save
+  twice: redirect after every post, and make writes safe to repeat (unique keys, "already done" checks).
+- **Every failure has a screen.** Database down, slow, a refused write (RLS returns no rows and no error), a missing
+  table after a deploy without its migration: each shows a plain `Alert` with what to do, never a blank page or a
+  raw error.
+- **Reads scale.** Select only the columns shown, limit lists, use `fetchAllRows()` for reports, and never query
+  inside a loop over rows. Ask what the page looks like with 1,500 pupils and three years of records.
+- **The URL is the state.** Filters, tabs and the chosen child live in the search params, so a link can be shared,
+  printed or opened again, and Back works.
+- **Leave it consistent.** Reuse the design system and existing helpers; update nav, breadcrumbs, middleware
+  prefixes, RLS and the Learn Centre or portal help in the same change.
+
 ## Verify
 ```bash
 npx tsc --noEmit -p . && npx next lint --dir src && npx next build

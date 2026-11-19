@@ -79,6 +79,16 @@ Locked/published results are results-and-reports: this never changes a score, a 
 - PGlite: `set session_replication_role = replica` (for seeding) also disables these triggers. Seed, then set it back
   to `origin` before testing them. `auth.role()` is stubbed; redefine it to test the service-key path.
 
+## Expert review
+Before calling the work done, answer these as a school registrar and MIS manager (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Enrolment is effective-dated.** A past term's class is a historical fact; nothing done today may rewrite a closed
+  term.
+- **Promotion is a reviewed batch.** Show the list before moving pupils up, handle repeaters, transfers and leavers by
+  name, and make it possible to correct before the term is closed.
+- **Reports use the class at the time.** Rosters, result sheets and report cards for a past term read that term's
+  class, never today's.
+
 ## Verify
 - PGlite: [`pglite-test.mjs`](pglite-test.mjs) (backfill rows and conflicts, re-run adds nothing, reader per role,
   RLS per role, direct writes refused, admin fix + log, trigger in open/published/ended terms, new pupil, inactive,

@@ -64,9 +64,19 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     }
   }
 
+  // Badge on "Spending requests": what is waiting for this person. Never blocks the page.
+  let spendingWaiting = 0;
+  try {
+    const { data } = await withTimeout(Promise.resolve(supabase.rpc("spending_my_counts")), 2500);
+    const c = (data ?? {}) as Record<string, number>;
+    spendingWaiting = (Number(c.to_approve) || 0) + (Number(c.to_pay) || 0) + (Number(c.to_check) || 0) + (Number(c.mine_to_do) || 0);
+  } catch {
+    spendingWaiting = 0;
+  }
+
   return (
     <ToastProvider>
-      <AdminShell userEmail={user.email ?? ""} role={(role ?? null) as string | null} unreadMessages={unreadMessages}>
+      <AdminShell userEmail={user.email ?? ""} role={(role ?? null) as string | null} unreadMessages={unreadMessages} spendingWaiting={spendingWaiting}>
         {children}
       </AdminShell>
     </ToastProvider>

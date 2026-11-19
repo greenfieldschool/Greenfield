@@ -150,3 +150,18 @@ description: Use for anything about academic results, result sheet columns, welf
   accept the save, but the page says "Only the class teacher or an admin can score welfare". When a teacher reports a
   welfare problem, run the check in the user's notes (impersonate the teacher in a `begin … rollback`, try a save inside a
   `do` block and `raise exception` with the findings, so nothing is kept and the result shows in the SQL editor).
+
+## Expert review
+Before calling the work done, answer these as an examinations officer (30+ years of school assessment and reporting) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Integrity first.** Locks, the history and correction requests exist so a published result can always be
+  explained. A change that weakens any of them needs the user's explicit decision.
+- **Check before publishing.** Missing scores, scores above the maximum, a whole class with the same mark, or a
+  subject far out of line with the others should be flagged to a person before results go out.
+- **Publishing is an event,** done by a named person at a known time; corrections after it are requests, decided and
+  logged.
+- **Report cards are official documents:** the same grading scheme, layout, signatures and dates for every pupil in
+  the term.
+- **Confidentiality.** Families see only their own child; class positions and comparisons follow the school's
+  policy.
+- **Withheld results** (unpaid fees) are handled sensitively: the child sees a kind message, the parent sees why.

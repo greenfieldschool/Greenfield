@@ -38,6 +38,15 @@ own skills; a class can link to one published lesson note.
 ## Pitfalls we hit
 - On phones the status badge on the right squeezed long topics into three lines: it sits under the text below `sm`.
 
+## Expert review
+Before calling the work done, answer these as an e-learning lead and safeguarding lead (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Safeguarding online.** School-controlled meeting links, a waiting room where the platform allows, no recording
+  without consent, and no teacher alone one-to-one with a pupil.
+- **Low bandwidth.** Short sessions, audio-friendly, notes shared before the class.
+- **Attendance is a record.** Absent pupils need a follow-up path; the record is kept like the register.
+- **Times are Lagos times,** and families are told early when a class moves or is cancelled.
+
 ## Verify
 - `node .claude/skills/online-classes/pglite-test.mjs docs/migrations/20261108_online_classes.sql` from a scratchpad
   folder with `@electric-sql/pglite@0.2.17` (27 checks).

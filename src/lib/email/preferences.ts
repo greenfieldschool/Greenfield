@@ -6,13 +6,15 @@ import type { EmailCategory } from "./templates";
 export const CATEGORY_LABEL: Record<Exclude<EmailCategory, "test">, string> = {
   notification: "notification emails (new work, marks, lesson notes and online classes)",
   message: "new message emails",
-  announcement: "school announcement emails"
+  announcement: "school announcement emails",
+  spending: "spending request emails"
 };
 
-const COLUMN: Record<Exclude<EmailCategory, "test">, "notifications" | "messages" | "announcements"> = {
+const COLUMN: Record<Exclude<EmailCategory, "test">, "notifications" | "messages" | "announcements" | "spending"> = {
   notification: "notifications",
   message: "messages",
-  announcement: "announcements"
+  announcement: "announcements",
+  spending: "spending"
 };
 
 export function readUnsubscribe(params: { u?: string | null; c?: string | null; s?: string | null }) {

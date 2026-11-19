@@ -229,7 +229,7 @@ export async function loadMiPack(
     ),
     safe(() =>
       all(() =>
-        supabase.from("finance_expenses").select("id, amount, spent_at, created_by, expense_categories(name)").gte("spent_at", fromIso).lt("spent_at", toIso).order("id")
+        supabase.from("finance_expenses").select("id, amount, spent_at, created_by, expense_categories(name)").is("voided_at", null).gte("spent_at", fromIso).lt("spent_at", toIso).order("id")
       )
     ),
     safe(() =>

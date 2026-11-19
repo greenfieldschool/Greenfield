@@ -5,15 +5,20 @@ School website, staff dashboard (`/admin`), parent/student portal (`/portal`) an
 
 ## Skills — read this first
 
-Every request goes through a skill.
+Every request goes through **all** the skills it touches, not just the first one that matches. Most work needs two
+to four: the skill for the area, plus the cross-cutting skills in "Skills that go together" below.
 
-1. **Before starting**, check the table below (and `.claude/skills/`). If a skill matches the request, open its
-   `SKILL.md` and follow it.
-2. **If no skill matches**, do the work, then **create a new skill** for that kind of request in
-   `.claude/skills/<kebab-case-name>/SKILL.md` (template in [`.claude/skills/README.md`](.claude/skills/README.md))
-   and add a row to the table. Capture what a future session needs: where the code lives, the steps, the rules
-   and the mistakes we hit.
-3. **If a skill was wrong or incomplete**, update it in the same change.
+1. **Before starting**, pick every skill that applies from both tables below (and `.claude/skills/`), open each
+   `SKILL.md` and follow them together. Say in your first message which skills you are using.
+2. **Apply each skill's "Expert review" before calling the work done.** Every skill carries the review of a
+   practitioner with at least 30 years in that field (registrar, bursar, examinations officer, safeguarding lead,
+   DBA, release engineer …). Answer its questions for the change in hand. If a question shows a gap the user hasn't
+   decided, ask; don't guess.
+3. **If no skill matches**, do the work, then **create a new skill** for that kind of request in
+   `.claude/skills/<kebab-case-name>/SKILL.md` (template in [`.claude/skills/README.md`](.claude/skills/README.md),
+   including its Expert review) and add a row to the table. Capture what a future session needs: where the code
+   lives, the steps, the rules and the mistakes we hit.
+4. **If a skill was wrong, incomplete or below the expert standard**, update it in the same change.
 
 | Skill | Use it when |
 |---|---|
@@ -27,6 +32,7 @@ Every request goes through a skill.
 | [supabase-migration](.claude/skills/supabase-migration/SKILL.md) | Any database change: tables, RLS policies, functions, triggers, views |
 | [results-and-reports](.claude/skills/results-and-reports/SKILL.md) | Result sheets, welfare scores, report cards, locks, corrections, results history |
 | [finance-payments](.claude/skills/finance-payments/SKILL.md) | Fees, invoices, payments, debtors, payment IDs, bank statements or bank email alerts |
+| [spending-requests](.claude/skills/spending-requests/SKILL.md) | Staff asking for money, approvals and limits, paying out (Paystack wallet or by hand), receipts for advances, spending permissions, expense records from requests |
 | [messaging](.claude/skills/messaging/SKILL.md) | Teacher–parent / parent–parent messages, class spaces, moderation |
 | [assignments](.claude/skills/assignments/SKILL.md) | Assignments and classwork: setting, handing in (photos/files), marking, sending marks to the result sheet |
 | [lesson-notes](.claude/skills/lesson-notes/SKILL.md) | Lesson notes: teachers preparing, publishing and replacing notes by class/subject/term/week/topic; pupils and parents reading and downloading them |
@@ -38,7 +44,24 @@ Every request goes through a skill.
 | [inventory](.claude/skills/inventory/SKILL.md) | The school inventory / asset register (`/admin/inventory`): sections, usual items, locations, counts by condition, pictures, history, report |
 | [management-pack](.claude/skills/management-pack/SKILL.md) | The weekly/monthly management information pack for leadership (`/admin/management-pack`): figures, comparisons, notes, saved history and the nightly save, printing |
 | [ui-ux-design](.claude/skills/ui-ux-design/SKILL.md) | Designing or reworking any screen, form, grid or flow, animation, UI sound or three.js scene; "make the UI/UX as good as possible" (use with the area's skill) |
+| [security-and-privacy](.claude/skills/security-and-privacy/SKILL.md) | Who can see or change what (RLS, storage, routes), secrets and keys, webhooks, children's and parents' personal data (NDPA 2023) |
+| [verify-changes](.claude/skills/verify-changes/SKILL.md) | Proving a change works before calling it done: typecheck, lint, build, PGlite tests, previews without a database, what to report |
+| [school-writing](.claude/skills/school-writing/SKILL.md) | Any words staff, parents or pupils read: labels, messages, errors, emails, the Learn Centre and portal help, documents for the school |
 | [deploy](.claude/skills/deploy/SKILL.md) | Committing, pushing and checking the Vercel deployment |
+
+### Skills that go together
+
+| When the work… | Also use |
+|---|---|
+| adds or changes a table, column, key, history, import or report query | data-modelling **then** supabase-migration, security-and-privacy |
+| adds or changes a page, form, list or flow | admin-portal-page, ui-ux-design, school-writing |
+| changes who can see or do something, or stores personal data, files, secrets or keys | security-and-privacy (+ role-management when roles change) |
+| tells people something happened | notifications (families' bell and phone), email (staff and parents) |
+| touches money | finance-payments (+ spending-requests for money going out), data-modelling, security-and-privacy |
+| changes a figure leadership watches | management-pack |
+| changes how staff or families do a task | school-writing (Learn Centre / portal help) |
+| is finished | verify-changes, then deploy only when the user asks |
+| comes from a school issue document | resolve-issue-doc first, then the skills above for each item |
 
 ## Stack
 

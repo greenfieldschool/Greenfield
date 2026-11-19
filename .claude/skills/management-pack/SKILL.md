@@ -128,6 +128,17 @@ picker, comparisons, the automatic notes, printing. A figure that reads a new ta
 - A saved copy carries its old `period` object; the page replaces it with a freshly resolved one (`{ ...saved.pack, period }`)
   so the prev/next links and labels are right today.
 
+## Expert review
+Before calling the work done, answer these as a school business manager and management-information analyst (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Every figure has a written definition**: what is counted, from which table, who owns it, and whether up is good.
+  The definition doesn't change silently between periods.
+- **Fewer, sharper figures.** Each one should lead to a decision or a conversation; exceptions first, then totals.
+- **Like with like.** Same number of days, same kind of period; no percentages on tiny numbers.
+- **Show the quality of the data.** If a figure depends on staff recording something, show how complete the
+  recording is, so leaders trust the rest.
+- **Keep what leadership saw.** Saved packs are snapshots; never recompute history quietly.
+
 ## Verify
 ```bash
 npx tsc --noEmit -p . && npx next lint --dir src && npx next build

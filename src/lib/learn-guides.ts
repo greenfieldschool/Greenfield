@@ -37,6 +37,7 @@ export const LEARN = {
   paymentIds: "payment-ids",
   editPayment: "edit-payment",
   expenses: "expenses",
+  spending: "spending-requests",
   attendance: "attendance",
   welfareRecords: "welfare-records",
   assessments: "assessments",

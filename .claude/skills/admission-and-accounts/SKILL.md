@@ -99,6 +99,22 @@ Number format tab shows it too.
 - PGlite: reading `auth.users` as `authenticated` is refused; read it as the owner in tests. A test picked a number
   the bulk inserts had already used: the trigger refused it, which is the point.
 
+## Expert review
+Before calling the work done, answer these as a school registrar and identity manager (30+ years of admissions and records) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **One child, one record, for life.** The uuid is the child; the admission number is a label that can be corrected.
+  Every door a child comes in by (application, office, transfer, import) runs the same duplicate check, and a
+  near-match goes to a person to decide, never an automatic merge.
+- **Joiners, movers, leavers.** For each account change ask what happens when the pupil leaves, a parent is
+  removed, or a sibling joins. Access should end when the reason for it ends. If the code doesn't do that yet, say so
+  and ask; don't assume.
+- **Prove who a parent is before linking them to a child.** Custody disputes and court orders are real. Linking a
+  parent account is a decision a named staff member makes and the log records, never something a parent can do by
+  typing a number.
+- **Passwords are never stored or sent in the clear.** Temporary passwords appear once, on a slip handed to a
+  checked person, and must be changed at first sign-in. Never put them in emails, logs or URLs.
+- **Every number change and account action is logged** with who, when, from and to, and a name snapshot.
+
 ## Verify
 - `node pglite-test.mjs <schema-before-append.sql> <20261117 migration> <20261117b migration>` from a scratchpad with the supabase-migration
   `pglite-*.mjs` files ([pglite-test.mjs](pglite-test.mjs), 70 checks). Seeds clashing numbers before the migration,

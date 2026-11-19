@@ -24,3 +24,17 @@ Vercel builds and deploys every push to `main` of `greenfieldschool/greenfield`.
 ## Notes
 - The git remote URL contains a GitHub token in plain text; it was flagged to the user. Don't print it.
 - Builds run on Vercel with the real Supabase env; locally pages are static because there is no `.env.local`.
+
+## Expert review
+Before calling the work done, answer these as a release engineer (30+ years of shipping live systems people depend on) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Small and reversible.** Know how to undo before you push: Vercel can promote the previous deployment, and
+  database changes go forward only, so new code must work before and after its migration is run
+  (expand, then switch, then contract).
+- **Pick the moment.** Avoid busy school moments in Lagos time (school opening, results publishing, fee deadlines,
+  exam sessions). Large visible changes deserve a line to staff about what changed.
+- **Read the diff before committing.** No secrets, no `issues/` files, no debug code, no unrelated files from
+  other sessions.
+- **Check it live.** After the deploy finishes, open the sign-in page and one changed page (read only), and say what
+  you checked and what you couldn't.
+- **Commit messages are the changelog.** Write what users will notice, in plain words.

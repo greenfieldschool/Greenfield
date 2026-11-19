@@ -56,6 +56,7 @@ import {
   Users,
   UsersRound,
   Wallet,
+  HandCoins,
   X,
   type LucideIcon
 } from "lucide-react";
@@ -88,6 +89,8 @@ type AdminShellProps = {
   role: string | null;
   /** Unread messages, shown as a badge on "Messages". */
   unreadMessages?: number;
+  /** Spending requests waiting for this person (approve, pay, check, or their own to act on). */
+  spendingWaiting?: number;
   children: ReactNode;
 };
 
@@ -100,7 +103,8 @@ const NAV: NavGroup[] = [
     label: "Overview",
     items: [
       { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-      { href: "/admin/messages", label: "Messages", icon: MessagesSquare, chatOnly: true }
+      { href: "/admin/messages", label: "Messages", icon: MessagesSquare, chatOnly: true },
+      { href: "/admin/spending", label: "Spending requests", icon: HandCoins }
     ]
   },
   {
@@ -277,7 +281,9 @@ const SEGMENT_LABELS: Record<string, string> = {
   profile: "Profile",
   "change-password": "Change password",
   settings: "Settings",
-  new: "New"
+  new: "New",
+  spending: "Spending requests",
+  wallet: "Expenses wallet"
 };
 
 function isActivePath(pathname: string, item: NavItem) {
@@ -317,7 +323,7 @@ function useBreadcrumbs(pathname: string) {
   }, [pathname]);
 }
 
-export default function AdminShell({ userEmail, role, unreadMessages = 0, children }: AdminShellProps) {
+export default function AdminShell({ userEmail, role, unreadMessages = 0, spendingWaiting = 0, children }: AdminShellProps) {
   const pathname = usePathname() ?? "/admin";
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -460,6 +466,17 @@ export default function AdminShell({ userEmail, role, unreadMessages = 0, childr
                           >
                             {unreadMessages > 99 ? "99+" : unreadMessages}
                             <span className="sr-only"> unread</span>
+                          </span>
+                        ) : null}
+                        {item.href === "/admin/spending" && spendingWaiting > 0 ? (
+                          <span
+                            className={cn(
+                              "inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-brand-gold px-1.5 text-[11px] font-bold text-brand-green-950",
+                              compact ? "absolute right-1 top-0.5" : "ml-auto"
+                            )}
+                          >
+                            {spendingWaiting > 99 ? "99+" : spendingWaiting}
+                            <span className="sr-only"> waiting for you</span>
                           </span>
                         ) : null}
                       </Link>

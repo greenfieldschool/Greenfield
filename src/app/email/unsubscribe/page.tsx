@@ -45,8 +45,10 @@ export default async function UnsubscribePage({ searchParams }: { searchParams?:
               <>
                 <h1 className="text-lg font-semibold text-slate-900">Done</h1>
                 <p className="mt-1 text-sm text-slate-600">
-                  You won&apos;t get {CATEGORY_LABEL[who.category]} any more. You&apos;ll still see everything on the portal, and you can turn them back on there
-                  under Notifications.
+                  You won&apos;t get {CATEGORY_LABEL[who.category]} any more.{" "}
+                  {who.category === "spending"
+                    ? "Requests waiting for you still show on the staff dashboard, and you can turn the emails back on from the Spending requests page."
+                    : "You'll still see everything on the portal, and you can turn them back on there under Notifications."}
                 </p>
               </>
             ) : done === "0" ? (
@@ -58,7 +60,8 @@ export default async function UnsubscribePage({ searchParams }: { searchParams?:
               <>
                 <h1 className="text-lg font-semibold text-slate-900">Stop these emails?</h1>
                 <p className="mt-1 text-sm text-slate-600">
-                  You&apos;ll stop getting {CATEGORY_LABEL[who.category]} from Greenfield School. Everything still shows on the portal.
+                  You&apos;ll stop getting {CATEGORY_LABEL[who.category]} from Greenfield School.{" "}
+                  {who.category === "spending" ? "Everything still shows on the staff dashboard." : "Everything still shows on the portal."}
                 </p>
                 <form action={confirmStop} className="mt-4">
                   <input type="hidden" name="u" value={get("u")} />

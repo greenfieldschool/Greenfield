@@ -42,3 +42,15 @@ description: Use for teacher–parent and parent–parent messaging: class annou
 ## Ideas not built yet
 Push notifications (email alerts are built: see the `email` skill), attachments/photos, read receipts for announcements, translation, parents messaging the
 school office directly.
+
+## Expert review
+Before calling the work done, answer these as a safeguarding lead and school communications manager (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Child protection first.** Staff–family messages stay on the school's record; pupils have no private messaging
+  with staff. Any new channel is checked against this before it is built.
+- **Professional boundaries.** Reply hours are shown, urgent matters go to the office, and nobody discusses another
+  child.
+- **Moderation is fair and recorded.** Every removal has a reason and a name; reports reach a named person quickly.
+- **Records and requests.** Messages are kept per the school's policy, and the school may have to produce a
+  person's messages if they ask under the NDPA.
+- **Tone.** Announcements are short and clear, with one action; avoid anything that starts a reply-all storm.

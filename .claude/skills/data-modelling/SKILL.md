@@ -83,6 +83,8 @@ first. The aim is data the school can trust in five years, after staff turnover,
 | Account ↔ person | `student_user_links`, `guardian_user_links` | none; unlinked accounts listed on Accounts |
 | Money | `finance_*` tables, `numeric(12,2)` | balances derived; bank lines reconciled against payments |
 | Admission number format | `admission_number_settings` (changed only by developers) | none |
+| Spending requests | `spending_requests` (status changed only by `spending_*` functions; history in `spending_events`) | payee bank details snapshot on the request (what the approver saw, on purpose); requester/approver names snapshot |
+| Money spent | `finance_expenses` (voided, never deleted) | one row per receipt of a closed spending request (`spending_receipt_id` unique), written only by `spending_post_expenses`; wallet balance is Paystack's, top-ups and payouts are our list to reconcile |
 
 When you add a table or a copy, add a row. When a row says **drift risk** or **gap**, the fix belongs in the area's
 next change, or a session of its own.
@@ -123,6 +125,10 @@ next change, or a session of its own.
 - Past class membership had no home: promotion overwrote `students.class_id` and last term's report cards changed.
   Fixed with an effective-dated table (`student_class_terms`, per-term rows), a backfill that lists clashes instead of
   guessing, and "closed" terms that a later class change can't rewrite (pupil-class-history skill).
+
+## Expert review
+This skill is itself the review of a data engineer with 30+ years: answer "The review" questions above for every
+change, and keep the register current. Where an answer needs a decision the school hasn't made, ask.
 
 ## Verify
 - PGlite: each write path is refused when it breaks the rule (insert, update, upsert, the function, an import);

@@ -179,6 +179,11 @@ people do it at once", the parent who forgets the password) and build it, then s
 - Changing a pupil's admission number used to break their portal sign-in (the login email was built from the old
   number). Anything that is also a username must keep the sign-in in step (admission-and-accounts skill).
 
+## Expert review
+This skill is itself the review of a practitioner with 30+ years in interaction, information, motion and sound
+design: answer section 1 ("The review") for every screen, then sections 2 to 7 that apply. Where an answer needs a
+decision the school hasn't made, ask.
+
 ## Verify
 - Preview with a fake Supabase client (admin-portal-page skill), screenshots at desktop and 375px, and print
   preview for anything printable (`window.print()` or Chrome's print emulation).

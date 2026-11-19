@@ -26,7 +26,8 @@ export const adminOnlyPrefixes = [
   "/admin/students/deactivation-log",
   "/admin/accounts",
   "/admin/students/class-history",
-  "/admin/inventory"
+  "/admin/inventory",
+  "/admin/spending/settings"
 ];
 
 // Results: admins and teachers only (front desk and nurse have no access to result sheets).

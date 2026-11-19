@@ -70,6 +70,18 @@ below in step. New pages for one role: admin-portal-page.
   tests look like the trigger let them through.
 - Inside a `security definer` trigger `current_user` is the owner; use `auth.uid()` / `auth.role()` to tell callers apart.
 
+## Expert review
+Before calling the work done, answer these as an identity and access manager (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Least privilege.** Give the smallest role that does the job; extra powers go to named people, not whole roles,
+  where the database supports it.
+- **Joiners, movers, leavers.** A staff member who leaves loses access the same day; a change of job changes the role.
+  Suggest a termly review of who holds admin and super admin.
+- **Nobody grants themselves power,** and every grant is logged with who and when; admin grants deserve attention
+  in reports.
+- **No shared accounts.** Every action must point to one person.
+- **Keep a way back in** (a second super admin) without making it a daily account.
+
 ## Verify
 ```bash
 S=<scratchpad>/pgtest; mkdir -p $S && cd $S && npm init -y >/dev/null && npm install @electric-sql/pglite@0.2.17 >/dev/null

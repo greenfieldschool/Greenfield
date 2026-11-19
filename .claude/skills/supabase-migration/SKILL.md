@@ -46,6 +46,16 @@ Edit the stub section of the harness for the tables your migration touches (only
 user with `set test.uid` / `set test.role`, then `set role authenticated` to make RLS apply. In JS, never
 `String.replace` SQL containing `$$` with a string replacement (use a function), because `$$` means `$`.
 
+### Whole database in PGlite (permission questions: "can a teacher do X?")
+[`pglite-full-schema.mjs`](pglite-full-schema.mjs) loads all of `docs/schema.sql` with stubs for Supabase's `auth`,
+`storage`, `vault`, `net`, `cron` and the default table grants. `schema.sql` is not in dependency order, so it splits the
+file into statements ([`pglite-split.mjs`](pglite-split.mjs)), retries failures for several passes, then replays the whole
+file in order so the newest version of each function/policy wins. `const db = await load([extra.sql, ...])`, with
+`process.argv[2]` = path to schema.sql. Seed rows inside `set session_replication_role = replica;` (otherwise
+`profiles_guard_role` refuses role changes), then act as users with `set test.uid` + `set role authenticated`.
+`schema.sql` can lag the migrations (Nov 2026: it had no policies on `teacher_class_assignments`), so when a result
+looks wrong, check the original migration and pass it as an extra file before concluding.
+
 ## Pitfalls we hit
 - Don't use temporary tables in a migration. The Supabase SQL editor sees `create temporary table` as a table
   without RLS and offers "enable Row Level Security"; that appends an `alter table … enable row level security`
@@ -65,3 +75,18 @@ user with `set test.uid` / `set test.role`, then `set role authenticated` to mak
 - Merge functions matched result columns by `assessment_type`; once several columns could share a type they had
   to match by title.
 - A function returning NULL from `x in (select …)` on an unknown role made a check pass silently.
+
+## Expert review
+Before calling the work done, answer these as a PostgreSQL DBA (30+ years of running production databases) would. Where an answer needs a decision the school hasn't made, ask.
+
+- **Safe to run, safe to re-run, safe to stop.** Each file runs in one go in the SQL editor; if it fails half way, a
+  second run must finish the job.
+- **Plan the way back.** Before a risky change, know the forward fix and confirm the school has a recent backup
+  (Supabase daily backups or point-in-time restore).
+- **Existing rows first.** A new constraint on old data: find the rows that break it and list them for people (or
+  add the constraint `not valid` and validate later); never silently change them.
+- **Locks and size.** Think about what a change locks and for how long on the biggest tables (scores, attendance,
+  chat); index the columns policies and joins filter on.
+- **Functions.** `security definer` with `set search_path = public`, definite booleans, `revoke … from public, anon`,
+  and grant only what the app calls.
+- **Plans, not hopes.** `explain` the main reads on realistic row counts.
