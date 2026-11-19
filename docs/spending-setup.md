@@ -20,7 +20,13 @@ Without Paystack, cashiers pay from the bank app, in cash or by POS and record e
 
 ## 2. The Paystack expenses wallet (optional, for paying from the app)
 
-The school needs a Paystack account with **Registered Business** status (CAC documents and a corporate account).
+The school chose (Nov 2026) to use a Paystack account belonging to a company it has a mutual relationship with,
+rather than registering its own. The steps below apply to that account. **Webhook:** Paystack allows one live
+webhook URL per business. If the company already uses a webhook for its own payments, leave it as it is; payments
+from the app still finish and record correctly through the code step and "Check with Paystack". Only set our webhook
+URL if the account has none.
+
+The account must have **Registered Business** status with transfers switched on.
 
 In the Paystack dashboard:
 1. **Settings → API keys & webhooks**: copy the **live secret key**. Set the webhook URL to

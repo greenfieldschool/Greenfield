@@ -34,6 +34,16 @@ Approach agreed with the school: the Claude Doc "Daily Expense Requests – Prop
   `spending_events_email` trigger and the daily run, priority 1.
 - Learn Centre `LEARN.spending`.
 
+## The school's choice (Nov 2026)
+- The expenses wallet is a Paystack account belonging to **another company with a mutual relationship to the school**,
+  not the school's own; the school decided no written agreement is needed. `PAYSTACK_SECRET_KEY` on Vercel is that
+  account's key. Consequences to keep in mind:
+  - The Wallet page shows that account's whole balance, which may include the company's own money. Reconcile with the
+    top-ups and Paystack payouts listed there, not the balance alone.
+  - Paystack has one live webhook URL per business. If the company already uses one, don't replace it: payments still
+    complete without our webhook (finalize and "Check with Paystack" record the result).
+  - Recipients see the company's name on transfers.
+
 ## Rules
 - Never write the tables from the app; call the functions. Never mark anything paid from the browser:
   `spending_paystack_result` is service-key only, called after Paystack confirms (webhook, finalize, verify).
