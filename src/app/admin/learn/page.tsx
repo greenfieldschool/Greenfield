@@ -503,14 +503,16 @@ export default function AdminLearnCentrePage() {
         },
         {
           id: LEARN.editPayment,
-          name: "Editing or Voiding a Payment",
+          name: "Correcting a Payment",
           page: { href: "/admin/finance/payments", label: "Payments" },
           adminOnly: true,
           steps: [
-            "Open Finance > Payments (/admin/finance/payments) and click the payment to change.",
-            "Correct the guardian, invoice, amount, method, reference, date or notes and click 'Save changes'. Invoice balances update automatically.",
-            "To cancel a payment but keep a record, set Status to 'void' (it is then ignored in balances).",
-            "'Delete payment' removes it and its invoice links completely and cannot be undone."
+            "A recorded payment is never changed or deleted. This is how auditors expect money records to be kept. Open Finance > Payments and press Open on the payment.",
+            "The reference and notes can be changed at any time with 'Save reference and notes'. The amount, date, pupil, parent and method are fixed once recorded.",
+            "Wrong amount, wrong pupil, wrong date, recorded twice, or the bank reversed it: under 'Reverse this payment' choose why (only Other needs typing) and press Reverse payment. It stays on the list crossed out as Reversed, with your name and the reason, and stops counting towards any balance.",
+            "Then press 'Enter the correct payment'. The form starts from the reversed payment's details; change what was wrong and record it. The new payment links back to the reversed one. A payment matched from the bank goes back to the bank inbox instead, to match to the right pupil.",
+            "Right pupil but wrong invoice (e.g. meant for second term): use 'Move to another invoice' and say why. The invoice is paid up to what it still owes; anything over is kept as paid in advance.",
+            "Every step shows in the payment's History with who did it and when. Only admins can see or record payments."
           ]
         },
         {

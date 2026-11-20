@@ -5,7 +5,7 @@ import { firstOrNull } from "@/lib/relations";
 import { lagosEndOfDayIso, lagosStartOfDayIso } from "@/lib/lagos-dates";
 import { classLabel, loadStudentsByClass } from "@/lib/student-classes";
 import { fetchAllRows } from "@/lib/fetch-all";
-import { Banknote, FileUp, Filter, Pencil, Plus, Receipt, Search, UserX, Users, Wallet } from "lucide-react";
+import { Banknote, FileUp, Filter, Plus, Receipt, Search, UserX, Users, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Field } from "@/components/ui/form-section";
@@ -13,7 +13,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
-import { FinanceStatusBadge, currencyPrefix, fmtDateTime } from "../_components/finance-ui";
+import { currencyPrefix, fmtDateTime } from "../_components/finance-ui";
 import { LEARN } from "@/lib/learn-guides";
 
 type InvoiceRef = { student_id: string | null };
@@ -227,7 +227,7 @@ export default async function AdminFinancePaymentsPage({
         <StatCard
           label="Payments"
           value={<span className="tabular-nums">{counted.length.toLocaleString("en-NG")}</span>}
-          hint="Posted payments (void ones are excluded)"
+          hint="Reversed payments are not counted"
           icon={Receipt}
           tone="blue"
         />
@@ -322,7 +322,7 @@ export default async function AdminFinancePaymentsPage({
                       {p.reference ?? "—"}
                     </td>
                     <td>
-                      <FinanceStatusBadge status={p.status} />
+                      {p.status === "void" ? <Badge tone="red">Reversed</Badge> : <Badge tone="green">Recorded</Badge>}
                     </td>
                     <td
                       className={
@@ -338,10 +338,9 @@ export default async function AdminFinancePaymentsPage({
                       <Link
                         className={buttonClasses({ variant: "ghost", size: "sm" })}
                         href={`/admin/finance/payments/${p.id}`}
-                        aria-label={`Edit payment${p.student ? ` from ${p.student.first_name} ${p.student.last_name}` : ""}`}
+                        aria-label={`Open payment${p.student ? ` from ${p.student.first_name} ${p.student.last_name}` : ""}`}
                       >
-                        <Pencil className="h-4 w-4" aria-hidden="true" />
-                        Edit
+                        Open
                       </Link>
                     </td>
                   </tr>

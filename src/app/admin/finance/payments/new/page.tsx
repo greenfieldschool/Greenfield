@@ -9,7 +9,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { FormSection, Field } from "@/components/ui/form-section";
 import { ButtonLink } from "@/components/ui/button";
 import { currencyPrefix } from "../../_components/finance-ui";
-import { lagosLocalToDate } from "../../_components/finance-server";
+import { lagosLocalToDate, toLagosDateTimeInput } from "../../_components/finance-server";
+import { Alert } from "@/components/ui/alert";
+import Link from "next/link";
+import { reverseReasonLabel } from "@/lib/payment-corrections";
 import { LEARN } from "@/lib/learn-guides";
 
 type GuardianRow = { id: string; full_name: string };
@@ -26,11 +29,30 @@ type InvoiceOptionRow = {
 export default async function AdminNewPaymentPage({
   searchParams
 }: {
-  searchParams: Promise<{ invoice_id?: string; student_id?: string }>;
+  searchParams: Promise<{ invoice_id?: string; student_id?: string; corrects?: string }>;
 }) {
-  const { invoice_id: invoiceIdPrefill, student_id: studentIdPrefill } = await searchParams;
+  const { invoice_id: invoiceIdParam, student_id: studentIdParam, corrects } = await searchParams;
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
+
+  // "Enter the correct payment" after a reversal: start from the reversed payment's details and link back to it.
+  type Original = { id: string; student_id: string | null; guardian_id: string | null; amount: number; method: string | null; reference: string | null; paid_at: string; status: string; void_reason: string | null; void_note: string | null };
+  let original: Original | null = null;
+  let originalInvoiceId: string | null = null;
+  if (corrects) {
+    const { data } = await supabase
+      .from("finance_payment_transactions")
+      .select("id, student_id, guardian_id, amount, method, reference, paid_at, status, void_reason, void_note")
+      .eq("id", corrects)
+      .maybeSingle();
+    if (data && data.status === "void") {
+      original = data as Original;
+      const { data: alloc } = await supabase.from("finance_payment_allocations").select("invoice_id").eq("payment_transaction_id", corrects).limit(1);
+      originalInvoiceId = (alloc?.[0]?.invoice_id as string | undefined) ?? null;
+    }
+  }
+  const invoiceIdPrefill = invoiceIdParam ?? originalInvoiceId ?? undefined;
+  const studentIdPrefill = studentIdParam ?? original?.student_id ?? undefined;
 
   const [{ data: guardians }, { data: invoices }, studentData] = await Promise.all([
     supabase.from("guardians").select("id, full_name").order("full_name", { ascending: true }),
@@ -57,6 +79,7 @@ export default async function AdminNewPaymentPage({
     const method = String(formData.get("method") ?? "cash").trim();
     const reference = String(formData.get("reference") ?? "").trim();
     const paidAtRaw = String(formData.get("paid_at") ?? "").trim();
+    const correctsId = String(formData.get("corrects_payment_id") ?? "").trim() || null;
 
     if (!Number.isFinite(amount) || amount <= 0) {
       redirect(`/admin/finance/payments/new?toast=${encodeURIComponent("Enter a valid amount")}&toast_type=error`);
@@ -115,7 +138,8 @@ export default async function AdminNewPaymentPage({
         method,
         reference: reference.length ? reference : null,
         paid_at: paidAt ? paidAt.toISOString() : undefined,
-        status: "posted"
+        status: "posted",
+        ...(correctsId ? { corrects_payment_id: correctsId } : {})
       })
       .select("id")
       .maybeSingle();
@@ -126,15 +150,20 @@ export default async function AdminNewPaymentPage({
       );
     }
 
+    // Pay the invoice up to what it still owes; anything over is kept as paid in advance.
+    let overpaid = 0;
     if (invoiceIdRaw.length) {
-      await supabase.from("finance_payment_allocations").upsert(
-        {
+      const { data: bal } = await supabase.from("finance_invoice_balances").select("balance").eq("invoice_id", invoiceIdRaw).maybeSingle();
+      const owed = Math.max(0, Number(bal?.balance ?? 0));
+      const toInvoice = Math.min(amount, owed);
+      overpaid = amount - toInvoice;
+      if (toInvoice > 0) {
+        await supabase.from("finance_payment_allocations").insert({
           payment_transaction_id: txn.id,
           invoice_id: invoiceIdRaw,
-          amount
-        },
-        { onConflict: "payment_transaction_id,invoice_id" }
-      );
+          amount: toInvoice
+        });
+      }
 
       revalidatePath(`/admin/finance/invoices/${invoiceIdRaw}`);
     }
@@ -143,7 +172,12 @@ export default async function AdminNewPaymentPage({
     revalidatePath("/admin/finance/invoices");
     revalidatePath("/admin/finance/debtors");
 
-    redirect(`/admin/finance/payments?toast=${encodeURIComponent("Payment recorded")}&toast_type=success`);
+    if (correctsId) revalidatePath(`/admin/finance/payments/${correctsId}`);
+    const done =
+      overpaid > 0
+        ? `Payment recorded. ₦${overpaid.toLocaleString("en-NG")} more than the invoice owed is kept as paid in advance.`
+        : "Payment recorded";
+    redirect(`/admin/finance/payments/${txn.id}?toast=${encodeURIComponent(done)}&toast_type=success`);
   }
 
   return (
@@ -153,11 +187,23 @@ export default async function AdminNewPaymentPage({
         learn={LEARN.recordingPayments}
         back={{ href: "/admin/finance/payments", label: "Back to payments" }}
         eyebrow="Finance"
-        title="Record payment"
+        title={original ? "Enter the correct payment" : "Record payment"}
         description="Pick the student the payment is for (listed by class) and optionally allocate it to one of their invoices."
       />
 
+      {original ? (
+        <Alert tone="info" title="Correcting a reversed payment">
+          The details below start from the{" "}
+          <Link href={`/admin/finance/payments/${original.id}`} className="gf-link">
+            payment that was reversed
+          </Link>{" "}
+          ({reverseReasonLabel(original.void_reason, original.void_note)}). Change what was wrong, then record it. The new payment
+          will point back to the reversed one.
+        </Alert>
+      ) : null}
+
       <form action={recordPayment} className="space-y-6">
+        {original ? <input type="hidden" name="corrects_payment_id" value={original.id} /> : null}
         <FormSection title="Who is paying" description="Choose a student, an invoice, or both.">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
@@ -186,7 +232,7 @@ export default async function AdminNewPaymentPage({
             </Field>
 
             <Field label="Guardian (optional)" htmlFor="guardian_id" className="sm:col-span-2">
-              <select id="guardian_id" className="gf-select" name="guardian_id" defaultValue="">
+              <select id="guardian_id" className="gf-select" name="guardian_id" defaultValue={original?.guardian_id ?? ""}>
                 <option value="">— (use the student&apos;s guardian)</option>
                 {guardianRows.map((g) => (
                   <option key={g.id} value={g.id}>
@@ -224,6 +270,7 @@ export default async function AdminNewPaymentPage({
                   step="0.01"
                   min="0.01"
                   placeholder="0.00"
+                  defaultValue={original ? String(original.amount) : undefined}
                   required
                 />
               </div>
@@ -234,7 +281,7 @@ export default async function AdminNewPaymentPage({
             </Field>
 
             <Field label="Method" htmlFor="method">
-              <select id="method" className="gf-select" name="method" defaultValue="cash">
+              <select id="method" className="gf-select" name="method" defaultValue={original?.method ?? "cash"}>
                 <option value="cash">Cash</option>
                 <option value="transfer">Transfer</option>
                 <option value="pos">POS</option>
@@ -243,11 +290,11 @@ export default async function AdminNewPaymentPage({
             </Field>
 
             <Field label="Reference (optional)" htmlFor="reference">
-              <input id="reference" className="gf-input" name="reference" />
+              <input id="reference" className="gf-input" name="reference" defaultValue={original?.reference ?? ""} />
             </Field>
 
             <Field label="Paid at (optional)" htmlFor="paid_at" hint="Lagos time. Leave blank to use now.">
-              <input id="paid_at" className="gf-input" name="paid_at" type="datetime-local" />
+              <input id="paid_at" className="gf-input" name="paid_at" type="datetime-local" defaultValue={original ? toLagosDateTimeInput(original.paid_at) : undefined} />
             </Field>
           </div>
         </FormSection>

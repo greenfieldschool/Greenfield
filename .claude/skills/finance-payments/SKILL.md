@@ -39,6 +39,18 @@ explained in the results-and-reports skill): a change to what counts as "paid" c
 - Other payment sources: Moniepoint webhook `src/app/api/payments/moniepoint/webhook/route.ts` (online, via
   `finance_payment_intents`), manual `payments/new`.
 
+- **Correcting payments** (`20261120_payment_corrections.sql`, page `payments/[id]` + `actions.ts`,
+  wording in `src/lib/payment-corrections.ts`): a recorded payment is **never edited or deleted**. The trigger
+  `finance_payment_guard` locks amount, date, pupil, parent, term, method, provider and `corrects_payment_id`;
+  only `reference` and `notes` can change. Deletes raise an error (even for the service key). Mistakes go through
+  `reverse_payment(id, reason, note)`: status `void`, `void_reason` from a fixed list (only `other` takes text),
+  `voided_at/by/by_name`. A reversed bank payment sends its bank line back to `pending`, and
+  `record_bank_line_unchecked` then gives the new payment key `fingerprint#2`. The correct payment is entered
+  with `corrects_payment_id` (the trigger insists the old one is reversed) from `payments/new?corrects=<id>`.
+  Moving a payment to another invoice of the **same** pupil is `move_payment_invoice(id, invoice|null, reason)`;
+  direct deletes/changes of `finance_payment_allocations` are refused. Every step lands in `finance_payment_log`
+  (admins read, nobody writes except the triggers). Payments and allocations are **admins only** (they were
+  `is_staff()` until 20261120). Test: `payment-corrections-pglite-test.mjs` in this folder (46 checks).
 - Expenses: `finance_expenses` is admins only, never deleted (`finance_void_expense` with a reason, 20261119). Spending
   requests post their receipts here when they close (`spending-requests` skill); read spending with `.is("voided_at", null)`.
 
@@ -60,6 +72,14 @@ explained in the results-and-reports skill): a change to what counts as "paid" c
 - Amounts are Naira with 2 decimals; dates on statements are day-first (`30/10/2026`).
 
 ## Pitfalls we hit
+- Until 20261120 the payment page saved over posted payments, could delete them, and any staff role could do the
+  same in the database. Never add an edit form for a recorded payment's amount, date, pupil or method again.
+- The Moniepoint webhook upserts the same payment again on retries. The guard lets identical values through and
+  the log skips no-op updates; a retry on a reversed payment is refused (it stays reversed).
+- Foreign keys with `on delete set null` (guardian, pupil, term) update payments from inside a trigger, so the
+  guard allows a link to become empty when `pg_trigger_depth() > 1`.
+- Allocations used to be the full amount even when the invoice owed less; new payments and moves now cap at the
+  balance and keep the rest as paid in advance.
 - Bank wording varies; the email reader only knows labels like Amount / Narration / Description / Remarks / Date /
   Reference. A new bank format needs a real example alert to add labels.
 - A payment ID alone, or an admission number alone, is `review` (suggested, one click) rather than auto, on purpose.
@@ -74,7 +94,9 @@ Before calling the work done, answer these as a school bursar and chartered acco
   Reconcile the bank to the records at least monthly and list differences for a person to explain.
 - **Never edit posted money.** Mistakes are reversed or voided with a reason, and both entries stay. Nothing is
   deleted.
-- **Segregation of duties.** The person who records money is not the only one who approves or reconciles it. Ask
+- **Segregation of duties.** Decided 2026-11-20: any admin can reverse a payment of any amount, with no second
+  approval. The reason and who did it are in the payment history. Don't add an approval step unless the school asks.
+- **Segregation of duties (general).** The person who records money is not the only one who approves or reconciles it. Ask
   who can do each step before building it.
 - **Counted once.** Know which table is the record of each kind of money (fees owed, fees paid, money spent) and
   make every report read it from there.
