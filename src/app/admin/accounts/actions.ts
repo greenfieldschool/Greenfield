@@ -1,15 +1,18 @@
 "use server";
 
-// Server actions for Admin → Accounts. Creating sign-ins and setting passwords need the service key (Supabase
-// keeps passwords scrambled, so nobody can read one back; we can only set a new one). Every action checks the
-// person is an admin first, and writes the account log through log_account_action, which records who did it from
-// the signed-in session.
+// Server actions for Admin → Accounts. Creating sign-ins and setting passwords need the service key. Every action
+// checks the person is an admin first, and writes the account log through log_account_action, which records who did
+// it from the signed-in session.
+// Temporary passwords (the school's decision, Nov 2026): a locked copy is kept until the end of the term so admins
+// can look it up again (temporary_passwords, 20261119c). It is deleted when the person chooses their own password;
+// passwords people choose themselves are never kept or shown.
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import { admissionNumberToEmail, generateTemporaryPassword } from "@/lib/admission-login";
+import { lockTemporaryPassword, unlockTemporaryPassword } from "@/lib/temp-password-crypto";
 
 /** At most this many accounts per click, so one request finishes well inside the server time limit. */
 const BATCH = 40;
@@ -22,9 +25,11 @@ export type AccountResultRow = {
   /** What the person types to sign in: the admission number for pupils, the email for parents. */
   username: string | null;
   className: string | null;
-  /** Shown once to the admin, never stored. */
+  /** The temporary password, shown to the admin. A locked copy is kept until `until`. */
   password: string | null;
-  status: "created" | "reset" | "skipped" | "failed";
+  /** When the temporary password runs out (end of term), ISO date. */
+  until: string | null;
+  status: "created" | "reset" | "shown" | "skipped" | "failed";
   note: string | null;
 };
 
@@ -58,6 +63,22 @@ function friendlyAuthError(message: string | undefined) {
   return message || "Something went wrong. Try again.";
 }
 
+type Db = NonNullable<ReturnType<typeof getSupabaseServerClient>>;
+
+/** When a temporary password given now runs out (end of the current term). */
+async function termEnd(supabase: Db): Promise<string> {
+  const { data } = await supabase.rpc("temporary_password_expiry");
+  return typeof data === "string" ? data : new Date(Date.now() + 120 * 86_400_000).toISOString();
+}
+
+/** Keeps the locked copy so admins can look it up again until the end of term. Never throws. */
+async function keepCopy(supabase: Db, userId: string, password: string): Promise<string | null> {
+  const locked = lockTemporaryPassword(password);
+  if (!locked) return null;
+  const { data, error } = await supabase.rpc("save_temporary_password", { p_user: userId, p_ciphertext: locked });
+  return error ? null : (data as string | null);
+}
+
 function uniqueIds(ids: string[]) {
   return Array.from(new Set(ids.map((s) => s.trim()).filter((s) => /^[0-9a-f-]{36}$/i.test(s))));
 }
@@ -81,6 +102,7 @@ export async function createAccountsAction(kind: AccountKind, idsIn: string[]): 
   const all = uniqueIds(idsIn);
   const ids = all.slice(0, BATCH);
   const rows: AccountResultRow[] = [];
+  const until = await termEnd(supabase);
 
   if (kind === "pupil") {
     const [{ data: students }, { data: links }] = await Promise.all([
@@ -98,7 +120,7 @@ export async function createAccountsAction(kind: AccountKind, idsIn: string[]): 
     }>) {
       const name = `${s.first_name} ${s.last_name}`.trim();
       const cls = Array.isArray(s.classes) ? s.classes[0]?.name ?? null : s.classes?.name ?? null;
-      const base = { id: s.id, name, username: s.admission_number, className: cls, password: null };
+      const base = { id: s.id, name, username: s.admission_number, className: cls, password: null, until: null };
       if (linked.has(s.id)) {
         rows.push({ ...base, status: "skipped", note: "Already has an account" });
         continue;
@@ -117,7 +139,7 @@ export async function createAccountsAction(kind: AccountKind, idsIn: string[]): 
         email,
         password,
         email_confirm: true,
-        user_metadata: { full_name: name, must_change_password: true }
+        user_metadata: { full_name: name, must_change_password: true, temp_password_expires_at: until }
       });
       if (error || !created.user) {
         rows.push({ ...base, status: "failed", note: friendlyAuthError(error?.message) });
@@ -130,7 +152,8 @@ export async function createAccountsAction(kind: AccountKind, idsIn: string[]): 
         continue;
       }
       await supabase.rpc("log_account_action", { p_action: "account_created", p_student: s.id, p_user: created.user.id, p_detail: "Temporary password given" });
-      rows.push({ ...base, password, status: "created", note: null });
+      const kept = await keepCopy(supabase, created.user.id, password);
+      rows.push({ ...base, password, until: kept ?? until, status: "created", note: kept ? null : "The school's copy couldn't be kept: print the slip now" });
     }
   } else {
     const [{ data: guardians }, { data: links }] = await Promise.all([
@@ -140,7 +163,7 @@ export async function createAccountsAction(kind: AccountKind, idsIn: string[]): 
     const linked = new Set((links ?? []).map((l: { guardian_id: string }) => l.guardian_id));
     for (const g of (guardians ?? []) as Array<{ id: string; full_name: string; email: string | null }>) {
       const email = (g.email ?? "").trim().toLowerCase();
-      const base = { id: g.id, name: g.full_name, username: email || null, className: null, password: null };
+      const base = { id: g.id, name: g.full_name, username: email || null, className: null, password: null, until: null };
       if (linked.has(g.id)) {
         rows.push({ ...base, status: "skipped", note: "Already has an account" });
         continue;
@@ -154,7 +177,7 @@ export async function createAccountsAction(kind: AccountKind, idsIn: string[]): 
         email,
         password,
         email_confirm: true,
-        user_metadata: { full_name: g.full_name, must_change_password: true }
+        user_metadata: { full_name: g.full_name, must_change_password: true, temp_password_expires_at: until }
       });
       if (error || !created.user) {
         rows.push({ ...base, status: "failed", note: friendlyAuthError(error?.message) });
@@ -167,7 +190,8 @@ export async function createAccountsAction(kind: AccountKind, idsIn: string[]): 
         continue;
       }
       await supabase.rpc("log_account_action", { p_action: "account_created", p_guardian: g.id, p_user: created.user.id, p_detail: "Temporary password given" });
-      rows.push({ ...base, password, status: "created", note: null });
+      const kept = await keepCopy(supabase, created.user.id, password);
+      rows.push({ ...base, password, until: kept ?? until, status: "created", note: kept ? null : "The school's copy couldn't be kept: print the slip now" });
     }
   }
 
@@ -184,6 +208,7 @@ export async function resetPasswordsAction(kind: AccountKind, idsIn: string[]): 
   const all = uniqueIds(idsIn);
   const ids = all.slice(0, BATCH);
   const rows: AccountResultRow[] = [];
+  const until = await termEnd(supabase);
 
   // Read through the admin overview so we know each person's sign-in.
   const rpcName = kind === "pupil" ? "admin_pupil_accounts" : "admin_parent_accounts";
@@ -213,7 +238,8 @@ export async function resetPasswordsAction(kind: AccountKind, idsIn: string[]): 
       name,
       username: kind === "pupil" ? r.admission_number ?? null : r.email ?? null,
       className: r.class_name ?? null,
-      password: null
+      password: null,
+      until: null
     };
     if (!r.user_id) {
       rows.push({ ...base, status: "skipped", note: "No account yet: create one instead" });
@@ -223,7 +249,7 @@ export async function resetPasswordsAction(kind: AccountKind, idsIn: string[]): 
     const { error: updError } = await service.auth.admin.updateUserById(r.user_id, {
       password,
       email_confirm: true,
-      user_metadata: { must_change_password: true }
+      user_metadata: { must_change_password: true, temp_password_expires_at: until }
     });
     if (updError) {
       rows.push({ ...base, status: "failed", note: friendlyAuthError(updError.message) });
@@ -236,12 +262,72 @@ export async function resetPasswordsAction(kind: AccountKind, idsIn: string[]): 
       p_user: r.user_id,
       p_detail: "Temporary password given"
     });
-    rows.push({ ...base, password, status: "reset", note: null });
+    const kept = await keepCopy(supabase, r.user_id, password);
+    rows.push({ ...base, password, until: kept ?? until, status: "reset", note: kept ? null : "The school's copy couldn't be kept: print the slip now" });
   }
 
   revalidatePath("/admin/accounts");
   const remaining = all.length - ids.length;
   return { ok: true, message: summary(rows, remaining, "reset"), rows, remaining };
+}
+
+/**
+ * Looks temporary passwords up again (for a family that lost theirs, or to reprint slips). Admins only; each look-up
+ * is recorded in the account history with the admin's name and the reason.
+ */
+export async function showTemporaryPasswordsAction(kind: AccountKind, idsIn: string[], purpose = "Looked up"): Promise<AccountActionResult> {
+  const ctx = await requireAdmin();
+  if ("error" in ctx) return { ok: false, message: ctx.error ?? "Not allowed.", rows: [], remaining: 0 };
+  const { supabase } = ctx;
+  const ids = uniqueIds(idsIn).slice(0, 200);
+
+  const { data, error } = await supabase.rpc(kind === "pupil" ? "admin_pupil_accounts" : "admin_parent_accounts");
+  if (error) return { ok: false, message: "The database update for accounts hasn't been run yet.", rows: [], remaining: 0 };
+  type Overview = {
+    student_id?: string;
+    guardian_id?: string;
+    first_name?: string;
+    last_name?: string;
+    full_name?: string;
+    admission_number?: string | null;
+    login_email?: string | null;
+    class_name?: string | null;
+    user_id: string | null;
+  };
+  const people = ((data ?? []) as Overview[]).filter((r) => ids.includes(String(kind === "pupil" ? r.student_id : r.guardian_id)));
+  const userIds = people.map((p) => p.user_id).filter((u): u is string => Boolean(u));
+  const { data: copies, error: viewError } = userIds.length
+    ? await supabase.rpc("view_temporary_passwords", { p_users: userIds, p_purpose: purpose.slice(0, 200) })
+    : { data: [], error: null };
+  if (viewError) return { ok: false, message: "Temporary passwords can't be looked up yet: the database update hasn't been run.", rows: [], remaining: 0 };
+  const byUser = new Map(((copies ?? []) as Array<{ user_id: string; ciphertext: string; expires_at: string }>).map((c) => [c.user_id, c] as const));
+
+  const rows: AccountResultRow[] = people.map((p) => {
+    const base = {
+      id: String(kind === "pupil" ? p.student_id : p.guardian_id),
+      name: kind === "pupil" ? `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() : p.full_name ?? "",
+      username: kind === "pupil" ? p.admission_number ?? null : p.login_email ?? null,
+      className: p.class_name ?? null
+    };
+    if (!p.user_id) return { ...base, password: null, until: null, status: "skipped" as const, note: "No account yet" };
+    const copy = byUser.get(p.user_id);
+    if (!copy) {
+      return { ...base, password: null, until: null, status: "skipped" as const, note: "No temporary password kept: they chose their own, or it ran out. Give a new one." };
+    }
+    const password = unlockTemporaryPassword(copy.ciphertext);
+    if (!password) {
+      return { ...base, password: null, until: null, status: "failed" as const, note: "The school's copy can't be read any more (the server key changed). Give a new one." };
+    }
+    return { ...base, password, until: copy.expires_at, status: "shown" as const, note: null };
+  });
+  const shown = rows.filter((r) => r.status === "shown").length;
+  const missing = rows.length - shown;
+  return {
+    ok: true,
+    message: `${shown} temporary password${shown === 1 ? "" : "s"} shown${missing ? ` · ${missing} not available` : ""}`,
+    rows,
+    remaining: 0
+  };
 }
 
 function back(tab: string, message: string, type: "success" | "error" = "success"): never {

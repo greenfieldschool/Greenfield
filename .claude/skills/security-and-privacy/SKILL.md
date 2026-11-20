@@ -18,7 +18,8 @@ integration or a new kind of personal data, or changes who may do something. Rol
   of areas; `AdminShell` / `PortalShell` hide links. Both are conveniences, not protection.
 - **Files:** private buckets only (`assignment-files`, `lesson-notes`, `inventory-photos`, …) with storage policies;
   opened through short-lived signed links made with the user's own client.
-- **Secrets (Vercel env, server only):** `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `EMAIL_TOKEN_KEY`,
+- **Secrets (Vercel env, server only):** `TEMP_PASSWORD_KEY` (optional; locks the school's copies of temporary
+  passwords, falls back to a key derived from the service key), `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `EMAIL_TOKEN_KEY`,
   `GOOGLE_CLIENT_SECRET`, `VAPID_PRIVATE_KEY`, `BANK_ALERT_SECRET`, `MONIEPOINT_WEBHOOK_SECRET`. Anything starting
   `NEXT_PUBLIC_` is visible to every visitor. Secrets the database needs live in Supabase Vault, never in a function
   body (`pg_proc.prosrc` is readable by every signed-in user).
@@ -45,6 +46,9 @@ integration or a new kind of personal data, or changes who may do something. Rol
 - Never print or commit secrets. The git remote URL holds a token (flagged to the user); don't echo it.
 
 ## Pitfalls we hit
+- The school asked to see temporary passwords again (Nov 2026). Done without storing plain passwords: locked by the
+  website with a key the database never sees, admins only, every look-up logged, gone at term end or when the person
+  chooses their own (`temporary_passwords`, admission-and-accounts skill). Passwords people choose are still never kept.
 - `profiles_update_own_name` let any parent set their own role to super_admin; fixed with the `profiles_guard_role`
   trigger (role-management).
 - `generateMagicLink` changed roles with the service key; it now acts as the admin.

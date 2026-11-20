@@ -34,13 +34,18 @@ export function ChangePasswordForm() {
       return;
     }
     setState({ status: "saving" });
-    const { error } = await supabase.auth.updateUser({ password: pw, data: { must_change_password: false } });
+    const { error } = await supabase.auth.updateUser({ password: pw, data: { must_change_password: false, temp_password_expires_at: null } });
     if (error) {
       const same = /different from the old|same.*password/i.test(error.message);
       setState({ status: "error", message: same ? "That's the password you have now. Choose a new one." : error.message });
       playSound("error");
       return;
     }
+    // The school's copy of the temporary password is no longer needed: delete it (and record that it's gone).
+    await supabase.rpc("clear_my_temporary_password").then(
+      () => undefined,
+      () => undefined
+    );
     window.location.assign(`/portal?toast=${encodeURIComponent("Your new password is saved")}&toast_type=success`);
   }
 

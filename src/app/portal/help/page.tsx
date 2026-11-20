@@ -549,7 +549,7 @@ export default async function PortalHelpPage() {
               <p>
                 Sign in with your email address and the password the school gave you, then choose your own under{" "}
                 <A href="/portal/change-password">Choose your password</A>. If you forget it, call the school office: they will give you a new one
-                (nobody at the school can see your old one).
+                (nobody at the school can see a password you chose yourself). The school&apos;s password lasts until the end of term.
               </p>
             ) : (
               <p>

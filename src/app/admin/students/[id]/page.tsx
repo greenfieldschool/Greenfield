@@ -7,7 +7,7 @@ import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import SubmitButton from "@/components/submit-button";
 import StudentPhotoUploader from "./StudentPhotoUploader";
 import UrlToast from "@/components/url-toast";
-import { AccountQuickActions } from "../../accounts/accounts-table";
+import { AccountQuickActions, untilLabel } from "../../accounts/accounts-table";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import { firstOrNull } from "@/lib/relations";
 import { formatLagosDate } from "@/lib/lagos-dates";
@@ -233,10 +233,13 @@ export default async function AdminStudentDetailPage({
     .maybeSingle();
   const existingPortalUserId = (existingPortalLink as { user_id?: string } | null)?.user_id ?? null;
   let portalLastSignIn: string | null = null;
+  let portalTempUntil: string | null = null;
   if (isAdmin && existingPortalUserId) {
     const service = getSupabaseServiceClient();
     const { data: authUser } = service ? await service.auth.admin.getUserById(existingPortalUserId) : { data: null };
     portalLastSignIn = authUser?.user?.last_sign_in_at ?? null;
+    const { data: temps } = await supabase.rpc("admin_temporary_passwords");
+    portalTempUntil = ((temps ?? []) as Array<{ user_id: string; expires_at: string }>).find((t) => t.user_id === existingPortalUserId)?.expires_at ?? null;
   }
   const { data: viewerProfile } = currentUser
     ? await supabase.from("profiles").select("full_name, email").eq("id", currentUser.id).maybeSingle()
@@ -786,6 +789,7 @@ export default async function AdminStudentDetailPage({
           <div className="flex flex-wrap items-center gap-2 text-sm">
             {existingPortalUserId ? <Badge tone="green" dot>Has an account</Badge> : <Badge tone="slate">No account yet</Badge>}
             {existingPortalUserId ? <span className="text-slate-600">{portalLastSignIn ? `Last signed in ${formatLagosDate(portalLastSignIn)}` : "Never signed in"}</span> : null}
+            {portalTempUntil ? <Badge tone="gold">School password until {untilLabel(portalTempUntil)}</Badge> : null}
           </div>
           <div>
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Signs in with</div>
@@ -795,14 +799,16 @@ export default async function AdminStudentDetailPage({
             kind="pupil"
             id={studentId}
             hasAccount={Boolean(existingPortalUserId)}
+            tempUntil={portalTempUntil}
             canCreate={Boolean(student.admission_number) && student.status !== "inactive"}
             cannotCreateReason={student.admission_number ? "This record is deactivated." : "Give the pupil an admission number first (edit their details, or Accounts & passwords → Give them numbers)."}
             schoolName="Greenfield School"
             printedBy={viewerName}
           />
           <p className="gf-hint">
-            For safety nobody can see a password, only set a new one. The new one is shown once, with a login slip to
-            print. Changing the admission number moves the sign-in too; the password stays the same.
+            A temporary password from the school works until the end of term, and admins can look it up again until
+            then. Once the pupil chooses their own, nobody can see it. Changing the admission number moves the sign-in
+            too; the password stays the same.
           </p>
         </CardBody>
       </Card>

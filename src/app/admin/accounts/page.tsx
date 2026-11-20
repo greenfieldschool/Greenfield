@@ -111,6 +111,8 @@ const ACTION_LABELS: Record<string, { label: string; tone: "green" | "gold" | "b
   format_change_requested: { label: "Format change asked for", tone: "blue" },
   format_change_cancelled: { label: "Format request withdrawn", tone: "slate" },
   format_change_rejected: { label: "Format change not approved", tone: "red" },
+  password_viewed: { label: "Temporary password looked up", tone: "violet" },
+  temporary_password_cleared: { label: "Chose their own password", tone: "green" },
   duplicate_override: { label: "Added despite a likely duplicate", tone: "gold" }
 };
 
@@ -160,7 +162,7 @@ export default async function AccountsPage({
       }
     }));
 
-  const [pupils, parents, unlinkedRes, clashesRes, settingsRes, previewRes, logRes, classesRes, requestsRes] = await Promise.all([
+  const [pupils, parents, unlinkedRes, clashesRes, settingsRes, previewRes, logRes, classesRes, requestsRes, tempRes] = await Promise.all([
     rpcAll<PupilAccount>("admin_pupil_accounts", "last_name"),
     rpcAll<ParentAccount>("admin_parent_accounts", "full_name"),
     supabase.rpc("admin_unlinked_accounts"),
@@ -173,8 +175,13 @@ export default async function AccountsPage({
     supabase.from("classes").select("id, name, level").eq("active", true).order("level").order("name"),
     tab === "format"
       ? supabase.from("admission_format_requests").select("*").order("requested_at", { ascending: false }).limit(5)
-      : Promise.resolve({ data: [] as FormatRequest[] })
+      : Promise.resolve({ data: [] as FormatRequest[] }),
+    supabase.rpc("admin_temporary_passwords")
   ]);
+  // School-given temporary passwords still in force, by sign-in (dates only; the passwords stay locked).
+  const tempUntilByUser = new Map(
+    ((tempRes.data ?? []) as Array<{ user_id: string; expires_at: string }>).map((t) => [t.user_id, t.expires_at] as const)
+  );
   const formatRequests = ((requestsRes as { data: unknown }).data ?? []) as FormatRequest[];
   const pendingRequest = formatRequests.find((r) => r.status === "pending") ?? null;
   const lastDecision = formatRequests.find((r) => r.status !== "pending") ?? null;
@@ -202,6 +209,7 @@ export default async function AccountsPage({
       if (show === "never") return p.user_id && !p.last_sign_in_at;
       if (show === "no_number") return !p.admission_number;
       if (show === "has_account") return Boolean(p.user_id);
+      if (show === "school_password") return Boolean(p.user_id && tempUntilByUser.has(p.user_id));
       return true;
     })
     .filter((p) => !q || `${p.first_name} ${p.last_name} ${p.admission_number ?? ""}`.toLowerCase().includes(q))
@@ -213,6 +221,7 @@ export default async function AccountsPage({
       sub: p.class_name ?? "No class",
       className: p.class_name,
       hasAccount: Boolean(p.user_id),
+      tempUntil: p.user_id ? tempUntilByUser.get(p.user_id) ?? null : null,
       lastSignIn: p.last_sign_in_at,
       lastSignInLabel: signInLabel(p.last_sign_in_at),
       createdLabel: p.account_created_at ? formatLagosDate(p.account_created_at) : null,
@@ -233,6 +242,7 @@ export default async function AccountsPage({
       if (show === "never") return g.user_id && !g.last_sign_in_at;
       if (show === "no_email") return !g.email;
       if (show === "has_account") return Boolean(g.user_id);
+      if (show === "school_password") return Boolean(g.user_id && tempUntilByUser.has(g.user_id));
       return true;
     })
     .filter((g) => !q || `${g.full_name} ${g.email ?? ""} ${g.phone ?? ""} ${g.children ?? ""}`.toLowerCase().includes(q))
@@ -244,6 +254,7 @@ export default async function AccountsPage({
       sub: g.children || "No children linked",
       className: null,
       hasAccount: Boolean(g.user_id),
+      tempUntil: g.user_id ? tempUntilByUser.get(g.user_id) ?? null : null,
       lastSignIn: g.last_sign_in_at,
       lastSignInLabel: signInLabel(g.last_sign_in_at),
       createdLabel: g.account_created_at ? formatLagosDate(g.account_created_at) : null,
@@ -270,13 +281,15 @@ export default async function AccountsPage({
     { key: "", label: "All", count: onRoll.length },
     { key: "no_account", label: "No account", count: onRoll.length - pupilsWithAccount },
     { key: "never", label: "Never signed in", count: pupilsNeverSignedIn },
-    { key: "no_number", label: "No number", count: pupilsNoNumber }
+    { key: "no_number", label: "No number", count: pupilsNoNumber },
+    { key: "school_password", label: "Still on school password", count: onRoll.filter((p) => p.user_id && tempUntilByUser.has(p.user_id)).length }
   ];
   const parentFilters = [
     { key: "", label: "All", count: parents.length },
     { key: "no_account", label: "No account", count: parents.length - parentsWithAccount },
     { key: "never", label: "Never signed in", count: parents.filter((g) => g.user_id && !g.last_sign_in_at).length },
-    { key: "no_email", label: "No email", count: parents.filter((g) => !g.email).length }
+    { key: "no_email", label: "No email", count: parents.filter((g) => !g.email).length },
+    { key: "school_password", label: "Still on school password", count: parents.filter((g) => g.user_id && tempUntilByUser.has(g.user_id)).length }
   ];
   const filters = tab === "parents" ? parentFilters : pupilFilters;
 
@@ -303,9 +316,11 @@ export default async function AccountsPage({
       ) : null}
 
       <Alert tone="info" title="About passwords" className="print:hidden">
-        For safety, nobody at the school can see a password, not even admins: it is stored scrambled. You can give
-        someone a new temporary password; it is shown once so you can print a login slip, and they choose their own
-        when they first sign in.
+        A temporary password the school gives works until the end of term. Until then an admin can look it up again
+        here (tick the person, then Show passwords), for example to reprint a lost slip; every look-up is recorded
+        in History. Once the person chooses their own password, the school&apos;s copy is deleted and nobody can see
+        it, not even admins. At the end of term anyone still on a school password must choose their own when they
+        next sign in.
       </Alert>
 
       {clashes.length ? (

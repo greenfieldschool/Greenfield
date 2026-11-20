@@ -49,6 +49,18 @@ export async function middleware(request: NextRequest) {
   }
 
   const decision = decideAccess(pathname, Boolean(user), role, isConductorUser);
+
+  // A temporary password from the school lasts until the end of term (20261119c). After that, a parent or pupil still
+  // using it must choose their own before going anywhere else in the portal.
+  if (decision.action === "allow" && area === "portal" && user && (role === "parent" || role === "student")) {
+    const meta = (user.user_metadata ?? {}) as { must_change_password?: boolean; temp_password_expires_at?: string | null };
+    const expires = meta.temp_password_expires_at ? Date.parse(meta.temp_password_expires_at) : NaN;
+    if (meta.must_change_password && Number.isFinite(expires) && expires <= Date.now() && !pathname.startsWith("/portal/change-password") && !pathname.startsWith("/portal/logout")) {
+      const to = NextResponse.redirect(new URL("/portal/change-password?expired=1", request.url));
+      response.cookies.getAll().forEach((cookie) => to.cookies.set(cookie));
+      return to;
+    }
+  }
   if (decision.action === "allow") return response;
 
   // Keep any refreshed session cookies on the redirect.

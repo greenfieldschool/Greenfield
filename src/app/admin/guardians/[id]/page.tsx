@@ -18,7 +18,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { LEARN } from "@/lib/learn-guides";
 import { formatLagosDate } from "@/lib/lagos-dates";
-import { AccountQuickActions } from "../../accounts/accounts-table";
+import { lockTemporaryPassword } from "@/lib/temp-password-crypto";
+import { AccountQuickActions, untilLabel } from "../../accounts/accounts-table";
 
 type GuardianRow = {
   id: string;
@@ -137,11 +138,14 @@ export default async function AdminGuardianDetailPage({
 
   const portalUserId = (portalLinkData as { user_id?: string } | null)?.user_id ?? null;
   let portalLastSignIn: string | null = null;
+  let portalTempUntil: string | null = null;
   let portalLoginEmail: string | null = null;
   if (isAdmin && portalUserId) {
     const service = getSupabaseServiceClient();
     const { data: authUser } = service ? await service.auth.admin.getUserById(portalUserId) : { data: null };
     portalLastSignIn = authUser?.user?.last_sign_in_at ?? null;
+    const { data: temps } = await supabase.rpc("admin_temporary_passwords");
+    portalTempUntil = ((temps ?? []) as Array<{ user_id: string; expires_at: string }>).find((t) => t.user_id === portalUserId)?.expires_at ?? null;
     portalLoginEmail = authUser?.user?.email ?? null;
   }
   const { data: viewerProfile } = isAdmin && currentUser ? await supabase.from("profiles").select("full_name, email").eq("id", currentUser.id).maybeSingle() : { data: null };
@@ -253,11 +257,12 @@ export default async function AdminGuardianDetailPage({
       redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Service client unavailable — check server config")}&toast_type=error`);
     }
 
+    const { data: termEnd } = await supabase.rpc("temporary_password_expiry");
     const { data: created, error } = await service.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name: guardianFullName }
+      user_metadata: { full_name: guardianFullName, must_change_password: true, temp_password_expires_at: termEnd ?? null }
     });
 
     if (error || !created.user) {
@@ -277,6 +282,9 @@ export default async function AdminGuardianDetailPage({
       { onConflict: "user_id" }
     );
     await supabase.rpc("log_account_action", { p_action: "account_created", p_guardian: guardianId, p_user: created.user.id, p_detail: "Password typed by the admin" });
+    // A password the school gives is a temporary one: keep the locked copy until the end of term (20261119c).
+    const lockedNew = lockTemporaryPassword(password);
+    if (lockedNew) await supabase.rpc("save_temporary_password", { p_user: created.user.id, p_ciphertext: lockedNew });
 
     revalidatePath(`/admin/guardians/${guardianId}`);
     redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Portal account created successfully")}&toast_type=success`);
@@ -314,11 +322,18 @@ export default async function AdminGuardianDetailPage({
       redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Service client unavailable — check server config")}&toast_type=error`);
     }
 
-    const { error } = await service.auth.admin.updateUserById(userId, { password, email_confirm: true });
+    const { data: termEnd } = await supabase.rpc("temporary_password_expiry");
+    const { error } = await service.auth.admin.updateUserById(userId, {
+      password,
+      email_confirm: true,
+      user_metadata: { must_change_password: true, temp_password_expires_at: termEnd ?? null }
+    });
     if (error) {
       redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent(error.message ?? "Failed to reset password")}&toast_type=error`);
     }
     await supabase.rpc("log_account_action", { p_action: "password_reset", p_guardian: guardianId, p_user: userId, p_detail: "Password typed by the admin" });
+    const lockedReset = lockTemporaryPassword(password);
+    if (lockedReset) await supabase.rpc("save_temporary_password", { p_user: userId, p_ciphertext: lockedReset });
 
     revalidatePath(`/admin/guardians/${guardianId}`);
     redirect(`/admin/guardians/${guardianId}?toast=${encodeURIComponent("Portal password updated successfully")}&toast_type=success`);
@@ -629,7 +644,7 @@ export default async function AdminGuardianDetailPage({
             <Card>
               <CardHeader
                 title="Portal access"
-                description="Parents sign in with their email. Nobody can see a password, only set a new one."
+                description="Parents sign in with their email. A school-given password can be looked up until the end of term; one the parent chose can't be seen by anyone."
                 action={
                   <a href={`/admin/accounts?tab=parents&q=${encodeURIComponent(guardianEmail ?? "")}`} className="gf-link text-sm">
                     All accounts
@@ -644,6 +659,7 @@ export default async function AdminGuardianDetailPage({
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   {portalUserId ? <Badge tone="green" dot>Has an account</Badge> : <Badge tone="slate">No account yet</Badge>}
                   {portalUserId ? <span className="text-slate-600">{portalLastSignIn ? `Last signed in ${formatLagosDate(portalLastSignIn)}` : "Never signed in"}</span> : null}
+                  {portalTempUntil ? <Badge tone="gold">School password until {untilLabel(portalTempUntil)}</Badge> : null}
                 </div>
                 {portalUserId && portalLoginEmail ? (
                   <div>
@@ -655,6 +671,7 @@ export default async function AdminGuardianDetailPage({
                   kind="parent"
                   id={guardianId}
                   hasAccount={Boolean(portalUserId)}
+            tempUntil={portalTempUntil}
                   canCreate={Boolean(guardianEmail)}
                   cannotCreateReason="Add an email address first."
                   schoolName="Greenfield School"

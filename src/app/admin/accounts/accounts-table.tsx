@@ -2,12 +2,19 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { CheckCircle2, Copy, KeyRound, Loader2, Printer, UserPlus, X } from "lucide-react";
+import { CheckCircle2, Copy, Eye, KeyRound, Loader2, Printer, UserPlus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { createAccountsAction, resetPasswordsAction, type AccountActionResult, type AccountKind, type AccountResultRow } from "./actions";
+import {
+  createAccountsAction,
+  resetPasswordsAction,
+  showTemporaryPasswordsAction,
+  type AccountActionResult,
+  type AccountKind,
+  type AccountResultRow
+} from "./actions";
 
 export type AccountRow = {
   id: string;
@@ -18,6 +25,8 @@ export type AccountRow = {
   sub: string | null;
   className: string | null;
   hasAccount: boolean;
+  /** Set while a school-given temporary password is in force (end of term), ISO. */
+  tempUntil: string | null;
   lastSignIn: string | null;
   lastSignInLabel: string;
   createdLabel: string | null;
@@ -41,7 +50,7 @@ export function AccountsTable({
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
-  const [busy, setBusy] = useState<"create" | "reset" | null>(null);
+  const [busy, setBusy] = useState<"create" | "reset" | "show" | null>(null);
   const [result, setResult] = useState<AccountActionResult | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -50,6 +59,7 @@ export function AccountsTable({
   const chosen = rows.filter((r) => selected.has(r.id));
   const toCreate = chosen.filter((r) => !r.hasAccount && r.canCreate);
   const toReset = chosen.filter((r) => r.hasAccount);
+  const toShow = chosen.filter((r) => r.tempUntil);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -60,13 +70,18 @@ export function AccountsTable({
     });
   }
 
-  function run(which: "create" | "reset") {
-    const ids = (which === "create" ? toCreate : toReset).map((r) => r.id);
+  function run(which: "create" | "reset" | "show") {
+    const ids = (which === "create" ? toCreate : which === "reset" ? toReset : toShow).map((r) => r.id);
     if (!ids.length) return;
     setBusy(which);
     setConfirmReset(false);
     startTransition(async () => {
-      const res = which === "create" ? await createAccountsAction(kind, ids) : await resetPasswordsAction(kind, ids);
+      const res =
+        which === "create"
+          ? await createAccountsAction(kind, ids)
+          : which === "reset"
+            ? await resetPasswordsAction(kind, ids)
+            : await showTemporaryPasswordsAction(kind, ids, "Shown or reprinted from Accounts");
       setResult(res);
       setBusy(null);
       // Keep only what still needs doing selected, so "press again to continue" just works.
@@ -92,7 +107,7 @@ export function AccountsTable({
           aria-label="Actions for the chosen people"
         >
           <span className="mr-auto font-medium text-slate-700" aria-live="polite">
-            {selected.size ? `${selected.size} chosen` : `Tick ${who}s to create accounts or reset passwords`}
+            {selected.size ? `${selected.size} chosen` : `Tick ${who}s to create accounts, show or reset passwords`}
           </span>
           {selected.size ? (
             <button type="button" className={buttonClasses({ variant: "ghost", size: "sm" })} onClick={() => setSelected(new Set())}>
@@ -107,6 +122,16 @@ export function AccountsTable({
           >
             {busy === "create" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <UserPlus className="h-4 w-4" aria-hidden="true" />}
             Create {toCreate.length || ""} account{toCreate.length === 1 ? "" : "s"}
+          </button>
+          <button
+            type="button"
+            className={buttonClasses({ variant: "secondary", size: "sm" })}
+            disabled={!toShow.length || pending}
+            onClick={() => run("show")}
+            title="Look up the temporary passwords the school gave, to tell a family again or reprint their slips"
+          >
+            {busy === "show" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+            Show {toShow.length || ""} password{toShow.length === 1 ? "" : "s"}
           </button>
           {confirmReset ? (
             <span className="flex flex-wrap items-center gap-2 rounded-lg bg-white px-2 py-1 ring-1 ring-brand-gold-200">
@@ -228,15 +253,37 @@ export function AccountsTable({
   );
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** The last day a temporary password works, e.g. "14 Dec 2026" (it runs out at midnight after, Lagos time). */
+export function untilLabel(iso: string | null | undefined) {
+  if (!iso) return "";
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", day: "numeric", month: "numeric", year: "numeric" })
+    .formatToParts(new Date(new Date(iso).getTime() - 1000));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  return `${get("day")} ${MONTHS[get("month") - 1]} ${get("year")}`;
+}
+
 function AccountBadge({ row }: { row: AccountRow }) {
   if (row.hasAccount) {
+    if (row.tempUntil) {
+      return (
+        <span className="inline-flex flex-wrap items-center gap-1">
+          <Badge tone="gold">School password</Badge>
+          <span className="text-xs text-slate-500">until {untilLabel(row.tempUntil)}</span>
+        </span>
+      );
+    }
     return row.lastSignIn ? <Badge tone="green">Has account</Badge> : <Badge tone="blue">Has account · never used</Badge>;
   }
   if (!row.canCreate) return <Badge tone="slate">{row.cannotCreateReason ?? "Can't create yet"}</Badge>;
   return <Badge tone="gold">No account</Badge>;
 }
 
-/** The passwords just set: shown once, with copy and printable login slips. Nothing here is saved anywhere. */
+/**
+ * Temporary passwords just given or looked up, with copy and printable login slips. The school keeps a locked copy
+ * until the end of term; nothing here is saved in the browser.
+ */
 function OneTimePasswords({
   result,
   kind,
@@ -286,9 +333,10 @@ function OneTimePasswords({
           </h2>
           {withPassword.length ? (
             <p className="mt-0.5 text-sm text-slate-600">
-              Write these down or print the slips now. <strong>They will not be shown again</strong>: for safety the
-              school can&apos;t see passwords later, only set new ones. Each person is asked to choose their own
-              password when they first sign in.
+              Hand each one only to the person named. Each temporary password works until the date shown (the end of
+              term); until then an admin can look it up again here. Each person is asked to choose their own password
+              when they sign in, and once they do, the school&apos;s copy is deleted: nobody can see a password they
+              chose themselves.
             </p>
           ) : null}
         </div>
@@ -318,13 +366,34 @@ function OneTimePasswords({
       ) : null}
 
       {withPassword.length ? (
-        <div className="gf-table-wrap print:hidden">
+        // Phones: one card per person, so the password is never cut off.
+        <ul className="divide-y divide-slate-100 sm:hidden print:hidden">
+          {withPassword.map((r) => (
+            <li key={r.id} className="px-5 py-3">
+              <div className="font-medium text-slate-900">
+                {r.name}
+                {r.className ? <span className="ml-1 text-xs font-normal text-slate-500">{r.className}</span> : null}
+              </div>
+              <div className="break-all font-mono text-sm text-slate-700">{r.username}</div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <span className="select-all whitespace-nowrap rounded-md bg-brand-gold-50 px-2 py-1 font-mono text-lg font-semibold tracking-wide text-slate-900 ring-1 ring-brand-gold-200">
+                  {r.password}
+                </span>
+                {r.until ? <span className="text-xs text-slate-500">works until {untilLabel(r.until)}</span> : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {withPassword.length ? (
+        <div className="gf-table-wrap hidden sm:block print:hidden">
           <table className="gf-table">
             <thead>
               <tr>
                 <th scope="col">{kind === "pupil" ? "Pupil" : "Parent"}</th>
                 <th scope="col">Signs in with</th>
                 <th scope="col">Temporary password</th>
+                <th scope="col">Works until</th>
               </tr>
             </thead>
             <tbody>
@@ -336,10 +405,11 @@ function OneTimePasswords({
                   </td>
                   <td className="break-all font-mono text-sm">{r.username}</td>
                   <td>
-                    <span className="select-all rounded-md bg-brand-gold-50 px-2 py-1 font-mono text-base font-semibold tracking-wide text-slate-900 ring-1 ring-brand-gold-200">
+                    <span className="select-all whitespace-nowrap rounded-md bg-brand-gold-50 px-2 py-1 font-mono text-base font-semibold tracking-wide text-slate-900 ring-1 ring-brand-gold-200">
                       {r.password}
                     </span>
                   </td>
+                  <td className="whitespace-nowrap text-sm text-slate-600">{untilLabel(r.until)}</td>
                 </tr>
               ))}
             </tbody>
@@ -397,23 +467,30 @@ function LoginSlip({ row, kind, schoolName }: { row: AccountResultRow; kind: Acc
           <dt className="w-24 shrink-0">Password</dt>
           <dd className="font-mono text-[12pt] font-bold tracking-wide">{row.password}</dd>
         </div>
+        {row.until ? (
+          <div className="flex gap-2">
+            <dt className="w-24 shrink-0">Works until</dt>
+            <dd>{untilLabel(row.until)}</dd>
+          </div>
+        ) : null}
       </dl>
       <p className="mt-2 text-[8.5pt]">
         {kind === "pupil" ? "Choose “I’m a student”. " : "Choose “I’m a parent”. "}You will be asked to choose your own
-        password. Forgot it? Ask the school office.
+        password; please do. Forgot it? Ask the school office.
       </p>
     </div>
   );
 }
 
 /**
- * One person's account buttons, for the pupil and parent pages: create the account, or give a new temporary
- * password. The password is shown once with a printable slip, exactly as on Accounts & passwords.
+ * One person's account buttons, for the pupil and parent pages: create the account, show the temporary password the
+ * school gave (while it lasts), or give a new one. Shown with a printable slip, exactly as on Accounts & passwords.
  */
 export function AccountQuickActions({
   kind,
   id,
   hasAccount,
+  tempUntil = null,
   canCreate,
   cannotCreateReason,
   schoolName,
@@ -422,6 +499,8 @@ export function AccountQuickActions({
   kind: AccountKind;
   id: string;
   hasAccount: boolean;
+  /** Set while a school-given temporary password is in force. */
+  tempUntil?: string | null;
   canCreate: boolean;
   cannotCreateReason?: string | null;
   schoolName: string;
@@ -431,10 +510,16 @@ export function AccountQuickActions({
   const [result, setResult] = useState<AccountActionResult | null>(null);
   const [confirm, setConfirm] = useState(false);
 
-  function run(which: "create" | "reset") {
+  function run(which: "create" | "reset" | "show") {
     setConfirm(false);
     startTransition(async () => {
-      setResult(which === "create" ? await createAccountsAction(kind, [id]) : await resetPasswordsAction(kind, [id]));
+      setResult(
+        which === "create"
+          ? await createAccountsAction(kind, [id])
+          : which === "reset"
+            ? await resetPasswordsAction(kind, [id])
+            : await showTemporaryPasswordsAction(kind, [id], `Shown on the ${kind === "pupil" ? "pupil" : "parent"}'s page`)
+      );
     });
   }
 
@@ -455,10 +540,18 @@ export function AccountQuickActions({
               </button>
             </>
           ) : (
-            <button type="button" className={buttonClasses({ variant: "secondary", size: "sm" })} disabled={pending} onClick={() => setConfirm(true)}>
-              <KeyRound className="h-4 w-4" aria-hidden="true" />
-              Give a new temporary password
-            </button>
+            <>
+              {tempUntil ? (
+                <button type="button" className={buttonClasses({ size: "sm" })} disabled={pending} onClick={() => run("show")}>
+                  {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                  Show temporary password
+                </button>
+              ) : null}
+              <button type="button" className={buttonClasses({ variant: "secondary", size: "sm" })} disabled={pending} onClick={() => setConfirm(true)}>
+                <KeyRound className="h-4 w-4" aria-hidden="true" />
+                Give a new temporary password
+              </button>
+            </>
           )
         ) : canCreate ? (
           <button type="button" className={buttonClasses({ size: "sm" })} disabled={pending} onClick={() => run("create")}>

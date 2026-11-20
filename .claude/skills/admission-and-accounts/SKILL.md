@@ -75,10 +75,31 @@ Before approving, check the new pattern can't produce numbers that clash with ol
 stays empty; the allocator skips taken keys anyway) and that `{N}` is present. Tell the admin the outcome; the
 Number format tab shows it too.
 
+## Temporary passwords admins can look up (the school's decision, Nov 2026)
+The school asked that admins can see a temporary password again and that it lasts a term
+(`docs/migrations/20261119c_viewable_temporary_passwords.sql`).
+- `temporary_passwords(user_id, ciphertext, expires_at, set_by…)`: one row per sign-in with a school-given password.
+  RLS on with **no policies** and all privileges revoked: nobody reads it directly. No link to `students`, so it never
+  counts as "attached" to a pupil.
+- The website locks the password before it reaches the database: AES-256-GCM, key = HKDF of `TEMP_PASSWORD_KEY`
+  (optional env) or `SUPABASE_SERVICE_ROLE_KEY` (`src/lib/temp-password-crypto.ts`). A copy of the database alone
+  reveals nothing. Rotating that key makes old copies unreadable (the page says "give a new one"); sign-ins still work.
+- `temporary_password_expiry()`: the day after the current term's `ends_on`, midnight Lagos (no term dates: 4 months).
+  `save_temporary_password(user, ciphertext)` (admins; the sign-in must be linked), `admin_temporary_passwords()`
+  (admins; dates only; deletes expired rows), `view_temporary_passwords(users[], purpose)` (admins; logs
+  `password_viewed` per person with the purpose), `clear_my_temporary_password()` (the person, after choosing their own;
+  logs `temporary_password_cleared`).
+- Every create/reset (Accounts, pupil page, parent page, including "type a password yourself") sets
+  `user_metadata.must_change_password` and `temp_password_expires_at` and keeps the copy. `showTemporaryPasswordsAction`
+  unlocks for the panel and slips.
+- Term end: `src/middleware.ts` sends a parent or pupil whose `temp_password_expires_at` has passed and who still
+  `must_change_password` to `/portal/change-password?expired=1`. Choosing their own deletes the copy.
+
 ## Rules
-- Passwords are never stored, logged, put in a URL, toast or `localStorage`. They exist only in the server action's
-  return value and the admin's open panel. Explain "nobody can see a password, only set a new one" on every screen
-  that resets one.
+- Passwords people choose themselves are never stored or shown (Supabase keeps only a hash). Only school-given
+  temporary passwords are kept, locked, until the end of term or until the person chooses their own, whichever is first.
+- Never put a password in a URL, toast, log, email or `localStorage`. Admin look-ups go through
+  `view_temporary_passwords`, which logs each one with a reason.
 - Every creation, reset, link, number change, format change and duplicate override is in `account_log` with who.
   Server actions using the service key call `log_account_action` with the user's client (the database takes the
   actor from the session, not from the caller).
@@ -111,11 +132,16 @@ Before calling the work done, answer these as a school registrar and identity ma
 - **Prove who a parent is before linking them to a child.** Custody disputes and court orders are real. Linking a
   parent account is a decision a named staff member makes and the log records, never something a parent can do by
   typing a number.
-- **Passwords are never stored or sent in the clear.** Temporary passwords appear once, on a slip handed to a
-  checked person, and must be changed at first sign-in. Never put them in emails, logs or URLs.
+- **Passwords are never stored or sent in the clear.** A school-given temporary password is kept only locked
+  (encrypted outside the database's reach), only until term end or until the person chooses their own, is visible
+  only to admins, and every look-up is logged with a reason. It goes on a slip handed to a checked person and must be
+  changed. Never put it in emails, logs or URLs. Before widening who can look one up (front desk, teachers), ask.
 - **Every number change and account action is logged** with who, when, from and to, and a name snapshot.
 
 ## Verify
+- `node temp-passwords-pglite-test.mjs <repo>/docs/schema.sql <repo>/docs/migrations/20261119c_viewable_temporary_passwords.sql`
+  ([temp-passwords-pglite-test.mjs](temp-passwords-pglite-test.mjs), 27 checks: every role, signed-out, expiry,
+  logging, clearing).
 - `node pglite-test.mjs <schema-before-append.sql> <20261117 migration> <20261117b migration>` from a scratchpad with the supabase-migration
   `pglite-*.mjs` files ([pglite-test.mjs](pglite-test.mjs), 70 checks). Seeds clashing numbers before the migration,
   so pass a copy of `schema.sql` from before the migration was appended.

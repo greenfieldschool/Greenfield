@@ -83,6 +83,7 @@ first. The aim is data the school can trust in five years, after staff turnover,
 | Account ↔ person | `student_user_links`, `guardian_user_links` | none; unlinked accounts listed on Accounts |
 | Money | `finance_*` tables, `numeric(12,2)` | balances derived; bank lines reconciled against payments |
 | Admission number format | `admission_number_settings` (changed only by developers) | none |
+| A school-given temporary password | Supabase Auth (hash, the only copy that signs in) | `temporary_passwords.ciphertext`: a locked copy for admins to look up, kept on purpose until term end or until the person chooses their own (then deleted); `user_metadata.temp_password_expires_at` mirrors its end date for the middleware |
 | Spending requests | `spending_requests` (status changed only by `spending_*` functions; history in `spending_events`) | payee bank details snapshot on the request (what the approver saw, on purpose); requester/approver names snapshot |
 | Money spent | `finance_expenses` (voided, never deleted) | one row per receipt of a closed spending request (`spending_receipt_id` unique), written only by `spending_post_expenses`; wallet balance is Paystack's, top-ups and payouts are our list to reconcile |
 

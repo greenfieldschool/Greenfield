@@ -113,7 +113,8 @@ export default async function PortalLayout({ children }: { children: ReactNode }
 
   // Pupils' sign-in email is made from their admission number; it isn't a real address, so don't show it.
   const displayEmail = isAdmissionLoginEmail(user.email) ? "" : (user.email ?? "");
-  const mustChangePassword = Boolean((user.user_metadata as { must_change_password?: boolean } | null)?.must_change_password);
+  const meta = (user.user_metadata ?? {}) as { must_change_password?: boolean; temp_password_expires_at?: string | null };
+  const mustChangePassword = Boolean(meta.must_change_password);
   const displayName = personName ?? (displayEmail.split("@")[0] || "My account");
 
   return (
@@ -125,7 +126,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
         unreadMessages={unreadMessages}
         unreadNotifications={unreadNotifications}
       >
-        {mustChangePassword ? <TemporaryPasswordBanner /> : null}
+        {mustChangePassword ? <TemporaryPasswordBanner until={meta.temp_password_expires_at ?? null} /> : null}
         {children}
       </PortalShell>
       <PushSetup publicKey={vapidPublicKey()} unread={unreadNotifications} userKey={user.id} />

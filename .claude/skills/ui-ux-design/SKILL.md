@@ -95,12 +95,13 @@ people do it at once", the parent who forgets the password) and build it, then s
   while pending (`SubmitButton`) and make the server action safe to repeat.
 
 ## 4. Secrets and one-time values (passwords, codes, login slips)
-- Passwords are never stored or shown after the moment they are set. Say so plainly: "For safety we can't see
-  passwords. You can set a new one; it is shown once."
+- Passwords people choose are never stored or shown. School-given temporary passwords can be looked up by admins
+  until the end of term (admission-and-accounts skill). Say both plainly, with the date: "Works until 14 Dec 2026.
+  Once they choose their own, nobody can see it."
 - Generated temporary passwords are readable: words + digits (e.g. `mango-river-42`), no look-alike characters
   (0/O, 1/l/I), lower case, typeable on a phone keyboard without switching layouts.
-- Show a one-time value once, large, in `font-mono`, with Copy and Print, and a warning that it won't be shown
-  again. Don't put it in the URL, a toast, a log or `localStorage`.
+- Show a secret large, in `font-mono`, with Copy and Print and how long it works. Don't put it in the URL, a
+  toast, a log or `localStorage`.
 - Printable login slips: one per child, cut lines, school crest, the web address, the username, the temporary
   password, "You'll be asked to change it" when that is true, and who to ask for help. Several per A4 page.
 
