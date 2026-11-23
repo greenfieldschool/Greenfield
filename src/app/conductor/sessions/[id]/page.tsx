@@ -99,27 +99,18 @@ export default async function ConductorSessionDetailPage({ params }: { params: P
 
     const access = await canConductSession(supabase, id);
     if (!access.allowed) redirect("/conductor/unauthorized");
-    const user = access.userId ? { id: access.userId } : null;
 
-    await supabase
-      .from("exam_attempts")
-      .update({
-        locked_at: null,
-        locked_reason: null,
-        unlocked_at: new Date().toISOString(),
-        unlocked_by: user?.id ?? null,
-        unlock_note: note.length ? note : null
-      })
-      .eq("id", attemptId)
-      .eq("session_id", id);
-
-    await supabase.from("exam_malpractice_events").insert({
-      attempt_id: attemptId,
-      event_type: "unlock",
-      event_data: { unlock_note: note.length ? note : null }
+    // The database checks the conductor again, clears only the lock and records who unlocked it.
+    const { data: count, error } = await supabase.rpc("exam_unlock_attempts", {
+      p_session: id,
+      p_attempt: attemptId,
+      p_note: note.length ? note : null
     });
+    if (error) failWithToast(id, error.message);
 
     revalidatePath(`/conductor/sessions/${id}`);
+    if (!count) failWithToast(id, "That student is not locked any more.");
+    redirect(`/conductor/sessions/${id}?toast=${encodeURIComponent("Student unlocked.")}&toast_type=success`);
   }
 
   async function bulkUnlock(formData: FormData) {
@@ -133,33 +124,18 @@ export default async function ConductorSessionDetailPage({ params }: { params: P
 
     const access = await canConductSession(supabase, id);
     if (!access.allowed) redirect("/conductor/unauthorized");
-    const user = access.userId ? { id: access.userId } : null;
 
-    const { data: lockedAttempts } = await supabase
-      .from("exam_attempts")
-      .select("id")
-      .eq("session_id", id)
-      .not("locked_at", "is", null);
-
-    const ids = (lockedAttempts ?? []).map((r) => (r as { id: string }).id).filter((v) => v.length);
-    if (!ids.length) failWithToast(id, "No locked attempts to unlock.");
-
-    await supabase
-      .from("exam_attempts")
-      .update({
-        locked_at: null,
-        locked_reason: null,
-        unlocked_at: new Date().toISOString(),
-        unlocked_by: user?.id ?? null,
-        unlock_note: note
-      })
-      .in("id", ids);
-
-    await supabase
-      .from("exam_malpractice_events")
-      .insert(ids.map((attemptId) => ({ attempt_id: attemptId, event_type: "bulk_unlock", event_data: { note } })));
+    const { data: count, error } = await supabase.rpc("exam_unlock_attempts", {
+      p_session: id,
+      p_attempt: null,
+      p_note: note
+    });
+    if (error) failWithToast(id, error.message);
 
     revalidatePath(`/conductor/sessions/${id}`);
+    if (!count) failWithToast(id, "No locked attempts to unlock.");
+    const message = `${count} student${count === 1 ? "" : "s"} unlocked.`;
+    redirect(`/conductor/sessions/${id}?toast=${encodeURIComponent(message)}&toast_type=success`);
   }
 
   const lockedCount = attempts.filter((a) => !!a.locked_at).length;

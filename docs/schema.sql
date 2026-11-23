@@ -14609,3 +14609,221 @@ $$;
 
 revoke all on function public.record_bank_line_unchecked(uuid, uuid, uuid, uuid) from public, anon, authenticated;
 grant execute on function public.record_bank_line_unchecked(uuid, uuid, uuid, uuid) to service_role;
+
+
+-- View row checks on the result, welfare and exam summary views (see docs/migrations/20261123_view_row_checks.sql)
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- View row checks: result, welfare and exam summaries (see docs/migrations/20261123_view_row_checks.sql)
+-- ---------------------------------------------------------------------------------------------------------------
+
+-- 1. Result and welfare summaries: run as the reader, so the tables' row rules apply.
+alter view public.academic_student_subject_term_summary set (security_invoker = true);
+alter view public.academic_student_term_summary set (security_invoker = true);
+alter view public.welfare_student_term_summary set (security_invoker = true);
+
+-- 2. Exam views: staff, or a conductor assigned to the session.
+create or replace function public.can_see_exam_session(p_session uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(public.is_staff(), false)
+      or exists (
+        select 1
+        from public.exam_conductor_user_links l
+        join public.exam_session_conductors sc on sc.conductor_id = l.conductor_id
+        where l.user_id = auth.uid()
+          and sc.session_id = p_session
+      );
+$$;
+revoke all on function public.can_see_exam_session(uuid) from public, anon;
+grant execute on function public.can_see_exam_session(uuid) to authenticated;
+
+create or replace view public.exam_attempt_list_v as
+select
+  a.id as attempt_id,
+  a.session_id,
+  a.student_id,
+  st.admission_number,
+  st.first_name,
+  st.last_name,
+  a.obtained_marks,
+  a.max_marks,
+  a.percent,
+  a.status,
+  a.locked_at,
+  a.lock_count,
+  a.started_at,
+  a.submitted_at
+from public.exam_attempts a
+join public.students st on st.id = a.student_id
+where public.can_see_exam_session(a.session_id);
+
+create or replace view public.exam_session_summary_v as
+select
+  s.id as session_id,
+  s.test_id,
+  t.name as test_name,
+  t.subject_id,
+  sub.name as subject_name,
+  s.class_id,
+  c.level as class_level,
+  c.name as class_name,
+  s.starts_at,
+  s.ends_at,
+  s.status,
+  count(a.id) filter (where a.submitted_at is not null) as completions,
+  count(a.id) filter (where a.submitted_at is null) as pending,
+  count(a.id) filter (where a.locked_at is not null) as locked,
+  coalesce(avg(a.percent), 0) as average_percent,
+  coalesce(max(a.percent), 0) as highest_percent,
+  coalesce(min(a.percent), 0) as lowest_percent
+from public.exam_test_sessions s
+join public.exam_tests t on t.id = s.test_id
+left join public.subjects sub on sub.id = t.subject_id
+left join public.classes c on c.id = s.class_id
+left join public.exam_attempts a on a.session_id = s.id
+where public.can_see_exam_session(s.id)
+group by s.id, s.test_id, t.name, t.subject_id, sub.name, s.class_id, c.level, c.name, s.starts_at, s.ends_at, s.status;
+
+-- 3. Nobody signed out reads any of them.
+revoke all on public.academic_student_subject_term_summary from anon, authenticated;
+revoke all on public.academic_student_term_summary from anon, authenticated;
+revoke all on public.welfare_student_term_summary from anon, authenticated;
+revoke all on public.exam_attempt_list_v from anon, authenticated;
+revoke all on public.exam_session_summary_v from anon, authenticated;
+grant select on public.academic_student_subject_term_summary to authenticated;
+grant select on public.academic_student_term_summary to authenticated;
+grant select on public.welfare_student_term_summary to authenticated;
+grant select on public.exam_attempt_list_v to authenticated;
+grant select on public.exam_session_summary_v to authenticated;
+
+
+-- Exam conductor access: own link rows and checked unlocks (see docs/migrations/20261123b_exam_conductor_access.sql)
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- Exam conductor access: own link rows, checked unlocks (see docs/migrations/20261123b_exam_conductor_access.sql)
+-- ---------------------------------------------------------------------------------------------------------------
+
+-- 1. Conductor checks that see the link rows, with definite answers.
+create or replace function public.is_exam_conductor()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(exists (select 1 from public.exam_conductor_user_links l where l.user_id = auth.uid()), false);
+$$;
+revoke all on function public.is_exam_conductor() from public, anon;
+grant execute on function public.is_exam_conductor() to authenticated;
+
+create or replace function public.can_conduct_session(session_uuid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(exists (
+    select 1
+    from public.exam_conductor_user_links l
+    join public.exam_session_conductors sc on sc.conductor_id = l.conductor_id
+    where l.user_id = auth.uid()
+      and sc.session_id = session_uuid
+  ), false);
+$$;
+revoke all on function public.can_conduct_session(uuid) from public, anon;
+grant execute on function public.can_conduct_session(uuid) to authenticated;
+
+-- 2. A conductor reads their own link and their own assignments.
+drop policy if exists exam_conductor_user_links_own_select on public.exam_conductor_user_links;
+create policy exam_conductor_user_links_own_select
+  on public.exam_conductor_user_links
+  for select
+  to authenticated
+  using (user_id = auth.uid());
+
+drop policy if exists exam_session_conductors_own_select on public.exam_session_conductors;
+create policy exam_session_conductors_own_select
+  on public.exam_session_conductors
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.exam_conductor_user_links l
+      where l.user_id = auth.uid()
+        and l.conductor_id = exam_session_conductors.conductor_id
+    )
+  );
+
+-- 3. Unlocking through one checked function; no direct updates by conductors.
+drop policy if exists exam_attempts_conductor_unlock on public.exam_attempts;
+
+-- Unlock one attempt (p_attempt) or every locked attempt in the session (p_attempt null; a note is required).
+-- Returns how many attempts were unlocked.
+create or replace function public.exam_unlock_attempts(p_session uuid, p_attempt uuid default null, p_note text default null)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_note text := nullif(btrim(coalesce(p_note, '')), '');
+  v_ids uuid[];
+begin
+  if auth.uid() is null then
+    raise exception 'Please sign in again.';
+  end if;
+  if not (coalesce(public.is_staff(), false) or coalesce(public.can_conduct_session(p_session), false)) then
+    raise exception 'You are not assigned to conduct this session.';
+  end if;
+  if p_attempt is null and v_note is null then
+    raise exception 'Enter a reason for unlocking everyone.';
+  end if;
+
+  with done as (
+    update public.exam_attempts a
+    set locked_at = null,
+        locked_reason = null,
+        status = case when a.status = 'locked' and a.submitted_at is null then 'in_progress' else a.status end,
+        unlocked_at = now(),
+        unlocked_by = auth.uid(),
+        unlock_note = v_note
+    where a.session_id = p_session
+      and a.locked_at is not null
+      and (p_attempt is null or a.id = p_attempt)
+    returning a.id
+  )
+  select coalesce(array_agg(id), '{}') into v_ids from done;
+
+  insert into public.exam_malpractice_events (attempt_id, event_type, event_data)
+  select x, case when p_attempt is null then 'bulk_unlock' else 'unlock' end,
+         jsonb_build_object('unlock_note', v_note, 'unlocked_by', auth.uid())
+  from unnest(v_ids) as x;
+
+  return coalesce(array_length(v_ids, 1), 0);
+end;
+$$;
+revoke all on function public.exam_unlock_attempts(uuid, uuid, text) from public, anon;
+grant execute on function public.exam_unlock_attempts(uuid, uuid, text) to authenticated;
+
+-- 4. Conductors read the malpractice records of their sessions; only the functions above write them.
+drop policy if exists exam_malpractice_conductor_all on public.exam_malpractice_events;
+drop policy if exists exam_malpractice_conductor_select on public.exam_malpractice_events;
+create policy exam_malpractice_conductor_select
+  on public.exam_malpractice_events
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.exam_attempts a
+      where a.id = exam_malpractice_events.attempt_id
+        and public.can_conduct_session(a.session_id)
+    )
+  );

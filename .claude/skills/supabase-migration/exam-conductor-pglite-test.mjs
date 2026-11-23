@@ -1,0 +1,67 @@
+import { load, U } from "./pglite-full-schema.mjs";
+const [, , , M1, M2] = process.argv;
+const db = await load([M1, M2, M1, M2]); // both migrations, twice
+await db.exec(`set session_replication_role = replica;
+insert into auth.users(id,email) select ('00000000-0000-0000-0000-'||lpad(g::text,12,'0'))::uuid, 'u'||g||'@x' from generate_series(1,8) g;
+insert into public.profiles(id, role) values ('${U(1)}','admin'),('${U(2)}','teacher'),('${U(3)}','parent'),('${U(5)}','student'),('${U(6)}','parent');
+insert into public.classes(id, level, name) values ('${U(101)}','primary','Primary 1'),('${U(102)}','primary','Primary 2');
+insert into public.students(id, first_name, last_name, level, class_id) values ('${U(201)}','Ada','Alpha','primary','${U(101)}'),('${U(202)}','Bola','Beta','primary','${U(102)}'),('${U(203)}','Chi','Gamma','primary','${U(101)}');
+insert into public.guardians(id, full_name) values ('${U(301)}','Parent A');
+insert into public.student_guardians(student_id, guardian_id) values ('${U(201)}','${U(301)}');
+insert into public.guardian_user_links(guardian_id, user_id) values ('${U(301)}','${U(3)}');
+insert into public.student_user_links(student_id, user_id) values ('${U(201)}','${U(5)}');
+insert into public.exam_tests(id, name) values ('${U(701)}','Maths CBT');
+insert into public.exam_test_sessions(id, test_id, class_id, status) values ('${U(711)}','${U(701)}','${U(101)}','active'),('${U(712)}','${U(701)}','${U(102)}','active');
+insert into public.exam_conductors(id, full_name) values ('${U(801)}','One'),('${U(802)}','Two');
+insert into public.exam_conductor_user_links(conductor_id, user_id) values ('${U(801)}','${U(6)}'),('${U(802)}','${U(7)}');
+insert into public.exam_session_conductors(session_id, conductor_id) values ('${U(711)}','${U(801)}');
+set session_replication_role = origin;`);
+const reset = async () => { await db.exec(`reset role; set session_replication_role = replica;
+delete from public.exam_malpractice_events; delete from public.exam_attempts;
+insert into public.exam_attempts(id, session_id, student_id, obtained_marks, max_marks, status, locked_at, locked_reason, lock_count) values
+ ('${U(721)}','${U(711)}','${U(201)}',3,10,'locked',now(),'left the tab',1),
+ ('${U(723)}','${U(711)}','${U(203)}',5,10,'locked',now(),'left the tab',1),
+ ('${U(722)}','${U(712)}','${U(202)}',4,10,'locked',now(),'left the tab',1);
+insert into public.exam_malpractice_events(attempt_id, event_type) values ('${U(721)}','lock'),('${U(722)}','lock');
+set session_replication_role = origin;`); };
+const as = async (n) => { await db.exec("reset role"); if (n) await db.exec(`set test.uid='${U(n)}'; set role authenticated;`); else await db.exec(`set test.uid=''; set role anon;`); };
+const run = async (sql) => { try { const r = await db.query(sql); return r.rows.length === 1 ? JSON.stringify(Object.values(r.rows[0])) : `${r.rows.length} rows` + (r.affectedRows ? ` (${r.affectedRows} changed)` : ""); } catch (e) { return "ERR " + e.message; } };
+const results = [];
+const check = async (who, n, label, sql) => { await as(n); results.push({ who, label, result: await run(sql) }); };
+const state = async () => { await db.exec("reset role"); return (await db.query(`select right(id::text,3) id, status, locked_at is null unlocked, obtained_marks, unlocked_by is not null by_set, (select count(*) from public.exam_malpractice_events e where e.attempt_id=a.id and e.event_type like '%unlock') unlock_events from public.exam_attempts a order by id`)).rows; };
+
+await reset();
+const C = 6;
+await check("conductor S1", C, "is_exam_conductor()", "select public.is_exam_conductor()");
+await check("conductor S1", C, "own link rows", "select conductor_id from public.exam_conductor_user_links");
+await check("conductor S1", C, "own assignments", "select session_id from public.exam_session_conductors");
+await check("conductor S1", C, "sessions visible", "select right(id::text,3) from public.exam_test_sessions");
+await check("conductor S1", C, "sessions page embed", "select sc.session_id, s.status, t.name, c.name from public.exam_session_conductors sc join public.exam_test_sessions s on s.id=sc.session_id join public.exam_tests t on t.id=s.test_id left join public.classes c on c.id=s.class_id");
+await check("conductor S1", C, "attempt list view", "select first_name from public.exam_attempt_list_v");
+await check("conductor S1", C, "malpractice visible", "select right(attempt_id::text,3) from public.exam_malpractice_events");
+await check("conductor S1", C, "direct update marks (S1)", `update public.exam_attempts set obtained_marks = 10 where id='${U(721)}'`);
+await check("conductor S1", C, "direct delete malpractice", `delete from public.exam_malpractice_events`);
+await check("conductor S1", C, "direct insert malpractice", `insert into public.exam_malpractice_events(attempt_id,event_type) values ('${U(721)}','unlock')`);
+await check("conductor S1", C, "unlock one in S1", `select public.exam_unlock_attempts('${U(711)}','${U(721)}','Power cut')`);
+await check("conductor S1", C, "unlock same again", `select public.exam_unlock_attempts('${U(711)}','${U(721)}',null)`);
+await check("conductor S1", C, "unlock S1 attempt via S2 id", `select public.exam_unlock_attempts('${U(712)}','${U(722)}','x')`);
+await check("conductor S1", C, "bulk S1 without note", `select public.exam_unlock_attempts('${U(711)}',null,'  ')`);
+await check("conductor S1", C, "bulk S1 with note", `select public.exam_unlock_attempts('${U(711)}',null,'Network down')`);
+const afterConductor = await state();
+await reset();
+await check("conductor unassigned", 7, "own link rows", "select conductor_id from public.exam_conductor_user_links");
+await check("conductor unassigned", 7, "unlock S1", `select public.exam_unlock_attempts('${U(711)}','${U(721)}','x')`);
+await check("parent A", 3, "link rows", "select count(*) from public.exam_conductor_user_links");
+await check("parent A", 3, "is_exam_conductor()", "select public.is_exam_conductor()");
+await check("parent A", 3, "unlock S1", `select public.exam_unlock_attempts('${U(711)}','${U(721)}','x')`);
+await check("pupil A", 5, "unlock own attempt", `select public.exam_unlock_attempts('${U(711)}','${U(721)}','x')`);
+await check("pupil A", 5, "own attempts", "select right(id::text,3) from public.exam_attempts");
+await check("signed out", null, "unlock S1", `select public.exam_unlock_attempts('${U(711)}','${U(721)}','x')`);
+await check("signed out", null, "link rows", "select * from public.exam_conductor_user_links");
+await check("teacher", 2, "unlock S2", `select public.exam_unlock_attempts('${U(712)}','${U(722)}','x')`);
+await check("admin", 1, "link rows", "select count(*) from public.exam_conductor_user_links");
+await check("admin", 1, "bulk S1", `select public.exam_unlock_attempts('${U(711)}',null,'Restart')`);
+await check("admin", 1, "can_conduct_session(S1) (not a conductor)", `select public.can_conduct_session('${U(711)}')`);
+console.table(results);
+console.log("after the conductor's unlocks:"); console.table(afterConductor);
+console.log("after admin/teacher:"); console.table(await state());
