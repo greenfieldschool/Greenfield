@@ -58,10 +58,21 @@ integration or a new kind of personal data, or changes who may do something. Rol
 - The Moniepoint webhook accepts unsigned calls when `MONIEPOINT_WEBHOOK_SECRET` is not set. Moniepoint isn't used
   (Nov 2026); require the secret or remove the route before it is.
 - Views run as their owner and skip RLS. The finance balance views leaked every family's balances and contact details
-  to the public key until 20261122. Four more views still lack row checks (Nov 2026): `academic_student_term_summary`,
-  `academic_student_subject_term_summary`, `welfare_student_term_summary`, `exam_attempt_list_v` /
-  `exam_session_summary_v`. Any new view: `with (security_invoker = true)`, or a row filter in the view plus
-  `revoke … from anon`, and a PGlite test as a parent and signed out.
+  to the public key until 20261122_payment_plans. Five more views (`academic_student_subject_term_summary`,
+  `academic_student_term_summary`, `welfare_student_term_summary`, `exam_attempt_list_v`, `exam_session_summary_v`)
+  let anyone signed out read every pupil's grades, attendance, discipline counts and exam marks with names, until
+  20261123_view_row_checks: the three result/welfare views now run as the reader (`security_invoker`), the two exam
+  views filter rows with `can_see_exam_session()` (staff, or a conductor assigned to the session), and anon has no
+  select on any of them. Any new view: `with (security_invoker = true)`, or a row filter in the view through a
+  definite-boolean `security definer` helper, plus `revoke … from anon`, and a PGlite test as a parent, pupil and
+  signed out (`supabase-migration/view-row-checks-pglite-test.mjs` is a template). Check: `select relname, reloptions
+  from pg_class where relkind = 'v' and relnamespace = 'public'::regnamespace`.
+- Exam conductors who weren't staff could never get in: the only rule on `exam_conductor_user_links` was for staff,
+  and `is_exam_conductor()` / `can_conduct_session()` ran as the caller. Making them work would also have let a
+  conductor update any column of an attempt (marks) and change or delete malpractice records. Fixed in
+  20261123b_exam_conductor_access: own-row reads, definer helpers, unlocks only through `exam_unlock_attempts()`
+  (checks, clears the lock, logs), conductors read malpractice records only. When a rule never matched, check what
+  it would allow once it does before fixing it (`supabase-migration/exam-conductor-pglite-test.mjs`).
 - The CRON secret was nearly hard-coded in a function body; it lives in Vault.
 
 ## Expert review

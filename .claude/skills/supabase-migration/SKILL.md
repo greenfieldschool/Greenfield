@@ -34,7 +34,13 @@ description: Use for any database change in Supabase/Postgres: new tables, colum
 - Keep audit-type tables write-only for triggers: no insert/update/delete policies, revoke privileges.
 - Upserts fire BEFORE INSERT triggers even when they become updates; check for an existing row before logging.
 - `SET` flags for trusted internal paths use `set_config('app.<flag>', 'on', true)` inside definer functions only.
-- Views run as their owner (bypass RLS) unless `with (security_invoker = true)`.
+- Views run as their owner (bypass RLS) unless `with (security_invoker = true)`. Use `alter view … set
+  (security_invoker = true)` when the tables' RLS already fits every reader; otherwise filter rows in the view with a
+  `security definer` helper. Functions called inside an owner-rights view or a policy still run as the caller, so a
+  plain `language sql` helper reading an RLS table sees nothing for non-staff (`can_conduct_session()` and
+  `is_exam_conductor()` were like that until 20261123b). Always
+  `revoke all on <view> from anon, authenticated; grant select … to authenticated`. Template test:
+  [`view-row-checks-pglite-test.mjs`](view-row-checks-pglite-test.mjs) (`node … <schema.sql> <migration.sql>`).
 
 ## Test with PGlite
 ```bash
