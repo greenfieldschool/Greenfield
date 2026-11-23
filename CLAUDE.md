@@ -24,6 +24,7 @@ to four: the skill for the area, plus the cross-cutting skills in "Skills that g
 |---|---|
 | [resolve-issue-doc](.claude/skills/resolve-issue-doc/SKILL.md) | The user attaches an `issues/*.docx` / `.pdf` with screenshots of problems to fix |
 | [admin-portal-page](.claude/skills/admin-portal-page/SKILL.md) | Building or changing any page, form or server action in `/admin` or `/portal` |
+| [welfare-discipline](.claude/skills/welfare-discipline/SKILL.md) | Discipline cases, the discipline ladder (which time, step, corrections), the rule list, the disciplinary committee, withdrawing a record, the portal Discipline page |
 | [pupil-records](.claude/skills/pupil-records/SKILL.md) | Deactivating, reactivating or deleting pupil records (duplicates, test records, leavers), the reason list and the deactivation log |
 | [admission-and-accounts](.claude/skills/admission-and-accounts/SKILL.md) | Admission numbers (format, automatic numbering, clashes), adding pupils and duplicate checks, portal accounts and passwords for pupils and parents, login slips |
 | [role-management](.claude/skills/role-management/SKILL.md) | Who can give or change account roles, the role change log, role options on `/admin/users`, the roles guide |

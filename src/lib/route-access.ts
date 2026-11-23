@@ -21,6 +21,7 @@ export const adminOnlyPrefixes = [
   "/admin/academics/teachers",
   "/admin/welfare/criteria",
   "/admin/welfare/weeks",
+  "/admin/welfare/discipline/rules",
   "/admin/messages/moderation",
   "/admin/management-pack",
   "/admin/students/deactivation-log",

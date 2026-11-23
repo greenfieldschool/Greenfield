@@ -260,10 +260,19 @@ export default async function PortalHelpPage() {
           q: "What are discipline records?",
           for: "parent",
           a: (
-            <p>
-              Behaviour the school has recorded, with how serious it was. Each record takes a few marks off the Conduct part of that week&apos;s welfare score. To
-              talk about one, message the class teacher.
-            </p>
+            <>
+              <p>
+                Each time your child breaks a school rule, the school records it and you get a notice on the portal and by email. The notice itself doesn&apos;t
+                say what happened, because it can show on a phone&apos;s lock screen; open Discipline to read it.
+              </p>
+              <p className="mt-2">
+                The school counts how many times your child has broken the same rule, and the correction grows each time, as the school policy sets out (the
+                policy link is at the top of the Discipline page). From the 4th time, the school&apos;s disciplinary committee decides what happens and invites
+                you to the school; the day is shown on the record. If you disagree with the committee&apos;s decision, you can appeal in writing to the
+                Proprietress. Each record also takes a few marks off the Conduct part of that week&apos;s welfare score. To
+                talk about one, message the class teacher.
+              </p>
+            </>
           )
         },
         {
@@ -295,15 +304,21 @@ export default async function PortalHelpPage() {
           q: "Who can I message?",
           a: (
             <p>
-              Your children&apos;s teachers, privately. Each class also has Announcements from its teachers and a Parents&apos; chat (the class teacher can read
-              it). You can message another parent only if they have allowed it. Phone numbers and emails are never shown.
+              Your children&apos;s teachers, privately, and the school office (tap &ldquo;Message the school office&rdquo; at the top of Messages) for fees,
+              admissions, pick-ups, letters or anything else. Each class also has Announcements from its teachers and a Parents&apos; chat (the class teacher
+              can read it). You can message another parent only if they have allowed it. Phone numbers and emails are never shown.
             </p>
           )
         },
         {
           id: "reply-times",
           q: "When will a teacher reply?",
-          a: <p>Each teacher shows the hours they usually reply. For anything urgent, call the school office on {school.phone}.</p>
+          a: (
+            <p>
+              Each teacher shows the hours they usually reply. The school office (the front desk and school admins) replies within two school days, and you get
+              an email when it does. For anything urgent, call the school office on {school.phone}.
+            </p>
+          )
         },
         {
           id: "report-block",

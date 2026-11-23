@@ -228,18 +228,28 @@ export const familiesPolicy: PolicyDoc = {
           blocks: [
             {
               kind: "text",
-              text: "The school counts how many times a pupil has broken the same rule, and the correction grows each time."
+              text: "The school counts how many times a pupil has broken the same rule, and the correction grows each time. The count runs for the pupil's whole time at the school. Parents are told each time on the portal, where they can read what happened and what the school did."
             },
             {
               kind: "table",
               head: ["Time", "What it means", "Correction"],
               rows: [
                 ["1st", "The pupil is new to the rule and broke it while still getting used to it.", "Reads the rule from the policy book three times, then a firm warning."],
-                ["2nd", "The pupil broke the rule again after being corrected.", "One of: 30 minutes of useful work, time apart from the class, losing break time, or a spoken promise."],
+                ["2nd", "The pupil broke the rule again after being corrected.", "One of: 30 minutes of useful work, supervised reflection time with a member of staff, losing break time, or a spoken promise."],
                 ["3rd", "The pupil is deliberately refusing correction.", "30 minutes of useful work on 3 days in a row, a one-to-one counselling session, and a written statement in the pupil's file on why it happened and how they will change."],
-                ["4th", "The pupil is not responding to the school's usual corrections.", "The parent is invited to the school. Extra time with the school's environment team for days or weeks set by the disciplinary committee, or referral to a correctional service in the community."]
+                ["4th", "The pupil is not responding to the school's usual corrections.", "The disciplinary committee meets and the parent is invited to the school. The committee may set extra time with the school's environment team (up to 10 school days), or refer the pupil to the school counsellor and, with the parent's agreement, to outside support."]
               ],
-              note: "Taking what belongs to someone else is corrected with useful work from the first time."
+              note: "Taking what belongs to someone else is corrected with useful work from the first time. Behaviour outside school in uniform goes straight to the disciplinary committee, because it may lead to suspension or expulsion."
+            },
+            {
+              kind: "list",
+              items: [
+                "No pupil is ever left alone as a correction. Useful work and time with the environment team are supervised, suited to the pupil's age and done outside lesson time.",
+                "Before the disciplinary committee decides, the pupil is heard and what they say is written down.",
+                "Only the disciplinary committee can suspend or expel a pupil, and the parent always receives a letter explaining why.",
+                "A parent who disagrees with the committee's decision can appeal in writing to the Proprietress.",
+                "The school never uses corporal punishment."
+              ]
             }
           ]
         },
@@ -258,6 +268,107 @@ export const familiesPolicy: PolicyDoc = {
                 "Pupils elect their representatives freely and fairly, at the end of every school year.",
                 "Representatives report back to pupils and to the school management in good time.",
                 "Outgoing representatives hand over what the new ones need to know, with any documents."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      id: "safety",
+      title: "Safety and wellbeing",
+      sections: [
+        {
+          id: "safeguarding",
+          title: "Keeping children safe",
+          blocks: [
+            {
+              kind: "text",
+              text: "Every child has the right to be safe, at school and at home. The school follows the Child's Rights Law of Lagos State, and every member of staff is trained to notice and report worries about a child."
+            },
+            {
+              kind: "list",
+              items: [
+                "The Head Teacher is the school's safeguarding lead, unless the Proprietress names someone else. Anyone worried about a child's safety, at school or at home, should tell the safeguarding lead the same day.",
+                "Pupils can tell any teacher they trust. The teacher listens, writes down what was said, and passes it to the safeguarding lead. Staff never promise to keep a worry secret, because they may need to get help.",
+                "The school tells parents about a worry, unless telling them could put the child at greater risk. When a child is at serious risk, the school reports it to the right authorities, such as the Lagos State Domestic and Sexual Violence Agency or the Ministry of Youth and Social Development.",
+                "The school never uses corporal punishment, and no adult at school may harm, threaten or humiliate a child.",
+                "Only parents, guardians and people they name in writing at the front desk may collect a pupil. Anyone else is turned away, and the parent is called.",
+                "Visitors sign in at the front desk, wear a visitor's badge and are never left alone with pupils."
+              ]
+            }
+          ]
+        },
+        {
+          id: "anti-bullying",
+          title: "Bullying",
+          blocks: [
+            {
+              kind: "text",
+              text: "Bullying is hurting, frightening or leaving out someone on purpose, again and again. It can be hitting, name-calling, taking things, spreading stories, or messages and pictures sent by phone or online, including in WhatsApp groups."
+            },
+            {
+              kind: "list",
+              items: [
+                "Bullying is never accepted at Greenfield School, whoever does it.",
+                "A pupil who is bullied, or sees it happen, should tell a teacher straight away. Parents can tell the class teacher or the office, or send a message on the portal.",
+                "The school looks into every report within two school days, talks to everyone involved, and tells the parents of the pupils involved what it found and what it will do.",
+                "The pupil who was bullied is offered support from the school counsellor. The pupil who bullied is corrected under \"When a rule is broken\" and is also offered counselling, so it stops.",
+                "Parents are asked not to approach another family's child about bullying. Tell the school, and the school deals with it."
+              ]
+            }
+          ]
+        },
+        {
+          id: "phones-devices",
+          title: "Phones and devices",
+          blocks: [
+            {
+              kind: "list",
+              items: [
+                "Pupils may not use mobile phones, smart watches with a camera or other devices during the school day.",
+                "A pupil who needs a phone for the journey hands it in at the front desk on arrival and collects it at closing time. The school is not responsible for phones that are not handed in.",
+                "A phone used during the school day is kept at the front desk and given back to the parent.",
+                "Parents who need to reach their child during the day call the school office.",
+                "Pupils never take photos or videos of other pupils or staff at school, or share them, without permission from a teacher."
+              ]
+            }
+          ]
+        },
+        {
+          id: "using-the-portal",
+          title: "Using the portal, messages and online classes",
+          blocks: [
+            {
+              kind: "list",
+              items: [
+                "Keep your password to yourself. Parents and pupils each have their own login; never use someone else's.",
+                "Write to teachers and other parents politely, as you would speak to them face to face. Messages that are rude, threatening or share someone else's private details may be removed, and the sender may lose the use of messages.",
+                "Teachers reply to messages within two school days. You can also message the school office on the portal; the front desk and school admins reply within two school days. For anything urgent, call the school office.",
+                "In online classes, pupils join from a quiet place, dressed as for school, and follow the same rules as in the classroom. Nobody records, photographs or shares an online class.",
+                "Tell the school straight away if you think someone else has used your account."
+              ]
+            }
+          ]
+        },
+        {
+          id: "personal-data",
+          title: "Your personal information",
+          blocks: [
+            {
+              kind: "text",
+              text: "The school follows the Nigeria Data Protection Act 2023. It collects only the information it needs to teach, care for and keep pupils safe, run the school and collect fees."
+            },
+            {
+              kind: "list",
+              items: [
+                "What the school keeps: names, dates of birth, contact details, health notes, attendance, behaviour, results, fees and payments, and photos taken at school.",
+                "Who can see it: only the staff who need it for their work. Parents see their own children's records on the portal; pupils see their own. The school never sells personal information.",
+                "The school shares information outside the school only when the law requires it, to keep a child safe, or with your agreement (for example, examination bodies such as WAEC and NECO).",
+                "Photos and videos of pupils are used on the school's website and social media only if the parent agrees. Parents can say no, or change their mind, at the office at any time.",
+                "How long it is kept: admission records, report cards and results are kept permanently; other records are deleted six years after the pupil leaves.",
+                "Your rights: you can ask to see the information the school keeps about you or your child, to correct it, or, where the law allows, to delete it. Ask at the office; the school replies within 30 days.",
+                "If personal information is ever lost or seen by someone who should not see it, the school tells the people affected and the Nigeria Data Protection Commission as the law requires."
               ]
             }
           ]
@@ -482,6 +593,25 @@ export const familiesPolicy: PolicyDoc = {
             {
               kind: "text",
               text: "If a payment in your plan is missed, or the agreement is broken, a default fee is added: ₦2,500 or 3% of the term's school fees, whichever is higher, for each missed payment. The school checks its records first, then tells you on the portal and by email and sends a default letter. The fee is paid with your next payment."
+            }
+          ]
+        },
+        {
+          id: "refunds",
+          title: "Refunds",
+          audience: "parents",
+          blocks: [
+            {
+              kind: "list",
+              items: [
+                "Fees are for a whole term. Once a term has started, its fees are not refunded, even if the pupil leaves or misses days.",
+                "Fees paid for a term that has not started are refunded if the pupil leaves, less one term's fees if the notice in \"Withdrawing a pupil\" was not given.",
+                "If a pupil leaves after paying early with a discount, the refund is worked out at the full fee for the terms already used.",
+                "Money paid by mistake or paid twice is refunded in full, or kept towards the next term's fees if you prefer.",
+                "The caution (damage) fee is returned when the pupil leaves the school, less the cost of any damage, with a list of what it was used for.",
+                "Application and entrance examination fees are not refunded.",
+                "Ask for a refund in writing at the office or by message on the portal. The school pays it within 30 days, by bank transfer to the account that paid."
+              ]
             }
           ]
         }

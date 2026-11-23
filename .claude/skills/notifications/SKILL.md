@@ -22,6 +22,8 @@ have no notifications yet (they have the Messages badge).
   (`assignment_marked`), `lesson_notes` becoming published (`lesson_note`), `online_classes` insert / moved /
   cancelled / back on (`online_class`, `online_class_moved`, `online_class_cancelled`, `online_class_on`).
   `star_videos` insert or pupil changed (`star_video`, only that pupil and their parents; see the star-videos skill).
+  Discipline cases and committee decisions (`discipline`, `discipline_committee`): parents only, inserted by
+  `discipline_notify_parents` inside the recording functions (welfare-discipline skill); same words for every case.
   Times in the text use `notify_when()` (Lagos, "Thu 12 Nov, 4:00 pm").
 - Code: `src/lib/notifications.ts`; bell in `src/app/portal/PortalShell.tsx` (count from `portal/layout.tsx`, 2.5 s
   timeout, 0 on error); page `src/app/portal/notifications/page.tsx` (Today / This week / Earlier, mark all read,

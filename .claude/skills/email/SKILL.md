@@ -38,6 +38,11 @@ parents get by email and how they switch it off. Portal-only notifications (the 
 - The OAuth app must be *In production* (Testing tokens die after 7 days). Changing EMAIL_TOKEN_KEY means reconnecting.
 - Every email: List-Unsubscribe + List-Unsubscribe-Post headers and a visible "Stop these emails" link.
 
+## Pitfalls
+- Until 23 Nov 2026 no message email was queued: `email_from_chat_message` compared the enum `profiles.role` with a
+  text array and its error handler hid the failure. Fixed in `20261123c_school_office_messages.sql`. Test triggers
+  against the full schema (enums included), not stub tables.
+
 ## Expert review
 Before calling the work done, answer these as an email deliverability and school communications lead (30+ years) would. Where an answer needs a decision the school hasn't made, ask.
 

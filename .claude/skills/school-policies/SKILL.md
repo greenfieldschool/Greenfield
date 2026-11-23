@@ -23,7 +23,8 @@ description: Use when a change touches anything the school's policies decide (sc
 - Help: `LEARN.policies` guide in the Learn Centre, `HELP.policies` in portal help.
 - Excerpts placed so far: admin Discipline + portal Discipline (`discipline-ladder`), admin Attendance (`arriving`),
   Applications (`admission-documents`), portal Fees & billing and Pay in instalments (`payment-plans`,
-  `late-payment`), invoice page (`payment-plans`, `early-payment`), Payment plans (`late-payment`).
+  `late-payment`), invoice page (`payment-plans`, `early-payment`), Payment plans (`late-payment`), Discipline rules
+  (`school-rules`), Messages inbox (portal `using-the-portal`, staff `staff-devices`), portal Fees & billing (`refunds`).
 - Originals: `Policies/` (Word files, git-ignored by the user's choice; don't commit them). The two "vetted by
   Proprietress" files are the newest; "Procedures Act" (2016) is older but the only source for duties, subject
   categories, exam format and staff penalties.
@@ -46,8 +47,16 @@ description: Use when a change touches anything the school's policies decide (sc
 | Withdrawal | Written notice with reasons a term ahead, or a term's fees instead |
 | Admission ages | Pre-school 1–5, primary 6–11, JSS 10–13; head teacher may override with a reason |
 | Exam questions | Due Friday of week 2, late = holiday salary forfeited |
+| Discipline ladder | Count per pupil and rule for the whole time at school; parents told every time; committee decision recorded by an admin |
+| Pupil corrections | 2nd time: supervised reflection, not time apart; 4th time: up to 10 school days with the environment team or school counsellor (outside support only if the parent agrees), never a correctional service; pupil heard first; only the committee suspends/expels, with a letter; parents appeal to the Proprietress; never corporal punishment |
 
 Open questions for the school are `POLICY_SUGGESTIONS` (shown to admins). Remove one once it's decided.
+
+Draft sections added 23 Nov 2026 at the user's request, not yet confirmed by the Proprietress (listed in the
+"New sections to check" suggestion): families `safeguarding`, `anti-bullying`, `phones-devices`,
+`using-the-portal`, `personal-data` (part "Safety and wellbeing") and `refunds` (fees); staff `staff-safeguarding`,
+`staff-data`, `staff-devices` (part "Safeguarding, personal data and devices"). The numbers in them (2 school days,
+30 days, 6 years, 72 hours from the NDPA) must match any feature built on them.
 
 ## Steps (changing the policy)
 1. Get the change from the user (the Proprietress approves policy). Edit the text in `families.ts` / `staff.ts`.
@@ -77,8 +86,12 @@ Open questions for the school are `POLICY_SUGGESTIONS` (shown to admins). Remove
   families policy text and the Learn Centre guide together. Decisions: an admin confirms each default fee; parents
   may agree on the portal (typed name) up to the first day of term, or on paper at the office; "week n" = Friday.
 
+- Discipline ladder (23 Nov 2026): welfare-discipline skill. Count per pupil and rule, never reset; only the
+  policy's corrections per step; 4th time and later wait for an admin to record the committee's decision; parents
+  told every time with lock-screen-safe words.
+
 ## Planned (agreed with the user, not built yet)
-Discipline ladder (count per rule, suggest the correction), admission checklist + Terms and Agreements signing,
+Admission checklist + Terms and Agreements signing,
 rewards and scholarships (points, levels, fee grades), and parents/staff accepting each new policy version.
 
 ## Pitfalls we hit

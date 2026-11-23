@@ -180,7 +180,7 @@ export default function AdminLearnCentrePage() {
             "Super admin: everything an admin can do. Only a super admin can make someone an admin or super admin, or take that role away. The school always keeps at least one super admin: the last one can't be demoted.",
             "Admin: the whole staff dashboard, including the sections only admins can open: Staff & users, Announcements, Finance, Settings, Subjects, Class subjects, Teacher assignments, Welfare criteria, Compulsory weeks, Message moderation and Job posts. Admins work on every class. They can give the roles Teacher, Front desk, Nurse, Parent and Student, but can't change the role of an admin or super admin.",
             "Teacher: the staff dashboard without the admin-only sections, and only for their own classes. A class teacher sees their whole class and all its subjects; a subject teacher sees only the subjects they are assigned in that class (set under Academics > Teacher assignments). Teachers can message the parents of their classes.",
-            "Front desk and Nurse: the staff dashboard without the admin-only sections. They are not limited to particular classes: they can see every class's pupils, attendance, welfare and health records. They can't open result sheets, report cards, correction requests or results history, and can't publish results: only admins and teachers work on results. Front desk can still read Published results. Neither uses Messages.",
+            "Front desk and Nurse: the staff dashboard without the admin-only sections. They are not limited to particular classes: they can see every class's pupils, attendance, welfare and health records. They can't open result sheets, report cards, correction requests or results history, and can't publish results: only admins and teachers work on results. Front desk can still read Published results. Front desk answers parents' messages to the school office (and sees no other messages); the nurse doesn't use Messages.",
             "Parent: the parent portal only (/portal), for the children linked to them under Core > Guardians. Everyone who signs up on the website starts as a parent.",
             "Student: the pupil portal only, for their own record once their account is linked to them (Core > Students, or 'Student link' on Staff & users).",
             "Staff who open the portal are sent to the dashboard, and parents and pupils can't open the dashboard. Exam conductors (/conductor) are open to staff and to accounts linked to a conductor.",
@@ -425,7 +425,9 @@ export default function AdminLearnCentrePage() {
             "Every class has two spaces: Announcements (teachers of the class post, parents read) and the Parents' chat (parents talk to each other; the class teacher and admins can read it, and parents are told so).",
             "Click New for a private message. Teachers can message parents of pupils in classes they teach (as class teacher or subject teacher). Parents can message their children's teachers.",
             "Parents can message other parents in the same class only if that parent has switched on 'Let other parents message me' (off by default). They can block anyone. Phone numbers and emails are never shown.",
-            "Teachers set when they usually reply under Messages > settings (default Mon–Fri 08:00–16:00). Parents see it, plus the school office number for anything urgent. Messages still arrive at any time; there is no need to reply outside those hours."
+            "Teachers set when they usually reply under Messages > settings (default Mon–Fri 08:00–16:00). Parents see it, plus the school office number for anything urgent. Messages still arrive at any time; there is no need to reply outside those hours.",
+            "School office: parents can tap 'Message the school office' in Messages. The front desk and admins share these conversations under 'School office' (front desk sees nothing else in Messages). Reply within two school days: your reply shows your name and 'School office', the parent is emailed, and the conversation stops showing as unread for everyone else. The office can't start one; admins can still message any parent privately with New.",
+            "Everyone gets an email for a new private message or class announcement (at most one per conversation every 2 hours, and not if they've already read it). Change it under Messages > settings."
           ]
         },
         {
@@ -608,11 +610,28 @@ export default function AdminLearnCentrePage() {
           steps: [
             "These records feed the weekly welfare score on their own, in the week they happen: uniform checks give Uniform & appearance, discipline records take marks off Conduct. Health notes never affect any score.",
             "Uniform checks (Welfare > Uniform): pick the class and the day. Everyone starts as Neat: mark the pupils whose uniform wasn't right (with a note if you like) and click 'Save uniform check' once. You don't have to check every day. The week's mark = checks passed ÷ checks done; with no checks that week, Uniform is left out and the week is scored out of the rest. 'Remove this day's check' undoes a day saved by mistake.",
-            "Discipline (Welfare > Discipline): the pupil, when it happened, the category (e.g. Late-coming, Fighting), what happened and how serious it was, 1 (minor) to 5 (very serious). Conduct starts full every week; each record takes off its severity × the penalty for the level (1 mark per severity point unless an admin changes it under Welfare criteria). The date decides which week it counts in.",
+            "Discipline (Welfare > Discipline): see 'The discipline ladder' below. Conduct starts full every week; each case takes off its seriousness × the penalty for the level (1 mark per point unless an admin changes it under Welfare criteria). The day it happened decides which week it counts in.",
             "From the welfare score sheet: the 'This week's records' box shows what is missing for that week, and its buttons open these pages on the class and week, with 'Back to the welfare score sheet' at the top. The sheet's four record columns (Attendance, Punctuality, Uniform, Conduct) can't be typed on the sheet itself: they always come from these records.",
             "Health & incidents (Welfare > Health & incidents): sickness, injuries and other notes, with severity. Click the status to mark it resolved.",
             "Parents see discipline and health records in the portal. Write them in plain, factual words, as you would say them to the parent.",
             "Pick the right term on each record. Records are also matched to the week and term by their date."
+          ]
+        },
+        {
+          id: LEARN.disciplineLadder,
+          name: "The Discipline Ladder",
+          page: { href: "/admin/welfare/discipline", label: "Discipline" },
+          steps: [
+            "The school policy ('When a rule is broken') counts how many times a pupil has broken the same rule, and the correction grows each time. The app does the counting: the count is for each pupil and each rule, and it never starts again.",
+            "Open Welfare > Discipline and go to 'Record a case'. Pick the pupil and the rule broken. The form then says which time it is (for example 'This will be the 2nd time for this rule') and shows only the corrections the policy allows for that time.",
+            "1st time: the pupil reads the rule three times, then a firm warning. 2nd time: choose one of 30 minutes of useful work, supervised reflection time with a member of staff, lost break time or a spoken promise. 3rd time: 30 minutes of useful work on 3 days in a row, a counselling session and a written statement for the pupil's file. You can add the statement later on the case ('Add the written statement').",
+            "Taking what isn't theirs gets 30 minutes of useful work from the 1st time. Behaviour outside school in uniform goes straight to the disciplinary committee.",
+            "From the 4th time, the case waits under 'Waiting for the disciplinary committee'. The committee hears the pupil first. An admin then records what the pupil said, the decision (up to 10 school days with the environment team, supervised and outside lesson time; referral to the school counsellor, with outside support only if the parent agrees; or another measure, explained in the note) and the day the parent is invited in. Only the committee can suspend or expel, always with a letter to the parent. Parents can appeal in writing to the Proprietress. No pupil is ever left alone as a correction, and the school never uses corporal punishment.",
+            "Write 'What happened' in plain, factual words: parents read it on the portal. Pick how serious it was (1 to 5): this takes marks off Conduct on the welfare score sheet for that week.",
+            "Parents are told every time on the portal and by email (and on their phone if they turned alerts on). The alert only says there is a note from school, because it can show on a lock screen. When the committee decides, they are asked to come in on the day you gave. Pupils see their own records on the portal but aren't sent alerts.",
+            "Made a mistake? 'Withdraw this record' with a reason. You can withdraw your own records on the day you made them; admins can withdraw any. A withdrawn record stops counting on the ladder and the welfare score sheet, and admins keep a copy. Records can't be edited or deleted.",
+            "To see one pupil's ladder, choose them under 'A pupil's ladder': every rule they have broken, how many times, and what the next time would be. Cases recorded before 23 November 2026 have no rule and don't count.",
+            "Admins manage the list of rules under Discipline > Rules: add a rule (only ones the policy has), change how the ladder applies to it, or retire it. A retired rule's past cases still count."
           ]
         },
         {

@@ -61,6 +61,15 @@ export async function startConversation(formData: FormData) {
   redirect(`${base}/${data as string}`);
 }
 
+// A parent opens (or reopens) their conversation with the school office.
+export async function startOfficeConversation(formData: FormData) {
+  const base = safeBase(String(formData.get("base") ?? ""));
+  const supabase = client();
+  const { data, error } = await supabase.rpc("chat_start_office");
+  if (error || !data) redirect(`${base}?toast=${encodeURIComponent("Couldn't open your conversation with the school office. Please try again.")}&toast_type=error`);
+  redirect(`${base}/${data as string}`);
+}
+
 export async function saveChatSettings(formData: FormData) {
   const base = safeBase(String(formData.get("base") ?? ""));
   const supabase = client();

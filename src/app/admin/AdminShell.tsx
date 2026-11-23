@@ -284,6 +284,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   careers: "Careers",
   learn: "Learn Centre",
   policies: "School policies",
+  rules: "Rules",
   profile: "Profile",
   "change-password": "Change password",
   settings: "Settings",
@@ -346,7 +347,7 @@ export default function AdminShell({ userEmail, role, unreadMessages = 0, spendi
           ...g,
           items: g.items.filter(
             (i) =>
-              (isAdmin || !i.adminOnly) && (!i.chatOnly || isAdmin || role === "teacher") && (!i.roles || isAdmin || i.roles.includes(role ?? ""))
+              (isAdmin || !i.adminOnly) && (!i.chatOnly || isAdmin || role === "teacher" || role === "front_desk") && (!i.roles || isAdmin || i.roles.includes(role ?? ""))
           )
         }))
         .filter((g) => g.items.length > 0),

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
+  Building2,
   CircleHelp,
   ArrowLeft,
   BellRing,
@@ -15,6 +16,7 @@ import {
   Users
 } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { PolicyExcerpt } from "@/components/policies/policy-view";
 import {
   dayLabel,
   getChatRole,
@@ -29,7 +31,7 @@ import {
   type ChatRole,
   type InboxItem
 } from "@/lib/chat";
-import { blockUser, saveChatSettings, startConversation } from "@/lib/chat-actions";
+import { blockUser, saveChatSettings, startConversation, startOfficeConversation } from "@/lib/chat-actions";
 import { school } from "@/lib/school";
 import UrlToast from "@/components/url-toast";
 import SubmitButton from "@/components/submit-button";
@@ -78,16 +80,25 @@ function ListHeader({ base, role }: { base: ChatBase; role: ChatRole }) {
           <CircleHelp className="h-4 w-4" aria-hidden="true" />
           <span className="sr-only">How messages work</span>
         </a>
-        <Link href={`${base}/new`} className={buttonClasses({ variant: "primary", size: "sm" })}>
-          <MessageCirclePlus className="h-4 w-4" aria-hidden="true" />
-          New
-        </Link>
+        {role !== "office" ? (
+          <Link href={`${base}/new`} className={buttonClasses({ variant: "primary", size: "sm" })}>
+            <MessageCirclePlus className="h-4 w-4" aria-hidden="true" />
+            New
+          </Link>
+        ) : null}
       </div>
     </div>
   );
 }
 
-function ConversationIcon({ item }: { item: Pick<InboxItem, "kind" | "title"> }) {
+function ConversationIcon({ item }: { item: Pick<InboxItem, "kind" | "title" | "other_user_id"> }) {
+  if (item.kind === "office" && !item.other_user_id) {
+    return (
+      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-gold-50 text-brand-gold-800">
+        <Building2 className="h-5 w-5" aria-hidden="true" />
+      </span>
+    );
+  }
   if (item.kind === "class_announcements") {
     return (
       <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-gold-50 text-brand-gold-700">
@@ -105,9 +116,10 @@ function ConversationIcon({ item }: { item: Pick<InboxItem, "kind" | "title"> })
   return <Avatar name={item.title} size="md" className="shrink-0" />;
 }
 
-function InboxList({ items, base, activeId }: { items: InboxItem[]; base: ChatBase; activeId?: string }) {
-  const classItems = items.filter((i) => i.kind !== "direct");
+function InboxList({ items, base, role, activeId }: { items: InboxItem[]; base: ChatBase; role: ChatRole; activeId?: string }) {
+  const classItems = items.filter((i) => i.kind === "class_announcements" || i.kind === "class_parents");
   const directItems = items.filter((i) => i.kind === "direct");
+  const officeItems = items.filter((i) => i.kind === "office");
   const section = (label: string, list: InboxItem[], empty: string) => (
     <div>
       <div className="sticky top-0 z-10 bg-white/95 px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 backdrop-blur">
@@ -139,7 +151,7 @@ function InboxList({ items, base, activeId }: { items: InboxItem[]; base: ChatBa
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <span className={cn("truncate text-xs", i.unread ? "text-slate-800" : "text-slate-500")}>
-                        {i.last_preview ? `${i.kind === "direct" ? "" : `${i.last_sender ?? ""}: `}${i.last_preview}` : i.subtitle}
+                        {i.last_preview ? `${i.kind === "direct" || (i.kind === "office" && role === "parent") ? "" : `${i.last_sender ?? ""}: `}${i.last_preview}` : i.subtitle}
                       </span>
                       {i.unread ? (
                         <span className="inline-flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-brand-green px-1.5 text-[11px] font-bold text-white">
@@ -161,8 +173,26 @@ function InboxList({ items, base, activeId }: { items: InboxItem[]; base: ChatBa
   );
   return (
     <nav aria-label="Conversations" className="min-h-0 flex-1 overflow-y-auto pb-3">
-      {section("Your classes", classItems, "No class spaces yet.")}
-      {section("Private messages", directItems, "No private messages yet. Tap New to start one.")}
+      {role === "parent" && !officeItems.length ? (
+        <div className="px-4 pt-3">
+          <form action={startOfficeConversation}>
+            <input type="hidden" name="base" value={base} />
+            <button type="submit" className="flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-3 py-2.5 text-left hover:bg-slate-50">
+              <ConversationIcon item={{ kind: "office", title: "School office", other_user_id: null }} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-slate-900">Message the school office</span>
+                <span className="block text-xs text-slate-500">Fees, admissions, pick-ups, letters and anything else</span>
+              </span>
+            </button>
+          </form>
+        </div>
+      ) : null}
+      {role === "parent" && officeItems.length ? section("School office", officeItems, "") : null}
+      {role === "admin" || role === "office"
+        ? section("School office", officeItems, "No messages from parents to the office yet.")
+        : null}
+      {role !== "office" ? section("Your classes", classItems, "No class spaces yet.") : null}
+      {role !== "office" ? section("Private messages", directItems, "No private messages yet. Tap New to start one.") : null}
     </nav>
   );
 }
@@ -201,14 +231,29 @@ export async function MessagesHome({ base }: { base: ChatBase }) {
     <>
       <UrlToast />
       <LiveRefresh intervalMs={15000} />
-      <Shell threadOpen={false} list={<><ListHeader base={base} role={ctx.role} /><InboxList items={items} base={base} /></>}>
+      <Shell
+        threadOpen={false}
+        list={
+          <>
+            <ListHeader base={base} role={ctx.role} />
+            {base === "/portal/messages" ? (
+              <PolicyExcerpt policy="families" section="using-the-portal" portal className="border-b border-slate-200 px-4 py-2" />
+            ) : (
+              <PolicyExcerpt policy="staff" section="staff-devices" className="border-b border-slate-200 px-4 py-2" />
+            )}
+            <InboxList items={items} base={base} role={ctx.role} />
+          </>
+        }
+      >
         <EmptyState
           icon={MessagesSquare}
           title="Choose a conversation"
           description={
             ctx.role === "parent"
-              ? "Read your child's class announcements, chat with other parents in the class, or message a teacher privately."
-              : "Post to your classes, keep an eye on the class parents' chats, or message a parent privately."
+              ? "Read your child's class announcements, chat with other parents in the class, message a teacher privately, or message the school office."
+              : ctx.role === "office"
+                ? "Parents' messages to the school office appear on the left. Reply as the school office."
+                : "Post to your classes, keep an eye on the class parents' chats, or message a parent privately."
           }
           className="m-auto"
         />
@@ -374,7 +419,7 @@ export async function ConversationView({ base, id }: { base: ChatBase; id: strin
   const list = (
     <>
       <ListHeader base={base} role={ctx.role} />
-      <InboxList items={items} base={base} activeId={id} />
+      <InboxList items={items} base={base} role={ctx.role} activeId={id} />
     </>
   );
   if (!meta) {
@@ -435,7 +480,15 @@ export async function ConversationView({ base, id }: { base: ChatBase; id: strin
   });
 
   const placeholder =
-    meta.kind === "class_announcements" ? "Write an announcement for the class's parents…" : meta.kind === "class_parents" ? "Message the class parents…" : "Write a message…";
+    meta.kind === "class_announcements"
+      ? "Write an announcement for the class's parents…"
+      : meta.kind === "class_parents"
+        ? "Message the class parents…"
+        : meta.kind === "office" && ctx.role === "parent"
+          ? "Write to the school office…"
+          : meta.kind === "office"
+            ? "Reply as the school office…"
+            : "Write a message…";
 
   return (
     <>
@@ -492,6 +545,13 @@ export async function ConversationView({ base, id }: { base: ChatBase; id: strin
               </>
             ) : null}
             Messages between teachers and parents are kept as a school record.
+          </Notice>
+        ) : null}
+        {meta.kind === "office" ? (
+          <Notice icon={Building2}>
+            {ctx.role === "parent"
+              ? `The front desk and school admins read and answer these messages, usually within two school days. For anything urgent, call the school office on ${school.phone}. Messages to the office are kept as a school record.`
+              : "Shared by the front desk and school admins. Your reply shows your name and \"School office\", and the parent is emailed. Once someone replies, it stops showing as unread for everyone."}
           </Notice>
         ) : null}
         {meta.direct_kind === "parent_parent" ? (
@@ -574,7 +634,7 @@ export async function NewConversation({ base, q }: { base: ChatBase; q: string }
   return (
     <>
       <UrlToast />
-      <Shell threadOpen list={<><ListHeader base={base} role={ctx.role} /><InboxList items={items} base={base} /></>}>
+      <Shell threadOpen list={<><ListHeader base={base} role={ctx.role} /><InboxList items={items} base={base} role={ctx.role} /></>}>
         <header className="flex items-center gap-3 border-b border-slate-200 px-3 py-2.5 sm:px-4">
           <Link href={base} className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 md:hidden" aria-label="Back to conversations">
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />

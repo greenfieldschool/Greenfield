@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Bell, BookOpenText, CheckCheck, ClipboardCheck, Megaphone, NotebookPen, Star, Video, VideoOff, type LucideIcon, CalendarClock, Receipt } from "lucide-react";
+import { Bell, BookOpenText, CheckCheck, ClipboardCheck, Megaphone, NotebookPen, Star, Video, VideoOff, type LucideIcon, CalendarClock, Receipt, ShieldAlert, Gavel } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { NOTIFICATION_COLUMNS, agoLabel, type NotificationRow } from "@/lib/notifications";
 import UrlToast from "@/components/url-toast";
@@ -27,7 +27,9 @@ const ICONS: Record<string, LucideIcon> = {
   announcement: Megaphone,
   star_video: Star,
   fee_plan: CalendarClock,
-  fee_default: Receipt
+  fee_default: Receipt,
+  discipline: ShieldAlert,
+  discipline_committee: Gavel
 };
 
 // Parents choose which emails they get (all on unless switched off). Saved with their own login: only their row.

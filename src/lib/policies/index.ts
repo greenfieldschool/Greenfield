@@ -40,24 +40,14 @@ export const adminPolicyHref = (key: PolicyKey, sectionId?: string) =>
 // item once it has been decided (and the policy text changed if it was accepted).
 export const POLICY_SUGGESTIONS: PolicySuggestion[] = [
   {
-    title: "Fourth-time corrections for pupils",
-    why: "“Time apart from the class” and “referral to a correctional service” can be read as isolating or handing over a child, which the Lagos State Child's Rights Law protects against.",
-    proposal: "Use supervised reflection time with a member of staff instead of isolation, and refer to the school counsellor (and, with the parent, outside support) instead of a correctional service."
-  },
-  {
-    title: "When the count of broken rules starts again",
-    why: "The policy doesn't say, so a mistake in JSS1 could still count as a “3rd time” in SS2.",
-    proposal: "Count each rule separately and start again at the beginning of every school year."
-  },
-  {
     title: "Money penalties for staff",
     why: "Fines and “2 days' pay” are deductions from wages, which the Labour Act limits. They also need a clear record and a chance to explain.",
     proposal: "Have a lawyer check the list. Until then show it as policy, and record each case with the staff member's reply, but don't deduct automatically."
   },
   {
-    title: "Missing policies",
-    why: "Nothing covers safeguarding and child protection, anti-bullying, personal data (NDPA 2023, which the portal already handles), refunds, phones and devices, or how families and staff use the portal's messages and online classes.",
-    proposal: "Add a short section for each, starting with safeguarding and personal data."
+    title: "New sections to check (added 23 Nov 2026)",
+    why: "The policy had nothing on safeguarding, bullying, personal data, refunds, phones or using the portal. Draft sections are now in both policies, with these choices still to confirm.",
+    proposal: "Check: the Head Teacher as safeguarding lead; reports looked into within 2 school days; phones handed in at the front desk; teachers reply to messages within 2 school days; records other than admission, report cards and results deleted 6 years after a pupil leaves; refunds within 30 days, none once a term has started, caution fee returned less damage. Add a deadline for parents' appeals to the Proprietress if wanted."
   },
   {
     title: "Pre-school examinations",

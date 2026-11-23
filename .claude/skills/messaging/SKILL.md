@@ -15,6 +15,13 @@ description: Use for teacher–parent and parent–parent messaging: class annou
   - teacher ↔ parent of a pupil in a class the teacher teaches (admins ↔ any parent). Kept as a school record; admins can read.
   - parent ↔ parent of the same class, only if the recipient opted in (`chat_settings.allow_parent_dm`, default off).
     Private to the two; admins see a message only if reported. Block either way (`chat_blocks`).
+- **School office** (23 Nov 2026, `20261123c_school_office_messages.sql`): one `kind = 'office'` conversation per
+  parent (`direct_key = 'office:<parent uid>'`, only the parent is a member), started by the parent with
+  `chat_start_office()`. Front desk has chat role `office` (`chat_role`, `getChatRole`): sees office conversations
+  only, no New button, no class spaces or teacher–parent messages. Admins see them too (`chat_is_office`). Staff
+  replies are labelled "School office"; staff unread counts only parent messages after the last office reply. The
+  parent is emailed on replies; staff only get the badge. Test:
+  [`office-messages-pglite-test.mjs`](office-messages-pglite-test.mjs) (31 checks).
 - **Records**: nothing is deleted. Unsend (15 min) and moderation copy the original to `chat_message_archive`
   (admins only) and blank the body.
 - **Safety**: report (⋯ menu), admin/class-teacher remove with reason, mute in a class chat (`chat_mutes`),
@@ -33,6 +40,8 @@ description: Use for teacher–parent and parent–parent messaging: class annou
 - Badges: `chat_unread_total()` in `src/app/admin/layout.tsx` and `src/app/portal/layout.tsx`.
 
 ## Rules
+- `profiles.role` is an enum: compare it as `role::text` with text arrays. `email_from_chat_message` compared it with
+  `staff_roles text[]`, the error was swallowed by its handler, and no message email was queued until 23 Nov 2026.
 - Permission logic lives in the database (`chat_can_read`, `chat_can_post`, `chat_dm_kind`); the UI only mirrors it.
 - Permission functions must return definite booleans (wrap with `coalesce(…, false)`).
 - Keep parent–parent messages private unless reported; don't add admin read access without the user asking.

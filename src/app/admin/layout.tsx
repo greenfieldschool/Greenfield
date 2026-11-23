@@ -55,7 +55,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   // Badge on "Messages". Never blocks the page: missing table or slow query just means no badge.
   let unreadMessages = 0;
-  if (role === "teacher" || role === "admin" || role === "super_admin") {
+  if (role === "teacher" || role === "admin" || role === "super_admin" || role === "front_desk") {
     try {
       const { data } = await withTimeout(Promise.resolve(supabase.rpc("chat_unread_total")), 2500);
       unreadMessages = Number(data ?? 0) || 0;

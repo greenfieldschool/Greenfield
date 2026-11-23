@@ -41,6 +41,7 @@ export const LEARN = {
   paystackWallet: "paystack-wallet",
   attendance: "attendance",
   welfareRecords: "welfare-records",
+  disciplineLadder: "discipline-ladder",
   assessments: "assessments",
   assignments: "assignments",
   lessonNotes: "lesson-notes",

@@ -239,7 +239,10 @@ export default async function PortalBillingPage({
         title="Fees & billing"
         description="See your invoices, pay what's due and keep track of payments."
       />
-      <PolicyExcerpt policy="families" section="payment-plans" portal />
+      <div className="flex flex-wrap gap-x-5">
+        <PolicyExcerpt policy="families" section="payment-plans" portal />
+        <PolicyExcerpt policy="families" section="refunds" portal />
+      </div>
 
       {ref ? (
         <Card className="border-brand-green-200 bg-brand-green-50/40">

@@ -419,6 +419,79 @@ export const staffPolicy: PolicyDoc = {
       ]
     },
     {
+      id: "safeguarding-data",
+      title: "Safeguarding, personal data and devices",
+      sections: [
+        {
+          id: "staff-safeguarding",
+          title: "Keeping children safe",
+          blocks: [
+            {
+              kind: "text",
+              text: "Every member of staff is responsible for the safety of every child. The school follows the Child's Rights Law of Lagos State. The Head Teacher is the safeguarding lead, unless the Proprietress names someone else."
+            },
+            {
+              kind: "steps",
+              items: [
+                "If a child tells you something worrying, or you notice signs of harm, listen calmly and don't ask leading questions.",
+                "Never promise to keep it secret. Tell the child you will pass it on to get help.",
+                "Write down what you saw or heard, in the child's words, with the date and time, and sign it.",
+                "Give it to the safeguarding lead the same day. If the worry is about the safeguarding lead, go to the Proprietress.",
+                "Don't investigate yourself or discuss it with anyone else. The safeguarding lead decides what happens next, including telling the parents or the authorities."
+              ]
+            },
+            {
+              kind: "list",
+              items: [
+                "Never use corporal punishment, or harm, threaten or humiliate a child. Correct pupils only as set out in \"When a rule is broken\".",
+                "Avoid being alone with a pupil behind a closed door. Keep the door open or another adult nearby.",
+                "Don't take a pupil in your own car, or meet a pupil outside school, without written permission from the parent and the Head Teacher.",
+                "Don't contact pupils or parents on your personal phone or social media. Use the portal or the school's approved channels (see \"With pupils\").",
+                "Report any colleague whose behaviour towards a child worries you to the safeguarding lead. You will be protected for reporting in good faith."
+              ]
+            }
+          ]
+        },
+        {
+          id: "staff-data",
+          title: "Personal information",
+          blocks: [
+            {
+              kind: "text",
+              text: "The school follows the Nigeria Data Protection Act 2023. Pupils', parents' and colleagues' information is used only for school work."
+            },
+            {
+              kind: "list",
+              items: [
+                "Look only at the records you need for your work. Changes you make on the staff dashboard are recorded with your name.",
+                "Never share your password, and lock or sign out of the computer when you leave it.",
+                "Don't copy pupil lists, results, health notes or contact details to your own phone, computer, email or WhatsApp.",
+                "Take photos and videos of pupils only on school devices, and only of pupils whose parents have agreed. Delete them from any personal device.",
+                "Don't discuss a pupil or family with anyone outside the school, or with colleagues who don't need to know.",
+                "If information is lost or sent to the wrong person, tell the administrator straight away. The school must tell the Nigeria Data Protection Commission within 72 hours when the law requires it."
+              ]
+            }
+          ]
+        },
+        {
+          id: "staff-devices",
+          title: "Phones, the portal and online classes",
+          blocks: [
+            {
+              kind: "list",
+              items: [
+                "Keep your personal phone away during lessons, assembly and duties, except for school work or an emergency.",
+                "Reply to parents' messages on the portal within two school days, politely and in plain words. Pass anything about a child's safety to the safeguarding lead, and anything about fees to the office.",
+                "The front desk and admins answer parents' messages to the school office within two school days. Reply as the school office: say who you are, and pass a question to the right colleague rather than guessing.",
+                "Run online classes from a quiet, suitable place, dressed as for school. Don't record a class unless the Head Teacher approves it and parents are told.",
+                "Report messages from parents or pupils that are abusive or worrying to the Head Teacher, rather than replying."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
       id: "pay",
       title: "Pay, rewards and performance",
       sections: [

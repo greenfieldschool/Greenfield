@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PillLinks, PortalPageHeader, PortalNotice, portalMessages } from "../_components/portal-ui";
 import { HELP } from "@/lib/portal-help";
+import { COMMITTEE_OUTCOMES, CORRECTIONS, ordinal, type CorrectionCode } from "@/lib/discipline";
 
 function severityTone(severity: number): BadgeTone {
   if (severity >= 4) return "red";
@@ -33,7 +34,28 @@ type DisciplineRow = {
   severity: number;
   occurred_at: string;
   sanction: string | null;
+  occurrence?: number | null;
+  step?: number | null;
+  correction?: CorrectionCode | null;
+  statement?: string | null;
+  committee_outcome?: keyof typeof COMMITTEE_OUTCOMES | null;
+  committee_days?: number | null;
+  committee_note?: string | null;
+  parent_meeting_on?: string | null;
 };
+
+const meetingDay = (d: string) => formatLagosDate(`${d.slice(0, 10)}T12:00:00Z`);
+
+// What the school did, in plain words: the policy's correction, or the disciplinary committee's decision.
+function actionTaken(r: DisciplineRow) {
+  if (r.committee_outcome) {
+    const days = r.committee_days ? `, for ${r.committee_days} school ${r.committee_days === 1 ? "day" : "days"}` : "";
+    return `${COMMITTEE_OUTCOMES[r.committee_outcome]}${days}.${r.committee_note ? ` ${r.committee_note}` : ""}`;
+  }
+  if (r.step === 4) return "The school's disciplinary committee will decide what happens next and invite you to the school.";
+  if (r.correction) return CORRECTIONS[r.correction] ?? null;
+  return r.sanction;
+}
 
 export default async function PortalDisciplinePage({
   searchParams
@@ -114,12 +136,13 @@ export default async function PortalDisciplinePage({
       />
     );
 
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date());
   let rows: DisciplineRow[] = [];
   try {
     const { data, error: disciplineError } = await withTimeout(
       supabase
         .from("welfare_discipline_records")
-        .select("id, category, description, severity, occurred_at, sanction")
+        .select("*")
         .eq("student_id", studentId)
         .order("occurred_at", { ascending: false })
         .limit(50),
@@ -138,7 +161,7 @@ export default async function PortalDisciplinePage({
   return (
     <div className="space-y-6">
       <PortalPageHeader
-        help={HELP.behaviour} title="Discipline" description="Behaviour records shared by the school." />
+        help={HELP.behaviour} title="Discipline" description="Times a school rule was broken, what the school did, and how many times it has happened for each rule." />
       <PolicyExcerpt policy="families" section="discipline-ladder" portal />
 
       {role === "parent" && parentStudents.length > 1 ? (
@@ -161,24 +184,48 @@ export default async function PortalDisciplinePage({
 
       {rows.length ? (
         <div className="space-y-4">
-          {rows.map((r) => (
-            <Card key={r.id} className="p-5 sm:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="font-semibold text-slate-900">{r.category ?? "Discipline"}</div>
-                  <div className="mt-0.5 text-sm text-slate-500">{formatLagosDate(r.occurred_at)}</div>
+          {rows.map((r) => {
+            const action = actionTaken(r);
+            return (
+              <Card key={r.id} className="p-5 sm:p-6">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="font-semibold text-slate-900">{r.category ?? "Discipline"}</div>
+                    <div className="mt-0.5 text-sm text-slate-500">
+                      {formatLagosDate(r.occurred_at)}
+                      {r.occurrence ? ` · the ${ordinal(r.occurrence)} time for this rule` : ""}
+                    </div>
+                  </div>
+                  <Badge tone={severityTone(Number(r.severity ?? 0))}>Seriousness {r.severity} of 5</Badge>
                 </div>
-                <Badge tone={severityTone(Number(r.severity ?? 0))}>Severity {r.severity}</Badge>
-              </div>
-              <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{r.description}</p>
-              {r.sanction ? (
-                <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3">
-                  <div className="text-xs font-medium text-slate-500">Action taken</div>
-                  <div className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{r.sanction}</div>
-                </div>
-              ) : null}
-            </Card>
-          ))}
+                <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{r.description}</p>
+                {r.parent_meeting_on && r.parent_meeting_on.slice(0, 10) < today ? (
+                  <p className="mt-4 text-sm text-slate-600">You were invited to the school on {meetingDay(r.parent_meeting_on)}.</p>
+                ) : r.parent_meeting_on ? (
+                  <Alert tone="warning" title={`Please come to the school on ${meetingDay(r.parent_meeting_on)}`} className="mt-4">
+                    The disciplinary committee would like to meet you. Call the school office if you can&apos;t come that day.
+                  </Alert>
+                ) : null}
+                {action ? (
+                  <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3">
+                    <div className="text-xs font-medium text-slate-500">{r.committee_outcome ? "The committee decided" : "What the school did"}</div>
+                    <div className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{action}</div>
+                  </div>
+                ) : null}
+                {r.committee_outcome ? (
+                  <p className="mt-3 text-sm text-slate-600">
+                    If you disagree with the committee&apos;s decision, you can appeal in writing to the Proprietress.
+                  </p>
+                ) : null}
+                {r.statement ? (
+                  <div className="mt-3 rounded-xl bg-slate-50 px-4 py-3">
+                    <div className="text-xs font-medium text-slate-500">Written statement in the pupil&apos;s file</div>
+                    <div className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{r.statement}</div>
+                  </div>
+                ) : null}
+              </Card>
+            );
+          })}
         </div>
       ) : (
         <Card>

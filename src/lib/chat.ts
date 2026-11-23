@@ -8,11 +8,12 @@ type Supabase = NonNullable<ReturnType<typeof getSupabaseServerClient>>;
 export const MESSAGE_MAX = 2000;
 export const UNSEND_MINUTES = 15;
 
-export type ChatRole = "admin" | "teacher" | "parent" | "none";
+/** "office" = front desk: sees only parents' messages to the school office. */
+export type ChatRole = "admin" | "teacher" | "office" | "parent" | "none";
 
 export type InboxItem = {
   conversation_id: string;
-  kind: "class_announcements" | "class_parents" | "direct";
+  kind: "class_announcements" | "class_parents" | "direct" | "office";
   direct_kind: "teacher_parent" | "parent_parent" | null;
   class_id: string | null;
   class_name: string | null;
@@ -46,6 +47,7 @@ export async function getChatRole(supabase: Supabase, userId: string | null): Pr
   const role = (profile as { role?: string } | null)?.role ?? "";
   if (role === "admin" || role === "super_admin") return "admin";
   if (role === "teacher") return "teacher";
+  if (role === "front_desk") return "office";
   if (link) return "parent";
   return "none";
 }

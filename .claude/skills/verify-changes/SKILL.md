@@ -18,7 +18,7 @@ the repo and usually no `.env.local`, so "it builds" is not "it works".
 2. **Database changes: PGlite.** Harness and whole-schema loader in `.claude/skills/supabase-migration/`
    (`pglite-harness.mjs`, `pglite-full-schema.mjs`). Area tests: `admission-and-accounts`, `email`, `finance-payments` (corrections, payment plans), `lesson-notes`,
    `notifications` (+ push), `online-classes`, `pupil-class-history`, `pupil-records`, `results-and-reports`,
-   `role-management`, `star-videos`, `management-pack`. Run the area's test and add cases for the change: allowed,
+   `role-management`, `star-videos`, `management-pack`, `welfare-discipline`. Run the area's test and add cases for the change: allowed,
    refused, each role, run the migration twice.
 3. **Pure logic** (parsers, matchers, money, dates): a scratchpad script importing the module, run with `npx tsx`
    or `node --experimental-transform-types`.

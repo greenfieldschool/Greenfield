@@ -1,47 +1,79 @@
-import { revalidatePath } from "next/cache";
+import Link from "next/link";
+import { CalendarDays, Gavel, ListChecks, Plus, ShieldAlert } from "lucide-react";
 import { PolicyExcerpt } from "@/components/policies/policy-view";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
-import ConfirmSubmitButton from "@/components/confirm-submit-button";
 import UrlToast from "@/components/url-toast";
 import { fetchAllRows } from "@/lib/fetch-all";
-import { AlertTriangle, CalendarDays, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
-import { FormSection, Field } from "@/components/ui/form-section";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BackToScoreSheet, SeverityBadge, deleteLinkClasses, scoreSheetBack, shortDate, welfareBack, welfareBackTo } from "../_ui";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
+import { formatLagosDate } from "@/lib/lagos-dates";
 import { LEARN } from "@/lib/learn-guides";
+import {
+  COMMITTEE_OUTCOMES,
+  CORRECTIONS,
+  WITHDRAW_REASONS,
+  disciplineError,
+  ordinal,
+  stepFor,
+  type CorrectionCode,
+  type DisciplineRule
+} from "@/lib/discipline";
+import { BackToScoreSheet, SeverityBadge, scoreSheetBack } from "../_ui";
+import { CaseForm } from "./case-form";
+import { committeeDecisionAction, recordCaseAction, saveStatementAction, withdrawRecordAction } from "./actions";
+
+// Discipline cases and the ladder (school policy "When a rule is broken"). Staff record a case against a rule; the
+// database counts which time it is for that pupil and rule (never reset) and allows only the policy's corrections.
+// From the 4th time, an admin records the disciplinary committee's decision.
 
 type StudentRow = { id: string; first_name: string; last_name: string; class_id: string | null };
 
-// Today's date in Lagos (UTC+1, no daylight saving), as YYYY-MM-DD.
-function lagosToday() {
-  return new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 10);
-}
-
-// Where to return after saving: this page with the same class and day, and the score sheet link if there was one.
-function disciplineUrl(classId: string, date: string, back: string | null) {
-  const params = new URLSearchParams();
-  if (classId) params.set("class_id", classId);
-  if (date) params.set("date", date);
-  if (back) params.set("back", back);
-  const q = params.toString();
-  return `/admin/welfare/discipline${q ? `?${q}` : ""}`;
-}
-type YearRow = { id: string; name: string };
-type TermRow = { id: string; name: string };
-
-type DisciplineRow = {
+type CaseRow = {
   id: string;
   student_id: string;
   category: string | null;
   description: string;
   severity: number;
   occurred_at: string;
+  created_at: string;
+  rule_id: string | null;
+  occurrence: number | null;
+  step: number | null;
+  correction: CorrectionCode | null;
+  statement: string | null;
+  committee_outcome: keyof typeof COMMITTEE_OUTCOMES | null;
+  committee_days: number | null;
+  committee_note: string | null;
+  pupil_explanation: string | null;
+  parent_meeting_on: string | null;
+  committee_decided_at: string | null;
+  reported_by: string | null;
+  reported_by_name: string | null;
 };
+
+const CASE_COLUMNS =
+  "id, student_id, category, description, severity, occurred_at, created_at, rule_id, occurrence, step, correction, statement, committee_outcome, committee_days, committee_note, pupil_explanation, parent_meeting_on, committee_decided_at, reported_by, reported_by_name";
+
+function lagosToday() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date());
+}
+const day = (d: string) => formatLagosDate(d.length === 10 ? `${d}T12:00:00Z` : d);
+
+function pageUrl(p: { class_id?: string; date?: string; back?: string | null; student_id?: string }) {
+  const q = new URLSearchParams();
+  if (p.class_id) q.set("class_id", p.class_id);
+  if (p.date) q.set("date", p.date);
+  if (p.back) q.set("back", p.back);
+  if (p.student_id) q.set("student_id", p.student_id);
+  const s = q.toString();
+  return `/admin/welfare/discipline${s ? `?${s}` : ""}`;
+}
 
 export default async function AdminWelfareDisciplinePage({
   searchParams
@@ -51,242 +83,379 @@ export default async function AdminWelfareDisciplinePage({
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
   const sp = (await searchParams) ?? {};
+  const one = (v: unknown) => (typeof v === "string" ? v : "");
   // Opened from the welfare score sheet: this class, a day in that week, and the way back.
-  const classFilter = typeof sp.class_id === "string" ? sp.class_id : "";
-  const dayParam = typeof sp.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : "";
+  const classFilter = one(sp.class_id);
+  const dayParam = /^\d{4}-\d{2}-\d{2}$/.test(one(sp.date)) ? one(sp.date) : "";
   const back = scoreSheetBack(sp.back);
+  const pupilFilter = one(sp.student_id);
+  const here = pageUrl({ class_id: classFilter, date: dayParam, back, student_id: pupilFilter });
+  const today = lagosToday();
 
-  const [{ data: studentsData }, { data: years }, { data: terms }, { data: records }] = await Promise.all([
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  const { data: profile } = user ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle() : { data: null };
+  const isAdmin = profile?.role === "admin" || profile?.role === "super_admin";
+
+  const [students, rulesRes, recentRes, waitingRes, countRows, pupilRes] = await Promise.all([
     fetchAllRows<StudentRow>(() =>
-      supabase
-        .from("students")
-        .select("id, first_name, last_name, class_id")
-        .order("last_name", { ascending: true })
-        .order("first_name", { ascending: true })
-        .order("id", { ascending: true })
-    ).then((data) => ({ data })),
-    supabase.from("academic_years").select("id, name").order("name", { ascending: false }),
-    supabase.from("academic_terms").select("id, name").order("starts_on", { ascending: false }),
-    supabase
-      .from("welfare_discipline_records")
-      .select("id, student_id, category, description, severity, occurred_at")
-      .order("occurred_at", { ascending: false })
-      .limit(200)
+      supabase.from("students").select("id, first_name, last_name, class_id").order("last_name").order("first_name").order("id")
+    ),
+    supabase.from("discipline_rules").select("id, name, description, ladder, active, position").order("position").order("name"),
+    (() => {
+      let qy = supabase.from("welfare_discipline_records").select(CASE_COLUMNS).order("occurred_at", { ascending: false }).limit(200);
+      if (pupilFilter) qy = qy.eq("student_id", pupilFilter);
+      return qy;
+    })(),
+    supabase.from("welfare_discipline_records").select(CASE_COLUMNS).eq("step", 4).is("committee_decided_at", null).order("occurred_at"),
+    fetchAllRows<{ student_id: string; rule_id: string }>(() =>
+      supabase.from("welfare_discipline_records").select("student_id, rule_id").not("rule_id", "is", null).order("id")
+    ).catch(() => [] as Array<{ student_id: string; rule_id: string }>),
+    pupilFilter ? supabase.from("students").select("id, first_name, last_name").eq("id", pupilFilter).maybeSingle() : Promise.resolve({ data: null })
   ]);
 
-  const students = (studentsData ?? []) as StudentRow[];
-  const yearRows = (years ?? []) as YearRow[];
-  const termRows = (terms ?? []) as TermRow[];
-  const disciplineRows = (records ?? []) as DisciplineRow[];
-
-  const studentById = new Map(students.map((s) => [s.id, s] as const));
+  const setupError = rulesRes.error ?? recentRes.error;
+  const rules = (rulesRes.data ?? []) as DisciplineRule[];
+  const recent = (recentRes.data ?? []) as unknown as CaseRow[];
+  const waiting = (waitingRes.data ?? []) as unknown as CaseRow[];
+  const studentById = new Map(students.map((s) => [s.id, s]));
+  const name = (id: string) => {
+    const s = studentById.get(id);
+    return s ? `${s.first_name} ${s.last_name}` : "Pupil";
+  };
+  const shown = classFilter ? recent.filter((r) => studentById.get(r.student_id)?.class_id === classFilter) : recent;
   const pickable = classFilter ? students.filter((s) => s.class_id === classFilter) : students;
-  const shownRows = classFilter ? disciplineRows.filter((r) => studentById.get(r.student_id)?.class_id === classFilter) : disciplineRows;
 
-  async function createRecord(formData: FormData) {
-    "use server";
-    const PATH = "/admin/welfare/discipline";
+  const counts: Record<string, number> = {};
+  for (const r of countRows) counts[`${r.student_id}:${r.rule_id}`] = (counts[`${r.student_id}:${r.rule_id}`] ?? 0) + 1;
 
-    const studentId = String(formData.get("student_id") ?? "").trim();
-    const yearIdRaw = String(formData.get("academic_year_id") ?? "").trim();
-    const termIdRaw = String(formData.get("academic_term_id") ?? "").trim();
-    const category = String(formData.get("category") ?? "").trim();
-    const description = String(formData.get("description") ?? "").trim();
-    const severity = Number(String(formData.get("severity") ?? "1").trim() || "1");
-    const day = String(formData.get("occurred_on") ?? "").trim();
-    const returnTo = String(formData.get("return_to") ?? "").trim();
+  const monthCount = recent.filter((r) => String(r.occurred_at).slice(0, 7) === today.slice(0, 7)).length;
+  const pupil = pupilRes.data as { id: string; first_name: string; last_name: string } | null;
+  const canWithdraw = (r: CaseRow) =>
+    isAdmin || (r.reported_by === user?.id && new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date(r.created_at)) === today);
 
-    if (!studentId || !description) welfareBack(PATH, "Choose a student and enter a description", "error");
-    if (!Number.isFinite(severity) || severity < 1 || severity > 5) {
-      welfareBack(PATH, "Severity must be between 1 and 5", "error");
-    }
-
-    const supabase = getSupabaseServerClient();
-    if (!supabase) welfareBack(PATH, "Database is not configured", "error");
-
-    const { error } = await supabase.from("welfare_discipline_records").insert({
-      student_id: studentId,
-      academic_year_id: yearIdRaw.length ? yearIdRaw : null,
-      academic_term_id: termIdRaw.length ? termIdRaw : null,
-      category: category.length ? category : null,
-      description,
-      severity,
-      // The day it happened (Lagos, mid-morning), so it counts in the right week on the welfare score sheet.
-      ...(/^\d{4}-\d{2}-\d{2}$/.test(day) ? { occurred_at: `${day}T10:00:00+01:00` } : {})
-    });
-
-    revalidatePath(PATH);
-    revalidatePath("/admin/welfare/scores");
-    const after = returnTo.startsWith(PATH) ? returnTo : PATH;
-    if (error) welfareBackTo(after, error.message, "error");
-    welfareBackTo(after, "Record created");
-  }
-
-  async function deleteRecord(formData: FormData) {
-    "use server";
-    const PATH = "/admin/welfare/discipline";
-
-    const id = String(formData.get("id") ?? "").trim();
-    if (!id) welfareBack(PATH, "Missing record", "error");
-
-    const supabase = getSupabaseServerClient();
-    if (!supabase) welfareBack(PATH, "Database is not configured", "error");
-
-    const { error } = await supabase.from("welfare_discipline_records").delete().eq("id", id);
-    revalidatePath(PATH);
-    if (error) welfareBack(PATH, error.message, "error");
-    welfareBack(PATH, "Record deleted");
-  }
-
-  const seriousCount = disciplineRows.filter((r) => r.severity >= 4).length;
-  const thisMonth = new Date().toISOString().slice(0, 7);
-  const monthCount = disciplineRows.filter((r) => String(r.occurred_at).slice(0, 7) === thisMonth).length;
+  // The pupil's ladder: every rule they have broken, how many times, and what comes next.
+  const ladder = pupil
+    ? rules
+        .map((r) => ({ rule: r, times: counts[`${pupil.id}:${r.id}`] ?? 0 }))
+        .filter((x) => x.times > 0)
+        .sort((a, b) => b.times - a.times)
+    : [];
 
   return (
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
-        learn={LEARN.welfareRecords}
+        learn={LEARN.disciplineLadder}
         eyebrow="Welfare"
         title="Discipline"
-        description="Record discipline cases. The welfare score sheet takes each week's records off that week's Conduct mark, by severity."
+        description="Record a case against a school rule. The app counts which time it is for that pupil and rule, and offers the correction the policy sets."
         actions={
-          <a href="#new-record" className={buttonClasses({ variant: "primary" })}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            New record
-          </a>
+          <>
+            {isAdmin ? (
+              <Link href="/admin/welfare/discipline/rules" className={buttonClasses({ variant: "secondary" })}>
+                <ListChecks className="h-4 w-4" aria-hidden="true" />
+                Rules
+              </Link>
+            ) : null}
+            <a href="#new-case" className={buttonClasses({ variant: "primary" })}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Record a case
+            </a>
+          </>
         }
       />
 
       <BackToScoreSheet href={back} what="any discipline case from that week (pick the day it happened)" />
-
       <PolicyExcerpt policy="families" section="discipline-ladder" />
 
+      {setupError ? (
+        <Alert tone="warning" title="Discipline records couldn't be loaded">
+          {disciplineError(setupError.message)}
+        </Alert>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Records" value={disciplineRows.length} hint="Most recent 200" icon={ShieldAlert} tone="slate" />
-        <StatCard label="This month" value={monthCount} hint="Recorded this calendar month" icon={CalendarDays} tone="blue" />
-        <StatCard label="Serious (4–5)" value={seriousCount} hint="High-severity cases" icon={AlertTriangle} tone="rose" />
+        <StatCard label="Cases" value={recent.length} hint={pupil ? "This pupil" : "Most recent 200"} icon={ShieldAlert} tone="slate" />
+        <StatCard label="This month" value={monthCount} hint="Happened this calendar month" icon={CalendarDays} tone="blue" />
+        <StatCard label="Waiting for the committee" value={waiting.length} hint="4th time or more" icon={Gavel} tone={waiting.length ? "rose" : "slate"} />
       </div>
 
+      {waiting.length ? (
+        <Card id="committee" className="scroll-mt-24">
+          <CardHeader
+            title="Waiting for the disciplinary committee"
+            description={
+              isAdmin
+                ? "Record what the committee decided and the day the parent is invited in. The parents are told."
+                : "An admin records the committee's decision for each of these."
+            }
+          />
+          <ul className="divide-y divide-slate-100">
+            {waiting.map((r) => (
+              <li key={r.id} className="space-y-3 px-5 py-4 sm:px-6">
+                <div className="text-sm">
+                  <span className="font-semibold text-slate-900">{name(r.student_id)}</span>{" "}
+                  <span className="text-slate-500">
+                    · {r.category} · {ordinal(r.occurrence ?? 4)} time · {day(r.occurred_at)}
+                  </span>
+                  <p className="mt-1 text-slate-700">{r.description}</p>
+                  <Link href={pageUrl({ student_id: r.student_id })} className="gf-link mt-1 inline-block">
+                    See {studentById.get(r.student_id)?.first_name ?? "the pupil"}&apos;s ladder
+                  </Link>
+                </div>
+                {isAdmin ? (
+                  <details className="rounded-xl border border-slate-200">
+                    <summary className="flex min-h-[44px] cursor-pointer items-center px-3.5 text-sm font-semibold text-brand-green-700">
+                      Record the committee&apos;s decision
+                    </summary>
+                    <form action={committeeDecisionAction} className="space-y-4 border-t border-slate-200 p-3.5">
+                      <input type="hidden" name="back" value={`${here}#committee`} />
+                      <input type="hidden" name="record_id" value={r.id} />
+                      <div>
+                        <label className="gf-label" htmlFor={`said-${r.id}`}>
+                          What the pupil said when the committee heard them
+                        </label>
+                        <textarea id={`said-${r.id}`} name="pupil_explanation" rows={2} maxLength={2000} required minLength={5} className="gf-input" />
+                        <p className="gf-hint">The policy asks the committee to hear the pupil before deciding.</p>
+                      </div>
+                      <fieldset>
+                        <legend className="gf-label">What the committee decided</legend>
+                        <div className="mt-1 grid gap-2">
+                          {(Object.keys(COMMITTEE_OUTCOMES) as Array<keyof typeof COMMITTEE_OUTCOMES>).map((k) => (
+                            <label key={k} className="flex min-h-[44px] items-center gap-3 rounded-xl border border-slate-200 px-3 text-sm has-[:checked]:border-brand-green">
+                              <input type="radio" name="outcome" value={k} required className="h-4 w-4" />
+                              {COMMITTEE_OUTCOMES[k]}
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="gf-label" htmlFor={`days-${r.id}`}>
+                            School days with the environment team
+                          </label>
+                          <input id={`days-${r.id}`} name="days" type="number" min={1} max={10} className="gf-input" />
+                          <p className="gf-hint">1 to 10, only for time with the environment team.</p>
+                        </div>
+                        <div>
+                          <label className="gf-label" htmlFor={`meet-${r.id}`}>
+                            Day the parent is invited in
+                          </label>
+                          <input id={`meet-${r.id}`} name="parent_meeting_on" type="date" min={today} className="gf-input" required />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="gf-label" htmlFor={`note-${r.id}`}>
+                            Note for the parents
+                          </label>
+                          <textarea id={`note-${r.id}`} name="note" rows={2} maxLength={2000} className="gf-input" />
+                          <p className="gf-hint">Needed for another measure. For a counsellor referral, say here if the parent agreed to outside support. Parents can read it.</p>
+                        </div>
+                      </div>
+                      <SubmitButton variant="primary" pendingText="Saving…">
+                        Save the decision
+                      </SubmitButton>
+                    </form>
+                  </details>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
       <Card>
-        <CardHeader title="Recent records" description={classFilter ? "This class, newest first." : "Newest first."} />
-        {shownRows.length ? (
-          <div className="gf-table-wrap">
-            <table className="gf-table min-w-[760px]">
-              <thead>
-                <tr>
-                  <th scope="col">Student</th>
-                  <th scope="col">Category</th>
-                  <th scope="col">Severity</th>
-                  <th scope="col">Date</th>
-                  <th scope="col">Notes</th>
-                  <th scope="col" className="text-right">
-                    <span className="sr-only">Delete</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {shownRows.map((r) => {
-                  const s = studentById.get(r.student_id) ?? null;
-                  return (
-                    <tr key={r.id}>
-                      <td className="font-semibold text-slate-900">{s ? `${s.first_name} ${s.last_name}` : r.student_id}</td>
-                      <td>{r.category ?? "—"}</td>
-                      <td>
-                        <SeverityBadge severity={r.severity} />
-                      </td>
-                      <td className="whitespace-nowrap">{shortDate(r.occurred_at)}</td>
-                      <td className="max-w-xs">
-                        <p className="line-clamp-2 text-slate-600" title={r.description}>
-                          {r.description}
-                        </p>
-                      </td>
-                      <td className="text-right">
-                        <form action={deleteRecord}>
-                          <input type="hidden" name="id" value={r.id} />
-                          <ConfirmSubmitButton className={deleteLinkClasses} confirmMessage="Delete this discipline record? This cannot be undone.">
-                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                            Delete
-                          </ConfirmSubmitButton>
-                        </form>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <CardHeader title="A pupil's ladder" description="Every rule the pupil has broken, how many times, and what the next time would be." />
+        <form method="get" action="/admin/welfare/discipline" className="flex flex-col gap-3 px-5 pb-4 sm:flex-row sm:items-end sm:px-6">
+          <div className="min-w-0 flex-1">
+            <label className="gf-label" htmlFor="ladder-pupil">
+              Pupil
+            </label>
+            <select id="ladder-pupil" name="student_id" className="gf-select" defaultValue={pupilFilter}>
+              <option value="">Choose a pupil</option>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.first_name} {s.last_name}
+                </option>
+              ))}
+            </select>
           </div>
+          <button type="submit" className={buttonClasses({ variant: "secondary" })}>
+            Show
+          </button>
+          {pupil ? (
+            <Link href="/admin/welfare/discipline" className="gf-link text-sm sm:pb-2.5">
+              Show everyone
+            </Link>
+          ) : null}
+        </form>
+        {pupil ? (
+          ladder.length ? (
+            <ul className="divide-y divide-slate-100 border-t border-slate-100">
+              {ladder.map(({ rule, times }) => {
+                const next = stepFor(times, rule.ladder);
+                return (
+                  <li key={rule.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm sm:px-6">
+                    <span>
+                      <span className="font-semibold text-slate-900">{rule.name}</span>{" "}
+                      <span className="text-slate-500">
+                        · {times} {times === 1 ? "time" : "times"}
+                      </span>
+                    </span>
+                    <Badge tone={next >= 4 ? "red" : next === 3 ? "gold" : "slate"}>
+                      Next time: {next >= 4 ? "committee" : `step ${next}`}
+                    </Badge>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="border-t border-slate-100 px-5 py-4 text-sm text-slate-600 sm:px-6">
+              {pupil.first_name} has no cases against a rule. Cases recorded before 23 November 2026 have no rule and don&apos;t count.
+            </p>
+          )
+        ) : null}
+      </Card>
+
+      <Card>
+        <CardHeader title={pupil ? `${pupil.first_name} ${pupil.last_name}: cases` : "Recent cases"} description={classFilter ? "This class, newest first." : "Newest first."} />
+        {shown.length ? (
+          <ul className="divide-y divide-slate-100">
+            {shown.map((r) => (
+              <li key={r.id} className="space-y-2 px-5 py-4 text-sm sm:px-6">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <Link href={pageUrl({ student_id: r.student_id })} className="font-semibold text-slate-900 hover:underline">
+                      {name(r.student_id)}
+                    </Link>{" "}
+                    <span className="text-slate-500">
+                      · {r.category ?? "No rule"}
+                      {r.occurrence ? ` · ${ordinal(r.occurrence)} time` : ""} · {day(r.occurred_at)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {r.step === 4 ? (
+                      <Badge tone={r.committee_decided_at ? "slate" : "red"}>{r.committee_decided_at ? "Committee decided" : "For the committee"}</Badge>
+                    ) : null}
+                    <SeverityBadge severity={r.severity} />
+                  </div>
+                </div>
+                <p className="whitespace-pre-wrap text-slate-700">{r.description}</p>
+                {r.correction ? <p className="text-slate-600">Correction: {CORRECTIONS[r.correction] ?? r.correction}</p> : null}
+                {r.committee_outcome ? (
+                  <p className="text-slate-600">
+                    Committee: {COMMITTEE_OUTCOMES[r.committee_outcome]}
+                    {r.committee_days ? `, ${r.committee_days} days` : ""}. Parent invited {r.parent_meeting_on ? day(r.parent_meeting_on) : ""}.
+                    {r.committee_note ? ` ${r.committee_note}` : ""}
+                  </p>
+                ) : null}
+                {r.pupil_explanation ? <p className="text-slate-600">The pupil said: {r.pupil_explanation}</p> : null}
+                {!r.rule_id ? <p className="text-slate-500">Recorded before the ladder: doesn&apos;t count towards it.</p> : null}
+                <p className="text-xs text-slate-500">Recorded by {r.reported_by_name ?? "staff"}</p>
+
+                {(r.step ?? 0) >= 3 ? (
+                  <details className="rounded-xl border border-slate-200" open={!r.statement && r.step === 3}>
+                    <summary className="flex min-h-[44px] cursor-pointer items-center px-3.5 font-semibold text-slate-800">
+                      {r.statement ? "Written statement" : "Add the written statement"}
+                    </summary>
+                    <form action={saveStatementAction} className="space-y-3 border-t border-slate-200 p-3.5">
+                      <input type="hidden" name="back" value={here} />
+                      <input type="hidden" name="record_id" value={r.id} />
+                      <label className="sr-only" htmlFor={`st-${r.id}`}>
+                        Written statement
+                      </label>
+                      <textarea
+                        id={`st-${r.id}`}
+                        name="statement"
+                        rows={3}
+                        className="gf-input"
+                        defaultValue={r.statement ?? ""}
+                        required
+                        minLength={10}
+                        maxLength={4000}
+                        placeholder="Why it happened, and how the pupil will change"
+                      />
+                      <SubmitButton variant="secondary" size="sm" pendingText="Saving…">
+                        Save statement
+                      </SubmitButton>
+                    </form>
+                  </details>
+                ) : null}
+
+                {canWithdraw(r) ? (
+                  <details className="rounded-xl">
+                    <summary className="inline-flex min-h-[44px] cursor-pointer items-center text-xs font-semibold text-red-700">Withdraw this record</summary>
+                    <form action={withdrawRecordAction} className="mt-1 space-y-3 rounded-xl border border-red-200 bg-red-50/50 p-3.5">
+                      <input type="hidden" name="back" value={here} />
+                      <input type="hidden" name="record_id" value={r.id} />
+                      <p className="text-slate-700">It stops counting on the ladder and the welfare score sheet. Admins keep a copy.</p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="gf-label" htmlFor={`wr-${r.id}`}>
+                            Why
+                          </label>
+                          <select id={`wr-${r.id}`} name="reason" className="gf-select" required defaultValue="">
+                            <option value="" disabled>
+                              Choose a reason
+                            </option>
+                            {(Object.keys(WITHDRAW_REASONS) as Array<keyof typeof WITHDRAW_REASONS>).map((k) => (
+                              <option key={k} value={k}>
+                                {WITHDRAW_REASONS[k]}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="gf-label" htmlFor={`wn-${r.id}`}>
+                            Note
+                          </label>
+                          <input id={`wn-${r.id}`} name="note" className="gf-input" maxLength={500} />
+                        </div>
+                      </div>
+                      <SubmitButton variant="danger" size="sm" pendingText="Withdrawing…">
+                        Withdraw record
+                      </SubmitButton>
+                    </form>
+                  </details>
+                ) : null}
+              </li>
+            ))}
+          </ul>
         ) : (
-          <EmptyState icon={ShieldAlert} title="No discipline records yet" description="Records you create below will appear here." />
+          <EmptyState icon={ShieldAlert} title="No discipline cases" description={pupil ? "Nothing recorded for this pupil." : "Cases you record below appear here."} />
         )}
       </Card>
 
-      <form action={createRecord} id="new-record" className="scroll-mt-24">
-        <input type="hidden" name="return_to" value={disciplineUrl(classFilter, dayParam, back)} />
-        <FormSection
-          title="New record"
-          description="Log a discipline case for a student."
-          footer={
-            <SubmitButton variant="primary" pendingText="Creating…">
-              Create record
-            </SubmitButton>
+      <Card id="new-case" className="scroll-mt-24">
+        <CardHeader
+          title="Record a case"
+          description={
+            rules.some((r) => r.active)
+              ? "Pick the pupil and the rule first: the form then shows which time it is and the corrections the policy allows."
+              : undefined
           }
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Student" htmlFor="dis-student" required>
-              <select id="dis-student" className="gf-select" name="student_id" defaultValue="" required>
-                <option value="">Select student</option>
-                {pickable.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.first_name} {s.last_name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="When it happened" htmlFor="dis-day" required>
-              <input id="dis-day" className="gf-input" name="occurred_on" type="date" defaultValue={dayParam || lagosToday()} max={lagosToday()} required />
-            </Field>
-            <Field label="Category" htmlFor="dis-category" hint="Optional">
-              <input id="dis-category" className="gf-input" name="category" placeholder="Late-coming, Fighting..." />
-            </Field>
-            <Field label="Academic year" htmlFor="dis-year" hint="Optional">
-              <select id="dis-year" className="gf-select" name="academic_year_id" defaultValue="">
-                <option value="">—</option>
-                {yearRows.map((y) => (
-                  <option key={y.id} value={y.id}>
-                    {y.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Academic term" htmlFor="dis-term" hint="Optional">
-              <select id="dis-term" className="gf-select" name="academic_term_id" defaultValue="">
-                <option value="">—</option>
-                {termRows.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Description" htmlFor="dis-description" required className="sm:col-span-2">
-              <textarea id="dis-description" className="gf-input" name="description" rows={4} required />
-            </Field>
-            <Field label="Severity" htmlFor="dis-severity" hint="1 = minor, 5 = very serious" required>
-              <input
-                id="dis-severity"
-                className="gf-input"
-                name="severity"
-                type="number"
-                min={1}
-                max={5}
-                defaultValue={1}
-                required
-              />
-            </Field>
-          </div>
-        </FormSection>
-      </form>
+        />
+        <div className="px-5 pb-5 sm:px-6">
+          {rules.some((r) => r.active) ? (
+            <CaseForm
+              action={recordCaseAction}
+              pupils={pickable.map((s) => ({ id: s.id, name: `${s.first_name} ${s.last_name}` }))}
+              rules={rules.filter((r) => r.active).map((r) => ({ id: r.id, name: r.name, description: r.description, ladder: r.ladder }))}
+              counts={counts}
+              today={today}
+              defaultDay={dayParam || today}
+              defaultStudent={pupilFilter && studentById.has(pupilFilter) ? pupilFilter : ""}
+              back={here}
+            />
+          ) : (
+            <Alert tone="warning" title="No rules to choose from">
+              {setupError ? "Run the discipline ladder database update first." : "An admin needs to add the school rules under Rules."}
+            </Alert>
+          )}
+        </div>
+      </Card>
+
     </div>
   );
 }
