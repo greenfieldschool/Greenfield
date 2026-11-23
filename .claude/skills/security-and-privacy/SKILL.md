@@ -57,6 +57,11 @@ integration or a new kind of personal data, or changes who may do something. Rol
   admin-only (found Nov 2026; fixed in 20261119_spending_requests.sql: admins only, no deletes, void with a reason).
 - The Moniepoint webhook accepts unsigned calls when `MONIEPOINT_WEBHOOK_SECRET` is not set. Moniepoint isn't used
   (Nov 2026); require the secret or remove the route before it is.
+- Views run as their owner and skip RLS. The finance balance views leaked every family's balances and contact details
+  to the public key until 20261122. Four more views still lack row checks (Nov 2026): `academic_student_term_summary`,
+  `academic_student_subject_term_summary`, `welfare_student_term_summary`, `exam_attempt_list_v` /
+  `exam_session_summary_v`. Any new view: `with (security_invoker = true)`, or a row filter in the view plus
+  `revoke … from anon`, and a PGlite test as a parent and signed out.
 - The CRON secret was nearly hard-coded in a function body; it lives in Vault.
 
 ## Expert review

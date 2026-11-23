@@ -1,4 +1,5 @@
 import { ShieldCheck } from "lucide-react";
+import { PolicyExcerpt } from "@/components/policies/policy-view";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { formatLagosDate } from "@/lib/lagos-dates";
 import { Card } from "@/components/ui/card";
@@ -138,6 +139,7 @@ export default async function PortalDisciplinePage({
     <div className="space-y-6">
       <PortalPageHeader
         help={HELP.behaviour} title="Discipline" description="Behaviour records shared by the school." />
+      <PolicyExcerpt policy="families" section="discipline-ladder" portal />
 
       {role === "parent" && parentStudents.length > 1 ? (
         <PillLinks

@@ -29,7 +29,8 @@ import {
   X,
   type LucideIcon,
   CircleHelp,
-  KeyRound
+  KeyRound,
+  ScrollText
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { WHATSAPP_URL, WhatsAppIcon } from "@/components/whatsapp-button";
@@ -52,6 +53,7 @@ const studentNav: NavItem[] = [
   { href: "/portal/activities", label: "Activities", icon: Smile },
   { href: "/portal/incidents", label: "Health", icon: HeartPulse },
   { href: "/portal/students", label: "My profile", icon: User },
+  { href: "/portal/policies", label: "School policy", icon: ScrollText },
   { href: "/portal/help", label: "Help", icon: CircleHelp }
 ];
 
@@ -71,6 +73,7 @@ const parentNav: NavItem[] = [
   { href: "/portal/activities", label: "Activities", icon: Smile },
   { href: "/portal/incidents", label: "Health", icon: HeartPulse },
   { href: "/portal/profile", label: "My profile", icon: User },
+  { href: "/portal/policies", label: "School policy", icon: ScrollText },
   { href: "/portal/help", label: "Help", icon: CircleHelp }
 ];
 

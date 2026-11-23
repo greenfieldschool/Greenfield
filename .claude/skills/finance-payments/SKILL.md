@@ -51,6 +51,23 @@ explained in the results-and-reports skill): a change to what counts as "paid" c
   direct deletes/changes of `finance_payment_allocations` are refused. Every step lands in `finance_payment_log`
   (admins read, nobody writes except the triggers). Payments and allocations are **admins only** (they were
   `is_staff()` until 20261120). Test: `payment-corrections-pglite-test.mjs` in this folder (46 checks).
+- **Payment plans** (`20261122_payment_plans.sql`, school policy "Fees and payment plans"; school-policies skill):
+  `fee_payment_plans` (one active per invoice; `plan_total` snapshot; who agreed, how — `portal` typed name or
+  `paper` — and the policy version) + `fee_payment_plan_instalments` (amount, due date). Percentages and weeks live
+  only in `fee_plan_template()`; "week n" = Friday of week n, week 1 = the week `academic_terms.starts_on` falls in.
+  `create_payment_plan` (admins any time; the paying parent only up to the first day of term), `cancel_payment_plan`,
+  `preview_payment_plan`, `payment_plan_status(invoice)` (states paid / missed / due_soon / upcoming from the invoice's
+  posted allocations; later payments include earlier default fees), `fee_plan_missed()` (admin list).
+  Default fees: **an admin confirms** (decided 2026-11-22) with `charge_plan_default` (penalty adjustment, higher of
+  ₦2,500 or 3% of `plan_total`, once per payment, parents told by bell + email via `fee_notify_parents`, never the
+  pupil) or `waive_plan_default` / `remove_plan_default` with a fixed reason. Letter: `components/fee-default-letter.tsx`
+  (admin `/admin/finance/payment-plans/letter/[id]`, parent `/portal/billing/letter/[id]`).
+  Early discounts: `revenue_categories.is_tuition`; `early_discount_options` / `apply_early_discount` /
+  `remove_early_discount` (tuition only, checked against when posted payments arrived; not on a plan).
+  Adjustments made by plans or discounts can't be edited or deleted directly (`fee_adjustment_guard`). Every step is
+  in `fee_plan_events` (admins read). Pages: invoice page cards (`invoices/[id]/plan-card.tsx`, actions in
+  `plan-actions.ts`), `/admin/finance/payment-plans`, portal `billing/plan`, `billing/plan-summary.tsx`. Test:
+  `payment-plans-pglite-test.mjs` in this folder (72 checks).
 - Expenses: `finance_expenses` is admins only, never deleted (`finance_void_expense` with a reason, 20261119). Spending
   requests post their receipts here when they close (`spending-requests` skill); read spending with `.is("voided_at", null)`.
 
@@ -72,6 +89,13 @@ explained in the results-and-reports skill): a change to what counts as "paid" c
 - Amounts are Naira with 2 decimals; dates on statements are day-first (`30/10/2026`).
 
 ## Pitfalls we hit
+- Until 20261122 the views `finance_invoice_totals` / `finance_invoice_balances` / `finance_guardian_balances` ran
+  with the owner's rights, so anyone with the public key (even signed out) could read every family's invoices,
+  balances, names, emails and phones. They now filter with `can_see_family_money()` (staff, or the parent's own
+  family) and anon has no grant. A view that parents read can't simply be `security_invoker`: parents can't read
+  payments' allocations, so their balance would show nothing paid. Filter rows inside the view instead.
+- Invoices, items and adjustments were writable by any staff role through the API; since 20261122 staff read,
+  admins write.
 - Until 20261120 the payment page saved over posted payments, could delete them, and any staff role could do the
   same in the database. Never add an edit form for a recorded payment's amount, date, pupil or method again.
 - The Moniepoint webhook upserts the same payment again on retries. The guard lets identical values through and

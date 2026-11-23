@@ -26,6 +26,7 @@ import {
   statusLabel
 } from "../../_components/finance-ui";
 import { LEARN } from "@/lib/learn-guides";
+import { InvoicePlanCards } from "./plan-card";
 
 type InvoiceBalanceRow = {
   invoice_id: string;
@@ -559,6 +560,7 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
 
         {/* Actions */}
         <div className="space-y-6">
+          <InvoicePlanCards supabase={supabase} invoiceId={id} balance={Number(invoice.balance ?? 0)} currency={invoice.currency} />
           <form action={generateItemsFromSchedule}>
             <FormSection
               title="Generate from fee schedule"

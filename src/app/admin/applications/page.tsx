@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PolicyExcerpt } from "@/components/policies/policy-view";
 import { ExternalLink, FilterX, Inbox, Plus } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/page-header";
@@ -124,6 +125,7 @@ export default async function AdminApplicationsPage({
   return (
     <div className="space-y-6">
       {header}
+      <PolicyExcerpt policy="families" section="admission-documents" />
 
       {createError ? (
         <Alert tone="danger" title="The application could not be created.">

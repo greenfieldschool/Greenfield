@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { PolicyExcerpt } from "@/components/policies/policy-view";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
@@ -270,6 +271,8 @@ export default async function AdminWelfareAttendancePage({
       />
 
       <BackToScoreSheet href={back} what="the register for each day of the week" />
+
+      <PolicyExcerpt policy="families" section="arriving" />
 
       {/* Metrics */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { PolicyExcerpt } from "@/components/policies/policy-view";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
@@ -158,6 +159,8 @@ export default async function AdminWelfareDisciplinePage({
       />
 
       <BackToScoreSheet href={back} what="any discipline case from that week (pick the day it happened)" />
+
+      <PolicyExcerpt policy="families" section="discipline-ladder" />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Records" value={disciplineRows.length} hint="Most recent 200" icon={ShieldAlert} tone="slate" />

@@ -48,7 +48,9 @@ export const LEARN = {
   announcements: "announcements",
   email: "email",
   managementPack: "management-pack",
-  starVideos: "star-videos"
+  starVideos: "star-videos",
+  policies: "school-policies",
+  paymentPlans: "payment-plans"
 } as const;
 
 export type LearnGuide = (typeof LEARN)[keyof typeof LEARN];

@@ -20,7 +20,9 @@ export const HELP = {
   lessonNotes: "lesson-notes",
   onlineClasses: "online-classes",
   starVideos: "star-videos",
-  notifications: "notifications"
+  notifications: "notifications",
+  policies: "school-policy",
+  paymentPlans: "payment-plans"
 } as const;
 
 export type PortalHelp = (typeof HELP)[keyof typeof HELP];

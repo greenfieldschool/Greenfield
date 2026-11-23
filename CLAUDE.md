@@ -43,6 +43,7 @@ to four: the skill for the area, plus the cross-cutting skills in "Skills that g
 | [brand-logo](.claude/skills/brand-logo/SKILL.md) | The school crest/logo, its words and colours, the browser and home-screen icons, where the crest appears |
 | [inventory](.claude/skills/inventory/SKILL.md) | The school inventory / asset register (`/admin/inventory`): sections, usual items, locations, counts by condition, pictures, history, report |
 | [management-pack](.claude/skills/management-pack/SKILL.md) | The weekly/monthly management information pack for leadership (`/admin/management-pack`): figures, comparisons, notes, saved history and the nightly save, printing |
+| [school-policies](.claude/skills/school-policies/SKILL.md) | Anything the school's policies decide (times, lateness, discipline, dress, assessment, admission, fees, payment plans, scholarships, rewards, staff rules), and the policy text, Policies pages and "School policy" boxes |
 | [ui-ux-design](.claude/skills/ui-ux-design/SKILL.md) | Designing or reworking any screen, form, grid or flow, animation, UI sound or three.js scene; "make the UI/UX as good as possible" (use with the area's skill) |
 | [security-and-privacy](.claude/skills/security-and-privacy/SKILL.md) | Who can see or change what (RLS, storage, routes), secrets and keys, webhooks, children's and parents' personal data (NDPA 2023) |
 | [verify-changes](.claude/skills/verify-changes/SKILL.md) | Proving a change works before calling it done: typecheck, lint, build, PGlite tests, previews without a database, what to report |
@@ -60,6 +61,7 @@ to four: the skill for the area, plus the cross-cutting skills in "Skills that g
 | touches money | finance-payments (+ spending-requests for money going out), data-modelling, security-and-privacy |
 | changes a figure leadership watches | management-pack |
 | changes how staff or families do a task | school-writing (Learn Centre / portal help) |
+| follows a school rule (times, discipline, fees, admission, rewards, staff rules) | school-policies |
 | is finished | verify-changes, then deploy only when the user asks |
 | comes from a school issue document | resolve-issue-doc first, then the skills above for each item |
 

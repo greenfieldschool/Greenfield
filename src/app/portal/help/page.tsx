@@ -128,6 +128,18 @@ export default async function PortalHelpPage() {
           )
         },
         {
+          id: HELP.paymentPlans,
+          q: "Can I pay in instalments?",
+          for: "parent",
+          a: (
+            <p>
+              Yes. Under <A href="/portal/billing">Fees &amp; billing</A>, press Pay in instalments under the invoice, choose 2 to 5 payments, see each amount and
+              date, and type your name to agree. You can do this up to the first day of term; after that, ask the school office. If a payment is missed, the
+              school adds a default fee and sends you a letter, which you can read under the invoice.
+            </p>
+          )
+        },
+        {
           id: HELP.paidNotShowing,
           q: "I have paid, but it still shows that I owe",
           a: (
@@ -258,6 +270,17 @@ export default async function PortalHelpPage() {
           id: HELP.health,
           q: "What are health notes?",
           a: <p>Sickness, injuries and other notes recorded at school, such as a visit to the nurse. They never affect any score.</p>
+        },
+        {
+          id: HELP.policies,
+          q: "Where can I read the school policy?",
+          a: (
+            <p>
+              Open <A href="/portal/policies">School policy</A> in the menu. It has the school times, rules, dress code and how mistakes are corrected
+              {audience === "parent" ? ", plus fees, payment plans, admission and rewards" : ""}. You can print it from there. Pages such as Fees &amp; billing and
+              Discipline also have a School policy link that opens the part that applies.
+            </p>
+          )
         }
       ]
     },

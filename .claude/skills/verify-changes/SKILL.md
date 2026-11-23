@@ -16,7 +16,7 @@ the repo and usually no `.env.local`, so "it builds" is not "it works".
    ```
    Pages that need Supabase build as static locally; that's expected.
 2. **Database changes: PGlite.** Harness and whole-schema loader in `.claude/skills/supabase-migration/`
-   (`pglite-harness.mjs`, `pglite-full-schema.mjs`). Area tests: `admission-and-accounts`, `email`, `lesson-notes`,
+   (`pglite-harness.mjs`, `pglite-full-schema.mjs`). Area tests: `admission-and-accounts`, `email`, `finance-payments` (corrections, payment plans), `lesson-notes`,
    `notifications` (+ push), `online-classes`, `pupil-class-history`, `pupil-records`, `results-and-reports`,
    `role-management`, `star-videos`, `management-pack`. Run the area's test and add cases for the change: allowed,
    refused, each role, run the migration twice.

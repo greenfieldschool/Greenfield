@@ -17,3 +17,6 @@ yarn-error.log*
 
 # misc
 .DS_Store
+
+# School policy documents (originals kept locally; summarised in .claude/skills/school-policies)
+/Policies/

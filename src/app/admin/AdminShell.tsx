@@ -44,6 +44,7 @@ import {
   HeartHandshake,
   ListChecks,
   ScrollText,
+  CalendarClock,
   History,
   FilePen,
   UserRound,
@@ -104,7 +105,8 @@ const NAV: NavGroup[] = [
     items: [
       { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
       { href: "/admin/messages", label: "Messages", icon: MessagesSquare, chatOnly: true },
-      { href: "/admin/spending", label: "Spending requests", icon: HandCoins }
+      { href: "/admin/spending", label: "Spending requests", icon: HandCoins },
+      { href: "/admin/policies", label: "School policies", icon: ScrollText }
     ]
   },
   {
@@ -197,6 +199,7 @@ const NAV: NavGroup[] = [
       { href: "/admin/finance/payments", label: "Payments", icon: Wallet },
       { href: "/admin/finance/invoices", label: "Invoices", icon: Receipt },
       { href: "/admin/finance/debtors", label: "Debtors", icon: ClipboardList },
+      { href: "/admin/finance/payment-plans", label: "Payment plans", icon: CalendarClock },
       { href: "/admin/finance/fees", label: "Fees setup", icon: LibraryBig },
       { href: "/admin/finance/expenses", label: "Expenses", icon: BookMarked }
     ]
@@ -269,6 +272,8 @@ const SEGMENT_LABELS: Record<string, string> = {
   import: "Bank statement & alerts",
   invoices: "Invoices",
   debtors: "Debtors",
+  "payment-plans": "Payment plans",
+  letter: "Default letter",
   fees: "Fees",
   expenses: "Expenses",
   schedules: "Schedules",
@@ -278,6 +283,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   "revenue-categories": "Revenue categories",
   careers: "Careers",
   learn: "Learn Centre",
+  policies: "School policies",
   profile: "Profile",
   "change-password": "Change password",
   settings: "Settings",

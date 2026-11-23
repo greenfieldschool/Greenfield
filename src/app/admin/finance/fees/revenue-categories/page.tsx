@@ -18,6 +18,8 @@ type RevenueCategoryRow = {
   name: string;
   description: string | null;
   payment_code: string | null;
+  /** Missing until docs/migrations/20261122_payment_plans.sql has run. */
+  is_tuition?: boolean;
 };
 
 const PATH = "/admin/finance/fees/revenue-categories";
@@ -89,6 +91,24 @@ async function savePaymentId(formData: FormData) {
   redirect(toastUrl(PATH, `Payment ID saved: ${code}`));
 }
 
+// Tuition fee types: early payment discounts (school policy) are a percentage of these lines only.
+async function saveTuition(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") ?? "").trim();
+  const isTuition = String(formData.get("is_tuition") ?? "") === "yes";
+  if (!id) redirect(toastUrl(PATH, "Missing fee type", "error"));
+
+  const supabase = getSupabaseServerClient();
+  if (!supabase) redirect(toastUrl(PATH, "Database is not configured", "error"));
+
+  const { error } = await supabase.from("revenue_categories").update({ is_tuition: isTuition }).eq("id", id);
+  if (error) redirect(toastUrl(PATH, failMessage(error.message), "error"));
+
+  revalidatePath(PATH);
+  redirect(toastUrl(PATH, isTuition ? "Marked as tuition" : "No longer counted as tuition"));
+}
+
 export default async function AdminRevenueCategoriesPage() {
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
@@ -107,7 +127,7 @@ export default async function AdminRevenueCategoriesPage() {
         back={{ href: "/admin/finance/fees", label: "Back to fee setup" }}
         eyebrow="Finance"
         title="Fee types & payment IDs"
-        description="Define what parents pay for (e.g. School fees, Uniform, Transport). Each one has a short payment ID that parents write in the bank transfer description."
+        description="Define what parents pay for (e.g. School fees, Uniform, Transport). Each one has a short payment ID that parents write in the bank transfer description. Mark the tuition ones: early payment discounts are worked out on tuition only."
       />
 
       {migrationNeeded ? (
@@ -159,6 +179,7 @@ export default async function AdminRevenueCategoriesPage() {
                   <th className="w-1/3">Name</th>
                   <th>Description</th>
                   <th className="w-64">Payment ID</th>
+                  <th className="w-40">Tuition?</th>
                 </tr>
               </thead>
               <tbody>
@@ -181,6 +202,20 @@ export default async function AdminRevenueCategoriesPage() {
                           Save
                         </SubmitButton>
                       </form>
+                    </td>
+                    <td>
+                      {"is_tuition" in c ? (
+                        <form action={saveTuition} className="flex items-center gap-2">
+                          <input type="hidden" name="id" value={c.id} />
+                          <input type="hidden" name="is_tuition" value={c.is_tuition ? "no" : "yes"} />
+                          <span className="text-sm">{c.is_tuition ? "Tuition" : "No"}</span>
+                          <SubmitButton variant="ghost" size="sm" pendingText="Saving…" showSpinner={false}>
+                            {c.is_tuition ? "Unmark" : "Mark as tuition"}
+                          </SubmitButton>
+                        </form>
+                      ) : (
+                        <span className="text-sm text-slate-500">Needs the payment plans update</span>
+                      )}
                     </td>
                   </tr>
                 ))}

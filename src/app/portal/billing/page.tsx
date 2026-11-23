@@ -1,7 +1,8 @@
 import { revalidatePath } from "next/cache";
+import { PolicyExcerpt } from "@/components/policies/policy-view";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CheckCircle2, CreditCard, History, Receipt, Wallet } from "lucide-react";
+import { CalendarClock, CheckCircle2, CreditCard, History, Receipt, Wallet } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { formatLagosDate } from "@/lib/lagos-dates";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -14,11 +15,14 @@ import { PortalPageHeader, portalMessages, statusBadge } from "../_components/po
 import CopyReferenceButton from "./CopyReferenceButton";
 import { HELP } from "@/lib/portal-help";
 import { invoiceState } from "@/lib/invoice-state";
+import type { PlanRow } from "@/lib/payment-plans";
+import { PortalPlanSummary } from "./plan-summary";
 
 type InvoiceBalanceRow = {
   invoice_id: string;
   invoice_no: string | null;
   student_id: string | null;
+  academic_term_id: string | null;
   issue_date: string;
   due_date: string | null;
   status: string;
@@ -112,7 +116,7 @@ export default async function PortalBillingPage({
 
   const { data } = await supabase
     .from("finance_invoice_balances")
-    .select("invoice_id, invoice_no, student_id, issue_date, due_date, status, currency, invoice_total, allocated_total, balance")
+    .select("invoice_id, invoice_no, student_id, academic_term_id, issue_date, due_date, status, currency, invoice_total, allocated_total, balance")
     .eq("bill_to_guardian_id", guardianId)
     .order("issue_date", { ascending: false })
     .limit(200);
@@ -201,6 +205,31 @@ export default async function PortalBillingPage({
     : null;
 
   const openInvoices = invoices.filter((inv) => inv.status !== "void" && Number(inv.balance ?? 0) > 0);
+
+  // Payment plans (school policy "Fees and payment plans"). Missing tables just mean no plans yet.
+  const openIds = openInvoices.map((i) => i.invoice_id);
+  const termIds = Array.from(new Set(openInvoices.map((i) => i.academic_term_id).filter((v): v is string => Boolean(v))));
+  const [{ data: planData }, { data: letterData }, { data: termData }] = await Promise.all([
+    openIds.length ? supabase.from("fee_payment_plans").select("invoice_id").eq("status", "active").in("invoice_id", openIds) : Promise.resolve({ data: [] }),
+    openIds.length ? supabase.from("fee_plan_default_charges").select("id, instalment_id, invoice_id").in("invoice_id", openIds) : Promise.resolve({ data: [] }),
+    termIds.length ? supabase.from("academic_terms").select("id, starts_on").in("id", termIds) : Promise.resolve({ data: [] })
+  ]);
+  const planInvoiceIds = ((planData ?? []) as Array<{ invoice_id: string }>).map((p) => p.invoice_id);
+  const planRows = new Map<string, PlanRow[]>(
+    await Promise.all(
+      planInvoiceIds.map(async (id) => {
+        const { data } = await supabase.rpc("payment_plan_status", { p_invoice: id });
+        return [id, (data ?? []) as PlanRow[]] as const;
+      })
+    )
+  );
+  const letters = (letterData ?? []) as Array<{ id: string; instalment_id: string; invoice_id: string }>;
+  const termStarts = new Map(((termData ?? []) as Array<{ id: string; starts_on: string | null }>).map((t) => [t.id, t.starts_on]));
+  const lagosToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date());
+  const canChoosePlan = (inv: InvoiceBalanceRow) => {
+    const starts = inv.academic_term_id ? termStarts.get(inv.academic_term_id) : null;
+    return Boolean(starts) && lagosToday <= String(starts).slice(0, 10) && !planRows.has(inv.invoice_id);
+  };
   const outstanding = openInvoices.reduce((acc, inv) => acc + Number(inv.balance ?? 0), 0);
 
   return (
@@ -210,6 +239,7 @@ export default async function PortalBillingPage({
         title="Fees & billing"
         description="See your invoices, pay what's due and keep track of payments."
       />
+      <PolicyExcerpt policy="families" section="payment-plans" portal />
 
       {ref ? (
         <Card className="border-brand-green-200 bg-brand-green-50/40">
@@ -259,8 +289,15 @@ export default async function PortalBillingPage({
         {invoices.length ? (
           <ul className="gf-stagger divide-y divide-slate-100">
             {invoices.map((inv) => {
-              const badge = invoiceState(inv);
               const due = inv.balance > 0;
+              const plan = planRows.get(inv.invoice_id);
+              // On a plan, "overdue" follows the plan's dates, not the invoice's due date.
+              const badge =
+                plan && due
+                  ? plan.some((r) => r.state === "missed")
+                    ? { label: "Payment missed", tone: "red" as const }
+                    : { label: "On a payment plan", tone: "gold" as const }
+                  : invoiceState(inv);
               return (
                 <li
                   key={inv.invoice_id}
@@ -285,6 +322,21 @@ export default async function PortalBillingPage({
                         <span>Due {inv.due_date ? formatLagosDate(inv.due_date) : "—"}</span>
                         <span>Total {money(inv.currency, inv.invoice_total)}</span>
                       </div>
+                      {planRows.has(inv.invoice_id) ? (
+                        <PortalPlanSummary
+                          rows={planRows.get(inv.invoice_id) ?? []}
+                          paid={Number(inv.allocated_total ?? 0)}
+                          letters={letters.filter((l) => l.invoice_id === inv.invoice_id)}
+                        />
+                      ) : due && canChoosePlan(inv) ? (
+                        <Link
+                          href={`/portal/billing/plan?invoice=${inv.invoice_id}`}
+                          className="mt-2 inline-flex min-h-[40px] items-center gap-1.5 text-sm font-semibold text-brand-green-700 hover:underline"
+                        >
+                          <CalendarClock className="h-4 w-4" aria-hidden="true" />
+                          Pay in instalments
+                        </Link>
+                      ) : null}
                       {due && inv.student_id && admissionById.get(inv.student_id) && inv.invoice_no ? (
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                           <span>Paying by bank transfer? Write this in the description:</span>

@@ -39,6 +39,17 @@ export default function AdminLearnCentrePage() {
       tone: "blue",
       guides: [
         {
+          id: LEARN.policies,
+          name: "School Policies (reading them, where they show, changing them)",
+          page: { href: "/admin/policies", label: "School policies" },
+          steps: [
+            "Open School policies in the menu. The Staff policy tab is the policy for everyone who works here (parents and pupils can never see it); Parents and pupils is the policy families read on the portal. Both can be printed.",
+            "Pages where a rule applies have a 'School policy: …' link that opens that part of the policy in a pop-up: for example Discipline (when a rule is broken) and Applications (documents needed for admission). Families see the same boxes on the portal.",
+            "A new version stays a draft until the Proprietress approves it. While it is a draft, staff can read it here but families see 'The school policy is being updated' on the portal.",
+            "To change a policy, an admin writes the change down and the Proprietress approves it; the developers then update the text and the version, so every page shows the same words. Admins see ideas for the next review under Suggested changes."
+          ]
+        },
+        {
           id: LEARN.admissions,
           name: "Admissions & Enrollment Workflow",
           page: { href: "/admin/students/applications", label: "Student applications" },
@@ -513,6 +524,19 @@ export default function AdminLearnCentrePage() {
             "Then press 'Enter the correct payment'. The form starts from the reversed payment's details; change what was wrong and record it. The new payment links back to the reversed one. A payment matched from the bank goes back to the bank inbox instead, to match to the right pupil.",
             "Right pupil but wrong invoice (e.g. meant for second term): use 'Move to another invoice' and say why. The invoice is paid up to what it still owes; anything over is kept as paid in advance.",
             "Every step shows in the payment's History with who did it and when. Only admins can see or record payments."
+          ]
+        },
+        {
+          id: LEARN.paymentPlans,
+          name: "Payment Plans, Default Fees and Early Payment Discounts",
+          page: { href: "/admin/finance/payment-plans", label: "Payment plans" },
+          adminOnly: true,
+          steps: [
+            "A plan splits one invoice into 2 to 5 payments, with the percentages and dates from the school policy (for example 40% on the first day, 30% by Friday of week 4, 30% by Friday of week 8). The term needs start and end dates under Fee setup > Academic years.",
+            "Parents can choose a plan on the portal (Fees & billing > Pay in instalments) up to the first day of term, by typing their name. For a paper agreement, open the invoice, choose the plan under Payment plan, type the parent's name, tick that they signed, and save. The parent is told on the portal.",
+            "Payment plans lists missed payments the day after each due date. Check the bank first: if the money came in on time but isn't recorded, record it and the payment drops off the list. Otherwise tick it and press Add default fees: the fee (the higher of ₦2,500 or 3% of the term's fees) goes on the invoice, and the parent gets a portal notice, an email and a default letter you can print.",
+            "To waive a fee instead, open the invoice and use Waive it with a reason. A fee added by mistake is removed the same way (Remove this fee). Nothing is deleted: every step is kept with who did it.",
+            "Early payment discount: mark the tuition fee types under Revenue categories first. On the invoice, the app shows each option with whether the money arrived in time; for 'two weeks before the term' it checks the dates itself. For the advance options, type which payment it was. Discounts don't apply to invoices on a plan."
           ]
         },
         {
