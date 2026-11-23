@@ -100,6 +100,27 @@ Before calling the work done, answer these as a brand identity designer (30+ yea
 
 - **The school owns the crest.** Changes to its words, colours or shapes need the school's sign-off; propose,
   don't decide.
+- **Is it a good mark, not just a well-made one?** (Added Nov 2026, after the crest was called "mid": the first redraw
+  passed every reproduction check but was never judged as design.) Ask:
+  - *One idea.* Can you describe the picture in one short sentence? More than one symbol (sun + hill + tree + ribbon +
+    stars) means nobody remembers any of them.
+  - *One motto.* Two mottos on one badge compete. Pick one for the crest; the other goes on letterheads.
+  - *Words outside.* Text inside the shield turns it into a label. Name and motto belong in a lockup or on a ring.
+  - *Ownable.* Would it be mistaken for another school, or a known brand? Squint test and 16px test: what does it look
+    like? (A fan of slits in a scalloped crown read as a seashell, the oil company's; a plain geometric G on a colour
+    field is close to a well-known tech logo.)
+  - *Hierarchy.* One thing the eye lands on first; nothing floating loose outside the shape.
+- **The crest's motto is "Knowledge is Light"** (decided Nov 2026). "Excellence in Character & Academics" is the
+  strapline for letterheads and the website; don't put both on a new crest.
+- **Start from the brief.** `docs/crest-brief.md` holds the school's founding story and what the crest must say. A
+  new idea for the crest must trace back to it; round 1 (A–C) was drawn without it and was generic.
+- **Drafts for the school** live in `/design-preview/logo-options` (round 3: A refined, "the light oak", the user's preferred direction (Nov 2026), in `round2.tsx` `OptionARefined` and `Seal picture="A"`; round 2: D seedling and star, E roots and crown;
+  round 1: A–C). The live crest doesn't change until the school chooses; then redraw the chosen one inside
+  `crestShapes` so every output follows.
+- **Look for unwanted readings** at every size, and ask the user what they see: a heart made of two leaves split down
+  the middle read as a broken heart; leaves curving round a star read as a crescent and star (a religious symbol, to
+  be avoided on a school crest in Nigeria); a tapered stem through a heart read as a blade; slits in a scalloped
+  crown read as a seashell; thin branches on a disc read as coral. Fix the shape, don't explain it away.
 - **One master, many outputs.** Every use (screen, favicon, home-screen icon, certificate, report card, email,
   embroidery) comes from the one drawing, with the right version for the size and background.
 - **Clear space and minimum size.** Never crop, stretch, rotate, recolour outside the palette or place on a busy
