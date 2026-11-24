@@ -91,7 +91,7 @@ export default async function AdminClassesPage() {
           }
         >
           <Link className="font-semibold hover:underline" href="/admin/classes/unassigned">
-            {unassigned} current student{unassigned === 1 ? " has" : "s have"} no class
+            {unassigned} current learner{unassigned === 1 ? " has" : "s have"} no class
           </Link>
         </Alert>
       ) : null}
@@ -101,7 +101,7 @@ export default async function AdminClassesPage() {
           <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
             <h2 className="text-base font-semibold text-slate-900">Classes registered twice</h2>
             <p className="mt-0.5 text-sm text-slate-500">
-              Merging moves the students, results, attendance, fees, exams, subjects and teachers of the duplicate onto the class
+              Merging moves the learners, results, attendance, fees, exams, subjects and teachers of the duplicate onto the class
               you keep, then deletes the duplicate.
             </p>
           </div>
@@ -114,7 +114,7 @@ export default async function AdminClassesPage() {
                     {keep.name}
                   </Link>
                   <span className="text-xs capitalize text-slate-500">
-                    {keep.level} · {totalOf(keep)} student{totalOf(keep) === 1 ? "" : "s"}
+                    {keep.level} · {totalOf(keep)} learner{totalOf(keep) === 1 ? "" : "s"}
                   </span>
                 </div>
                 <div className="mt-3 space-y-2">
@@ -133,7 +133,7 @@ export default async function AdminClassesPage() {
                           {dup.name}
                         </Link>
                         <span className="text-xs capitalize text-slate-500">
-                          {dup.level} · {totalOf(dup)} student{totalOf(dup) === 1 ? "" : "s"}
+                          {dup.level} · {totalOf(dup)} learner{totalOf(dup) === 1 ? "" : "s"}
                         </span>
                       </span>
                       <ConfirmSubmitButton
@@ -163,7 +163,7 @@ export default async function AdminClassesPage() {
           </summary>
           <div className="space-y-2 border-t border-slate-100 px-5 py-4 sm:px-6">
             <p className="text-sm text-slate-500">
-              These classes have no students. Delete the ones that were created by mistake. A class that still has fees,
+              These classes have no learners. Delete the ones that were created by mistake. A class that still has fees,
               results, attendance or exams cannot be deleted; merge or deactivate it instead.
             </p>
             {emptyClasses.map((c) => (
@@ -229,7 +229,7 @@ export default async function AdminClassesPage() {
                     </div>
                     <div className="mt-4 text-[1.65rem] font-bold leading-tight tracking-tight text-slate-900">{n.current}</div>
                     <div className="text-xs text-slate-500">
-                      current student{n.current === 1 ? "" : "s"}
+                      current learner{n.current === 1 ? "" : "s"}
                       {n.total > n.current ? ` · ${n.total - n.current} past/other` : ""}
                     </div>
                   </Link>

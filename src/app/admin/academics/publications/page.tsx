@@ -130,7 +130,7 @@ export default async function AdminAcademicsPublicationsPage() {
         learn={LEARN.reportCards}
         eyebrow="Academics"
         title="Result publications"
-        description="Publish or unpublish student results visibility in the portal."
+        description="Publish or unpublish learner results visibility in the portal."
         actions={
           <ButtonLink href="/admin/academics/results" variant="secondary">
             <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
@@ -142,7 +142,7 @@ export default async function AdminAcademicsPublicationsPage() {
       <form action={publish}>
         <FormSection
           title="Publish results"
-          description="Students and parents in the chosen class will see that term's results in the portal."
+          description="Learners and parents in the chosen class will see that term's results in the portal."
           footer={
             <SubmitButton variant="primary" pendingText="Publishing…">
               <span className="inline-flex items-center gap-2">

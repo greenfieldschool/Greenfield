@@ -55,7 +55,7 @@ export const CLASS_HISTORY_SOURCES: Record<string, string> = {
   records: "Worked out from records",
   "term start": "Start of term",
   "class change": "Class changed",
-  "new pupil": "New pupil",
+  "new learner": "New learner",
   "class merge": "Classes merged",
   admin: "Set by an admin"
 };

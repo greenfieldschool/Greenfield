@@ -103,10 +103,10 @@ export default async function ClassHistoryPage() {
       <UrlToast />
       <PageHeader
         learn={LEARN.classHistory}
-        back={{ href: "/admin/students", label: "Back to students" }}
-        eyebrow="Students"
+        back={{ href: "/admin/students", label: "Back to learners" }}
+        eyebrow="Learners"
         title="Class history"
-        description="Which class each pupil was in, term by term. Past report cards and result sheets use it, so a pupil moved up still appears on last term's cards."
+        description="Which class each learner was in, term by term. Past report cards and result sheets use it, so a learner moved up still appears on last term's cards."
       />
 
       {missing ? (
@@ -119,13 +119,13 @@ export default async function ClassHistoryPage() {
       <Card>
         <CardHeader
           title={conflicts.length ? `Needs checking (${conflicts.length})` : "Needs checking"}
-          description="Pupils whose records put them in two classes in the same term. Choose the class they were really in; the other records are not changed."
+          description="Learners whose records put them in two classes in the same term. Choose the class they were really in; the other records are not changed."
         />
         {conflicts.length === 0 ? (
           <EmptyState
             icon={CheckCircle2}
             title={missing ? "Nothing to show yet" : "Nothing to check"}
-            description={missing ? undefined : "Every pupil has one class for each term."}
+            description={missing ? undefined : "Every learner has one class for each term."}
           />
         ) : (
           <ul className="divide-y divide-slate-100">
@@ -133,7 +133,7 @@ export default async function ClassHistoryPage() {
               const s = firstOrNull(c.students);
               const t = firstOrNull(c.academic_terms);
               const year = t ? firstOrNull(t.academic_years) : null;
-              const name = s ? `${s.first_name} ${s.last_name}` : "Pupil";
+              const name = s ? `${s.first_name} ${s.last_name}` : "Learner";
               const termLabel = [t?.name, year?.name].filter(Boolean).join(", ") || "Term";
               const candidates = Array.isArray(c.candidates) ? c.candidates : [];
               const candidateIds = new Set(candidates.map((k) => k.class_id));
@@ -162,7 +162,7 @@ export default async function ClassHistoryPage() {
                           For now this term counts as {className.get(c.provisional_class_id) ?? "their class now"}.
                         </p>
                       ) : (
-                        <p className="text-xs text-slate-500">Until you choose, this pupil is left off both classes&apos; report cards for this term.</p>
+                        <p className="text-xs text-slate-500">Until you choose, this learner is left off both classes&apos; report cards for this term.</p>
                       )}
                     </div>
                     <form action={setClassForTermAction} className="flex w-full flex-col gap-2 sm:flex-row sm:items-end md:w-auto">
@@ -220,7 +220,7 @@ export default async function ClassHistoryPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Recent changes" description="The latest 100 changes to pupils' classes by term, with who made them." />
+        <CardHeader title="Recent changes" description="The latest 100 changes to learners' classes by term, with who made them." />
         {log.length === 0 ? (
           <EmptyState icon={History} title="No changes yet" description="Class changes, new terms and corrections are listed here." />
         ) : (
@@ -230,7 +230,7 @@ export default async function ClassHistoryPage() {
                 <thead>
                   <tr>
                     <th>Date</th>
-                    <th>Pupil</th>
+                    <th>Learner</th>
                     <th>Term</th>
                     <th>Change</th>
                     <th>How</th>
@@ -244,10 +244,10 @@ export default async function ClassHistoryPage() {
                       <td>
                         {l.student_id ? (
                           <Link className="gf-link" href={`/admin/students/${l.student_id}`}>
-                            {l.student_name ?? "Pupil"}
+                            {l.student_name ?? "Learner"}
                           </Link>
                         ) : (
-                          l.student_name ?? "Pupil"
+                          l.student_name ?? "Learner"
                         )}
                       </td>
                       <td>{l.term_name ?? "—"}</td>

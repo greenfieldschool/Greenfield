@@ -79,8 +79,8 @@ async function publishReports(formData: FormData) {
     PATH,
     params,
     archived.ok
-      ? "Report cards published — parents and students can now see them"
-      : "Report cards published — parents and students can now see them. A copy for Published results couldn't be saved; an admin can save it there.",
+      ? "Report cards published — parents and learners can now see them"
+      : "Report cards published — parents and learners can now see them. A copy for Published results couldn't be saved; an admin can save it there.",
     archived.ok ? "success" : "error"
   );
 }
@@ -157,9 +157,9 @@ export default async function AdminReportCardsPage({
     if (incompleteSubjects.length) missing.push(`${incompleteSubjects.length} subject(s) not fully scored`);
     const unsubmitted = report.subjects.filter((s) => !s.submitted).length;
     if (unsubmitted) missing.push(`${unsubmitted} subject(s) not submitted as final`);
-    if (ratingCriteria && c.ratingsComplete < n) missing.push(`weekly welfare scores for ${n - c.ratingsComplete} pupil(s)`);
+    if (ratingCriteria && c.ratingsComplete < n) missing.push(`weekly welfare scores for ${n - c.ratingsComplete} learner(s)`);
     if (!report.daysOpened) missing.push("attendance for the term");
-    if (c.classCommentsDone < n) missing.push(`class teacher comments for ${n - c.classCommentsDone} pupil(s)`);
+    if (c.classCommentsDone < n) missing.push(`class teacher comments for ${n - c.classCommentsDone} learner(s)`);
   }
 
   return (
@@ -169,7 +169,7 @@ export default async function AdminReportCardsPage({
         learn={LEARN.reportCards}
         eyebrow="Academics"
         title="Report cards"
-        description="The termly result sheet for each pupil: every subject with its CA and exam scores, welfare, the final score ((academic average + welfare) ÷ 2) with its grade, positions and comments. Check everything is complete, then publish."
+        description="The termly result sheet for each learner: every subject with its CA and exam scores, welfare, the final score ((academic average + welfare) ÷ 2) with its grade, positions and comments. Check everything is complete, then publish."
       />
 
       <Card>
@@ -217,7 +217,7 @@ export default async function AdminReportCardsPage({
                   label={`Subject scores · ${c!.subjectsComplete} of ${report.subjects.length} subjects complete`}
                   detail={
                     report.subjects.length
-                      ? "Every pupil needs a score in every column of each subject. See the subject list below."
+                      ? "Every learner needs a score in every column of each subject. See the subject list below."
                       : "No subjects yet. Assign subjects to this class under Class subjects."
                   }
                 />
@@ -230,8 +230,8 @@ export default async function AdminReportCardsPage({
                   ok={!ratingCriteria || c!.ratingsComplete === n}
                   label={
                     report.welfareMode === "weekly"
-                      ? `Weekly welfare · ${c!.ratingsComplete} of ${n} pupils scored for every week so far`
-                      : `Welfare ratings · ${c!.ratingsComplete} of ${n} pupils rated`
+                      ? `Weekly welfare · ${c!.ratingsComplete} of ${n} learners scored for every week so far`
+                      : `Welfare ratings · ${c!.ratingsComplete} of ${n} learners rated`
                   }
                   detail={
                     report.welfareMode === "weekly"
@@ -246,10 +246,10 @@ export default async function AdminReportCardsPage({
                     ok={!report.compulsoryMissing.length}
                     label={
                       report.compulsoryMissing.length
-                        ? `Compulsory welfare weeks · still to fill: ${report.compulsoryMissing.map((w) => `Week ${w.number} (${w.pupils} pupil${w.pupils === 1 ? "" : "s"})`).join(", ")}`
+                        ? `Compulsory welfare weeks · still to fill: ${report.compulsoryMissing.map((w) => `Week ${w.number} (${w.pupils} learner${w.pupils === 1 ? "" : "s"})`).join(", ")}`
                         : `Compulsory welfare weeks · all ${report.weeks.filter((w) => w.compulsory).length} filled`
                     }
-                    detail="An admin chose these weeks under Welfare → Compulsory weeks. Report cards can't be published until every pupil is scored for each of them."
+                    detail="An admin chose these weeks under Welfare → Compulsory weeks. Report cards can't be published until every learner is scored for each of them."
                     href={reportsUrl("/admin/welfare/scores", params)}
                     action="Score welfare"
                   />
@@ -271,7 +271,7 @@ export default async function AdminReportCardsPage({
                 <Check
                   ok={c!.classCommentsDone === n}
                   label={`Comments · class teacher ${c!.classCommentsDone}/${n}, head teacher ${c!.headCommentsDone}/${n}`}
-                  detail="The class teacher writes a comment for every pupil; the head teacher (admin) adds theirs."
+                  detail="The class teacher writes a comment for every learner; the head teacher (admin) adds theirs."
                   href={reportsUrl(`${PATH}/comments`, params)}
                   action="Write comments"
                 />
@@ -296,8 +296,8 @@ export default async function AdminReportCardsPage({
               <CardBody className="space-y-4">
                 <p className="text-sm text-slate-700">
                   {report.publication
-                    ? `Published ${new Date(report.publication.published_at).toLocaleString()}. Parents and pupils in ${report.cls.name} can see these report cards.`
-                    : "Not published. Parents and pupils cannot see these report cards yet."}
+                    ? `Published ${new Date(report.publication.published_at).toLocaleString()}. Parents and learners in ${report.cls.name} can see these report cards.`
+                    : "Not published. Parents and learners cannot see these report cards yet."}
                 </p>
                 <form className="flex flex-wrap gap-2">
                   <input type="hidden" name="class_id" value={classId} />
@@ -311,7 +311,7 @@ export default async function AdminReportCardsPage({
                         <input id="unpublish-reason" name="reason" className="gf-input" minLength={5} placeholder="e.g. Parent query on Maths CA" />
                         <ConfirmActionButton
                           formAction={unpublishReports}
-                          confirmMessage="Hide these report cards from parents and pupils so scores can be corrected?"
+                          confirmMessage="Hide these report cards from parents and learners so scores can be corrected?"
                           className={buttonClasses({ variant: "secondary" })}
                         >
                           <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -349,7 +349,7 @@ export default async function AdminReportCardsPage({
                       confirmMessage={
                         (missing.length
                           ? `These report cards are not complete yet: ${missing.join("; ")}.\n\nPublish anyway?`
-                          : `Publish ${report.term.name} report cards for ${report.cls.name}? Parents and pupils will be able to see them.`) +
+                          : `Publish ${report.term.name} report cards for ${report.cls.name}? Parents and learners will be able to see them.`) +
                         "\n\nPublishing locks every score and welfare rating for this class and term."
                       }
                       className={buttonClasses({ variant: missing.length ? "secondary" : "primary" })}
@@ -361,7 +361,7 @@ export default async function AdminReportCardsPage({
                 </form>
                 {heldCount ? (
                   <p className="rounded-xl bg-brand-gold-50 px-3 py-2 text-sm text-brand-gold-900">
-                    {heldCount} pupil{heldCount === 1 ? "" : "s"} still owe{heldCount === 1 ? "s" : ""} fees. Their parents will see a &ldquo;pay
+                    {heldCount} learner{heldCount === 1 ? "" : "s"} still owe{heldCount === 1 ? "s" : ""} fees. Their parents will see a &ldquo;pay
                     fees&rdquo; message instead of the report card until it is paid.{" "}
                     <Link href="/admin/finance/debtors" className="font-semibold underline">
                       See debtors
@@ -446,13 +446,13 @@ export default async function AdminReportCardsPage({
           </Card>
 
           <Card>
-            <CardHeader title="Pupils" description="Final score = (academic average + welfare) ÷ 2. Welfare is the average of the weekly welfare scores." />
+            <CardHeader title="Learners" description="Final score = (academic average + welfare) ÷ 2. Welfare is the average of the weekly welfare scores." />
             {n ? (
               <div className="gf-table-wrap">
                 <table className="gf-table min-w-[720px]">
                   <thead>
                     <tr>
-                      <th>Pupil</th>
+                      <th>Learner</th>
                       <th className="text-right">Academic</th>
                       <th className="text-right">Welfare</th>
                       <th className="text-right">Final score</th>
@@ -511,7 +511,7 @@ export default async function AdminReportCardsPage({
                 </table>
               </div>
             ) : (
-              <EmptyState icon={FileText} title="No pupils in this class" />
+              <EmptyState icon={FileText} title="No learners in this class" />
             )}
           </Card>
         </>

@@ -212,6 +212,19 @@ export default async function PortalExamsPage({
     }
   }
 
+  // The pupil's own attempts, so each exam says whether it was started, is locked or was handed in.
+  const attemptBySession = new Map<string, { status: string; locked_at: string | null; submitted_at: string | null }>();
+  if (role === "student" && student?.id && sessions.length) {
+    const { data: mine } = await supabase
+      .from("exam_attempts")
+      .select("session_id, status, locked_at, submitted_at")
+      .eq("student_id", student.id)
+      .in("session_id", sessions.map((s) => s.id));
+    for (const a of (mine ?? []) as Array<{ session_id: string; status: string; locked_at: string | null; submitted_at: string | null }>) {
+      attemptBySession.set(a.session_id, a);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PortalDebugLogger enabled={debug} />
@@ -235,7 +248,7 @@ export default async function PortalExamsPage({
       {role === "student" ? (
         student ? (
           <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-            <Badge tone="slate">{student.admission_number ?? "Student"}</Badge>
+            <Badge tone="slate">{student.admission_number ?? "Learner"}</Badge>
             <Badge tone="green">{classText(cls) ?? (student.class_id ? "Class —" : "No class yet")}</Badge>
             <span className="text-xs text-slate-500">
               Exams appear here on their start date. Ask your teacher if one is missing.
@@ -243,7 +256,7 @@ export default async function PortalExamsPage({
           </div>
         ) : (
           <Alert tone="info" title="Your account isn't linked yet">
-            No student record is linked to this account yet. Ask the school office to link your portal account to
+            No learner record is linked to this account yet. Ask the school office to link your portal account to
             your admission number.
           </Alert>
         )
@@ -277,6 +290,13 @@ export default async function PortalExamsPage({
                           </span>
                         ) : null}
                         {rowClass ? <span>{classText(rowClass)}</span> : null}
+                        {(() => {
+                          const a = attemptBySession.get(s.id);
+                          if (!a) return null;
+                          if (a.submitted_at) return <Badge tone="green">Handed in</Badge>;
+                          if (a.locked_at) return <Badge tone="red">Locked: ask the supervisor</Badge>;
+                          return <Badge tone="blue">Started</Badge>;
+                        })()}
                         {s.requires_secret_code ? (
                           <Badge tone="gold">
                             <KeyRound className="h-3 w-3" aria-hidden="true" />
@@ -287,7 +307,7 @@ export default async function PortalExamsPage({
                     </div>
                   </div>
                   <Link href={`/portal/exams/${s.id}`} className={buttonClasses({ size: "lg", className: "w-full sm:w-auto" })}>
-                    Open exam
+                    {attemptBySession.get(s.id)?.submitted_at ? "See your answers" : attemptBySession.get(s.id) ? "Carry on" : "Open exam"}
                     <ArrowRight className="h-5 w-5" aria-hidden="true" />
                   </Link>
                 </li>

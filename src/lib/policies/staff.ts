@@ -26,7 +26,7 @@ export const staffPolicy: PolicyDoc = {
                 "This policy applies to every member of staff. Breaking any part of it may lead to the corrective measures in this policy.",
                 "Only the school management can change it. When it changes, every member of staff reads and accepts the new version.",
                 "If something is not covered here, get written approval from the school management before doing it. It is then added at the next review.",
-                "The policy for parents and pupils also applies to how staff work with families."
+                "The policy for parents and learners also applies to how staff work with families."
               ]
             }
           ]
@@ -132,7 +132,7 @@ export const staffPolicy: PolicyDoc = {
           blocks: [
             {
               kind: "text",
-              text: "Pupils do an early morning activity from 7:15 to 7:45 am. Teachers set it on the agreed rota, at the end of the day before or early in the morning, so pupils can start as soon as they arrive. Pupils' completion counts towards their performance rating."
+              text: "Learners do an early morning activity from 7:15 to 7:45 am. Teachers set it on the agreed rota, at the end of the day before or early in the morning, so learners can start as soon as they arrive. Learners' completion counts towards their performance rating."
             }
           ]
         },
@@ -147,8 +147,8 @@ export const staffPolicy: PolicyDoc = {
                 ["7:45 – 7:52", "Morning prayer, in Muslim and Christian groups (except staff on duty)"],
                 ["7:52 – 7:55", "Anthems"],
                 ["7:55 – 8:00", "Announcements and a five-minute educational message. The assigned teacher passes on what was agreed at the staff meeting."],
-                ["8:00 – 8:03", "Closing, by the assembly prefect or pupil representative"],
-                ["8:03 – 8:05", "Pupils march to their classes"],
+                ["8:00 – 8:03", "Closing, by the assembly prefect or learner representative"],
+                ["8:03 – 8:05", "Learners march to their classes"],
                 ["8:05 – 8:15", "Teachers prepare for the first lesson"]
               ],
               note: "Primary and secondary hold assembly in separate places chosen by the management."
@@ -201,10 +201,10 @@ export const staffPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "Seat pupils in alphabetical order of their names or by height.",
+                "Seat learners in alphabetical order of their names or by height.",
                 "Display the class name sign and educational charts for the subjects taught.",
-                "Display pupils' grades in the classroom (gold, silver, bronze).",
-                "Speak to pupils with a good tone and manner, in British English, and make sure every pupil follows the lesson.",
+                "Display learners' grades in the classroom (gold, silver, bronze).",
+                "Speak to learners with a good tone and manner, in British English, and make sure every learner follows the lesson.",
                 "Keep a good posture in class, and keep the class quiet and working."
               ]
             }
@@ -247,7 +247,7 @@ export const staffPolicy: PolicyDoc = {
           blocks: [
             {
               kind: "text",
-              text: "Pupils are assessed through subject notes, class participation, weekly tests and the final examination, and on their welfare (punctuality, social conduct and health)."
+              text: "Learners are assessed through subject notes, class participation, weekly tests and the final examination, and on their welfare (punctuality, social conduct and health)."
             }
           ]
         },
@@ -258,8 +258,8 @@ export const staffPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "Send the soft copy of your examination questions to the examination board by Friday of week 2 of the term. Questions handed in late lose the holiday salary payment.",
-                "Check back that your questions have been approved, and make any corrections asked for.",
+                "Set your examination questions on the staff dashboard (Exams > Tests) and send them for approval by Friday of week 2 of the term. Questions handed in late lose the holiday salary payment.",
+                "The admins approve them or send them back with comments, and you are emailed either way. Make any corrections asked for and send them again. A test can only be opened to learners once it is approved.",
                 "Questions are 20% from past work and 80% from this term's syllabus. Never repeat questions from an earlier examination."
               ]
             },
@@ -298,13 +298,13 @@ export const staffPolicy: PolicyDoc = {
         },
         {
           id: "with-pupils",
-          title: "With pupils",
+          title: "With learners",
           blocks: [
             {
               kind: "list",
               items: [
-                "Contact pupils outside class only through the admin office, using the portal, email, text messages, phone calls or WhatsApp groups approved by the management.",
-                "Share school news with pupils at assembly."
+                "Contact learners outside class only through the admin office, using the portal, email, text messages, phone calls or WhatsApp groups approved by the management.",
+                "Share school news with learners at assembly."
               ]
             }
           ]
@@ -316,7 +316,7 @@ export const staffPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "Year coordinators write each pupil's progress in the communication book every day. Parents sign it and send it back. Welfare heads check the books every week.",
+                "Year coordinators write each learner's progress in the communication book every day. Parents sign it and send it back. Welfare heads check the books every week.",
                 "The PTA meets once a term at the school. Tell parents the date at least two months before. Parents who attend earn reward points.",
                 "Speak to parents face to face in line with this policy."
               ]
@@ -378,12 +378,12 @@ export const staffPolicy: PolicyDoc = {
               kind: "table",
               head: ["What happened", "Penalty"],
               rows: [
-                ["Pupils making noise while the teacher is in class", "₦300"],
+                ["Learners making noise while the teacher is in class", "₦300"],
                 ["Not in class when a lesson is due", "₦300"],
                 ["Eating during working hours (outside break)", "₦400"],
                 ["Leaving before closing time (the teacher and the gate officer)", "₦500"],
                 ["Not obeying a senior officer", "₦500"],
-                ["Too familiar with a pupil", "₦500"],
+                ["Too familiar with a learner", "₦500"],
                 ["Poor posture in class", "₦200"],
                 ["Neglecting an official duty", "₦300"],
                 ["Doing a job you were not given", "₦300"],
@@ -395,11 +395,11 @@ export const staffPolicy: PolicyDoc = {
         },
         {
           id: "pupil-discipline",
-          title: "Correcting pupils",
+          title: "Correcting learners",
           blocks: [
             {
               kind: "text",
-              text: "Correct pupils using the steps in the policy for parents and pupils (When a rule is broken): count how many times the pupil has broken the same rule and use the matching correction. Record every case on the Discipline page."
+              text: "Correct learners using the steps in the policy for parents and learners (When a rule is broken): count how many times the learner has broken the same rule and use the matching correction. Record every case on the Discipline page."
             }
           ]
         },
@@ -443,10 +443,10 @@ export const staffPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "Never use corporal punishment, or harm, threaten or humiliate a child. Correct pupils only as set out in \"When a rule is broken\".",
-                "Avoid being alone with a pupil behind a closed door. Keep the door open or another adult nearby.",
-                "Don't take a pupil in your own car, or meet a pupil outside school, without written permission from the parent and the Head Teacher.",
-                "Don't contact pupils or parents on your personal phone or social media. Use the portal or the school's approved channels (see \"With pupils\").",
+                "Never use corporal punishment, or harm, threaten or humiliate a child. Correct learners only as set out in \"When a rule is broken\".",
+                "Avoid being alone with a learner behind a closed door. Keep the door open or another adult nearby.",
+                "Don't take a learner in your own car, or meet a learner outside school, without written permission from the parent and the Head Teacher.",
+                "Don't contact learners or parents on your personal phone or social media. Use the portal or the school's approved channels (see \"With learners\").",
                 "Report any colleague whose behaviour towards a child worries you to the safeguarding lead. You will be protected for reporting in good faith."
               ]
             }
@@ -458,16 +458,16 @@ export const staffPolicy: PolicyDoc = {
           blocks: [
             {
               kind: "text",
-              text: "The school follows the Nigeria Data Protection Act 2023. Pupils', parents' and colleagues' information is used only for school work."
+              text: "The school follows the Nigeria Data Protection Act 2023. Learners', parents' and colleagues' information is used only for school work."
             },
             {
               kind: "list",
               items: [
                 "Look only at the records you need for your work. Changes you make on the staff dashboard are recorded with your name.",
                 "Never share your password, and lock or sign out of the computer when you leave it.",
-                "Don't copy pupil lists, results, health notes or contact details to your own phone, computer, email or WhatsApp.",
-                "Take photos and videos of pupils only on school devices, and only of pupils whose parents have agreed. Delete them from any personal device.",
-                "Don't discuss a pupil or family with anyone outside the school, or with colleagues who don't need to know.",
+                "Don't copy learner lists, results, health notes or contact details to your own phone, computer, email or WhatsApp.",
+                "Take photos and videos of learners only on school devices, and only of learners whose parents have agreed. Delete them from any personal device.",
+                "Don't discuss a learner or family with anyone outside the school, or with colleagues who don't need to know.",
                 "If information is lost or sent to the wrong person, tell the administrator straight away. The school must tell the Nigeria Data Protection Commission within 72 hours when the law requires it."
               ]
             }
@@ -484,7 +484,7 @@ export const staffPolicy: PolicyDoc = {
                 "Reply to parents' messages on the portal within two school days, politely and in plain words. Pass anything about a child's safety to the safeguarding lead, and anything about fees to the office.",
                 "The front desk and admins answer parents' messages to the school office within two school days. Reply as the school office: say who you are, and pass a question to the right colleague rather than guessing.",
                 "Run online classes from a quiet, suitable place, dressed as for school. Don't record a class unless the Head Teacher approves it and parents are told.",
-                "Report messages from parents or pupils that are abusive or worrying to the Head Teacher, rather than replying."
+                "Report messages from parents or learners that are abusive or worrying to the Head Teacher, rather than replying."
               ]
             }
           ]
@@ -526,7 +526,7 @@ export const staffPolicy: PolicyDoc = {
               kind: "table",
               head: ["You earn", "Points"],
               rows: [
-                ["Each new pupil admitted with your reference number", "200"],
+                ["Each new learner admitted with your reference number", "200"],
                 ["Each evaluation report of 80% or more", "100"]
               ]
             },
@@ -555,7 +555,7 @@ export const staffPolicy: PolicyDoc = {
               items: [
                 "Makes policy and plans.",
                 "Develops the curriculum.",
-                "Supports pupils' development.",
+                "Supports learners' development.",
                 "Runs the school's administration, staff and communications.",
                 "Markets the school through how well it runs and how well its people behave, to existing families, neighbouring communities and partner schools."
               ]
@@ -569,8 +569,8 @@ export const staffPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "Keeps staff and pupil records accurate, confidential and easy to find.",
-                "Runs pupil registration and admissions.",
+                "Keeps staff and learner records accurate, confidential and easy to find.",
+                "Runs learner registration and admissions.",
                 "Receives and acts on letters from inside and outside the school.",
                 "Records money and resources coming in and going out, and issues running funds and receipts."
               ]
@@ -584,13 +584,13 @@ export const staffPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "Leads welfare and keeps management, staff, pupils and parents informed on welfare matters.",
-                "Watches pupils' health, attendance and punctuality, and acts when needed.",
+                "Leads welfare and keeps management, staff, learners and parents informed on welfare matters.",
+                "Watches learners' health, attendance and punctuality, and acts when needed.",
                 "Leads discipline with the year coordinators: behaviour, punctuality, uniform, attendance and the tone of the school.",
                 "Oversees staff recruitment and duties, and sends the daily cover rota and notices.",
-                "Runs the pupils' leadership programme.",
+                "Runs the learners' leadership programme.",
                 "Looks after equipment for school activities, and keeps the school safe and good for learning.",
-                "Meets pupil and staff coordinators regularly, and helps market the school."
+                "Meets learner and staff coordinators regularly, and helps market the school."
               ]
             }
           ]
@@ -602,13 +602,13 @@ export const staffPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "Leads academics and keeps management, staff, pupils and parents informed on academic matters.",
+                "Leads academics and keeps management, staff, learners and parents informed on academic matters.",
                 "Sets the curriculum aims for each year group and subject, reviews subjects, and makes sure Ministry of Education requirements are met.",
                 "Makes sure the timetable works and everyone can see it.",
                 "Leads the studies coordinators and chairs their meetings.",
                 "Makes sure assessments are realistic, fair and reliable, and sets the assessment calendar, examination timetables and invigilation rotas.",
-                "Makes sure there is help for pupils who are behind, especially in English and Mathematics, and builds on each pupil's strongest subjects.",
-                "Prepares pupils for competitions, and works with the welfare team on discipline in class."
+                "Makes sure there is help for learners who are behind, especially in English and Mathematics, and builds on each learner's strongest subjects.",
+                "Prepares learners for competitions, and works with the welfare team on discipline in class."
               ]
             }
           ]
@@ -628,8 +628,8 @@ export const staffPolicy: PolicyDoc = {
               items: [
                 "The front desk asks the family to fill in the enquiry form.",
                 "From the form and a conversation, the family is given the next available entrance examination appointment.",
-                "From the enquiry form, the pupil is placed in a fee grade (see Scholarship grades in the policy for parents and pupils).",
-                "Collect every admission document, and have the parent, the pupil and the admin office sign the Terms and Agreements."
+                "From the enquiry form, the learner is placed in a fee grade (see Scholarship grades in the policy for parents and learners).",
+                "Collect every admission document, and have the parent, the learner and the admin office sign the Terms and Agreements."
               ]
             }
           ]
@@ -659,7 +659,7 @@ export const staffPolicy: PolicyDoc = {
             },
             {
               kind: "text",
-              text: "The management organises every event, and the PTA is invited to contribute. School events include the workshop and committee meetings, PTA meetings, open day, Teachers' Day, the end of year and end of session parties and inter-house sports. Pupils also take part in competitions with other schools, such as spelling bees, the Cowbell mathematics competition and science olympiads."
+              text: "The management organises every event, and the PTA is invited to contribute. School events include the workshop and committee meetings, PTA meetings, open day, Teachers' Day, the end of year and end of session parties and inter-house sports. Learners also take part in competitions with other schools, such as spelling bees, the Cowbell mathematics competition and science olympiads."
             }
           ]
         }

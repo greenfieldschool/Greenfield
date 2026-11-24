@@ -6,7 +6,7 @@ import type { BadgeTone } from "@/components/ui/badge";
 
 export const REVERSE_REASONS: Array<{ value: string; label: string }> = [
   { value: "wrong_amount", label: "Wrong amount entered" },
-  { value: "wrong_pupil", label: "Wrong pupil or parent" },
+  { value: "wrong_pupil", label: "Wrong learner or parent" },
   { value: "wrong_details", label: "Wrong date or payment method" },
   { value: "duplicate", label: "Recorded twice" },
   { value: "bank_reversed", label: "Bank reversed it or it bounced" },

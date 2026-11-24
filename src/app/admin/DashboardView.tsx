@@ -89,7 +89,7 @@ export default function DashboardView({ data }: { data: DashboardData }) {
       {/* Key numbers */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Current students"
+          label="Current learners"
           value={fmt(data.stats.activeStudents)}
           hint="Active and enrolled"
           icon={GraduationCap}
@@ -108,7 +108,7 @@ export default function DashboardView({ data }: { data: DashboardData }) {
         <StatCard
           label="Exams open now"
           value={fmt(data.stats.openExamSessions)}
-          hint="Students can sit these today"
+          hint="Learners can sit these today"
           icon={Timer}
           tone="gold"
           href="/admin/exams/sessions"
@@ -142,7 +142,7 @@ export default function DashboardView({ data }: { data: DashboardData }) {
         <Card>
           <CardHeader
             title="Attendance today"
-            description={att ? `${marked} of ${att.expected} students marked` : "No register taken yet"}
+            description={att ? `${marked} of ${att.expected} learners marked` : "No register taken yet"}
             action={
               <Link href="/admin/welfare/attendance" className="text-sm font-semibold text-brand-green hover:underline">
                 Open
@@ -191,8 +191,8 @@ export default function DashboardView({ data }: { data: DashboardData }) {
         {/* Open exam sessions */}
         <Card className="xl:col-span-2">
           <CardHeader
-            title="Exams open to students"
-            description="CBT sessions students can take right now"
+            title="Exams open to learners"
+            description="CBT sessions learners can take right now"
             action={
               <Link href="/admin/exams/sessions" className="text-sm font-semibold text-brand-green hover:underline">
                 All sessions

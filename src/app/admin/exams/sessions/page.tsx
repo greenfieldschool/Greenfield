@@ -36,7 +36,7 @@ import { formatLagosDate, lagosEndOfDayIso, lagosStartOfDayIso, sessionVisibilit
 import { failWithToast, NO_DB_MESSAGE } from "../_components/feedback";
 import { LEARN } from "@/lib/learn-guides";
 
-type TestRow = { id: string; name: string };
+type TestRow = { id: string; name: string; approval_status?: string | null };
 type ClassRow = { id: string; level: string; name: string };
 type YearRow = { id: string; name: string };
 type TermRow = { id: string; name: string };
@@ -100,7 +100,8 @@ export default async function AdminExamSessionsPage({
     const testLimit = teacherTestFilter(await getTeacherAccess(supabase));
     let testsQuery = supabase
       .from("exam_tests")
-      .select("id, name")
+      // "*" so the list still loads before the 24 Nov 2026 approval column exists.
+      .select("*")
       .eq("active", true);
     if (testLimit) testsQuery = testsQuery.or(testLimit);
     testsQuery = testsQuery
@@ -306,8 +307,8 @@ export default async function AdminExamSessionsPage({
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total sessions" value={totalSessionsCount} hint="All scheduled exam instances" icon={CalendarDays} tone="slate" />
-        <StatCard label="Active" value={activeSessionsCount} hint="Currently live and open to students" icon={CircleCheck} tone="green" />
-        <StatCard label="Draft" value={draftSessionsCount} hint="Unpublished planning templates" icon={PencilLine} tone="gold" />
+        <StatCard label="Active" value={activeSessionsCount} hint="Open to learners now or within their dates" icon={CircleCheck} tone="green" />
+        <StatCard label="Draft" value={draftSessionsCount} hint="Not open to learners" icon={PencilLine} tone="gold" />
         <StatCard label="Closed" value={closedSessionsCount} hint="Concluded exam papers" icon={Lock} tone="slate" />
       </div>
 
@@ -374,7 +375,7 @@ export default async function AdminExamSessionsPage({
         <FormSection
           id="new-session"
           title="New session"
-          description="Schedule a test for a class. Students see it between the start and end dates while it is active."
+          description="Schedule an approved test for a class. Learners see it between the start and end dates while it is open."
           footer={
             <SubmitButton variant="primary" pendingText="Creating…">
               Create session
@@ -388,9 +389,11 @@ export default async function AdminExamSessionsPage({
                 {testRows.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
+                    {t.approval_status && t.approval_status !== "approved" ? " (not approved yet)" : ""}
                   </option>
                 ))}
               </select>
+              <p className="gf-hint">Only approved tests can be opened to learners. Until the test is approved, save the session as draft.</p>
             </Field>
             <Field label="Class (optional)" htmlFor="new-class">
               <select id="new-class" className="gf-select" name="class_id" defaultValue="">
@@ -422,7 +425,7 @@ export default async function AdminExamSessionsPage({
                 ))}
               </select>
             </Field>
-            <Field label="Start date (optional)" htmlFor="new-start" hint="Students can see the exam from the start of this day.">
+            <Field label="Start date (optional)" htmlFor="new-start" hint="Learners can see the exam from the start of this day.">
               <input id="new-start" className="gf-input" name="start_date" type="date" />
             </Field>
             <Field
@@ -434,8 +437,8 @@ export default async function AdminExamSessionsPage({
             </Field>
             <Field label="Status" htmlFor="new-status">
               <select id="new-status" className="gf-select" name="status" defaultValue="active">
-                <option value="active">active (students can take it within the dates)</option>
-                <option value="draft">draft (hidden from students)</option>
+                <option value="active">Open to learners (between the dates)</option>
+                <option value="draft">Draft (hidden from learners)</option>
                 <option value="closed">closed</option>
               </select>
             </Field>
@@ -465,7 +468,7 @@ export default async function AdminExamSessionsPage({
                 <tr>
                   <th>Test</th>
                   <th>Class</th>
-                  <th>Dates / student access</th>
+                  <th>Dates / who can see it</th>
                   <th>Status</th>
                   <th className="text-right">Actions</th>
                 </tr>
@@ -521,7 +524,7 @@ export default async function AdminExamSessionsPage({
                           </Link>
                           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={`/admin/exams/sessions/${s.id}/attempts`}>
                             <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />
-                            Attempts
+                            Exam room
                           </Link>
                           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={`/admin/exams/sessions/${s.id}/conductors`}>
                             <Users className="h-3.5 w-3.5" aria-hidden="true" />

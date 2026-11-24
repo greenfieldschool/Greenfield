@@ -344,7 +344,7 @@ export async function assignNumbersAction(formData: FormData) {
   revalidatePath("/admin/accounts");
   revalidatePath("/admin/students");
   const n = Number(data ?? 0);
-  back("pupils", n ? `${n} admission number${n === 1 ? "" : "s"} given` : "Every pupil already has a number");
+  back("pupils", n ? `${n} admission number${n === 1 ? "" : "s"} given` : "Every learner already has a number");
 }
 
 /**
@@ -394,7 +394,7 @@ export async function linkAccountAction(formData: FormData) {
   const userId = String(formData.get("user_id") ?? "").trim();
   const target = String(formData.get("target") ?? "").trim();
   const role = String(formData.get("role") ?? "").trim();
-  if (!userId || !target) back("unlinked", "Type the pupil's admission number or the parent's email first.", "error");
+  if (!userId || !target) back("unlinked", "Type the learner's admission number or the parent's email first.", "error");
 
   if (target.includes("@")) {
     const { data: g } = await supabase.from("guardians").select("id, full_name").ilike("email", target).limit(2);
@@ -410,7 +410,7 @@ export async function linkAccountAction(formData: FormData) {
 
   const { data: owner } = await supabase.rpc("admission_number_owner", { p_number: target, p_exclude: null });
   const o = ((owner ?? []) as Array<{ student_id: string; full_name: string }>)[0];
-  if (!o) back("unlinked", "No pupil has that admission number.", "error");
+  if (!o) back("unlinked", "No learner has that admission number.", "error");
   const { error } = await service.from("student_user_links").upsert({ user_id: userId, student_id: o.student_id }, { onConflict: "user_id" });
   if (error) back("unlinked", `Couldn't link: ${error.message}`, "error");
   if (role !== "student") await service.from("profiles").update({ role: "student" }).eq("id", userId);

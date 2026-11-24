@@ -628,7 +628,7 @@ export default async function AdminUsersPage({
     const studentId = String(formData.get("student_id") ?? "").trim();
 
     if (!userId || !studentId) {
-      redirect(usersToast("Pick a student to link"));
+      redirect(usersToast("Pick a learner to link"));
     }
 
     const supabase = getSupabaseServerClient();
@@ -717,7 +717,7 @@ export default async function AdminUsersPage({
         learn={LEARN.staffAccounts}
         eyebrow="Admin"
         title="User Management"
-        description="Invite staff, manage roles, and link users to guardians or students."
+        description="Invite staff, manage roles, and link users to guardians or learners."
         actions={
           canInviteStaff ? (
             <a href="#invite-staff" className={buttonClasses({ variant: "primary" })}>
@@ -738,7 +738,7 @@ export default async function AdminUsersPage({
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Staff" value={staffCount} hint="In the list below" icon={Briefcase} tone="green" />
         <StatCard label="Parents" value={parentCount} hint="In the list below" icon={Users} tone="blue" />
-        <StatCard label="Students" value={studentCount} hint="In the list below" icon={GraduationCap} tone="violet" />
+        <StatCard label="Learners" value={studentCount} hint="In the list below" icon={GraduationCap} tone="violet" />
       </div>
 
       {/* Search */}
@@ -937,7 +937,7 @@ export default async function AdminUsersPage({
             description={
               currentRole === "super_admin"
                 ? "Every change of role is recorded here and cannot be edited. You can give any role except to yourself."
-                : "Every change of role is recorded here and cannot be edited. Admins can give the roles teacher, front desk, nurse, parent and student; only a super admin can make or remove admins."
+                : "Every change of role is recorded here and cannot be edited. Admins can give the roles teacher, front desk, nurse, parent and learner; only a super admin can make or remove admins."
             }
           />
           {roleChanges.length ? (
@@ -1027,7 +1027,7 @@ export default async function AdminUsersPage({
                         {linkedStudent ? (
                           <Badge tone="violet">
                             <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-                            Student: {linkedStudent.first_name} {linkedStudent.last_name} ({linkedStudent.level}
+                            Learner: {linkedStudent.first_name} {linkedStudent.last_name} ({linkedStudent.level}
                             {linkedStudent.class_id && classById.has(linkedStudent.class_id)
                               ? ` - ${classById.get(linkedStudent.class_id)!.name}`
                               : ""}
@@ -1158,7 +1158,7 @@ export default async function AdminUsersPage({
                                 studentNeedsLink ? "text-brand-gold-800" : "text-slate-600"
                               )}
                             >
-                              Student Link
+                              Learner Link
                               {studentNeedsLink ? (
                                 <>
                                   <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1181,7 +1181,7 @@ export default async function AdminUsersPage({
                           </div>
                           {studentNeedsLink ? (
                             <p className="mt-1 text-xs text-brand-gold-800">
-                              This student account will see &quot;no record found&quot; in the portal until linked.
+                              This learner account will see &quot;no record found&quot; in the portal until linked.
                             </p>
                           ) : null}
                           <form action={linkStudent} className="mt-2 flex gap-2">

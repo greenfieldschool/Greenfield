@@ -63,7 +63,7 @@ export default async function AdminGuardiansPage() {
         learn={LEARN.guardians}
         eyebrow="Admin"
         title="Guardians"
-        description="Manage parents/guardians and link them to students."
+        description="Manage parents/guardians and link them to learners."
         actions={
           <a href="#add-guardian" className={buttonClasses({ variant: "primary" })}>
             <UserPlus className="h-4 w-4" aria-hidden="true" />

@@ -62,7 +62,7 @@ export async function ClassHistoryCard({ studentId, isAdmin }: { studentId: stri
     <Card>
       <CardHeader
         title="Class history"
-        description="The class this pupil was in each term. Past report cards and result sheets use it."
+        description="The class this learner was in each term. Past report cards and result sheets use it."
         action={
           isAdmin ? (
             <Link href="/admin/students/class-history" className="gf-link text-sm">
@@ -73,7 +73,7 @@ export async function ClassHistoryCard({ studentId, isAdmin }: { studentId: stri
       />
       <CardBody className="space-y-5">
         {rows.length === 0 ? (
-          <p className="text-sm text-slate-500">No terms recorded yet. A term is recorded when it is made active, or when the pupil joins a class.</p>
+          <p className="text-sm text-slate-500">No terms recorded yet. A term is recorded when it is made active, or when the learner joins a class.</p>
         ) : (
           <ul className="divide-y divide-slate-100 text-sm">
             {rows.map((r) => (
@@ -101,7 +101,7 @@ export async function ClassHistoryCard({ studentId, isAdmin }: { studentId: stri
             <input type="hidden" name="return_to" value="pupil" />
             <div className="text-sm font-semibold text-slate-900">Correct a term</div>
             <p className="text-xs text-slate-500">
-              Only changes which class this pupil counts in for that term (report cards, result sheets). Their current class, scores and
+              Only changes which class this learner counts in for that term (report cards, result sheets). Their current class, scores and
               registers are not changed. Recorded with your name.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">

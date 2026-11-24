@@ -58,7 +58,7 @@ function capitalize(v: string) {
   return v ? v.charAt(0).toUpperCase() + v.slice(1) : v;
 }
 
-const BACK = { href: "/admin/students", label: "Back to students" };
+const BACK = { href: "/admin/students", label: "Back to learners" };
 
 function toastUrl(studentId: string, message: string, type: "success" | "error" = "error") {
   return `/admin/students/${studentId}?toast=${encodeURIComponent(message)}&toast_type=${type}`;
@@ -324,7 +324,7 @@ export default async function AdminStudentDetailPage({
     const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
     const role = (me?.role ?? null) as string | null;
     const isAllowed = role === "super_admin" || role === "admin";
-    if (!isAllowed) redirect(toastUrl(studentId, "Only admins can edit student details"));
+    if (!isAllowed) redirect(toastUrl(studentId, "Only admins can edit learner details"));
 
     const firstName = String(formData.get("first_name") ?? "").trim();
     const middleName = String(formData.get("middle_name") ?? "").trim();
@@ -368,17 +368,17 @@ export default async function AdminStudentDetailPage({
       })
       .eq("id", studentId);
 
-    if (updateError) redirect(toastUrl(studentId, `Could not save student: ${updateError.message}`));
+    if (updateError) redirect(toastUrl(studentId, `Could not save learner: ${updateError.message}`));
 
     revalidatePath(`/admin/students/${studentId}`);
     revalidatePath("/admin/students");
-    redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Student details saved")}&toast_type=success`);
+    redirect(`/admin/students/${studentId}?toast=${encodeURIComponent("Learner details saved")}&toast_type=success`);
   }
 
   async function saveStudentPhoto(formData: FormData) {
     "use server";
 
-    if (!isAdmin) redirect(toastUrl(studentId, "Only admins can change the student photo"));
+    if (!isAdmin) redirect(toastUrl(studentId, "Only admins can change the learner photo"));
 
     const photoUrlRaw = String(formData.get("profile_photo_url") ?? "").trim();
     const profilePhotoUrl = photoUrlRaw.length ? photoUrlRaw : null;
@@ -481,8 +481,8 @@ export default async function AdminStudentDetailPage({
     return (
       <div className="space-y-6">
         <PageHeader
-          learn={LEARN.studentAccounts} back={BACK} eyebrow="Student" title="Student not found" />
-        <Alert tone="warning" title="We couldn't find this student.">
+          learn={LEARN.studentAccounts} back={BACK} eyebrow="Learner" title="Learner not found" />
+        <Alert tone="warning" title="We couldn't find this learner.">
           They may have been removed, or the link is incorrect.
         </Alert>
       </div>
@@ -500,7 +500,7 @@ export default async function AdminStudentDetailPage({
       {isAdmin ? (
       <form action={updateStudent}>
         <FormSection
-          title="Edit student"
+          title="Edit learner"
           description={`Current class: ${currentClassName ?? "—"}. Choosing a class also updates the level to match.`}
           footer={
             <SubmitButton variant="primary" pendingText="Saving…">
@@ -538,8 +538,8 @@ export default async function AdminStudentDetailPage({
               htmlFor="student-admission_number"
               hint={
                 existingPortalUserId
-                  ? "Also the pupil's portal sign-in: if you change it, they sign in with the new number and the same password."
-                  : "Leave empty for an enrolled pupil and the next number is given automatically."
+                  ? "Also the learner's portal sign-in: if you change it, they sign in with the new number and the same password."
+                  : "Leave empty for an enrolled learner and the next number is given automatically."
               }
             >
               <input
@@ -552,12 +552,12 @@ export default async function AdminStudentDetailPage({
               />
             </Field>
             {offRoll ? (
-              <Field label="Status" htmlFor="student-status" hint="Use Reactivate at the top of the page to bring this pupil back.">
+              <Field label="Status" htmlFor="student-status" hint="Use Reactivate at the top of the page to bring this learner back.">
                 <input type="hidden" name="status" value={student.status} />
                 <input id="student-status" className="gf-input" value={STATUS_LABELS[student.status] ?? student.status} readOnly disabled />
               </Field>
             ) : (
-              <Field label="Status" htmlFor="student-status" required hint="To mark a pupil as left, graduated or a duplicate, use Deactivate pupil.">
+              <Field label="Status" htmlFor="student-status" required hint="To mark a learner as left, graduated or a duplicate, use Deactivate learner.">
                 <select id="student-status" className="gf-select" name="status" required defaultValue={student.status}>
                   <option value="applied">Applied</option>
                   <option value="enrolled">Enrolled</option>
@@ -587,9 +587,9 @@ export default async function AdminStudentDetailPage({
       </form>
       ) : (
         <Card>
-          <CardHeader title="Student details" />
+          <CardHeader title="Learner details" />
           <CardBody className="space-y-5">
-            <Alert tone="info">Only admins can edit student details.</Alert>
+            <Alert tone="info">Only admins can edit learner details.</Alert>
             <DetailList
               items={[
                 { label: "First name", value: student.first_name },
@@ -607,7 +607,7 @@ export default async function AdminStudentDetailPage({
       )}
 
       <Card>
-        <CardHeader title="Linked guardians" description="Parents and guardians connected to this student." />
+        <CardHeader title="Linked guardians" description="Parents and guardians connected to this learner." />
         {linked.length ? (
           <ul className="divide-y divide-slate-100">
             {linked.map((g) => (
@@ -648,7 +648,7 @@ export default async function AdminStudentDetailPage({
           <EmptyState
             icon={Users}
             title="No guardians linked yet"
-            description="Link a parent or guardian below so they appear on this student's record."
+            description="Link a parent or guardian below so they appear on this learner's record."
           />
         )}
       </Card>
@@ -658,7 +658,7 @@ export default async function AdminStudentDetailPage({
       <form action={addGuardian}>
         <FormSection
           title="Link a guardian"
-          description="Choose an existing guardian record to connect to this student."
+          description="Choose an existing guardian record to connect to this learner."
           footer={
             <SubmitButton variant="primary" pendingText="Linking…" disabled={!availableGuardians.length}>
               Link guardian
@@ -712,7 +712,7 @@ export default async function AdminStudentDetailPage({
             <DetailList
               items={[
                 {
-                  label: "Student name",
+                  label: "Learner name",
                   value: `${String(app.data.first_name ?? student.first_name)} ${String(app.data.middle_name ?? student.middle_name ?? "")} ${String(app.data.last_name ?? student.last_name)}`
                 },
                 { label: "DOB", value: String(app.data.dob ?? student.date_of_birth ?? "—") },
@@ -743,7 +743,7 @@ export default async function AdminStudentDetailPage({
                   { label: "Discovery", value: String(app.data.discovery_source ?? "—") },
                   { label: "Pickup details", value: String(app.data.pickup_details ?? "—"), wide: true, multiline: true },
                   {
-                    label: "Student signature",
+                    label: "Learner signature",
                     node: (
                       <>
                         <span className="block">{String(app.data.student_signature_name ?? "—")}</span>
@@ -778,7 +778,7 @@ export default async function AdminStudentDetailPage({
       <Card>
         <CardHeader
           title="Portal account"
-          description="Pupils sign in with their admission number and a password."
+          description="Learners sign in with their admission number and a password."
           action={
             <Link href={`/admin/accounts?q=${encodeURIComponent(student.admission_number ?? `${student.first_name} ${student.last_name}`)}`} className="gf-link text-sm">
               All accounts
@@ -801,13 +801,13 @@ export default async function AdminStudentDetailPage({
             hasAccount={Boolean(existingPortalUserId)}
             tempUntil={portalTempUntil}
             canCreate={Boolean(student.admission_number) && student.status !== "inactive"}
-            cannotCreateReason={student.admission_number ? "This record is deactivated." : "Give the pupil an admission number first (edit their details, or Accounts & passwords → Give them numbers)."}
+            cannotCreateReason={student.admission_number ? "This record is deactivated." : "Give the learner an admission number first (edit their details, or Accounts & passwords → Give them numbers)."}
             schoolName="Greenfield School"
             printedBy={viewerName}
           />
           <p className="gf-hint">
             A temporary password from the school works until the end of term, and admins can look it up again until
-            then. Once the pupil chooses their own, nobody can see it. Changing the admission number moves the sign-in
+            then. Once the learner chooses their own, nobody can see it. Changing the admission number moves the sign-in
             too; the password stays the same.
           </p>
         </CardBody>
@@ -846,8 +846,8 @@ export default async function AdminStudentDetailPage({
 
       {!offRoll ? (
         <FormSection
-          title="Deactivate pupil"
-          description="For duplicate or test records, and pupils who have left. Choose the reason from the list; it is recorded with your name."
+          title="Deactivate learner"
+          description="For duplicate or test records, and learners who have left. Choose the reason from the list; it is recorded with your name."
         >
           <DeactivatePanel studentId={studentId} studentName={fullName} keepOptions={keepOptions} />
         </FormSection>
@@ -881,7 +881,7 @@ export default async function AdminStudentDetailPage({
     <div className="space-y-6">
       <UrlToast key={toastKey} />
       <PageHeader
-        learn={LEARN.deactivatePupils} back={BACK} eyebrow="Student" title={fullName} />
+        learn={LEARN.deactivatePupils} back={BACK} eyebrow="Learner" title={fullName} />
 
       <Card>
         <CardBody className="flex flex-col gap-5 sm:flex-row sm:items-center">
@@ -945,7 +945,7 @@ export default async function AdminStudentDetailPage({
                 <input type="hidden" name="student_id" value={studentId} />
                 <ConfirmSubmitButton
                   className={buttonClasses({ variant: "secondary", size: "sm" })}
-                  confirmMessage={`Reactivate ${fullName}? They go back to ${student.status === "inactive" ? "their class and " : ""}the list of current pupils.`}
+                  confirmMessage={`Reactivate ${fullName}? They go back to ${student.status === "inactive" ? "their class and " : ""}the list of current learners.`}
                 >
                   Reactivate
                 </ConfirmSubmitButton>

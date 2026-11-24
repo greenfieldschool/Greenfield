@@ -85,7 +85,7 @@ export function LoginFrame({ children, footer }: { children: ReactNode; footer?:
       />
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center px-4 py-12">
         <Link href="/" aria-label="Greenfield School home" className="mb-7">
-          <CrestLockup inverted subtitle="Parent & student portal" />
+          <CrestLockup inverted subtitle="Parent & learner portal" />
         </Link>
         <div className="w-full animate-fade-up rounded-3xl bg-white p-6 shadow-2xl sm:p-8">{children}</div>
         {footer ? <div className="mt-6 text-center text-sm text-brand-green-100">{footer}</div> : null}
@@ -247,10 +247,10 @@ export function ScoreRing({
 
 // Standard explanations for portal accounts that can't see a page yet.
 export const portalMessages = {
-  notPortal: "This page is for students and parents. Please sign in with a student or parent account.",
+  notPortal: "This page is for learners and parents. Please sign in with a learner or parent account.",
   noGuardian: "Your account isn't linked to a parent record yet — please contact the school office.",
   noChildren: "No children are linked to your account yet — please contact the school office.",
-  noStudent: "Your account isn't linked to a student record yet — please ask your class teacher or the school office."
+  noStudent: "Your account isn't linked to a learner record yet — please ask your class teacher or the school office."
 } as const;
 
 // Full page "can't show this" state: page header + a card with an EmptyState.

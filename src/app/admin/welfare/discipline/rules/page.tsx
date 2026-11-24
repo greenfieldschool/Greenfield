@@ -74,7 +74,7 @@ export default async function DisciplineRulesPage() {
         learn={LEARN.disciplineLadder}
         eyebrow="Welfare"
         title="Discipline rules"
-        description="The rules staff choose from when recording a case. The ladder counts each rule separately for each pupil."
+        description="The rules staff choose from when recording a case. The ladder counts each rule separately for each learner."
       />
       <PolicyExcerpt policy="families" section="school-rules" />
       {error ? <Alert tone="warning">{disciplineError(error.message)}</Alert> : null}

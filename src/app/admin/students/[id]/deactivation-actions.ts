@@ -9,7 +9,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 // and write every step to student_status_log. Form fields carry everything; nothing is captured from the page.
 
 const MISSING_DB =
-  "Deactivating pupils is not set up in the database yet. Run docs/migrations/20261113b_student_deactivation.sql in Supabase.";
+  "Deactivating learners is not set up in the database yet. Run docs/migrations/20261113b_student_deactivation.sql in Supabase.";
 
 function back(studentId: string, message: string, type: "success" | "error" = "error"): never {
   redirect(`/admin/students/${studentId}?toast=${encodeURIComponent(message)}&toast_type=${type}`);
@@ -44,7 +44,7 @@ export async function deactivateStudentAction(formData: FormData) {
   revalidatePath("/admin/students");
   revalidatePath(`/admin/students/${studentId}`);
   if (reason === "duplicate") revalidatePath(`/admin/students/${kept}`);
-  back(studentId, "Pupil deactivated. The reason has been recorded.", "success");
+  back(studentId, "Learner deactivated. The reason has been recorded.", "success");
 }
 
 export async function reactivateStudentAction(formData: FormData) {
@@ -58,7 +58,7 @@ export async function reactivateStudentAction(formData: FormData) {
 
   revalidatePath("/admin/students");
   revalidatePath(`/admin/students/${studentId}`);
-  back(studentId, "Pupil reactivated", "success");
+  back(studentId, "Learner reactivated", "success");
 }
 
 // Permanent deletion is for the developers only (20261118_developer_only_pupil_delete.sql). Admins ask, with a reason;
@@ -68,7 +68,7 @@ export async function requestDeleteAction(formData: FormData) {
   const confirmName = String(formData.get("confirm_name") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
   if (!studentId) redirect("/admin/students");
-  if (!confirmName.trim()) back(studentId, "Type the pupil's name to confirm");
+  if (!confirmName.trim()) back(studentId, "Type the learner's name to confirm");
   if (reason.length < 5) back(studentId, "Say why it should be deleted, so the developers can check");
   const supabase = getSupabaseServerClient();
   if (!supabase) back(studentId, "Database is not configured — nothing was saved");

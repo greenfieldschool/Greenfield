@@ -28,9 +28,9 @@ export default async function NewPupilPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         learn={LEARN.addPupil}
-        back={{ href: "/admin/students", label: "Back to students" }}
-        eyebrow="Students"
-        title="Add a pupil"
+        back={{ href: "/admin/students", label: "Back to learners" }}
+        eyebrow="Learners"
+        title="Add a learner"
         description="For a child registered at the office, or moving over from another portal. Families who apply online come in through Applications."
         actions={
           <ButtonLink href="/admin/students/applications" variant="ghost">
@@ -39,7 +39,7 @@ export default async function NewPupilPage() {
         }
       />
       {!allowed ? (
-        <Alert tone="warning" title="Admins and the front desk add pupils">
+        <Alert tone="warning" title="Admins and the front desk add learners">
           Ask the school office to add this child.
         </Alert>
       ) : (

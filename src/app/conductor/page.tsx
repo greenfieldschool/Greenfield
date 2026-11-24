@@ -8,7 +8,7 @@ export default async function ConductorHomePage() {
       <PageHeader
         eyebrow="Conductor"
         title="Session dashboard"
-        description="View assigned sessions and unlock students when needed."
+        description="View assigned sessions and unlock learners when needed."
       />
 
       <div className="grid gap-4 sm:grid-cols-2">

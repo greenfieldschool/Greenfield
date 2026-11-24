@@ -62,7 +62,7 @@ function stepLabel(k: StepKey) {
     : k === "quick"
       ? "Quick"
       : k === "student"
-        ? "Student"
+        ? "Learner"
         : k === "parents"
           ? "Parents"
           : k === "previous"
@@ -589,7 +589,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
         >
           <div className="grid gap-4 md:grid-cols-2">
             <SectionCard title="1) Quick details (under a minute)" description="Parent contact + section + preferred communication." />
-            <SectionCard title="2) Student details" description="Name, age/DOB, class seeking, interests." />
+            <SectionCard title="2) Learner details" description="Name, age/DOB, class seeking, interests." />
             <SectionCard title="3) Parent/guardian details" description="Addresses and key contact details." />
             <SectionCard title="4) Previous school" description="Only if the child has been in school before." />
             <SectionCard title="5) Review & submit" description="Confirm details and submit to admissions." />
@@ -738,7 +738,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
 
       {step === "student" ? (
         <FormSection
-          title="Student details"
+          title="Learner details"
           footer={
             <div className={footerRow}>
               <Button
@@ -822,7 +822,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
                 placeholder="e.g. Nursery 2, Primary 1, JSS1"
               />
             </Field>
-            <Field label="Student passport photo URL (optional)" htmlFor="apply-passport-photo">
+            <Field label="Learner passport photo URL (optional)" htmlFor="apply-passport-photo">
               <input
                 id="apply-passport-photo"
                 className="gf-input"
@@ -1182,7 +1182,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
               <div className="text-sm font-semibold text-slate-900">Signatures</div>
             </div>
 
-            <Field label="Student signature (type name)" htmlFor="apply-student-signature-name">
+            <Field label="Learner signature (type name)" htmlFor="apply-student-signature-name">
               <input
                 id="apply-student-signature-name"
                 className="gf-input"
@@ -1191,7 +1191,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
               />
             </Field>
 
-            <Field label="Student signature date" htmlFor="apply-student-signature-date">
+            <Field label="Learner signature date" htmlFor="apply-student-signature-date">
               <input
                 id="apply-student-signature-date"
                 type="date"
@@ -1263,7 +1263,7 @@ export function ApplyWizard({ initialToken = "" }: ApplyWizardProps) {
               description={`${quick.parent_name || "—"} • ${quick.phone || "—"} • ${quick.section || "—"}`}
             />
             <SectionCard
-              title="Student"
+              title="Learner"
               description={`${student.last_name || ""} ${student.first_name || ""} ${student.middle_name || ""} • ${student.seeking_class || "—"}`}
             />
             <SectionCard

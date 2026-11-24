@@ -115,7 +115,7 @@ export default async function AnnouncementsPage() {
       {error ? <Alert tone="warning">Announcements need a database update first. Ask the school&apos;s IT person to run 20261110_email.sql.</Alert> : null}
 
       <Card>
-        <CardHeader title="New announcement" description="Pupils and parents see it on the portal straight away. Check it carefully: it can't be unsent." />
+        <CardHeader title="New announcement" description="Learners and parents see it on the portal straight away. Check it carefully: it can't be unsent." />
         <form action={sendAnnouncement} className="space-y-4 px-5 pb-5 sm:px-6">
           <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
             <div>

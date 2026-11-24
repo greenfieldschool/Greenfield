@@ -5,8 +5,8 @@ import type { PolicyDoc } from "./types";
 // them settled by management on 22 Nov 2026 (see .claude/skills/school-policies/SKILL.md).
 export const familiesPolicy: PolicyDoc = {
   key: "families",
-  title: "School Policy for Parents and Pupils",
-  readers: "Parents, guardians and pupils of Greenfield School",
+  title: "School Policy for Parents and Learners",
+  readers: "Parents, guardians and learners of Greenfield School",
   version: "2026/27 draft 1",
   approvedBy: null,
   approvedOn: null,
@@ -23,7 +23,7 @@ export const familiesPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "This policy applies to every pupil, parent and guardian of Greenfield School.",
+                "This policy applies to every learner, parent and guardian of Greenfield School.",
                 "You can read it at any time on the portal and print it. The school also keeps a printed copy.",
                 "Only the school management can change this policy. When it changes, you will be asked to read and accept the new version.",
                 "If something is not covered here, it needs written approval from the school management first. It is then added at the next review of the policy."
@@ -44,8 +44,8 @@ export const familiesPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "Pupils should be in school by 7:45 am. Pupils who arrive after 7:45 am are marked late.",
-                "The gate closes for assembly at 8:00 am. A pupil who arrives after that is signed in at the front desk and joins their class.",
+                "Learners should be in school by 7:45 am. Learners who arrive after 7:45 am are marked late.",
+                "The gate closes for assembly at 8:00 am. A learner who arrives after that is signed in at the front desk and joins their class.",
                 "Everyone comes in and goes out through the pedestrian gate, and signs in and out.",
                 "Everyone stops for a security check when asked, and must meet the entry and exit rules before the gate is opened."
               ]
@@ -58,7 +58,7 @@ export const familiesPolicy: PolicyDoc = {
           blocks: [
             {
               kind: "text",
-              text: "From 7:15 am to 7:45 am every school day, pupils complete the early morning activity their teacher has set. It counts towards their welfare and progress, and teachers record how each pupil does."
+              text: "From 7:15 am to 7:45 am every school day, learners complete the early morning activity their teacher has set. It counts towards their welfare and progress, and teachers record how each learner does."
             }
           ]
         },
@@ -72,11 +72,11 @@ export const familiesPolicy: PolicyDoc = {
               rows: [
                 ["7:45 – 7:52", "Morning prayer, in Muslim and Christian groups (except staff on duty)"],
                 ["7:52 – 7:55", "Anthems"],
-                ["7:55 – 8:00", "Announcements and a short educational message, by a pupil representative or teacher on the assembly rota"],
-                ["8:00 – 8:03", "Closing, by the assembly prefect or pupil representative"],
-                ["8:03 – 8:05", "Pupils march to their classes in an orderly way"]
+                ["7:55 – 8:00", "Announcements and a short educational message, by a learner representative or teacher on the assembly rota"],
+                ["8:00 – 8:03", "Closing, by the assembly prefect or learner representative"],
+                ["8:03 – 8:05", "Learners march to their classes in an orderly way"]
               ],
-              note: "Primary and secondary pupils hold assembly in separate places chosen by the management."
+              note: "Primary and secondary learners hold assembly in separate places chosen by the management."
             }
           ]
         },
@@ -108,7 +108,7 @@ export const familiesPolicy: PolicyDoc = {
         },
         {
           id: "school-pass",
-          title: "Taking a pupil out of school (school pass)",
+          title: "Taking a learner out of school (school pass)",
           blocks: [
             {
               kind: "list",
@@ -128,9 +128,9 @@ export const familiesPolicy: PolicyDoc = {
       sections: [
         {
           id: "assessment",
-          title: "How pupils are assessed",
+          title: "How learners are assessed",
           blocks: [
-            { kind: "text", text: "Pupils are assessed on their schoolwork and on their attitude." },
+            { kind: "text", text: "Learners are assessed on their schoolwork and on their attitude." },
             {
               kind: "table",
               head: ["Area", "What counts"],
@@ -163,8 +163,8 @@ export const familiesPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "The academic team gives extra guidance to pupils who are behind their classmates. Their progress is written in the pupil's report.",
-                "The welfare team helps pupils build their social skills and with any welfare concern."
+                "The academic team gives extra guidance to learners who are behind their classmates. Their progress is written in the learner's report.",
+                "The welfare team helps learners build their social skills and with any welfare concern."
               ]
             }
           ]
@@ -176,7 +176,7 @@ export const familiesPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "Each career and skills club is run by a teacher and a pupil representative.",
+                "Each career and skills club is run by a teacher and a learner representative.",
                 "A quiz or a debate is held every two weeks, as set in the term calendar."
               ]
             }
@@ -197,9 +197,9 @@ export const familiesPolicy: PolicyDoc = {
               items: [
                 "Come to school every day.",
                 "Never take anything that does not belong to you.",
-                "Speak to other pupils with a kind tone and good manners.",
+                "Speak to other learners with a kind tone and good manners.",
                 "Use British English in class. Other languages, such as French or Yoruba, are spoken in their own lessons.",
-                "Be a good ambassador for the school outside it. In school uniform, never play cards, ludo or draughts in public, fight in the street or hawk. A pupil who does may be suspended or expelled, depending on how serious it is."
+                "Be a good ambassador for the school outside it. In school uniform, never play cards, ludo or draughts in public, fight in the street or hawk. A learner who does may be suspended or expelled, depending on how serious it is."
               ]
             }
           ]
@@ -228,25 +228,25 @@ export const familiesPolicy: PolicyDoc = {
           blocks: [
             {
               kind: "text",
-              text: "The school counts how many times a pupil has broken the same rule, and the correction grows each time. The count runs for the pupil's whole time at the school. Parents are told each time on the portal, where they can read what happened and what the school did."
+              text: "The school counts how many times a learner has broken the same rule, and the correction grows each time. The count runs for the learner's whole time at the school. Parents are told each time on the portal, where they can read what happened and what the school did."
             },
             {
               kind: "table",
               head: ["Time", "What it means", "Correction"],
               rows: [
-                ["1st", "The pupil is new to the rule and broke it while still getting used to it.", "Reads the rule from the policy book three times, then a firm warning."],
-                ["2nd", "The pupil broke the rule again after being corrected.", "One of: 30 minutes of useful work, supervised reflection time with a member of staff, losing break time, or a spoken promise."],
-                ["3rd", "The pupil is deliberately refusing correction.", "30 minutes of useful work on 3 days in a row, a one-to-one counselling session, and a written statement in the pupil's file on why it happened and how they will change."],
-                ["4th", "The pupil is not responding to the school's usual corrections.", "The disciplinary committee meets and the parent is invited to the school. The committee may set extra time with the school's environment team (up to 10 school days), or refer the pupil to the school counsellor and, with the parent's agreement, to outside support."]
+                ["1st", "The learner is new to the rule and broke it while still getting used to it.", "Reads the rule from the policy book three times, then a firm warning."],
+                ["2nd", "The learner broke the rule again after being corrected.", "One of: 30 minutes of useful work, supervised reflection time with a member of staff, losing break time, or a spoken promise."],
+                ["3rd", "The learner is deliberately refusing correction.", "30 minutes of useful work on 3 days in a row, a one-to-one counselling session, and a written statement in the learner's file on why it happened and how they will change."],
+                ["4th", "The learner is not responding to the school's usual corrections.", "The disciplinary committee meets and the parent is invited to the school. The committee may set extra time with the school's environment team (up to 10 school days), or refer the learner to the school counsellor and, with the parent's agreement, to outside support."]
               ],
               note: "Taking what belongs to someone else is corrected with useful work from the first time. Behaviour outside school in uniform goes straight to the disciplinary committee, because it may lead to suspension or expulsion."
             },
             {
               kind: "list",
               items: [
-                "No pupil is ever left alone as a correction. Useful work and time with the environment team are supervised, suited to the pupil's age and done outside lesson time.",
-                "Before the disciplinary committee decides, the pupil is heard and what they say is written down.",
-                "Only the disciplinary committee can suspend or expel a pupil, and the parent always receives a letter explaining why.",
+                "No learner is ever left alone as a correction. Useful work and time with the environment team are supervised, suited to the learner's age and done outside lesson time.",
+                "Before the disciplinary committee decides, the learner is heard and what they say is written down.",
+                "Only the disciplinary committee can suspend or expel a learner, and the parent always receives a letter explaining why.",
                 "A parent who disagrees with the committee's decision can appeal in writing to the Proprietress.",
                 "The school never uses corporal punishment."
               ]
@@ -260,13 +260,13 @@ export const familiesPolicy: PolicyDoc = {
         },
         {
           id: "pupil-government",
-          title: "Pupils' government",
+          title: "Learners' government",
           blocks: [
             {
               kind: "list",
               items: [
-                "Pupils elect their representatives freely and fairly, at the end of every school year.",
-                "Representatives report back to pupils and to the school management in good time.",
+                "Learners elect their representatives freely and fairly, at the end of every school year.",
+                "Representatives report back to learners and to the school management in good time.",
                 "Outgoing representatives hand over what the new ones need to know, with any documents."
               ]
             }
@@ -290,11 +290,11 @@ export const familiesPolicy: PolicyDoc = {
               kind: "list",
               items: [
                 "The Head Teacher is the school's safeguarding lead, unless the Proprietress names someone else. Anyone worried about a child's safety, at school or at home, should tell the safeguarding lead the same day.",
-                "Pupils can tell any teacher they trust. The teacher listens, writes down what was said, and passes it to the safeguarding lead. Staff never promise to keep a worry secret, because they may need to get help.",
+                "Learners can tell any teacher they trust. The teacher listens, writes down what was said, and passes it to the safeguarding lead. Staff never promise to keep a worry secret, because they may need to get help.",
                 "The school tells parents about a worry, unless telling them could put the child at greater risk. When a child is at serious risk, the school reports it to the right authorities, such as the Lagos State Domestic and Sexual Violence Agency or the Ministry of Youth and Social Development.",
                 "The school never uses corporal punishment, and no adult at school may harm, threaten or humiliate a child.",
-                "Only parents, guardians and people they name in writing at the front desk may collect a pupil. Anyone else is turned away, and the parent is called.",
-                "Visitors sign in at the front desk, wear a visitor's badge and are never left alone with pupils."
+                "Only parents, guardians and people they name in writing at the front desk may collect a learner. Anyone else is turned away, and the parent is called.",
+                "Visitors sign in at the front desk, wear a visitor's badge and are never left alone with learners."
               ]
             }
           ]
@@ -311,9 +311,9 @@ export const familiesPolicy: PolicyDoc = {
               kind: "list",
               items: [
                 "Bullying is never accepted at Greenfield School, whoever does it.",
-                "A pupil who is bullied, or sees it happen, should tell a teacher straight away. Parents can tell the class teacher or the office, or send a message on the portal.",
-                "The school looks into every report within two school days, talks to everyone involved, and tells the parents of the pupils involved what it found and what it will do.",
-                "The pupil who was bullied is offered support from the school counsellor. The pupil who bullied is corrected under \"When a rule is broken\" and is also offered counselling, so it stops.",
+                "A learner who is bullied, or sees it happen, should tell a teacher straight away. Parents can tell the class teacher or the office, or send a message on the portal.",
+                "The school looks into every report within two school days, talks to everyone involved, and tells the parents of the learners involved what it found and what it will do.",
+                "The learner who was bullied is offered support from the school counsellor. The learner who bullied is corrected under \"When a rule is broken\" and is also offered counselling, so it stops.",
                 "Parents are asked not to approach another family's child about bullying. Tell the school, and the school deals with it."
               ]
             }
@@ -326,11 +326,11 @@ export const familiesPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "Pupils may not use mobile phones, smart watches with a camera or other devices during the school day.",
-                "A pupil who needs a phone for the journey hands it in at the front desk on arrival and collects it at closing time. The school is not responsible for phones that are not handed in.",
+                "Learners may not use mobile phones, smart watches with a camera or other devices during the school day.",
+                "A learner who needs a phone for the journey hands it in at the front desk on arrival and collects it at closing time. The school is not responsible for phones that are not handed in.",
                 "A phone used during the school day is kept at the front desk and given back to the parent.",
                 "Parents who need to reach their child during the day call the school office.",
-                "Pupils never take photos or videos of other pupils or staff at school, or share them, without permission from a teacher."
+                "Learners never take photos or videos of other learners or staff at school, or share them, without permission from a teacher."
               ]
             }
           ]
@@ -342,10 +342,10 @@ export const familiesPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "Keep your password to yourself. Parents and pupils each have their own login; never use someone else's.",
+                "Keep your password to yourself. Parents and learners each have their own login; never use someone else's.",
                 "Write to teachers and other parents politely, as you would speak to them face to face. Messages that are rude, threatening or share someone else's private details may be removed, and the sender may lose the use of messages.",
                 "Teachers reply to messages within two school days. You can also message the school office on the portal; the front desk and school admins reply within two school days. For anything urgent, call the school office.",
-                "In online classes, pupils join from a quiet place, dressed as for school, and follow the same rules as in the classroom. Nobody records, photographs or shares an online class.",
+                "In online classes, learners join from a quiet place, dressed as for school, and follow the same rules as in the classroom. Nobody records, photographs or shares an online class.",
                 "Tell the school straight away if you think someone else has used your account."
               ]
             }
@@ -357,16 +357,16 @@ export const familiesPolicy: PolicyDoc = {
           blocks: [
             {
               kind: "text",
-              text: "The school follows the Nigeria Data Protection Act 2023. It collects only the information it needs to teach, care for and keep pupils safe, run the school and collect fees."
+              text: "The school follows the Nigeria Data Protection Act 2023. It collects only the information it needs to teach, care for and keep learners safe, run the school and collect fees."
             },
             {
               kind: "list",
               items: [
                 "What the school keeps: names, dates of birth, contact details, health notes, attendance, behaviour, results, fees and payments, and photos taken at school.",
-                "Who can see it: only the staff who need it for their work. Parents see their own children's records on the portal; pupils see their own. The school never sells personal information.",
+                "Who can see it: only the staff who need it for their work. Parents see their own children's records on the portal; learners see their own. The school never sells personal information.",
                 "The school shares information outside the school only when the law requires it, to keep a child safe, or with your agreement (for example, examination bodies such as WAEC and NECO).",
-                "Photos and videos of pupils are used on the school's website and social media only if the parent agrees. Parents can say no, or change their mind, at the office at any time.",
-                "How long it is kept: admission records, report cards and results are kept permanently; other records are deleted six years after the pupil leaves.",
+                "Photos and videos of learners are used on the school's website and social media only if the parent agrees. Parents can say no, or change their mind, at the office at any time.",
+                "How long it is kept: admission records, report cards and results are kept permanently; other records are deleted six years after the learner leaves.",
                 "Your rights: you can ask to see the information the school keeps about you or your child, to correct it, or, where the law allows, to delete it. Ask at the office; the school replies within 30 days.",
                 "If personal information is ever lost or seen by someone who should not see it, the school tells the people affected and the Nigeria Data Protection Commission as the law requires."
               ]
@@ -388,7 +388,7 @@ export const familiesPolicy: PolicyDoc = {
               items: [
                 "The school uses the portal, email, text messages, phone calls and WhatsApp groups approved by the management.",
                 "Keep your phone number and email up to date on the portal so the school can always reach you.",
-                "Pupils hear school news at assembly."
+                "Learners hear school news at assembly."
               ]
             }
           ]
@@ -490,7 +490,7 @@ export const familiesPolicy: PolicyDoc = {
             },
             {
               kind: "text",
-              text: "By signing the Terms and Agreements, the parent, the pupil and the school confirm that the documents above have been handed in and that the parent has read, accepted and received this policy."
+              text: "By signing the Terms and Agreements, the parent, the learner and the school confirm that the documents above have been handed in and that the parent has read, accepted and received this policy."
             }
           ]
         },
@@ -508,13 +508,13 @@ export const familiesPolicy: PolicyDoc = {
                 ["Junior secondary", "10 to 13 years", "Transfer certificate, if moving from another school"],
                 ["Senior secondary", "—", "Junior WAEC (BECE) certificate, and a transfer certificate if moving from another school"]
               ],
-              note: "The Head Teacher or Principal may admit a pupil outside these ages after an assessment, and records why."
+              note: "The Head Teacher or Principal may admit a learner outside these ages after an assessment, and records why."
             }
           ]
         },
         {
           id: "withdrawal",
-          title: "Withdrawing a pupil",
+          title: "Withdrawing a learner",
           audience: "parents",
           blocks: [
             {
@@ -537,10 +537,10 @@ export const familiesPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "New pupils: pay the full fees before your child's first day.",
-                "Returning pupils: pay the full fees by the end of the second week of term, or follow a payment plan you have signed with the school.",
+                "New learners: pay the full fees before your child's first day.",
+                "Returning learners: pay the full fees by the end of the second week of term, or follow a payment plan you have signed with the school.",
                 "The damage (caution) fee is paid with the school fees once every session.",
-                "Buy your child's textbooks before or on the first day of term. A pupil cannot start lessons without them."
+                "Buy your child's textbooks before or on the first day of term. A learner cannot start lessons without them."
               ]
             }
           ]
@@ -604,11 +604,11 @@ export const familiesPolicy: PolicyDoc = {
             {
               kind: "list",
               items: [
-                "Fees are for a whole term. Once a term has started, its fees are not refunded, even if the pupil leaves or misses days.",
-                "Fees paid for a term that has not started are refunded if the pupil leaves, less one term's fees if the notice in \"Withdrawing a pupil\" was not given.",
-                "If a pupil leaves after paying early with a discount, the refund is worked out at the full fee for the terms already used.",
+                "Fees are for a whole term. Once a term has started, its fees are not refunded, even if the learner leaves or misses days.",
+                "Fees paid for a term that has not started are refunded if the learner leaves, less one term's fees if the notice in \"Withdrawing a learner\" was not given.",
+                "If a learner leaves after paying early with a discount, the refund is worked out at the full fee for the terms already used.",
                 "Money paid by mistake or paid twice is refunded in full, or kept towards the next term's fees if you prefer.",
-                "The caution (damage) fee is returned when the pupil leaves the school, less the cost of any damage, with a list of what it was used for.",
+                "The caution (damage) fee is returned when the learner leaves the school, less the cost of any damage, with a list of what it was used for.",
                 "Application and entrance examination fees are not refunded.",
                 "Ask for a refund in writing at the office or by message on the portal. The school pays it within 30 days, by bank transfer to the account that paid."
               ]
@@ -623,13 +623,13 @@ export const familiesPolicy: PolicyDoc = {
       sections: [
         {
           id: "pupil-awards",
-          title: "Awards for pupils",
+          title: "Awards for learners",
           blocks: [
             {
               kind: "list",
               items: [
-                "Pupils are given awards for outstanding work at the school's award events.",
-                "Bring any award your child wins outside school to the school management. It is recorded and recognised, to encourage other pupils."
+                "Learners are given awards for outstanding work at the school's award events.",
+                "Bring any award your child wins outside school to the school management. It is recorded and recognised, to encourage other learners."
               ]
             }
           ]
@@ -659,7 +659,7 @@ export const familiesPolicy: PolicyDoc = {
               head: ["You earn", "Points"],
               rows: [
                 ["Each PTA meeting you attend", "100"],
-                ["Each new pupil admitted with your reference number", "200"]
+                ["Each new learner admitted with your reference number", "200"]
               ]
             },
             {
@@ -690,7 +690,7 @@ export const familiesPolicy: PolicyDoc = {
           blocks: [
             {
               kind: "text",
-              text: "When a pupil is admitted, the school places them in a fee grade. The grade sets how much of the tuition is paid. Other fees, such as the caution fee and textbooks, are paid in full."
+              text: "When a learner is admitted, the school places them in a fee grade. The grade sets how much of the tuition is paid. Other fees, such as the caution fee and textbooks, are paid in full."
             },
             {
               kind: "table",

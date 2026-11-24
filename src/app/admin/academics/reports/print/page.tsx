@@ -70,7 +70,7 @@ export default async function PrintReportCardsPage({
           ))}
         </div>
       ) : (
-        <Alert tone="info">No pupils to show.</Alert>
+        <Alert tone="info">No learners to show.</Alert>
       )}
     </div>
   );

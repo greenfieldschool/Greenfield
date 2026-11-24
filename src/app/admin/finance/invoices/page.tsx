@@ -101,7 +101,7 @@ export default async function AdminFinanceInvoicesPage() {
           <EmptyState
             icon={FileText}
             title="No invoices yet"
-            description="Invoices you create for guardians and students will appear here."
+            description="Invoices you create for guardians and learners will appear here."
             action={
               <ButtonLink href="/admin/finance/invoices/new" size="sm">
                 New invoice

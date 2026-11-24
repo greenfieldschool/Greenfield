@@ -101,9 +101,9 @@ async function saveNote(formData: FormData) {
   back(
     id,
     intent === "publish"
-      ? "Published. Pupils and parents of the class can read it now."
+      ? "Published. Learners and parents of the class can read it now."
       : intent === "draft"
-        ? "Taken back to draft. Pupils and parents can't see it any more."
+        ? "Taken back to draft. Learners and parents can't see it any more."
         : "Saved"
   );
 }
@@ -220,7 +220,7 @@ export default async function LessonNotePage({
             </Badge>
             <p className="text-sm text-slate-700">
               {published
-                ? `Pupils and parents of ${c?.name ?? "the class"} can read and download it${note.published_at ? ` (since ${formatLagosDate(note.published_at)})` : ""}.`
+                ? `Learners and parents of ${c?.name ?? "the class"} can read and download it${note.published_at ? ` (since ${formatLagosDate(note.published_at)})` : ""}.`
                 : hasContent
                   ? "Only staff can see it. Publish it when it's ready."
                   : "Only staff can see it. Type the notes or attach a file below, then publish."}
@@ -311,7 +311,7 @@ export default async function LessonNotePage({
                 maxLength={50000}
                 defaultValue={note.body ?? ""}
                 className="gf-input"
-                placeholder="Type the lesson note, a summary, or what pupils should read before the lesson."
+                placeholder="Type the lesson note, a summary, or what learners should read before the lesson."
               />
             </div>
           </CardBody>
@@ -357,7 +357,7 @@ export default async function LessonNotePage({
           <form action={deleteNote}>
             <input type="hidden" name="id" value={note.id} />
             <ConfirmSubmitButton
-              confirmMessage={`Delete "${note.topic}"?${published ? " Pupils and parents will no longer see it." : ""} This can't be undone.`}
+              confirmMessage={`Delete "${note.topic}"?${published ? " Learners and parents will no longer see it." : ""} This can't be undone.`}
               className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
               <Trash2 className="h-4 w-4" aria-hidden="true" />

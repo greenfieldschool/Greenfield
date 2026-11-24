@@ -487,32 +487,32 @@ export async function loadMiPack(
 
   const pupils: MiSection = {
     key: "pupils",
-    title: "Pupils and admissions",
+    title: "Learners and admissions",
     description: "Who joined, who left, and how many families asked about a place.",
     metrics: [
       m("New admission enquiries", newApplications, "count", "up", "Started on the website or added by the front desk", "enquiries"),
       m("Applications marked enrolled", appsEnrolled, "count", "up"),
-      m("New pupils added", newPupils, "count", "up"),
-      m("Pupils marked as left", leavers, "count", "down", "Withdrawn, transferred or graduated"),
+      m("New learners added", newPupils, "count", "up"),
+      m("Learners marked as left", leavers, "count", "down", "Withdrawn, transferred or graduated"),
       m("Website contact messages", inquiries, "count", "up")
     ],
     snapshots: [
-      { id: "onRoll", label: "Pupils on roll", value: onRoll ? onRoll.length : null, format: "count" },
+      { id: "onRoll", label: "Learners on roll", value: onRoll ? onRoll.length : null, format: "count" },
       { label: "Applications waiting for a reply", value: appsWaiting.error ? null : (appsWaiting.count ?? 0), format: "count" }
     ],
     tables: [
       {
         title: "By section",
-        columns: ["Section", "Pupils on roll", "New enquiries"],
+        columns: ["Section", "Learners on roll", "New enquiries"],
         rows: ["creche", "primary", "secondary"].map((s) => [
           SECTION_NAMES[s],
           formatMi(onRoll ? (rollBySection[s] ?? 0) : null, "count"),
           formatMi(curApps ? (appsBySection[s] ?? 0) : null, "count")
         ]),
-        empty: "No pupils yet."
+        empty: "No learners yet."
       }
     ],
-    unavailable: students ? undefined : "Pupil records could not be read just now.",
+    unavailable: students ? undefined : "Learner records could not be read just now.",
     link: { href: "/admin/students/applications", label: "Open applications" }
   };
 
@@ -557,7 +557,7 @@ export async function loadMiPack(
   const attendanceSection: MiSection = {
     key: "attendance",
     title: "Attendance",
-    description: "From the daily registers. Attendance = pupils present or late ÷ pupils marked.",
+    description: "From the daily registers. Attendance = learners present or late ÷ learners marked.",
     metrics: [
       m("Attendance", { cur: hasAtt ? attRate(att.cur) : null, prev: hasAtt ? attRate(att.prev) : null }, "percent", "up", undefined, "attendance"),
       m("Absences", { cur: hasAtt ? att.cur.absent + att.cur.excused : null, prev: hasAtt ? att.prev.absent + att.prev.excused : null }, "count", "down", "Including excused"),
@@ -712,7 +712,7 @@ export async function loadMiPack(
       m("Lesson notes published", notesPublished, "count", "up"),
       m("Online classes held", classesHeld, "count", "up"),
       m("Online classes cancelled", classesCancelled, "count", "down"),
-      m("Pupils who joined an online class", onlineJoins, "count", "up", "Each pupil counted once per class"),
+      m("Learners who joined an online class", onlineJoins, "count", "up", "Each learner counted once per class"),
       m("Computer-based tests taken", examsSat, "count", "none"),
       m("Average test score", examAvg, "percent", "up"),
       m("Result correction requests", corrections, "count", "down")
@@ -787,7 +787,7 @@ export async function loadMiPack(
                   ? ([
                       className(classById.get(cid)),
                       m.name,
-                      studentName.get(String(v.student_id)) || "A pupil",
+                      studentName.get(String(v.student_id)) || "A learner",
                       { text: `Watch on ${videoHost(String(v.video_url))}`, href: String(v.video_url) },
                       String(v.author_name ?? "—")
                     ] as MiCell[])
@@ -815,7 +815,7 @@ export async function loadMiPack(
   const starSection: MiSection = {
     key: "stars",
     title: "Star of the week videos",
-    description: "Each week every class shares a video of a pupil who did well in each of its two major subjects.",
+    description: "Each week every class shares a video of a learner who did well in each of its two major subjects.",
     metrics: [
       m("Videos posted", starsPosted, "count", "up"),
       m("Videos posted of those expected", starRate, "percent", "up", "Classes × their major subjects × weeks in the period", "starVideosRate")
@@ -952,7 +952,7 @@ export async function loadMiPack(
   type ActionKind = { key: string; label: string; group: "learners" | "results" | "staff" | "parents" | "money"; rows: Row[] | null; who: string; when: string; hint?: string };
   const kinds: ActionKind[] = [
     { key: "incidents", label: "Incidents and discipline recorded", group: "learners", rows: incidents && discipline ? [...incidents, ...discipline] : null, who: "reported_by", when: "occurred_at" },
-    { key: "testUnlocks", label: "Pupils' computer tests unlocked", group: "learners", rows: testUnlockRows, who: "unlocked_by", when: "unlocked_at" },
+    { key: "testUnlocks", label: "Learners' computer tests unlocked", group: "learners", rows: testUnlockRows, who: "unlocked_by", when: "unlocked_at" },
     { key: "stars", label: "Star videos posted", group: "learners", rows: starRows, who: "created_by", when: "week_start" },
     { key: "comments", label: "Head's report card comments written", group: "results", rows: commentRows, who: "updated_by", when: "updated_at" },
     { key: "published", label: "Results published", group: "results", rows: publicationRows, who: "published_by", when: "published_at" },
@@ -1031,7 +1031,7 @@ export async function loadMiPack(
     key: "heads",
     title: "Heads' actions",
     description:
-      "What the school's heads (admin accounts) did in the system to manage pupils and staff, counted from the records themselves.",
+      "What the school's heads (admin accounts) did in the system to manage learners and staff, counted from the records themselves.",
     metrics: [
       m("All actions by heads", { cur: staffList ? sumAll("cur") : null, prev: staffList ? sumAll("prev") : null }, "count", "none", undefined, "headActions"),
       ...kinds.map((k) => m(k.label, kindTotals.get(k.key) ?? { cur: null, prev: null }, "count", "none", k.hint)),
@@ -1177,7 +1177,7 @@ export async function loadMiPack(
   if (classConflicts)
     notes.push({
       tone: "info",
-      text: `${classConflicts} pupil${classConflicts === 1 ? "'s class for a term needs" : "s' classes for a term need"} checking (Pupils → Class history), so past report cards list the right pupils.`
+      text: `${classConflicts} learner${classConflicts === 1 ? "'s class for a term needs" : "s' classes for a term need"} checking (Learners → Class history), so past report cards list the right learners.`
     });
   if (waitingCorrections) notes.push({ tone: "info", text: `${waitingCorrections} result correction request${waitingCorrections === 1 ? " is" : "s are"} waiting for a decision.` });
   // Early in a week everyone is still at zero: only point out quiet teachers once three school days have passed.

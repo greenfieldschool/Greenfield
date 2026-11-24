@@ -46,7 +46,7 @@ values
   ('Language rule', 'Not using English in class (other languages only in their own lessons).', 'steps', 50),
   ('Uniform and appearance', 'Incomplete or wrong uniform, shoes, hair, jewellery or make-up.', 'steps', 60),
   ('Noise during lessons', 'Making noise during lessons or official hours.', 'steps', 70),
-  ('Fighting', 'Fighting or hurting another pupil.', 'steps', 80),
+  ('Fighting', 'Fighting or hurting another learner.', 'steps', 80),
   ('Behaviour outside school in uniform', 'Playing cards, ludo or draughts in public, fighting in the street or hawking while in uniform.', 'committee', 90),
   ('Other', 'Anything else against the school rules. Say what happened in the notes.', 'steps', 999)
 on conflict do nothing;
@@ -275,7 +275,7 @@ begin
     raise exception 'Only school staff can record discipline cases.';
   end if;
   if p_student is null or not exists (select 1 from public.students s where s.id = p_student) then
-    raise exception 'Choose a pupil.';
+    raise exception 'Choose a learner.';
   end if;
   select * into v_rule from public.discipline_rules r where r.id = p_rule;
   if v_rule.id is null then
@@ -382,7 +382,7 @@ begin
     raise exception 'A written statement is kept from the 3rd time.';
   end if;
   if length(btrim(coalesce(p_statement, ''))) < 10 then
-    raise exception 'Write the statement (why it happened and how the pupil will change).';
+    raise exception 'Write the statement (why it happened and how the learner will change).';
   end if;
   if length(p_statement) > 4000 then
     raise exception 'The written statement is too long (4,000 characters at most).';
@@ -432,10 +432,10 @@ begin
     raise exception 'The committee decides from the 4th time only.';
   end if;
   if length(btrim(coalesce(p_pupil_explanation, ''))) < 5 then
-    raise exception 'Write what the pupil said when the committee heard them.';
+    raise exception 'Write what the learner said when the committee heard them.';
   end if;
   if length(p_pupil_explanation) > 2000 then
-    raise exception 'What the pupil said is too long (2,000 characters at most).';
+    raise exception 'What the learner said is too long (2,000 characters at most).';
   end if;
   if p_outcome is null or p_outcome not in ('environment_team', 'counsellor', 'other') then
     raise exception 'Choose what the committee decided.';

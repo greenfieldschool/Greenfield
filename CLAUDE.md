@@ -37,6 +37,7 @@ to four: the skill for the area, plus the cross-cutting skills in "Skills that g
 | [messaging](.claude/skills/messaging/SKILL.md) | Teacher–parent / parent–parent messages, class spaces, moderation |
 | [assignments](.claude/skills/assignments/SKILL.md) | Assignments and classwork: setting, handing in (photos/files), marking, sending marks to the result sheet |
 | [lesson-notes](.claude/skills/lesson-notes/SKILL.md) | Lesson notes: teachers preparing, publishing and replacing notes by class/subject/term/week/topic; pupils and parents reading and downloading them |
+| [cbt-exams](.claude/skills/cbt-exams/SKILL.md) | Online (CBT) exams: tests, questions and their approval, sessions, pupils sitting exams, locks and the 10-second rule, time limits, unlocking and extra time, conductors, releasing results |
 | [online-classes](.claude/skills/online-classes/SKILL.md) | Online video classes: scheduling Zoom/Meet/Teams lessons, cancelling, pupils joining from the portal, online attendance |
 | [star-videos](.claude/skills/star-videos/SKILL.md) | Star of the week videos: major subjects per class, teachers posting weekly video links, families watching on the portal, the KPI in the management pack |
 | [notifications](.claude/skills/notifications/SKILL.md) | Portal notifications (the bell) and phone push notifications: what sends them, who gets them, the service worker, adding one for a new event |

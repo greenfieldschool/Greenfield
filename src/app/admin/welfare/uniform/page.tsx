@@ -98,7 +98,7 @@ async function saveUniformSheet(formData: FormData) {
   revalidatePath("/admin/welfare/scores");
   redirect(
     sheetUrl(classId, date, back, {
-      message: rows.length ? `Uniform check saved: ${rows.length} pupil${rows.length === 1 ? "" : "s"} updated` : "Nothing had changed",
+      message: rows.length ? `Uniform check saved: ${rows.length} learner${rows.length === 1 ? "" : "s"} updated` : "Nothing had changed",
       type: "success"
     })
   );
@@ -260,7 +260,7 @@ export default async function AdminWelfareUniformPage({
           </nav>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            <StatCard label="Pupils in class" value={students.length} hint={cls ? cls.name : ""} icon={Users} tone="slate" />
+            <StatCard label="Learners in class" value={students.length} hint={cls ? cls.name : ""} icon={Users} tone="slate" />
             <StatCard label="Neat" value={neat} hint={dayChecks.length ? `on ${dateLabel}` : "not checked this day"} icon={CheckCircle2} tone="green" />
             <StatCard label="Not neat" value={notNeat} hint="needs follow-up" icon={XCircle} tone="rose" />
           </div>
@@ -268,7 +268,7 @@ export default async function AdminWelfareUniformPage({
           <Card>
             <CardHeader
               title={`Uniform check · ${dateLabel}`}
-              description="Everyone starts as Neat: mark the pupils whose uniform or appearance wasn't right (add a note if you like), then save once."
+              description="Everyone starts as Neat: mark the learners whose uniform or appearance wasn't right (add a note if you like), then save once."
               action={
                 <Badge tone={dayChecks.length >= students.length && students.length ? "green" : dayChecks.length ? "gold" : "slate"} dot>
                   {dayChecks.length}/{students.length} saved
@@ -326,7 +326,7 @@ export default async function AdminWelfareUniformPage({
                   })}
                 </ul>
                 <div className="sticky bottom-0 z-10 flex flex-col gap-2 rounded-b-2xl border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                  <p className="text-xs text-slate-500">Saves every pupil above for {dateLabel}.</p>
+                  <p className="text-xs text-slate-500">Saves every learner above for {dateLabel}.</p>
                   <SubmitButton variant="primary" pendingText="Saving…">
                     <span className="inline-flex items-center gap-2">
                       <Shirt className="h-4 w-4" aria-hidden="true" />
@@ -336,7 +336,7 @@ export default async function AdminWelfareUniformPage({
                 </div>
               </form>
             ) : (
-              <EmptyState icon={Shirt} title="No pupils in this class" description="Add pupils to the class first." />
+              <EmptyState icon={Shirt} title="No learners in this class" description="Add learners to the class first." />
             )}
           </Card>
 

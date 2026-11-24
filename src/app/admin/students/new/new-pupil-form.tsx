@@ -97,7 +97,7 @@ export function NewPupilForm({ classes, nextNumber }: { classes: ClassOption[]; 
       ) : null}
 
       <fieldset className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <legend className="px-1 text-base font-semibold text-slate-900">The pupil</legend>
+        <legend className="px-1 text-base font-semibold text-slate-900">The learner</legend>
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="First name" htmlFor="np-first">
             <input id="np-first" name="first_name" className="gf-input" autoComplete="off" required value={who.first} onChange={set("first")} />
@@ -261,9 +261,9 @@ export function NewPupilForm({ classes, nextNumber }: { classes: ClassOption[]; 
 
       <div className="sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:mx-0 sm:flex-row sm:items-center sm:rounded-xl sm:border">
         <SubmitButton pendingText="Adding…" className={buttonClasses({ size: "lg", className: "w-full sm:w-auto" })} disabled={numberCheck.state === "taken"}>
-          Add pupil
+          Add learner
         </SubmitButton>
-        <span className="hidden text-xs text-slate-500 sm:inline">You can add a portal account and more details on the pupil&apos;s page afterwards.</span>
+        <span className="hidden text-xs text-slate-500 sm:inline">You can add a portal account and more details on the learner&apos;s page afterwards.</span>
       </div>
     </form>
   );

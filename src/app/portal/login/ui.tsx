@@ -72,7 +72,7 @@ export function PortalLoginForm({
         <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         Back
       </Link>
-      <h1 className="font-display text-3xl font-semibold text-slate-900">{isStudent ? "Student sign in" : "Parent sign in"}</h1>
+      <h1 className="font-display text-3xl font-semibold text-slate-900">{isStudent ? "Learner sign in" : "Parent sign in"}</h1>
       <p className="mt-1.5 text-sm text-slate-600">Use your email address and password.</p>
 
       <form className="mt-6 space-y-5" onSubmit={onSubmit}>

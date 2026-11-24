@@ -90,7 +90,7 @@ export default async function AdminNewPaymentPage({
     }
     if (!studentIdRaw && !invoiceIdRaw) {
       redirect(
-        `/admin/finance/payments/new?toast=${encodeURIComponent("Choose the student (or an invoice) this payment is for")}&toast_type=error`
+        `/admin/finance/payments/new?toast=${encodeURIComponent("Choose the learner (or an invoice) this payment is for")}&toast_type=error`
       );
     }
 
@@ -188,7 +188,7 @@ export default async function AdminNewPaymentPage({
         back={{ href: "/admin/finance/payments", label: "Back to payments" }}
         eyebrow="Finance"
         title={original ? "Enter the correct payment" : "Record payment"}
-        description="Pick the student the payment is for (listed by class) and optionally allocate it to one of their invoices."
+        description="Pick the learner the payment is for (listed by class) and optionally allocate it to one of their invoices."
       />
 
       {original ? (
@@ -204,12 +204,12 @@ export default async function AdminNewPaymentPage({
 
       <form action={recordPayment} className="space-y-6">
         {original ? <input type="hidden" name="corrects_payment_id" value={original.id} /> : null}
-        <FormSection title="Who is paying" description="Choose a student, an invoice, or both.">
+        <FormSection title="Who is paying" description="Choose a learner, an invoice, or both.">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
-              label="Student (by class)"
+              label="Learner (by class)"
               htmlFor="student_id"
-              hint="Required unless you pick an invoice — the invoice's student is used."
+              hint="Required unless you pick an invoice — the invoice's learner is used."
             >
               <StudentSelect id="student_id" groups={groups} defaultValue={studentIdPrefill} className="gf-select" />
             </Field>
@@ -233,7 +233,7 @@ export default async function AdminNewPaymentPage({
 
             <Field label="Guardian (optional)" htmlFor="guardian_id" className="sm:col-span-2">
               <select id="guardian_id" className="gf-select" name="guardian_id" defaultValue={original?.guardian_id ?? ""}>
-                <option value="">— (use the student&apos;s guardian)</option>
+                <option value="">— (use the learner&apos;s guardian)</option>
                 {guardianRows.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.full_name}

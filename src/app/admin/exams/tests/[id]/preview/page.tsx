@@ -104,7 +104,7 @@ export default async function AdminExamTestPreviewPage({ params }: { params: Pro
         back={{ href: `/admin/exams/tests/${id}`, label: "Back to editor" }}
         eyebrow="Exams"
         title={`Preview: ${test.name}`}
-        description="This is a read-only preview of how questions will appear to students."
+        description="How the questions will look to learners. Nothing here can be changed."
         actions={
           <>
             <Badge tone="blue">

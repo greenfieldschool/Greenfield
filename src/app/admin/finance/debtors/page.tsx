@@ -111,7 +111,7 @@ export default async function AdminFinanceDebtorsPage({
     const cls = student?.class_id ? classById.get(student.class_id) : null;
     const key = cls?.id ?? NO_CLASS;
     const entry = classSummary.get(key) ?? {
-      label: cls ? classLabel(cls) : "No student / class",
+      label: cls ? classLabel(cls) : "No learner / class",
       students: 0,
       balance: 0,
       invoiced: 0,
@@ -143,7 +143,7 @@ export default async function AdminFinanceDebtorsPage({
         back={{ href: "/admin/finance", label: "Back to finance" }}
         eyebrow="Finance"
         title="Debtors"
-        description="Outstanding fees by class and by student, plus guardians who owe."
+        description="Outstanding fees by class and by learner, plus guardians who owe."
         actions={
           <ButtonLink href="/admin/finance/payments" variant="secondary">
             <Wallet className="h-4 w-4" aria-hidden="true" />
@@ -168,7 +168,7 @@ export default async function AdminFinanceDebtorsPage({
         />
         <StatCard label="Paid" value={<span className="tabular-nums">₦{money(totalPaid)}</span>} icon={Banknote} tone="green" />
         <StatCard
-          label="Students owing"
+          label="Learners owing"
           value={<span className="tabular-nums">{studentDebts.length.toLocaleString("en-NG")}</span>}
           hint={`${debtors.length} guardian${debtors.length === 1 ? "" : "s"} with a balance`}
           icon={Users}
@@ -188,7 +188,7 @@ export default async function AdminFinanceDebtorsPage({
                   <th className="text-right">Invoiced</th>
                   <th className="text-right">Paid</th>
                   <th className="text-right">Outstanding</th>
-                  <th className="text-right">Students owing</th>
+                  <th className="text-right">Learners owing</th>
                 </tr>
               </thead>
               <tbody>
@@ -240,11 +240,11 @@ export default async function AdminFinanceDebtorsPage({
         <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-slate-900">
-              Students owing{" "}
+              Learners owing{" "}
               {classFilter ? `— ${classFilter === NO_CLASS ? "no class" : classLabel(classById.get(classFilter))}` : ""}
             </h2>
             <p className="mt-0.5 text-sm text-slate-500">
-              {visibleDebts.length} student{visibleDebts.length === 1 ? "" : "s"} ·{" "}
+              {visibleDebts.length} learner{visibleDebts.length === 1 ? "" : "s"} ·{" "}
               <span className="tabular-nums">₦{money(visibleTotal)}</span> outstanding
             </p>
           </div>
@@ -259,7 +259,7 @@ export default async function AdminFinanceDebtorsPage({
                   {classLabel(c)}
                 </option>
               ))}
-              <option value={NO_CLASS}>No student / class</option>
+              <option value={NO_CLASS}>No learner / class</option>
             </select>
             <button type="submit" className={buttonClasses({ size: "md" })}>
               Show
@@ -271,7 +271,7 @@ export default async function AdminFinanceDebtorsPage({
             <table className="gf-table min-w-[820px]">
               <thead>
                 <tr>
-                  <th>Student</th>
+                  <th>Learner</th>
                   <th>Class</th>
                   <th>Guardian</th>
                   <th className="text-right">Outstanding</th>
@@ -291,7 +291,7 @@ export default async function AdminFinanceDebtorsPage({
                             {d.student.last_name} {d.student.first_name}
                           </Link>
                         ) : (
-                          <Badge tone="gold">Invoice not linked to a student</Badge>
+                          <Badge tone="gold">Invoice not linked to a learner</Badge>
                         )}
                       </td>
                       <td className="whitespace-nowrap">{d.cls ? classLabel(d.cls) : "—"}</td>
@@ -334,7 +334,7 @@ export default async function AdminFinanceDebtorsPage({
           <EmptyState
             icon={CheckCircle2}
             title="No outstanding balances"
-            description={classFilter ? "Nobody in this class owes fees." : "Every invoiced student is fully paid."}
+            description={classFilter ? "Nobody in this class owes fees." : "Every invoiced learner is fully paid."}
           />
         )}
       </Card>

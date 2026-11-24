@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     [
       "Position",
       "Admission no",
-      "Pupil name",
+      "Learner name",
       ...report.subjects.map((s) => `${s.name} (/100)`),
       "Academic average (/100)",
       "Welfare (/100)",

@@ -86,14 +86,14 @@ async function saveDetails(formData: FormData) {
   revalidatePath(LIST);
   revalidatePath(`${LIST}/${id}`);
   revalidatePath("/portal/online-classes");
-  back(id, moved ? "Rescheduled. Pupils and parents see the new time." : "Saved");
+  back(id, moved ? "Rescheduled. Learners and parents see the new time." : "Saved");
 }
 
 async function cancelClass(formData: FormData) {
   "use server";
   const id = String(formData.get("id") ?? "").trim();
   const reason = String(formData.get("reason") ?? "").trim();
-  if (reason.length < 3) back(id, "Give a short reason; pupils and parents see it.", "error");
+  if (reason.length < 3) back(id, "Give a short reason; learners and parents see it.", "error");
   const supabase = getSupabaseServerClient();
   if (!supabase) back(id, "Server error — please try again later.", "error");
   const { data, error } = await supabase
@@ -105,7 +105,7 @@ async function cancelClass(formData: FormData) {
   if (!data?.length) back(id, "Only the teacher of this class and subject (or an admin) can cancel this.", "error");
   revalidatePath(LIST);
   revalidatePath("/portal/online-classes");
-  back(id, "Cancelled. Pupils and parents see that it's cancelled and why.");
+  back(id, "Cancelled. Learners and parents see that it's cancelled and why.");
 }
 
 async function restoreClass(formData: FormData) {
@@ -158,7 +158,7 @@ async function saveAttendance(formData: FormData) {
   const { error } = await supabase.from("online_class_attendance").upsert(rows, { onConflict: "online_class_id,student_id" });
   if (error) back(id, onlineClassErrorMessage(error.message), "error", "#attendance");
   revalidatePath(`${LIST}/${id}`);
-  back(id, `Attendance saved for ${rows.length} pupil${rows.length === 1 ? "" : "s"}`, "success", "#attendance");
+  back(id, `Attendance saved for ${rows.length} learner${rows.length === 1 ? "" : "s"}`, "success", "#attendance");
 }
 
 export default async function OnlineClassPage({ params }: { params: Promise<{ id: string }> }) {
@@ -248,12 +248,12 @@ export default async function OnlineClassPage({ params }: { params: Promise<{ id
             </Badge>
             <p className="text-sm text-slate-700">
               {state === "cancelled"
-                ? `Pupils and parents see it as cancelled: “${o.cancel_reason ?? ""}”.`
+                ? `Learners and parents see it as cancelled: “${o.cancel_reason ?? ""}”.`
                 : state === "ended"
-                  ? `${joinedCount} of ${pupils.length} pupils joined. Check the attendance below and save it.`
+                  ? `${joinedCount} of ${pupils.length} learners joined. Check the attendance below and save it.`
                   : state === "live"
-                    ? `${joinedCount} of ${pupils.length} pupils have joined so far.`
-                    : `Pupils can join from 15 minutes before the start. ${pupils.length} pupils expected.`}
+                    ? `${joinedCount} of ${pupils.length} learners have joined so far.`
+                    : `Learners can join from 15 minutes before the start. ${pupils.length} learners expected.`}
             </p>
           </div>
           {state === "cancelled" ? (
@@ -328,7 +328,7 @@ export default async function OnlineClassPage({ params }: { params: Promise<{ id
                 })}
               </ul>
             ) : (
-              <EmptyState icon={Users} title="No pupils in this class" description="Add pupils to the class to take attendance." />
+              <EmptyState icon={Users} title="No learners in this class" description="Add learners to the class to take attendance." />
             )}
             {pupils.length ? (
               <div className="sticky bottom-0 flex justify-end rounded-b-2xl border-t border-slate-200 bg-white px-5 py-3 sm:px-6">
@@ -348,7 +348,7 @@ export default async function OnlineClassPage({ params }: { params: Promise<{ id
         <input type="hidden" name="id" value={o.id} />
         <input type="hidden" name="previous_start" value={o.starts_at} />
         <Card>
-          <CardHeader title="Details" description="Change the date or time to reschedule; pupils and parents see the new time straight away." />
+          <CardHeader title="Details" description="Change the date or time to reschedule; learners and parents see the new time straight away." />
           <CardBody className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
@@ -448,7 +448,7 @@ export default async function OnlineClassPage({ params }: { params: Promise<{ id
       <div className="grid gap-6 lg:grid-cols-2">
         {state !== "cancelled" && state !== "ended" ? (
           <Card>
-            <CardHeader title="Cancel this class" description="Pupils and parents see that it's cancelled and your reason. You can turn it back on later." />
+            <CardHeader title="Cancel this class" description="Learners and parents see that it's cancelled and your reason. You can turn it back on later." />
             <CardBody>
               <form action={cancelClass} className="space-y-2">
                 <input type="hidden" name="id" value={o.id} />
@@ -456,7 +456,7 @@ export default async function OnlineClassPage({ params }: { params: Promise<{ id
                   Reason
                 </label>
                 <input id="c-reason" name="reason" required minLength={3} maxLength={500} className="gf-input" placeholder="e.g. Moved to Friday; teacher unwell" />
-                <ConfirmSubmitButton confirmMessage={`Cancel "${o.topic}"? Pupils and parents will see it's cancelled.`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                <ConfirmSubmitButton confirmMessage={`Cancel "${o.topic}"? Learners and parents will see it's cancelled.`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                   <Ban className="h-4 w-4" aria-hidden="true" />
                   Cancel class
                 </ConfirmSubmitButton>
@@ -465,7 +465,7 @@ export default async function OnlineClassPage({ params }: { params: Promise<{ id
           </Card>
         ) : null}
         <Card>
-          <CardHeader title="Delete" description="Removes the class and its attendance for everyone. Use Cancel instead if pupils need to know it isn't happening." />
+          <CardHeader title="Delete" description="Removes the class and its attendance for everyone. Use Cancel instead if learners need to know it isn't happening." />
           <CardBody>
             <form action={deleteClass}>
               <input type="hidden" name="id" value={o.id} />

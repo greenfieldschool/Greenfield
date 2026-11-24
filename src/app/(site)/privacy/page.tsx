@@ -36,14 +36,14 @@ export default function PrivacyPage() {
       <PublicPageHero
         eyebrow="Legal"
         title="Privacy policy"
-        description="How Greenfield School collects, uses and protects personal information about pupils, parents and guardians, applicants and visitors — in line with the Nigeria Data Protection Act 2023."
+        description="How Greenfield School collects, uses and protects personal information about learners, parents and guardians, applicants and visitors — in line with the Nigeria Data Protection Act 2023."
       />
       <LegalArticle>
         <p className="text-sm text-slate-500">Last updated: {LAST_UPDATED}</p>
 
         <p>
           Greenfield School (&ldquo;Greenfield&rdquo;, &ldquo;the school&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;) takes the
-          privacy of our pupils and their families seriously. This policy explains what personal data we collect, why we
+          privacy of our learners and their families seriously. This policy explains what personal data we collect, why we
           collect it, who we share it with, how long we keep it and the rights you have. It is written to meet the
           requirements of the <strong>Nigeria Data Protection Act 2023</strong> (&ldquo;NDP Act&rdquo;) and the Nigeria Data
           Protection Commission&rsquo;s General Application and Implementation Directive 2025 (&ldquo;GAID&rdquo;).
@@ -88,10 +88,10 @@ export default function PrivacyPage() {
         <ul>
           <li>our website, including the enquiry form, the online admissions application and job applications;</li>
           <li>
-            the parent &amp; student portal (report cards, exam results, attendance, activities, health and incident
+            the parent &amp; learner portal (report cards, exam results, attendance, activities, health and incident
             records, and fees and billing);
           </li>
-          <li>computer-based tests (CBT) taken by pupils through the portal;</li>
+          <li>computer-based tests (CBT) taken by learners through the portal;</li>
           <li>the staff dashboard our teachers and administrators use to run the school; and</li>
           <li>our day-to-day communication with families by phone, SMS, WhatsApp, email and the portal.</li>
         </ul>
@@ -199,14 +199,14 @@ export default function PrivacyPage() {
             health information with medical responders.
           </li>
           <li>
-            <strong>Legitimate interests</strong> — to keep pupils and premises safe, protect the fairness of exams,
+            <strong>Legitimate interests</strong> — to keep learners and premises safe, protect the fairness of exams,
             prevent fraud, run and improve the school and our systems, and keep in touch with families about school life.
             We only rely on this where our interests are not overridden by your rights and the best interests of the child.
           </li>
         </ul>
         <p>
-          In practice we use personal data to: process admissions; teach, assess and report on pupils&rsquo; progress;
-          take attendance; look after pupils&rsquo; welfare, health and safety; run computer-based tests and publish
+          In practice we use personal data to: process admissions; teach, assess and report on learners&rsquo; progress;
+          take attendance; look after learners&rsquo; welfare, health and safety; run computer-based tests and publish
           results; manage fees, invoices and payments; communicate with parents and guardians; recruit staff; meet our
           legal obligations; and keep our systems secure. We do not sell personal data, and we do not use it for any
           purpose that is incompatible with the purpose it was collected for without first asking you.
@@ -214,20 +214,20 @@ export default function PrivacyPage() {
 
         <h2 id="exams">6. Online exams (CBT)</h2>
         <p>
-          When a pupil takes a computer-based test we record their answers, the time they started and submitted, and
-          integrity events — for example if the pupil leaves the exam page, which locks the attempt until an exam
-          conductor reviews it. We do this to keep exams fair for every pupil.
+          When a learner takes a computer-based test we record their answers, the time they started and submitted, and
+          integrity events — for example if the learner leaves the exam page, which locks the attempt until an exam
+          conductor reviews it. We do this to keep exams fair for every learner.
         </p>
         <p>
           Objective questions are marked automatically, but results only count after they are reviewed and released by
-          the school, and teachers mark theory answers. No decision with legal or similarly significant effect on a pupil
+          the school, and teachers mark theory answers. No decision with legal or similarly significant effect on a learner
           is made solely by automated means.
         </p>
 
         <h2 id="photos">7. Photos and school publicity</h2>
         <p>
-          We use a photograph of each pupil on internal school records. We would also like to celebrate school life on
-          our website, notice boards, newsletters and social media; we only use identifiable photos or names of pupils
+          We use a photograph of each learner on internal school records. We would also like to celebrate school life on
+          our website, notice boards, newsletters and social media; we only use identifiable photos or names of learners
           for these purposes with a parent or guardian&rsquo;s consent, and you can withdraw that consent at any time by
           contacting us. Where a photo has already been printed or published we will remove it from our own channels as
           soon as reasonably possible.
@@ -251,7 +251,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>education authorities and examination bodies</strong> where required — for example for statutory
-            returns or registering pupils for external examinations;
+            returns or registering learners for external examinations;
           </li>
           <li>
             <strong>another school</strong> your child moves to, when you ask us to provide records or a reference;
@@ -288,12 +288,12 @@ export default function PrivacyPage() {
             <strong>Admissions applications that do not lead to enrolment:</strong> up to 2 years after the decision.
           </li>
           <li>
-            <strong>Pupil records</strong> (admission register, results, report cards and transcripts): kept as part of
-            the school&rsquo;s permanent academic record so we can confirm a former pupil&rsquo;s attendance and
+            <strong>Learner records</strong> (admission register, results, report cards and transcripts): kept as part of
+            the school&rsquo;s permanent academic record so we can confirm a former learner&rsquo;s attendance and
             achievements.
           </li>
           <li>
-            <strong>Welfare, health and discipline records:</strong> until 6 years after the pupil leaves, unless a
+            <strong>Welfare, health and discipline records:</strong> until 6 years after the learner leaves, unless a
             longer period is needed for safeguarding or legal reasons.
           </li>
           <li>
@@ -307,7 +307,7 @@ export default function PrivacyPage() {
             <strong>Unsuccessful job applications and CVs:</strong> up to 12 months after the role is filled.
           </li>
           <li>
-            <strong>Portal accounts:</strong> closed when a pupil leaves or a parent no longer has a child at the school;
+            <strong>Portal accounts:</strong> closed when a learner leaves or a parent no longer has a child at the school;
             security logs are kept for up to 12 months.
           </li>
         </ul>

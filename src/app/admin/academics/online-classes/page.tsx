@@ -92,7 +92,7 @@ async function scheduleClass(formData: FormData) {
   if (error || !data) back(classId, onlineClassErrorMessage(error?.message ?? "Couldn't save"), "error");
   revalidatePath(PATH);
   revalidatePath("/portal/online-classes");
-  redirect(`${PATH}/${(data as { id: string }).id}?toast=${encodeURIComponent("Scheduled. Pupils and parents of the class can see it now.")}&toast_type=success`);
+  redirect(`${PATH}/${(data as { id: string }).id}?toast=${encodeURIComponent("Scheduled. Learners and parents of the class can see it now.")}&toast_type=success`);
 }
 
 export default async function OnlineClassesPage({
@@ -192,7 +192,7 @@ export default async function OnlineClassesPage({
         learn={LEARN.onlineClasses}
         eyebrow="Academics"
         title="Online classes"
-        description="Schedule a video lesson on Zoom, Google Meet or Teams for a class. Pupils and parents see it on the portal and join from there; who joined is recorded for attendance."
+        description="Schedule a video lesson on Zoom, Google Meet or Teams for a class. Learners and parents see it on the portal and join from there; who joined is recorded for attendance."
         actions={
           classId && canWrite ? (
             <ButtonLink href="#new" size="sm">
@@ -233,7 +233,7 @@ export default async function OnlineClassesPage({
 
           {live.length ? (
             <Card className="!border-brand-green-300">
-              <CardHeader title="Now" description="Running now, or opening for pupils in the next 15 minutes." />
+              <CardHeader title="Now" description="Running now, or opening for learners in the next 15 minutes." />
               <ul className="divide-y divide-slate-100">
                 {live.map((x) => (
                   <Row key={x.o.id} o={x.o} state={x.state} />
@@ -243,7 +243,7 @@ export default async function OnlineClassesPage({
           ) : null}
 
           <Card>
-            <CardHeader title={`${cls?.name ?? "Class"} · coming up`} description={`${pupilCount} pupil${pupilCount === 1 ? "" : "s"} expected in each class.`} />
+            <CardHeader title={`${cls?.name ?? "Class"} · coming up`} description={`${pupilCount} learner${pupilCount === 1 ? "" : "s"} expected in each class.`} />
             {byDay.length ? (
               <div className="divide-y divide-slate-100">
                 {byDay.map((g) => (
@@ -274,7 +274,7 @@ export default async function OnlineClassesPage({
           ) : null}
 
           <Card id="new">
-            <CardHeader title="Schedule an online class" description={`For ${cls?.name ?? "this class"}. Pupils and parents see it on the portal as soon as you save.`} />
+            <CardHeader title="Schedule an online class" description={`For ${cls?.name ?? "this class"}. Learners and parents see it on the portal as soon as you save.`} />
             {canWrite ? (
               <form action={scheduleClass} className="space-y-4 px-5 pb-5 sm:px-6">
                 <input type="hidden" name="class_id" value={classId} />
@@ -373,7 +373,7 @@ export default async function OnlineClassesPage({
                         </option>
                       ))}
                     </select>
-                    <p className="gf-hint mt-1">Pupils see a link to it with the class. Only published notes are listed.</p>
+                    <p className="gf-hint mt-1">Learners see a link to it with the class. Only published notes are listed.</p>
                   </div>
                 ) : null}
                 <SubmitButton pendingText="Scheduling…">

@@ -54,7 +54,7 @@ export function DeactivatePanel({ studentId, studentName, keepOptions }: { stude
           </label>
           <select id="deactivate-kept" name="kept_student_id" className="gf-select" required defaultValue="">
             <option value="" disabled>
-              Choose the pupil&apos;s other record…
+              Choose the learner&apos;s other record…
             </option>
             {likely.length ? (
               <optgroup label="Same name">
@@ -65,7 +65,7 @@ export function DeactivatePanel({ studentId, studentName, keepOptions }: { stude
                 ))}
               </optgroup>
             ) : null}
-            <optgroup label={likely.length ? "All other pupils" : "Pupils"}>
+            <optgroup label={likely.length ? "All other learners" : "Learners"}>
               {others.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.label}
@@ -92,7 +92,7 @@ export function DeactivatePanel({ studentId, studentName, keepOptions }: { stude
           confirmMessage={`Deactivate ${studentName}? They will be taken off class lists, registers and result sheets. You can reactivate them later.`}
         >
           <UserX className="h-4 w-4" aria-hidden="true" />
-          Deactivate pupil
+          Deactivate learner
         </ConfirmSubmitButton>
       </div>
     </form>

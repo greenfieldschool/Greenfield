@@ -38,7 +38,7 @@ type SessionRow = {
   active: boolean;
 };
 
-type TestRow = { id: string; name: string };
+type TestRow = { id: string; name: string; approval_status?: string | null };
 
 type ClassRow = { id: string; level: string; name: string };
 
@@ -88,7 +88,7 @@ export default async function AdminExamSessionEditPage({
           .eq("id", id)
           .maybeSingle(),
         (() => {
-          const q = supabase.from("exam_tests").select("id, name").eq("active", true);
+          const q = supabase.from("exam_tests").select("*").eq("active", true);
           return (testLimit ? q.or(testLimit) : q).order("created_at", { ascending: false });
         })(),
         supabase.from("classes").select("id, level, name").eq("active", true).order("level").order("name"),
@@ -234,7 +234,7 @@ export default async function AdminExamSessionEditPage({
     const supabase = getSupabaseServerClient();
     if (!supabase) failWithToast(`/admin/exams/sessions/${id}`, NO_DB_MESSAGE);
 
-    await supabase
+    const { error: saveError, data: saved } = await supabase
       .from("exam_test_sessions")
       .update({
         test_id: testId,
@@ -248,7 +248,10 @@ export default async function AdminExamSessionEditPage({
         requires_secret_code: requiresSecretCode,
         secret_code: requiresSecretCode && secretCode.length ? secretCode : null
       })
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
+    if (saveError) failWithToast(`/admin/exams/sessions/${id}`, saveError.message);
+    if (!saved?.length) failWithToast(`/admin/exams/sessions/${id}`, "Only admins, or a teacher of this subject and class, can change this session.");
 
     revalidatePath("/admin/exams/sessions");
     revalidatePath(`/admin/exams/sessions/${id}`);
@@ -273,7 +276,7 @@ export default async function AdminExamSessionEditPage({
           <>
             <Link className={buttonClasses({ variant: "secondary" })} href={`/admin/exams/sessions/${id}/attempts`}>
               <ClipboardList className="h-4 w-4" aria-hidden="true" />
-              Attempts &amp; results release
+              Exam room &amp; results
             </Link>
             <Link className={buttonClasses({ variant: "secondary" })} href={`/admin/exams/sessions/${id}/conductors`}>
               <Users className="h-4 w-4" aria-hidden="true" />
@@ -283,10 +286,10 @@ export default async function AdminExamSessionEditPage({
         }
       />
 
-      <Alert tone={visibility.visible ? "success" : "warning"} title={<>Student access: {visibility.reason}</>}>
+      <Alert tone={visibility.visible ? "success" : "warning"} title={<>Learners: {visibility.reason}</>}>
         {visibility.visible
-          ? "Only students in the selected class, or every class if none is selected."
-          : "Students cannot see this session right now."}
+          ? "Only learners in the selected class, or every class if none is selected."
+          : "Learners can't see this session right now."}
       </Alert>
 
       <form action={updateSession}>
@@ -306,9 +309,11 @@ export default async function AdminExamSessionEditPage({
                   <option key={t.id} value={t.id}>
                     {t.name}
                     {t.inactive ? " (inactive)" : ""}
+                    {t.approval_status && t.approval_status !== "approved" ? " (not approved yet)" : ""}
                   </option>
                 ))}
               </select>
+              <p className="gf-hint">Only approved tests can be opened to learners. Until the test is approved, save the session as draft.</p>
             </Field>
 
             <Field label="Class (optional)" htmlFor="session-class">
@@ -345,7 +350,7 @@ export default async function AdminExamSessionEditPage({
               </select>
             </Field>
 
-            <Field label="Start date (optional)" htmlFor="session-start" hint="Students can see the exam from the start of this day.">
+            <Field label="Start date (optional)" htmlFor="session-start" hint="Learners can see the exam from the start of this day.">
               <input
                 id="session-start"
                 className="gf-input"
@@ -365,8 +370,8 @@ export default async function AdminExamSessionEditPage({
 
             <Field label="Status" htmlFor="session-status">
               <select id="session-status" className="gf-select" name="status" defaultValue={session.status}>
-                <option value="active">active (students can take it within the dates)</option>
-                <option value="draft">draft (hidden from students)</option>
+                <option value="active">Open to learners (between the dates)</option>
+                <option value="draft">Draft (hidden from learners)</option>
                 <option value="closed">closed</option>
               </select>
               <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">

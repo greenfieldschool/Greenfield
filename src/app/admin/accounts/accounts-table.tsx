@@ -209,7 +209,7 @@ export function AccountsTable({
                     aria-label={`Choose all ${rows.length} shown`}
                   />
                 </th>
-                <th scope="col">{kind === "pupil" ? "Pupil" : "Parent"}</th>
+                <th scope="col">{kind === "pupil" ? "Learner" : "Parent"}</th>
                 <th scope="col">{kind === "pupil" ? "Admission number (signs in with)" : "Email (signs in with)"}</th>
                 <th scope="col">{kind === "pupil" ? "Class" : "Children"}</th>
                 <th scope="col">Portal account</th>
@@ -390,7 +390,7 @@ function OneTimePasswords({
           <table className="gf-table">
             <thead>
               <tr>
-                <th scope="col">{kind === "pupil" ? "Pupil" : "Parent"}</th>
+                <th scope="col">{kind === "pupil" ? "Learner" : "Parent"}</th>
                 <th scope="col">Signs in with</th>
                 <th scope="col">Temporary password</th>
                 <th scope="col">Works until</th>
@@ -448,7 +448,7 @@ function LoginSlip({ row, kind, schoolName }: { row: AccountResultRow; kind: Acc
     <div className="break-inside-avoid border border-dashed border-slate-400 p-4 text-[10pt] leading-snug text-black">
       <div className="flex items-baseline justify-between gap-2 border-b border-slate-300 pb-1.5">
         <strong className="text-[11pt]">{schoolName}</strong>
-        <span className="text-[8.5pt]">{kind === "pupil" ? "Pupil portal" : "Parent portal"}</span>
+        <span className="text-[8.5pt]">{kind === "pupil" ? "Learner portal" : "Parent portal"}</span>
       </div>
       <div className="mt-2">
         <div className="text-[12pt] font-bold">{row.name}</div>
@@ -475,7 +475,7 @@ function LoginSlip({ row, kind, schoolName }: { row: AccountResultRow; kind: Acc
         ) : null}
       </dl>
       <p className="mt-2 text-[8.5pt]">
-        {kind === "pupil" ? "Choose “I’m a student”. " : "Choose “I’m a parent”. "}You will be asked to choose your own
+        {kind === "pupil" ? "Choose “I’m a learner”. " : "Choose “I’m a parent”. "}You will be asked to choose your own
         password; please do. Forgot it? Ask the school office.
       </p>
     </div>

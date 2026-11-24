@@ -143,7 +143,7 @@ export default async function CertificatesPage({
           <Card>
             <CardHeader
               title="Who gets a certificate"
-              description={`${total} certificate${total === 1 ? "" : "s"} for ${shown.length} pupil${shown.length === 1 ? "" : "s"}. Check the list, then print.`}
+              description={`${total} certificate${total === 1 ? "" : "s"} for ${shown.length} learner${shown.length === 1 ? "" : "s"}. Check the list, then print.`}
             />
             <ul className="divide-y divide-slate-100">
               {shown.map(({ r, awards }) => (
@@ -174,8 +174,8 @@ export default async function CertificatesPage({
               title="No certificates to print"
               description={
                 kind === "welfare" || !kind
-                  ? "Certificates come from the report cards. Class positions and best-in-subject need scores for at least two pupils; welfare awards need a welfare score of at least the Bronze mark."
-                  : "Certificates come from the report cards. Class positions and best-in-subject need scores for at least two pupils."
+                  ? "Certificates come from the report cards. Class positions and best-in-subject need scores for at least two learners; welfare awards need a welfare score of at least the Bronze mark."
+                  : "Certificates come from the report cards. Class positions and best-in-subject need scores for at least two learners."
               }
               action={
                 <Link href={reportsUrl("/admin/academics/reports", { class_id: classId, term_id: termId })} className="gf-link text-sm font-semibold">

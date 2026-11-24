@@ -205,13 +205,13 @@ export default async function AdminGuardianDetailPage({
     const relationship = String(formData.get("relationship") ?? "").trim();
     const isPrimary = formData.get("is_primary") === "on";
 
-    if (!studentId) redirect(guardianToast(guardianId, "Pick a student to link"));
+    if (!studentId) redirect(guardianToast(guardianId, "Pick a learner to link"));
 
     const supabase = getSupabaseServerClient();
     if (!supabase) redirect(guardianToast(guardianId, "Server error — Supabase is not configured"));
 
     if (!(await hasStaffRole(supabase))) {
-      redirect(guardianToast(guardianId, "You do not have permission to link students"));
+      redirect(guardianToast(guardianId, "You do not have permission to link learners"));
     }
 
     const { error } = await supabase.from("student_guardians").insert({
@@ -379,13 +379,13 @@ export default async function AdminGuardianDetailPage({
     "use server";
 
     const studentId = String(formData.get("student_id") ?? "").trim();
-    if (!studentId) redirect(guardianToast(guardianId, "Missing student — reload and try again"));
+    if (!studentId) redirect(guardianToast(guardianId, "Missing learner — reload and try again"));
 
     const supabase = getSupabaseServerClient();
     if (!supabase) redirect(guardianToast(guardianId, "Server error — Supabase is not configured"));
 
     if (!(await hasStaffRole(supabase))) {
-      redirect(guardianToast(guardianId, "You do not have permission to unlink students"));
+      redirect(guardianToast(guardianId, "You do not have permission to unlink learners"));
     }
 
     const { error } = await supabase
@@ -413,15 +413,15 @@ export default async function AdminGuardianDetailPage({
         <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader
-              title="Linked students"
-              description={`${linked.length} student${linked.length === 1 ? "" : "s"} linked to this guardian`}
+              title="Linked learners"
+              description={`${linked.length} learner${linked.length === 1 ? "" : "s"} linked to this guardian`}
             />
             {linked.length ? (
               <div className="gf-table-wrap">
                 <table className="gf-table min-w-[620px]">
                   <thead>
                     <tr>
-                      <th>Student</th>
+                      <th>Learner</th>
                       <th>Level</th>
                       <th>Status</th>
                       <th>Relationship</th>
@@ -470,7 +470,7 @@ export default async function AdminGuardianDetailPage({
             ) : (
               <EmptyState
                 icon={Users}
-                title="No students linked yet."
+                title="No learners linked yet."
                 description="Use the form below to connect this guardian to their children."
               />
             )}
@@ -478,16 +478,16 @@ export default async function AdminGuardianDetailPage({
 
           <form action={linkStudent}>
             <FormSection
-              title="Link a student"
+              title="Link a learner"
               description="Connect this guardian to a child so they appear on the parent portal."
               footer={
                 <SubmitButton variant="primary" pendingText="Linking…" disabled={!availableStudents.length}>
-                  Link student
+                  Link learner
                 </SubmitButton>
               }
             >
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Student" htmlFor="link-student" required>
+                <Field label="Learner" htmlFor="link-student" required>
                   <select
                     id="link-student"
                     className="gf-select"
@@ -497,7 +497,7 @@ export default async function AdminGuardianDetailPage({
                     disabled={!availableStudents.length}
                   >
                     <option value="" disabled>
-                      {availableStudents.length ? "Select a student" : "No available students"}
+                      {availableStudents.length ? "Select a learner" : "No available learners"}
                     </option>
                     {availableStudents.map((s) => (
                       <option key={s.id} value={s.id}>

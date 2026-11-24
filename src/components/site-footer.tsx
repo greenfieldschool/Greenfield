@@ -11,7 +11,7 @@ const columns = [
     links: [
       { href: "/about", label: "About us" },
       { href: "/academics", label: "Academics" },
-      { href: "/student-life", label: "Student life" },
+      { href: "/student-life", label: "Learner life" },
       { href: "/gallery", label: "Gallery" },
       { href: "/news", label: "News" },
       { href: "/events", label: "Events" }
@@ -29,7 +29,7 @@ const columns = [
   {
     title: "Portals",
     links: [
-      { href: "/portal/login", label: "Parent & student portal" },
+      { href: "/portal/login", label: "Parent & learner portal" },
       { href: "/admin/login", label: "Staff dashboard" }
     ]
   }

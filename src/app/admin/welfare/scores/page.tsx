@@ -123,7 +123,7 @@ function TermSummary({ report, href }: { report: ClassReport; href: (week: strin
             <thead>
               <tr>
                 <th className="sticky left-0 top-0 z-30 w-32 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 sm:w-48 sm:pl-6">
-                  Pupil
+                  Learner
                 </th>
                 {weeks.map((w) => (
                   <th key={w.start} scope="col" className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 px-1 py-2 text-center text-xs font-semibold text-slate-600">
@@ -347,7 +347,7 @@ export default async function WelfareScoresPage({
         learn={LEARN.welfare}
         eyebrow="Welfare"
         title="Welfare score sheet"
-        description="Score every pupil each week out of 100. At the end of term the weekly scores are averaged into one welfare score out of 100, and the final score on the report card is the average of the academic average and welfare."
+        description="Score every learner each week out of 100. At the end of term the weekly scores are averaged into one welfare score out of 100, and the final score on the report card is the average of the academic average and welfare."
         actions={
           <ButtonLink href="/admin/welfare/criteria" variant="secondary" size="sm">
             <Settings2 className="h-4 w-4" aria-hidden="true" />
@@ -396,7 +396,7 @@ export default async function WelfareScoresPage({
         </Alert>
       ) : !n ? (
         <Card>
-          <EmptyState icon={HeartHandshake} title="No pupils in this class" />
+          <EmptyState icon={HeartHandshake} title="No learners in this class" />
         </Card>
       ) : (
         <>
@@ -418,7 +418,7 @@ export default async function WelfareScoresPage({
             <StatCard
               label={selected ? `Week ${selected.number} (${selected.range})` : "This week"}
               value={selectedStrip ? `${selectedStrip.done} / ${n}` : "—"}
-              hint="pupils fully scored"
+              hint="learners fully scored"
               icon={CalendarCheck}
               tone={selectedStrip && selectedStrip.done === n ? "green" : "gold"}
             />
@@ -426,7 +426,7 @@ export default async function WelfareScoresPage({
               <StatCard
                 label="Compulsory weeks filled"
                 value={`${compulsoryFilled} / ${compulsoryTotal}`}
-                hint="every pupil scored; needed before report cards"
+                hint="every learner scored; needed before report cards"
                 icon={CalendarRange}
                 tone={compulsoryFilled === compulsoryTotal ? "green" : "gold"}
                 href={url({ view: "term" })}
@@ -444,7 +444,7 @@ export default async function WelfareScoresPage({
             <StatCard
               label="Class welfare this term"
               value={termAverage === null ? "—" : termAverage}
-              hint="average of pupils' weekly scores, out of 100"
+              hint="average of learners' weekly scores, out of 100"
               icon={Sigma}
               tone="violet"
             />
@@ -452,7 +452,7 @@ export default async function WelfareScoresPage({
 
           {compulsoryDue.length ? (
             <Alert tone="warning" title="Compulsory weeks still to fill">
-              <p>Report cards for this class can&apos;t be published until every pupil is scored for these weeks:</p>
+              <p>Report cards for this class can&apos;t be published until every learner is scored for these weeks:</p>
               <ul className="mt-2 flex flex-wrap gap-2">
                 {compulsoryDue.map((w) => (
                   <li key={w.start}>
@@ -586,7 +586,7 @@ export default async function WelfareScoresPage({
                 />
               </Card>
               <p className="text-xs text-slate-500">
-                A week counts towards the term once you rate a pupil for it. If nothing was recorded for a criterion that week (for example no
+                A week counts towards the term once you rate a learner for it. If nothing was recorded for a criterion that week (for example no
                 uniform check), it is left out and the week is scored out of the rest.{" "}
                 <Link className="gf-link" href={reportsUrl("/admin/academics/reports", { class_id: classId, term_id: termId })}>
                   Check the report cards

@@ -73,7 +73,7 @@ async function createAssignment(formData: FormData) {
   if (error || !data) back(classId, assignmentErrorMessage(error?.message ?? "Couldn't save"), "error");
   revalidatePath(PATH);
   revalidatePath("/portal/assignments");
-  redirect(`${PATH}/${(data as { id: string }).id}?toast=${encodeURIComponent(`${KIND_LABEL[kind]} set. Add a worksheet if you have one; pupils can see it now.`)}&toast_type=success`);
+  redirect(`${PATH}/${(data as { id: string }).id}?toast=${encodeURIComponent(`${KIND_LABEL[kind]} set. Add a worksheet if you have one; learners can see it now.`)}&toast_type=success`);
 }
 
 export default async function AssignmentsPage({
@@ -138,7 +138,7 @@ export default async function AssignmentsPage({
         learn={LEARN.assignments}
         eyebrow="Academics"
         title="Assignments & classwork"
-        description="Set work for a class. Pupils see it on the portal and hand it in by typing an answer or uploading a photo of their work; you mark it here, and can send the marks to the result sheet."
+        description="Set work for a class. Learners see it on the portal and hand it in by typing an answer or uploading a photo of their work; you mark it here, and can send the marks to the result sheet."
       />
 
       {tableError ? (
@@ -172,7 +172,7 @@ export default async function AssignmentsPage({
           </Card>
 
           <Card>
-            <CardHeader title={`${cls?.name ?? "Class"} · work set`} description={`${pupilCount} pupil${pupilCount === 1 ? "" : "s"} in the class.`} />
+            <CardHeader title={`${cls?.name ?? "Class"} · work set`} description={`${pupilCount} learner${pupilCount === 1 ? "" : "s"} in the class.`} />
             {assignments.length ? (
               <ul className="gf-stagger divide-y divide-slate-100">
                 {assignments.map((a) => {
@@ -209,7 +209,7 @@ export default async function AssignmentsPage({
           </Card>
 
           <Card id="new">
-            <CardHeader title="Set new work" description="Pupils of this class (and their parents) see it on the portal straight away." />
+            <CardHeader title="Set new work" description="Learners of this class (and their parents) see it on the portal straight away." />
             {subjectOptions.length || canSetGeneral ? (
               <form action={createAssignment} className="space-y-4 px-5 pb-5 sm:px-6">
                 <input type="hidden" name="class_id" value={classId} />

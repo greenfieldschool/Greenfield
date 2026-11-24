@@ -47,7 +47,7 @@ export const POLICY_SUGGESTIONS: PolicySuggestion[] = [
   {
     title: "New sections to check (added 23 Nov 2026)",
     why: "The policy had nothing on safeguarding, bullying, personal data, refunds, phones or using the portal. Draft sections are now in both policies, with these choices still to confirm.",
-    proposal: "Check: the Head Teacher as safeguarding lead; reports looked into within 2 school days; phones handed in at the front desk; teachers reply to messages within 2 school days; records other than admission, report cards and results deleted 6 years after a pupil leaves; refunds within 30 days, none once a term has started, caution fee returned less damage. Add a deadline for parents' appeals to the Proprietress if wanted."
+    proposal: "Check: the Head Teacher as safeguarding lead; reports looked into within 2 school days; phones handed in at the front desk; teachers reply to messages within 2 school days; records other than admission, report cards and results deleted 6 years after a learner leaves; refunds within 30 days, none once a term has started, caution fee returned less damage. Add a deadline for parents' appeals to the Proprietress if wanted."
   },
   {
     title: "Pre-school examinations",
@@ -65,7 +65,7 @@ export const POLICY_SUGGESTIONS: PolicySuggestion[] = [
     proposal: "Say it plainly, for example: “all three terms of next session paid in full before this session's third term starts”."
   },
   {
-    title: "Points from pupils' results and conduct",
+    title: "Points from learners' results and conduct",
     why: "The parents' policy says points can come from “academic ability” and “good conduct”, but not how many.",
     proposal: "Set the points (for example 100 for a gold welfare grade in a term), or remove the line."
   }

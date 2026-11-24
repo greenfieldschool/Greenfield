@@ -207,7 +207,7 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
 
       {/* Marking */}
       <Card id="marking" className="scroll-mt-24">
-        <CardHeader title="Pupils' work" description="Open each pupil's work, give a mark and a comment, then save once. Work handed in on paper can be marked here too." />
+        <CardHeader title="Learners' work" description="Open each learner's work, give a mark and a comment, then save once. Work handed in on paper can be marked here too." />
         {pupils.length ? (
           <form action={saveMarks}>
             <input type="hidden" name="id" value={a.id} />
@@ -270,14 +270,14 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
                         />
                         {a.max_score ? <span className="text-sm text-slate-500">/ {Number(a.max_score)}</span> : null}
                       </label>
-                      <input name={`feedback:${p.id}`} defaultValue={s?.feedback ?? ""} maxLength={4000} placeholder="Comment for the pupil (optional)" aria-label={`Comment for ${p.first_name}`} className="gf-input" />
+                      <input name={`feedback:${p.id}`} defaultValue={s?.feedback ?? ""} maxLength={4000} placeholder="Comment for the learner (optional)" aria-label={`Comment for ${p.first_name}`} className="gf-input" />
                     </div>
                   </li>
                 );
               })}
             </ul>
             <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 rounded-b-2xl border-t border-slate-200 bg-white/95 px-5 py-3 backdrop-blur sm:px-6">
-              <p className="text-xs text-slate-500">Pupils and parents see the mark and comment once saved. A marked piece of work can&apos;t be changed by the pupil.</p>
+              <p className="text-xs text-slate-500">Learners and parents see the mark and comment once saved. A marked piece of work can&apos;t be changed by the learner.</p>
               <SubmitButton pendingText="Saving…">
                 <span className="inline-flex items-center gap-2">
                   <Save className="h-4 w-4" aria-hidden="true" />
@@ -288,7 +288,7 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
           </form>
         ) : (
           <CardBody>
-            <EmptyState title="No pupils in this class" description="Add pupils to the class first." />
+            <EmptyState title="No learners in this class" description="Add learners to the class first." />
           </CardBody>
         )}
       </Card>
@@ -298,7 +298,7 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
         <Card id="result-sheet" className="scroll-mt-24">
           <CardHeader
             title="Send the marks to the result sheet"
-            description="Copies each marked pupil's mark into a column of this subject's result sheet, scaled to that column's total (e.g. 15/20 into a 10-mark column gives 7.5). A locked or published sheet won't change."
+            description="Copies each marked learner's mark into a column of this subject's result sheet, scaled to that column's total (e.g. 15/20 into a 10-mark column gives 7.5). A locked or published sheet won't change."
           />
           <CardBody>
             {!a.max_score ? (
@@ -413,7 +413,7 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
         <input type="hidden" name="class_id" value={a.class_id} />
         <ConfirmSubmitButton
           className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-red-700 hover:bg-red-50"
-          confirmMessage="Delete this work, with every pupil's answers and marks? This cannot be undone. Marks already sent to the result sheet stay there."
+          confirmMessage="Delete this work, with every learner's answers and marks? This cannot be undone. Marks already sent to the result sheet stay there."
         >
           <Trash2 className="h-4 w-4" aria-hidden="true" />
           Delete this work

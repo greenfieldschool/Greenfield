@@ -7,7 +7,7 @@ import { LegalArticle } from "../_lib/legal-article";
 export const metadata: Metadata = {
   title: "Terms of use",
   description:
-    "The terms that apply when you use the Greenfield School website, online admissions, the parent & student portal and online exams."
+    "The terms that apply when you use the Greenfield School website, online admissions, the parent & learner portal and online exams."
 };
 
 const LAST_UPDATED = "15 October 2026";
@@ -36,7 +36,7 @@ export default function TermsPage() {
       <PublicPageHero
         eyebrow="Legal"
         title="Terms of use"
-        description="The rules that apply when you use the Greenfield School website, apply for admission, or sign in to the parent & student portal."
+        description="The rules that apply when you use the Greenfield School website, apply for admission, or sign in to the parent & learner portal."
       />
       <LegalArticle>
         <p className="text-sm text-slate-500">Last updated: {LAST_UPDATED}</p>
@@ -55,7 +55,7 @@ export default function TermsPage() {
         <h2 id="about">1. About these terms</h2>
         <p>
           These terms apply to everyone who uses the Greenfield School website and its online services — the enquiry
-          form, online admissions application, job applications, the parent &amp; student portal, computer-based tests
+          form, online admissions application, job applications, the parent &amp; learner portal, computer-based tests
           (CBT) and online fee payments (together, the &ldquo;services&rdquo;). The services are provided by Greenfield
           School, {school.address} (&ldquo;Greenfield&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;).
         </p>
@@ -78,7 +78,7 @@ export default function TermsPage() {
           </li>
           <li>submit false, misleading or someone else&rsquo;s information, or impersonate another person;</li>
           <li>use the services to harass, threaten or harm anyone, or to send unsolicited messages; or</li>
-          <li>copy, alter or reuse photos of our pupils, staff or premises.</li>
+          <li>copy, alter or reuse photos of our learners, staff or premises.</li>
         </ul>
         <p>
           Misuse of computer systems may also be an offence under the Cybercrimes (Prohibition, Prevention, etc.) Act and
@@ -109,11 +109,11 @@ export default function TermsPage() {
         <h2 id="accounts">4. Portal and staff accounts</h2>
         <ul>
           <li>
-            Portal accounts are created by the school for enrolled pupils and their parents or guardians, and staff
+            Portal accounts are created by the school for enrolled learners and their parents or guardians, and staff
             accounts for our employees. Each account is personal to its holder.
           </li>
           <li>
-            Keep your password and any sign-in links confidential, and do not let anyone else use your account. Pupils
+            Keep your password and any sign-in links confidential, and do not let anyone else use your account. Learners
             must not share passwords with classmates. You are responsible for activity on your account unless it results
             from our failure to keep the services secure.
           </li>
@@ -128,7 +128,7 @@ export default function TermsPage() {
         </ul>
 
         <h2 id="exams">5. Online exams (CBT)</h2>
-        <p>Pupils taking computer-based tests must follow these rules, which keep exams fair for everyone:</p>
+        <p>Learners taking computer-based tests must follow these rules, which keep exams fair for everyone:</p>
         <ul>
           <li>Sit the exam yourself, without help from other people, notes or other websites unless your teacher allows it.</li>
           <li>
@@ -230,7 +230,7 @@ export default function TermsPage() {
         <h2 id="suspension">13. Suspending or closing accounts</h2>
         <p>
           We may suspend or close an account, or restrict access to the services, if these terms are broken, to protect
-          the security of the services or other users, or when a pupil leaves the school or a parent no longer has a
+          the security of the services or other users, or when a learner leaves the school or a parent no longer has a
           child at Greenfield. Where reasonable we will tell you first and explain why.
         </p>
 

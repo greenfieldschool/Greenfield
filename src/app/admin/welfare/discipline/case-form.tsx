@@ -43,10 +43,10 @@ export function CaseForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="gf-label" htmlFor="dis-student">
-            Pupil
+            Learner
           </label>
           <select id="dis-student" name="student_id" className="gf-select" required value={student} onChange={(e) => setStudent(e.target.value)}>
-            <option value="">Choose a pupil</option>
+            <option value="">Choose a learner</option>
             {pupils.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -133,9 +133,9 @@ export function CaseForm({
         {step === 3 ? (
           <div className="sm:col-span-2">
             <label className="gf-label" htmlFor="dis-statement">
-              Written statement for the pupil&apos;s file <span className="font-normal text-slate-500">(you can add it later)</span>
+              Written statement for the learner&apos;s file <span className="font-normal text-slate-500">(you can add it later)</span>
             </label>
-            <textarea id="dis-statement" name="statement" rows={3} className="gf-input" maxLength={4000} placeholder="Why it happened, and how the pupil will change" />
+            <textarea id="dis-statement" name="statement" rows={3} className="gf-input" maxLength={4000} placeholder="Why it happened, and how the learner will change" />
           </div>
         ) : null}
       </div>

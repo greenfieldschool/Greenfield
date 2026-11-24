@@ -283,7 +283,7 @@ export default async function AdminClassSubjectsPage({
                 <input type="hidden" name="class_id" value={cls.id} />
                 <FormSection
                   title="Major subjects"
-                  description="The two subjects teachers share a weekly star video for (a pupil who did well that week). Choose from the subjects ticked above."
+                  description="The two subjects teachers share a weekly star video for (a learner who did well that week). Choose from the subjects ticked above."
                   footer={
                     majorError ? null : (
                       <SubmitButton variant="secondary" pendingText="Saving…">

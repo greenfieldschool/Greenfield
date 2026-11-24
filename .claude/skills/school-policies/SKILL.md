@@ -74,7 +74,7 @@ Draft sections added 23 Nov 2026 at the user's request, not yet confirmed by the
   section rendered on the server. Never import `@/lib/policies` from a client component or pass a whole `PolicyDoc`
   to one; check with `grep -rl "Corrective measures for staff" .next/static` after a build (must find nothing).
 - Policy on a working page is a small link that opens a pop-up, not a block of text: the page stays about its job.
-- Plain words, "pupil" not "learner", British English, ₦ amounts and Lagos times (school-writing).
+- Plain words, "learner" (never "pupil" or "student"), British English, ₦ amounts and Lagos times (school-writing).
 - A rule lives in one place. A page that applies a rule shows the excerpt instead of its own copy of the words.
 - Draft policies are never shown to families. Staff see drafts with a "Draft" banner.
 - Features follow the policy exactly (percentages, weeks, amounts); store the numbers the policy sets in settings
@@ -90,6 +90,10 @@ Draft sections added 23 Nov 2026 at the user's request, not yet confirmed by the
   policy's corrections per step; 4th time and later wait for an admin to record the committee's decision; parents
   told every time with lock-screen-safe words.
 
+- Exam questions (24 Nov 2026): cbt-exams skill. Set and sent for approval on the dashboard by Friday of week 2
+  (deadline per term, on time / late shown); admins approve (20/80 tick) or send back with comments; only approved
+  tests open to pupils; the policy's format (primary 30 + 5, secondary 50+ and 5) is checked on screen, not enforced.
+
 ## Planned (agreed with the user, not built yet)
 Admission checklist + Terms and Agreements signing,
 rewards and scholarships (points, levels, fee grades), and parents/staff accepting each new policy version.
@@ -99,7 +103,7 @@ rewards and scholarships (points, levels, fee grades), and parents/staff accepti
   `src/components/policies/` and both `policies` pages from git. It must stay `/Policies/` (repo root only).
 
 ## Expert review
-Before calling the work done, answer these as a school registrar and governance lead with 30+ years would.
+Before calling the work done, answer these as a school registrar and governance lead with 30+ years would. Where an answer needs a decision the school hasn't made, ask.
 - **Is there a written, approved rule behind this behaviour?** Quote the section. If not, ask; don't invent policy.
 - **Do the screen, the policy text and the help say the same thing**, with the same numbers?
 - **Would a parent reading this understand what they must do, by when, and what happens if they don't?**

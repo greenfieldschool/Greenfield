@@ -69,7 +69,7 @@ export default async function AdminWelfareIncidentsPage() {
     const severity = Number(String(formData.get("severity") ?? "1").trim() || "1");
 
     if (!studentId || !incidentType || !description) {
-      welfareBack(PATH, "Choose a student and enter a type and description", "error");
+      welfareBack(PATH, "Choose a learner and enter a type and description", "error");
     }
     if (!Number.isFinite(severity) || severity < 1 || severity > 5) {
       welfareBack(PATH, "Severity must be between 1 and 5", "error");
@@ -157,7 +157,7 @@ export default async function AdminWelfareIncidentsPage() {
             <table className="gf-table min-w-[760px]">
               <thead>
                 <tr>
-                  <th scope="col">Student</th>
+                  <th scope="col">Learner</th>
                   <th scope="col">Type</th>
                   <th scope="col">Severity</th>
                   <th scope="col">Date</th>
@@ -233,9 +233,9 @@ export default async function AdminWelfareIncidentsPage() {
           }
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Student" htmlFor="inc-student" required>
+            <Field label="Learner" htmlFor="inc-student" required>
               <select id="inc-student" className="gf-select" name="student_id" defaultValue="" required>
-                <option value="">Select student</option>
+                <option value="">Select learner</option>
                 {students.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.first_name} {s.last_name}

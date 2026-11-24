@@ -7,14 +7,16 @@ export const CATEGORY_LABEL: Record<Exclude<EmailCategory, "test">, string> = {
   notification: "notification emails (new work, marks, lesson notes and online classes)",
   message: "new message emails",
   announcement: "school announcement emails",
-  spending: "spending request emails"
+  spending: "spending request emails",
+  exam: "exam question emails"
 };
 
-const COLUMN: Record<Exclude<EmailCategory, "test">, "notifications" | "messages" | "announcements" | "spending"> = {
+const COLUMN: Record<Exclude<EmailCategory, "test">, "notifications" | "messages" | "announcements" | "spending" | "exams"> = {
   notification: "notifications",
   message: "messages",
   announcement: "announcements",
-  spending: "spending"
+  spending: "spending",
+  exam: "exams"
 };
 
 export function readUnsubscribe(params: { u?: string | null; c?: string | null; s?: string | null }) {

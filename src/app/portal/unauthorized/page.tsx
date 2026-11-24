@@ -11,7 +11,7 @@ export default function PortalUnauthorizedPage() {
       </span>
       <h1 className="mt-4 font-display text-3xl font-semibold text-slate-900">Access restricted</h1>
       <p className="mt-2 text-sm leading-relaxed text-slate-600">
-        You&apos;re signed in, but this account doesn&apos;t have access to the parent &amp; student portal. If you
+        You&apos;re signed in, but this account doesn&apos;t have access to the parent &amp; learner portal. If you
         think this is a mistake, please contact the school office.
       </p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">

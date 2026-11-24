@@ -37,7 +37,7 @@ the repo and usually no `.env.local`, so "it builds" is not "it works".
 - Stop and clean up: stop preview servers, reset the browser viewport, delete scratch copies inside the repo.
 
 ## Expert review
-Before calling the work done, answer these as a QA lead with 30+ years would.
+Before calling the work done, answer these as a QA lead with 30+ years would. Where an answer needs a decision the school hasn't made, ask.
 - **What would a real user do first,** and did you do it?
 - **What breaks if the data is old, odd or large** (three years of records, 1,500 pupils, a name with an
   apostrophe, an amount with kobo)?

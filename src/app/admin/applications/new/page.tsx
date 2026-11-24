@@ -183,7 +183,7 @@ export default async function AdminNewApplicationPage() {
           </div>
         </FormSection>
 
-        <FormSection title="Student details" description="The child seeking admission.">
+        <FormSection title="Learner details" description="The child seeking admission.">
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField label="Last name" name="last_name" />
             <TextField label="First name" name="first_name" />
@@ -283,8 +283,8 @@ export default async function AdminNewApplicationPage() {
           }
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField label="Student signature" name="student_signature_name" />
-            <TextField label="Student signature date" name="student_signature_date" type="date" />
+            <TextField label="Learner signature" name="student_signature_name" />
+            <TextField label="Learner signature date" name="student_signature_date" type="date" />
             <TextField label="Parent signature" name="parent_signature_name" />
             <TextField label="Parent signature date" name="parent_signature_date" type="date" />
           </div>

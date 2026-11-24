@@ -8,7 +8,7 @@ const steps = [
   { icon: ClipboardList, title: "Apply", text: "Submit your application with our support." }
 ];
 
-const checklist = ["Student information", "Previous records (if available)", "Parent/guardian contact details"];
+const checklist = ["Learner information", "Previous records (if available)", "Parent/guardian contact details"];
 
 export default function AdmissionsPage() {
   return (

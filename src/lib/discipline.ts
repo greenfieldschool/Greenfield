@@ -64,7 +64,7 @@ export type CommitteeOutcome = keyof typeof COMMITTEE_OUTCOMES;
 
 export const WITHDRAW_REASONS = {
   recorded_in_error: "Recorded in error",
-  wrong_pupil: "Recorded for the wrong pupil",
+  wrong_pupil: "Recorded for the wrong learner",
   duplicate: "Recorded twice",
   other: "Another reason (say why)"
 } as const;

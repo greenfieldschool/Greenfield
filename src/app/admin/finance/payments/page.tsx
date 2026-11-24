@@ -116,7 +116,7 @@ export default async function AdminFinancePaymentsPage({
     if (r.status !== "posted" || r.direction !== "inflow") continue;
     if (query) continue;
     const key = r.cls?.id ?? NO_CLASS;
-    const entry = byClass.get(key) ?? { label: r.cls ? classLabel(r.cls) : "No student / class", total: 0, count: 0 };
+    const entry = byClass.get(key) ?? { label: r.cls ? classLabel(r.cls) : "No learner / class", total: 0, count: 0 };
     entry.total += Number(r.amount ?? 0);
     entry.count += 1;
     byClass.set(key, entry);
@@ -139,7 +139,7 @@ export default async function AdminFinancePaymentsPage({
         back={{ href: "/admin/finance", label: "Back to finance" }}
         eyebrow="Finance"
         title="Payments"
-        description="Payments with the student and class they belong to. Click a payment to edit or delete it."
+        description="Payments with the learner and class they belong to. Click a payment to edit or delete it."
         actions={
           <>
             <ButtonLink href="/admin/finance/payments/import" variant="secondary">
@@ -170,7 +170,7 @@ export default async function AdminFinancePaymentsPage({
                     {classLabel(c)}
                   </option>
                 ))}
-                <option value={NO_CLASS}>No student / class</option>
+                <option value={NO_CLASS}>No learner / class</option>
               </select>
             </Field>
             <Field label="From" htmlFor="pay-from">
@@ -179,7 +179,7 @@ export default async function AdminFinancePaymentsPage({
             <Field label="To" htmlFor="pay-to">
               <input id="pay-to" className="gf-input" type="date" name="to" defaultValue={toDate} />
             </Field>
-            <Field label="Student or reference" htmlFor="pay-q">
+            <Field label="Learner or reference" htmlFor="pay-q">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                 <input
@@ -215,7 +215,7 @@ export default async function AdminFinancePaymentsPage({
             <>
               {classFilter
                 ? classFilter === NO_CLASS
-                  ? "Payments not linked to a student"
+                  ? "Payments not linked to a learner"
                   : classLabel(classById.get(classFilter))
                 : "All classes"}
               {fromDate || toDate ? ` · ${fromDate || "start"} to ${toDate || "today"}` : ""}
@@ -232,9 +232,9 @@ export default async function AdminFinancePaymentsPage({
           tone="blue"
         />
         <StatCard
-          label="Students who paid"
+          label="Learners who paid"
           value={<span className="tabular-nums">{studentsPaid.toLocaleString("en-NG")}</span>}
-          hint="Distinct students in these payments"
+          hint="Distinct learners in these payments"
           icon={Users}
           tone="gold"
         />
@@ -245,7 +245,7 @@ export default async function AdminFinancePaymentsPage({
         <Card>
           <CardHeader
             title="Amount collected per class"
-            description="Click a class to see its payments. Based on each student's current class."
+            description="Click a class to see its payments. Based on each learner's current class."
           />
           <div className="gf-table-wrap">
             <table className="gf-table">
@@ -292,7 +292,7 @@ export default async function AdminFinancePaymentsPage({
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Student</th>
+                  <th>Learner</th>
                   <th>Class</th>
                   <th>Method</th>
                   <th>Reference</th>

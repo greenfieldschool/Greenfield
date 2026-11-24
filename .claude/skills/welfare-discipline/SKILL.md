@@ -65,7 +65,7 @@ portal page, or how discipline feeds the welfare score (Conduct). Use with schoo
 - No suspension/expulsion workflow (the committee's "another measure" note covers it for now).
 
 ## Expert review
-Before calling the work done, answer these as a school safeguarding and pastoral lead with 30+ years would.
+Before calling the work done, answer these as a school safeguarding and pastoral lead with 30+ years would. Where an answer needs a decision the school hasn't made, ask.
 - **Is every correction one the approved policy allows, for that time?** No new sanctions in code.
 - **Is it fair to the child?** Can a mistake be withdrawn, and does a withdrawn case stop counting everywhere?
 - **Does the parent learn what happened, what the school did and what they must do** (come in on a day)?

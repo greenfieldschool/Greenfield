@@ -78,7 +78,7 @@ export async function mergeClassAction(formData: FormData) {
   const next = returnTo === `/admin/classes/${sourceId}` ? `/admin/classes/${targetId}` : returnTo;
   toast(
     next,
-    `Classes merged. ${moved} student${moved === 1 ? "" : "s"} moved, with their results, attendance, fees and exams.`,
+    `Classes merged. ${moved} learner${moved === 1 ? "" : "s"} moved, with their results, attendance, fees and exams.`,
     "success"
   );
 }

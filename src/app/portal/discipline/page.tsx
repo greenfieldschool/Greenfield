@@ -219,7 +219,7 @@ export default async function PortalDisciplinePage({
                 ) : null}
                 {r.statement ? (
                   <div className="mt-3 rounded-xl bg-slate-50 px-4 py-3">
-                    <div className="text-xs font-medium text-slate-500">Written statement in the pupil&apos;s file</div>
+                    <div className="text-xs font-medium text-slate-500">Written statement in the learner&apos;s file</div>
                     <div className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{r.statement}</div>
                   </div>
                 ) : null}

@@ -173,7 +173,7 @@ export function WeeklyGrid({
       {/* Toolbar */}
       <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="text-sm text-slate-600">
-          <span className="font-semibold text-slate-900">{fullyScored}</span> of {rows.length} pupils fully scored for {weekLabel}
+          <span className="font-semibold text-slate-900">{fullyScored}</span> of {rows.length} learners fully scored for {weekLabel}
           {classAverage !== null ? (
             <>
               {" "}
@@ -189,7 +189,7 @@ export function WeeklyGrid({
               disabled={!canCopy}
               title={
                 hasPrevious
-                  ? "Fills each pupil's empty boxes with their ratings from the last week they were scored. Nothing is saved until you press Save."
+                  ? "Fills each learner's empty boxes with their ratings from the last week they were scored. Nothing is saved until you press Save."
                   : "No earlier week has ratings yet"
               }
               className={buttonClasses({ variant: "secondary", size: "sm" })}
@@ -225,7 +225,7 @@ export function WeeklyGrid({
           <thead>
             <tr>
               <th className="sticky left-0 top-0 z-30 w-32 border-b sm:w-48 border-slate-200 bg-slate-50 px-4 py-2.5 text-left align-bottom text-xs font-semibold text-slate-600 sm:pl-6">
-                Pupil
+                Learner
               </th>
               {ordered.map((c) => (
                 <th

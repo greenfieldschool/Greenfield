@@ -28,6 +28,7 @@ import { AttemptStatusBadge } from "../../../_components/exam-ui";
 import { firstOrNull } from "@/lib/relations";
 import { failWithToast, NO_DB_MESSAGE } from "../../../_components/feedback";
 import { LEARN } from "@/lib/learn-guides";
+import { ExamRoom } from "@/components/exams/exam-room";
 
 type AttemptRow = {
   attempt_id: string;
@@ -169,7 +170,7 @@ export default async function AdminExamSessionAttemptsPage({
         learn={LEARN.marking}
         back={{ href: "/admin/exams/sessions", label: "Back to sessions" }}
         eyebrow="Exams"
-        title="Session attempts"
+        title="Exam room and results"
         description="Review who attempted and edit marks if needed."
         actions={
           <Link className={buttonClasses({ variant: "secondary" })} href={`/admin/exams/sessions/${id}`}>
@@ -180,9 +181,9 @@ export default async function AdminExamSessionAttemptsPage({
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Attempts" value={attempts.length} hint="Students who started" icon={Users} tone="blue" />
+        <StatCard label="Attempts" value={attempts.length} hint="Learners who started" icon={Users} tone="blue" />
         <StatCard label="Submitted" value={submittedCount} hint="Finished and handed in" icon={CircleCheck} tone="green" />
-        <StatCard label="Locked" value={lockedCount} hint="Need a conductor to unlock" icon={Lock} tone="rose" />
+        <StatCard label="Locked" value={lockedCount} hint="Unlock them below" icon={Lock} tone="rose" />
         <StatCard
           label="Average score"
           value={averagePercent === null ? "—" : `${averagePercent.toFixed(1)}%`}
@@ -192,11 +193,13 @@ export default async function AdminExamSessionAttemptsPage({
         />
       </div>
 
+      <ExamRoom supabase={supabase} sessionId={id} back={`/admin/exams/sessions/${id}/attempts`} />
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader
             title="Result release"
-            description="Students see their CBT score, correct answers and explanations under Exam Results only after you release."
+            description="Learners see their score, the correct answers and explanations under Exam results only after you release them."
             action={
               release?.results_released_at ? (
                 <Badge tone="green" dot>
@@ -259,13 +262,13 @@ export default async function AdminExamSessionAttemptsPage({
       </div>
 
       <Card>
-        <CardHeader title="Attempts" description={`${attempts.length} student${attempts.length === 1 ? "" : "s"}`} />
+        <CardHeader title="Marks" description={`${attempts.length} learner${attempts.length === 1 ? "" : "s"}. Open one to mark written answers.`} />
         {attempts.length ? (
           <div className="gf-table-wrap">
             <table className="gf-table min-w-[880px]">
               <thead>
                 <tr>
-                  <th>Student</th>
+                  <th>Learner</th>
                   <th>Adm no</th>
                   <th>Obtained</th>
                   <th>Max</th>
@@ -347,7 +350,7 @@ export default async function AdminExamSessionAttemptsPage({
             </table>
           </div>
         ) : (
-          <EmptyState icon={ClipboardList} title="No attempts yet." description="Attempts appear here once students start the exam." />
+          <EmptyState icon={ClipboardList} title="No one has started yet" description="Learners appear here once they press Start exam." />
         )}
       </Card>
     </div>

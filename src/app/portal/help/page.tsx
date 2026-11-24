@@ -227,7 +227,7 @@ export default async function PortalHelpPage() {
           q: "Who gets a certificate?",
           a: (
             <p>
-              The top three in each class, the best in each subject, and every pupil with a Gold, Silver or Bronze welfare award. If there is one, you&apos;ll see
+              The top three in each class, the best in each subject, and every learner with a Gold, Silver or Bronze welfare award. If there is one, you&apos;ll see
               &ldquo;View certificates&rdquo; above the report card. Certificates carry the class teacher&apos;s and head teacher&apos;s signatures and can be
               printed or saved.
             </p>
@@ -433,7 +433,7 @@ export default async function PortalHelpPage() {
                   emails&rdquo; link in any email. If you don&apos;t see them, check your Spam folder and mark them &ldquo;Not spam&rdquo;.
                 </>
               ) : (
-                <>Pupils don&apos;t get emails: everything shows here, on the bell. Your parents get the emails.</>
+                <>Learners don&apos;t get emails: everything shows here, on the bell. Your parents get the emails.</>
               )}
             </p>
           )
@@ -488,7 +488,7 @@ export default async function PortalHelpPage() {
           q: audience === "parent" ? "What is a star video, and where do I watch my child's?" : "What is a star video?",
           a: (
             <p>
-              Each week, teachers share a short video of a pupil who did really well in one of the class&apos;s main subjects.
+              Each week, teachers share a short video of a learner who did really well in one of the class&apos;s main subjects.
               {audience === "parent" ? " When your child is chosen you get a notification, and the video is under " : " When you're chosen, it shows under "}
               <A href="/portal/star-videos">Star videos</A>
               {audience === "parent" ? " (under More on a phone)" : ""}. Tap <strong>Watch</strong> to open it (Google Drive or YouTube). Only you and your
@@ -560,6 +560,18 @@ export default async function PortalHelpPage() {
             <p>
               Open <A href="/portal/exams">Exams</A>: it lists the exams open for you now and how long each one takes. Make sure you have enough time before you
               start. Some exams need a secret code that your teacher gives you in the hall.
+            </p>
+          )
+        },
+        {
+          id: "exam-locked",
+          q: "My exam is locked, or the power went off",
+          a: (
+            <p>
+              An exam locks if you leave its page for 10 seconds or more, or if it is cut off by a power cut, lost connection or a closed browser. Your
+              answers are saved and your clock stops while you are locked. Raise your hand: the supervisor unlocks you and the page opens again by
+              itself. If you were signed out, sign in again with your own details. The clock shows the time you have left, and your answers are
+              handed in automatically when it reaches zero.
             </p>
           )
         },

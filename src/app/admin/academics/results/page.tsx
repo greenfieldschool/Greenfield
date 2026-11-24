@@ -431,7 +431,7 @@ async function bulkUpload(formData: FormData) {
   }
   revalidateResults();
   const notes = [
-    unmatched.length ? `${unmatched.length} row(s) not matched to a pupil in this class (${unmatched.slice(0, 5).join(", ")}${unmatched.length > 5 ? "…" : ""})` : null,
+    unmatched.length ? `${unmatched.length} row(s) not matched to a learner in this class (${unmatched.slice(0, 5).join(", ")}${unmatched.length > 5 ? "…" : ""})` : null,
     problems.length ? `${problems.length} score(s) skipped because they were not numbers or above the maximum: ${problems.slice(0, 5).join("; ")}` : null
   ].filter(Boolean);
   back(ctx, `Uploaded ${upserts.size} score(s).${notes.length ? ` ${notes.join(". ")}.` : ""}`, notes.length ? "error" : "success");
@@ -960,7 +960,7 @@ export default async function AdminResultSheetPage({
                         <label htmlFor="unlock-reason" className="gf-label">
                           Reason for unlocking (kept in the audit log)
                         </label>
-                        <input id="unlock-reason" name="reason" className="gf-input" minLength={5} required placeholder="e.g. 1st CA mis-keyed for 2 pupils" />
+                        <input id="unlock-reason" name="reason" className="gf-input" minLength={5} required placeholder="e.g. 1st CA mis-keyed for 2 learners" />
                         <SubmitButton variant="secondary" size="sm" pendingText="Unlocking…">
                           <span className="inline-flex items-center gap-1.5">
                             <LockOpen className="h-4 w-4" aria-hidden="true" />
@@ -981,7 +981,7 @@ export default async function AdminResultSheetPage({
                     </p>
                     <ConfirmSubmitButton
                       confirmMessage={`Submit ${subject?.name ?? "this subject"} for ${cls?.name ?? "this class"} as final?${
-                        rowsComplete < students.length ? `\n\n${students.length - rowsComplete} pupil(s) still have empty boxes.` : ""
+                        rowsComplete < students.length ? `\n\n${students.length - rowsComplete} learner(s) still have empty boxes.` : ""
                       }\n\nAfter this, scores can only be changed if an admin unlocks the sheet. Save any changes first.`}
                       className={buttonClasses({ variant: "primary", size: "sm" })}
                     >
@@ -1011,7 +1011,7 @@ export default async function AdminResultSheetPage({
             <Card className="lg:col-span-2">
               <CardHeader
                 title="Copy scores from a CBT exam"
-                description="Takes each student's score from a computer-based exam session and scales it to the column's max score. Only the chosen column is changed."
+                description="Takes each learner's score from a computer-based exam session and scales it to the column's max score. Only the chosen column is changed."
               />
               <CardBody>
                 {locked ? (
@@ -1056,7 +1056,7 @@ export default async function AdminResultSheetPage({
                     </div>
                     <div className="flex justify-end sm:col-span-3">
                       <ConfirmSubmitButton
-                        confirmMessage="Copy CBT scores into the selected column? Existing scores in that column will be replaced for students who took the exam."
+                        confirmMessage="Copy CBT scores into the selected column? Existing scores in that column will be replaced for learners who took the exam."
                         className={buttonClasses({ variant: "secondary" })}
                       >
                         <Download className="h-4 w-4" aria-hidden="true" />
@@ -1127,17 +1127,17 @@ export default async function AdminResultSheetPage({
               title="Class summary"
               description={
                 rowsComplete < students.length
-                  ? `Based on the ${rowsComplete} pupil(s) with every column filled. ${students.length - rowsComplete} still to finish.`
-                  : "All pupils have every column filled."
+                  ? `Based on the ${rowsComplete} learner(s) with every column filled. ${students.length - rowsComplete} still to finish.`
+                  : "All learners have every column filled."
               }
             />
             <CardBody className="space-y-4">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
                   { label: "Class average", value: classAverage === null ? "—" : `${classAverage}%`, hint: classAverage === null && classAverageSoFar !== null ? `${classAverageSoFar}% so far` : "out of 100" },
-                  { label: "Highest", value: completeTotals.length ? `${Math.max(...completeTotals)}%` : "—", hint: "complete pupils" },
-                  { label: "Lowest", value: completeTotals.length ? `${Math.min(...completeTotals)}%` : "—", hint: "complete pupils" },
-                  { label: "Complete", value: `${rowsComplete}/${students.length}`, hint: "pupils" }
+                  { label: "Highest", value: completeTotals.length ? `${Math.max(...completeTotals)}%` : "—", hint: "complete learners" },
+                  { label: "Lowest", value: completeTotals.length ? `${Math.min(...completeTotals)}%` : "—", hint: "complete learners" },
+                  { label: "Complete", value: `${rowsComplete}/${students.length}`, hint: "learners" }
                 ].map((t) => (
                   <div key={t.label} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{t.label}</div>
@@ -1182,7 +1182,7 @@ export default async function AdminResultSheetPage({
                     <a className="gf-link" href={`/admin/academics/results/template?${new URLSearchParams({ class_id: classId, subject_id: subjectId, term_id: termId }).toString()}`}>
                       Download this sheet (CSV for Excel)
                     </a>{" "}
-                    — it lists every pupil with columns: Admission no, Pupil name, {columns.map((c) => c.title).join(", ")}.
+                    — it lists every learner with columns: Admission no, Learner name, {columns.map((c) => c.title).join(", ")}.
                   </li>
                   <li>Fill in the scores. Leave a cell empty to keep what is already saved.</li>
                   <li>Select the rows in Excel (with or without the heading row), copy, and paste below.</li>
@@ -1261,7 +1261,7 @@ export default async function AdminResultSheetPage({
                           scope="col"
                           className="sticky left-0 top-0 z-30 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 sm:pl-6"
                         >
-                          Student
+                          Learner
                         </th>
                         {columns.map((c) => (
                           <th
@@ -1426,8 +1426,8 @@ export default async function AdminResultSheetPage({
               ) : (
                 <EmptyState
                   icon={Users}
-                  title="No students in this class"
-                  description="Add students to this class and they will appear here for score entry."
+                  title="No learners in this class"
+                  description="Add learners to this class and they will appear here for score entry."
                 />
               )}
 

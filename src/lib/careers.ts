@@ -66,7 +66,7 @@ export const careerJobs: CareerJob[] = [
       "We’re hiring a Primary Teacher who can deliver engaging, structured lessons and build confident learners with strong values.",
     responsibilities: [
       "Deliver lessons aligned to a blended Nigerian + British curriculum",
-      "Assess learning and provide feedback to pupils and parents",
+      "Assess learning and provide feedback to learners and parents",
       "Maintain a positive, well-managed classroom",
       "Participate in school events and continuous professional development"
     ],
@@ -87,11 +87,11 @@ export const careerJobs: CareerJob[] = [
     location: "Aba, Abia State",
     employmentType: "Full-time",
     summary:
-      "We’re recruiting a Mathematics Teacher who can explain concepts clearly, drive strong results, and support students with different learning needs.",
+      "We’re recruiting a Mathematics Teacher who can explain concepts clearly, drive strong results, and support learners with different learning needs.",
     responsibilities: [
-      "Teach Mathematics to Junior/Senior Secondary students",
-      "Set assignments and prepare students for assessments and exams",
-      "Use data to support students who need extra help",
+      "Teach Mathematics to Junior/Senior Secondary learners",
+      "Set assignments and prepare learners for assessments and exams",
+      "Use data to support learners who need extra help",
       "Collaborate with other subject teachers and leadership"
     ],
     requirements: [

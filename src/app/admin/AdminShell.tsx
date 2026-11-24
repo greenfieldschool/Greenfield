@@ -124,7 +124,7 @@ const NAV: NavGroup[] = [
     key: "people",
     label: "People",
     items: [
-      { href: "/admin/students", label: "Students", icon: GraduationCap, excludes: ["/admin/students/applications"] },
+      { href: "/admin/students", label: "Learners", icon: GraduationCap, excludes: ["/admin/students/applications"] },
       { href: "/admin/students/applications", label: "Applications", icon: UserPlus },
       { href: "/admin/classes", label: "Classes", icon: School },
       { href: "/admin/guardians", label: "Guardians", icon: UsersRound },
@@ -144,7 +144,7 @@ const NAV: NavGroup[] = [
         excludes: ["/admin/academics/results/pupil"],
         roles: ["teacher"]
       },
-      { href: "/admin/academics/results/pupil", label: "Single pupil results", icon: UserRound, roles: ["teacher"] },
+      { href: "/admin/academics/results/pupil", label: "Single learner results", icon: UserRound, roles: ["teacher"] },
       { href: "/admin/academics/reports", label: "Report cards", icon: ScrollText, roles: ["teacher"] },
       { href: "/admin/academics/published", label: "Published results", icon: Archive, roles: ["teacher", "front_desk"] },
       { href: "/admin/academics/corrections", label: "Correction requests", icon: FilePen, roles: ["teacher"] },
@@ -172,7 +172,7 @@ const NAV: NavGroup[] = [
     label: "Exams (CBT)",
     items: [
       { href: "/admin/exams", label: "Exams overview", icon: BarChart3, exact: true },
-      { href: "/admin/exams/tests", label: "Tests & questions", icon: FileText },
+      { href: "/admin/exams/tests", label: "Tests & questions", icon: FileText, roles: ["teacher"] },
       { href: "/admin/exams/sessions", label: "Sessions", icon: Timer },
       { href: "/admin/exams/conductors", label: "Conductors", icon: KeyRound }
     ]
@@ -220,7 +220,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   admin: "Dashboard",
   "management-pack": "Management pack",
   history: "History",
-  students: "Students",
+  students: "Learners",
   applications: "Applications",
   classes: "Classes",
   guardians: "Guardians",
@@ -228,7 +228,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   users: "Staff & users",
   academics: "Academics",
   results: "Result sheet",
-  pupil: "Single pupil",
+  pupil: "Single learner",
   assessments: "Assessments",
   publications: "Publish results",
   published: "Published results",

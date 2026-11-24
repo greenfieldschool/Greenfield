@@ -13,7 +13,7 @@ const primaryNav = [
   { href: "/about", label: "About" },
   { href: "/academics", label: "Academics" },
   { href: "/admissions", label: "Admissions" },
-  { href: "/student-life", label: "Student Life" },
+  { href: "/student-life", label: "Learner Life" },
   { href: "/gallery", label: "Gallery" },
   { href: "/contact", label: "Contact" }
 ];
@@ -111,7 +111,7 @@ export function SiteHeader() {
           <div className="flex items-center gap-5">
             <Link href="/portal/login" className="inline-flex items-center gap-1.5 font-medium hover:text-white">
               <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
-              Parent &amp; student portal
+              Parent &amp; learner portal
             </Link>
             <Link href="/admin/login" className="font-medium text-brand-green-300 hover:text-white">
               Staff
@@ -271,7 +271,7 @@ export function SiteHeader() {
             </div>
             <Link href="/portal/login" className={buttonClasses({ variant: "primary", size: "lg", className: "w-full" })}>
               <LogIn className="h-4 w-4" aria-hidden="true" />
-              Parent &amp; student portal
+              Parent &amp; learner portal
             </Link>
             <div className="flex items-center justify-between pt-1 text-sm text-slate-500">
               <a href={`tel:${school.phone}`} className="inline-flex items-center gap-2">

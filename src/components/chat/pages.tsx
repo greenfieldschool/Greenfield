@@ -327,7 +327,7 @@ function Guidelines() {
       <ul className="mt-1 list-disc space-y-0.5 pl-4">
         <li>Use it for class life: homework reminders, events, lost property, lifts and playdates.</li>
         <li>Be kind. No comments about other children, parents or staff, and no photos of other people&apos;s children.</li>
-        <li>Concerns about a teacher, your child&apos;s progress or another pupil go privately to the class teacher or the school office ({school.phone}).</li>
+        <li>Concerns about a teacher, your child&apos;s progress or another learner go privately to the class teacher or the school office ({school.phone}).</li>
         <li>No adverts, chain messages, politics or religion.</li>
         <li>Messages are kept by the school. Posts that break these rules can be removed and members muted.</li>
       </ul>
@@ -581,7 +581,7 @@ export async function ConversationView({ base, id }: { base: ChatBase; id: strin
               ? "Only teachers post announcements. To ask about one, message the teacher privately."
               : meta.kind === "class_parents"
                 ? "You've been muted in this chat for now. You can still message teachers privately."
-                : "You can no longer send messages here (for example, the pupil has moved class or one of you has blocked the other)."}
+                : "You can no longer send messages here (for example, the learner has moved class or one of you has blocked the other)."}
           </div>
         )}
       </Shell>
@@ -657,7 +657,7 @@ export async function NewConversation({ base, q }: { base: ChatBase; q: string }
               description={
                 ctx.role === "parent"
                   ? "You can message your children's teachers, and parents in the same class who have chosen to accept messages from other parents."
-                  : "You can message parents of pupils in the classes you teach."
+                  : "You can message parents of learners in the classes you teach."
               }
             />
           ) : null}

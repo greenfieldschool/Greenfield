@@ -3,7 +3,7 @@ import { getTeacherAccess, teachesSubject, teacherSubjectIds, teacherTestFilter 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { Ban, BookOpen, CircleCheck, Clock, Copy, FileText, Info, Plus, Search, Trash2, X } from "lucide-react";
+import { Ban, CircleCheck, Clock, Copy, FileText, Info, Plus, Search, Trash2, X } from "lucide-react";
 import SubmitButton from "@/components/submit-button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -31,6 +31,7 @@ import {
 import { fetchAllRows } from "@/lib/fetch-all";
 import { failWithToast, NO_DB_MESSAGE } from "../_components/feedback";
 import { LEARN } from "@/lib/learn-guides";
+import { APPROVAL, approvalOf } from "@/lib/exam-approval";
 
 type SubjectRow = { id: string; name: string };
 
@@ -41,6 +42,9 @@ type TestRow = {
   description: string | null;
   duration_minutes: number;
   active: boolean;
+  approval_status?: string | null;
+  submitted_at?: string | null;
+  academic_term_id?: string | null;
   subjects: Array<{ id: string; name: string }>;
 };
 
@@ -56,6 +60,7 @@ export default async function AdminExamTestsPage({
   const query = typeof sp.q === "string" ? sp.q.trim() : "";
   const subjectFilter = typeof sp.subject_id === "string" ? sp.subject_id.trim() : "";
   const statusFilter = typeof sp.status === "string" ? sp.status.trim() : "";
+  const approvalFilter = typeof sp.approval === "string" && ["draft", "submitted", "approved", "returned"].includes(sp.approval) ? sp.approval : "";
   const page = Number(sp.page ?? "1") || 1;
   const pageSize = 15;
   const offset = (page - 1) * pageSize;
@@ -76,20 +81,36 @@ export default async function AdminExamTestsPage({
   );
 
   // 2. Fetch ALL tests to compute metrics
-  let metricsQuery = supabase.from("exam_tests").select("id, active, subject_id, description");
+  // "*" so the page still loads before the 24 Nov 2026 approval columns exist.
+  let metricsQuery = supabase.from("exam_tests").select("*");
   if (testLimit) metricsQuery = metricsQuery.or(testLimit);
   const { data: metricsTests } = await metricsQuery;
-  const allTests = (metricsTests ?? []) as Array<{ id: string; active: boolean; subject_id: string | null; description: string | null }>;
+  const allTests = (metricsTests ?? []) as Array<{ id: string; active: boolean; subject_id: string | null; description: string | null; approval_status?: string | null }>;
 
   const totalTests = allTests.length;
   const activeCount = allTests.filter((t) => t.active).length;
-  const inactiveCount = allTests.filter((t) => !t.active).length;
-  const uniqueSubjectsCount = new Set(allTests.map((t) => t.subject_id).filter(Boolean)).size;
+  const approvalOn = allTests.some((t) => t.approval_status !== undefined);
+  const waitingCount = allTests.filter((t) => t.approval_status === "submitted").length;
+  const approvedCount = allTests.filter((t) => t.approval_status === "approved").length;
+  const notSentCount = allTests.filter((t) => t.approval_status === "draft" || t.approval_status === "returned").length;
+
+  const { data: termData } = await supabase
+    .from("academic_terms")
+    .select("id, name, starts_on, is_active, academic_years(name)")
+    .order("starts_on", { ascending: false })
+    .limit(9);
+  const terms = (termData ?? []) as Array<{ id: string; name: string; starts_on: string | null; is_active: boolean; academic_years: { name: string } | Array<{ name: string }> | null }>;
+  const termLabel = (t: (typeof terms)[number]) => {
+    const y = Array.isArray(t.academic_years) ? t.academic_years[0]?.name : t.academic_years?.name;
+    return `${t.name} term${y ? ` ${y}` : ""}`;
+  };
+  const termById = new Map(terms.map((t) => [t.id, t]));
+  const currentTermId = terms.find((t) => t.is_active)?.id ?? "";
 
   // 3. Build filtered tests list query with exact count
   let testsQuery = supabase
     .from("exam_tests")
-    .select("id, subject_id, name, description, duration_minutes, active, subjects(id, name)", { count: "exact" });
+    .select("*, subjects(id, name)", { count: "exact" });
 
   if (testLimit) testsQuery = testsQuery.or(testLimit);
   if (query.length > 0) {
@@ -102,6 +123,7 @@ export default async function AdminExamTestsPage({
   if (statusFilter.length > 0) {
     testsQuery = testsQuery.eq("active", statusFilter === "active");
   }
+  if (approvalFilter) testsQuery = testsQuery.eq("approval_status", approvalFilter);
 
   const { data: testsList, count } = await testsQuery
     .order("created_at", { ascending: false })
@@ -128,7 +150,7 @@ export default async function AdminExamTestsPage({
     (t) => !hasTargets(parseDescriptionAndTargets(t.description).targets) && typesByTest.has(t.id)
   ).length;
   const totalCount = count ?? 0;
-  const isFiltered = query.length > 0 || subjectFilter.length > 0 || statusFilter.length > 0;
+  const isFiltered = query.length > 0 || subjectFilter.length > 0 || statusFilter.length > 0 || approvalFilter.length > 0;
 
   async function createTest(formData: FormData) {
     "use server";
@@ -138,6 +160,7 @@ export default async function AdminExamTestsPage({
     const description = String(formData.get("description") ?? "").trim();
     const durationMinutes = Number(String(formData.get("duration_minutes") ?? "60").trim() || "60");
     const active = String(formData.get("active") ?? "").trim() === "on";
+    const termId = String(formData.get("academic_term_id") ?? "").trim();
     const objectiveCount = Math.max(0, Math.floor(Number(String(formData.get("objective_count") ?? "0").trim() || "0")));
     const theoryCount = Math.max(0, Math.floor(Number(String(formData.get("theory_count") ?? "0").trim() || "0")));
 
@@ -169,7 +192,8 @@ export default async function AdminExamTestsPage({
         name,
         description: storedDescription,
         duration_minutes: durationMinutes,
-        active
+        active,
+        ...(termId ? { academic_term_id: termId } : {})
       })
       .select("id")
       .maybeSingle();
@@ -279,7 +303,7 @@ export default async function AdminExamTestsPage({
       if ((attemptCount ?? 0) > 0) {
         redirect(
           `/admin/exams/tests?toast=${encodeURIComponent(
-            "This test has student attempts and cannot be deleted. Mark it inactive instead."
+            "Learners have already sat this test, so it can't be deleted. Untick Active to stop using it."
           )}&toast_type=error`
         );
       }
@@ -342,8 +366,10 @@ export default async function AdminExamTestsPage({
     const q = String(formData.get("q") ?? "").trim();
     const subjectId = String(formData.get("subject_id") ?? "").trim();
     const status = String(formData.get("status") ?? "").trim();
+    const approval = String(formData.get("approval") ?? "").trim();
 
     const params = new URLSearchParams();
+    if (approval.length) params.set("approval", approval);
     if (q.length) params.set("q", q);
     if (subjectId.length) params.set("subject_id", subjectId);
     if (status.length) params.set("status", status);
@@ -394,16 +420,22 @@ export default async function AdminExamTestsPage({
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total tests" value={totalTests} hint="All registered exam templates" icon={FileText} tone="slate" />
-        <StatCard label="Active tests" value={activeCount} hint="Available to schedule in sessions" icon={CircleCheck} tone="green" />
-        <StatCard label="Inactive" value={inactiveCount} hint="Draft or retired templates" icon={Ban} tone="gold" />
-        <StatCard label="Subjects represented" value={uniqueSubjectsCount} hint="Active subject categories" icon={BookOpen} tone="violet" />
+        <StatCard label="Tests" value={totalTests} hint={`${activeCount} in use`} icon={FileText} tone="slate" />
+        {approvalOn ? (
+          <>
+            <StatCard label="Waiting for approval" value={waitingCount} hint="Sent by teachers" icon={Clock} tone={waitingCount ? "gold" : "slate"} href="/admin/exams/tests?approval=submitted" />
+            <StatCard label="Approved" value={approvedCount} hint="Can be opened to learners" icon={CircleCheck} tone="green" href="/admin/exams/tests?approval=approved" />
+            <StatCard label="Not sent yet" value={notSentCount} hint="Drafts and tests sent back" icon={Ban} tone="slate" href="/admin/exams/tests?approval=draft" />
+          </>
+        ) : (
+          <StatCard label="In use" value={activeCount} hint="Available to schedule in sessions" icon={CircleCheck} tone="green" />
+        )}
       </div>
 
       <Card>
         <CardBody>
           <form action={filterTests} className="flex flex-col gap-3 xl:flex-row xl:items-end">
-            <div className="grid flex-1 gap-3 sm:grid-cols-3">
+            <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Field label="Search" htmlFor="filter-q">
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
@@ -433,6 +465,17 @@ export default async function AdminExamTestsPage({
                   <option value="inactive">Inactive</option>
                 </select>
               </Field>
+              {approvalOn ? (
+                <Field label="Approval" htmlFor="filter-approval">
+                  <select id="filter-approval" className="gf-select" name="approval" defaultValue={approvalFilter}>
+                    <option value="">Any</option>
+                    <option value="draft">Draft</option>
+                    <option value="submitted">Waiting for approval</option>
+                    <option value="returned">Sent back</option>
+                    <option value="approved">Approved</option>
+                  </select>
+                </Field>
+              ) : null}
             </div>
 
             <div className="flex shrink-0 gap-2">
@@ -488,6 +531,18 @@ export default async function AdminExamTestsPage({
                 ))}
               </select>
             </Field>
+            {approvalOn ? (
+              <Field label="Term" htmlFor="new-term" required hint="Questions are due on Friday of week 2 of this term.">
+                <select id="new-term" className="gf-select" name="academic_term_id" defaultValue={currentTermId} required>
+                  <option value="">Choose a term</option>
+                  {terms.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {termLabel(t)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            ) : null}
             <Field label="Duration (minutes)" htmlFor="new-duration" required>
               <input id="new-duration" className="gf-input" name="duration_minutes" type="number" min={1} defaultValue={60} required />
             </Field>
@@ -562,9 +617,19 @@ export default async function AdminExamTestsPage({
                         ) : null}
                       </td>
                       <td>
-                        <Badge tone={t.active ? "green" : "slate"} dot>
-                          {t.active ? "Active" : "Inactive"}
-                        </Badge>
+                        <div className="flex flex-col items-start gap-1">
+                          {t.approval_status !== undefined ? (
+                            <Badge tone={APPROVAL[approvalOf(t.approval_status)].tone}>{APPROVAL[approvalOf(t.approval_status)].label}</Badge>
+                          ) : null}
+                          {!t.active ? (
+                            <Badge tone="slate" dot>
+                              Not in use
+                            </Badge>
+                          ) : null}
+                          {t.academic_term_id && termById.get(t.academic_term_id) ? (
+                            <span className="text-xs text-slate-500">{termLabel(termById.get(t.academic_term_id)!)}</span>
+                          ) : null}
+                        </div>
                       </td>
                       <td>
                         <div className="flex items-center justify-end gap-2">

@@ -90,7 +90,7 @@ Approach agreed with the school: the Claude Doc "Daily Expense Requests – Prop
 11. **Existing rows:** current expenses keep working; no existing row breaks the new rules (new columns are nullable).
 
 ## Expert review
-Before calling the work done, answer these as a school bursar and internal auditor with 30+ years would.
+Before calling the work done, answer these as a school bursar and internal auditor with 30+ years would. Where an answer needs a decision the school hasn't made, ask.
 - **Can one person ask, approve and pay?** Prove they can't, as each role, in PGlite.
 - **Can money leave twice for one request,** through a double click, a retry or a webhook sent twice?
 - **Does every naira paid out end as receipts, change returned or a visible overdue advance?**

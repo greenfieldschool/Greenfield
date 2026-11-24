@@ -160,7 +160,7 @@ export function CorrectionRequestCard({
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs text-slate-500">
-            <th className="py-1 font-medium">Pupil</th>
+            <th className="py-1 font-medium">Learner</th>
             <th className="py-1 font-medium">Column</th>
             <th className="py-1 text-right font-medium">From → to</th>
           </tr>
@@ -168,7 +168,7 @@ export function CorrectionRequestCard({
         <tbody>
           {r.items.map((i) => (
             <tr key={`${i.student_id}-${i.column_label}`} className="border-t border-slate-100">
-              <td className="py-1">{studentName.get(i.student_id) ?? "Pupil"}</td>
+              <td className="py-1">{studentName.get(i.student_id) ?? "Learner"}</td>
               <td className="py-1 text-slate-600">{i.column_label ?? "—"}</td>
               <td className="py-1 text-right tabular-nums">
                 <span className="text-slate-500">{fmt(i.old_score)}</span>

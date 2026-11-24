@@ -351,7 +351,7 @@ export default async function AdminApplicationDetailPage({
       redirect(
         approveErrorUrl(
           params.id,
-          `The student record could not be created${createError?.message ? `: ${createError.message}` : "."} Check the student's first and last name and try again.`
+          `The learner record could not be created${createError?.message ? `: ${createError.message}` : "."} Check the learner's first and last name and try again.`
         )
       );
     }
@@ -378,7 +378,7 @@ export default async function AdminApplicationDetailPage({
     if (enrollError) {
       redirect(
         `/admin/students/${createdStudent.id}?toast=${encodeURIComponent(
-          `Student created, but the application status could not be set to enrolled: ${enrollError.message}`
+          `Learner created, but the application status could not be set to enrolled: ${enrollError.message}`
         )}&toast_type=error`
       );
     }
@@ -441,7 +441,7 @@ export default async function AdminApplicationDetailPage({
             {existingStudentId ? (
               <ButtonLink href={`/admin/students/${existingStudentId}`}>
                 <UserCheck className="h-4 w-4" aria-hidden="true" />
-                View student
+                View learner
               </ButtonLink>
             ) : (
               <form action={approveApplication} id="approve-form">
@@ -505,8 +505,8 @@ export default async function AdminApplicationDetailPage({
             title="Update status"
             description={
               existingStudentId
-                ? "A student record has already been created from this application."
-                : "Approving creates a student record and marks the application as enrolled."
+                ? "A learner record has already been created from this application."
+                : "Approving creates a learner record and marks the application as enrolled."
             }
             footer={
               <SubmitButton variant="primary" size="sm" pendingText="Saving…">
@@ -529,7 +529,7 @@ export default async function AdminApplicationDetailPage({
         <CardHeader title="Application details" description="These fields are saved from the /apply wizard." />
         <CardBody className="space-y-8">
           <div>
-            <SubHeading>Student</SubHeading>
+            <SubHeading>Learner</SubHeading>
             <DetailList
               items={[
                 { label: "First name", value: data.first_name ?? data.other_names },
@@ -585,8 +585,8 @@ export default async function AdminApplicationDetailPage({
                 { label: "Other child in school", value: data.other_child_in_school },
                 { label: "Other child name(s)", value: data.other_child_names },
                 { label: "Pickup details", value: data.pickup_details, multiline: true },
-                { label: "Student signature", value: data.student_signature_name },
-                { label: "Student signature date", value: data.student_signature_date },
+                { label: "Learner signature", value: data.student_signature_name },
+                { label: "Learner signature date", value: data.student_signature_date },
                 { label: "Parent signature", value: data.parent_signature_name },
                 { label: "Parent signature date", value: data.parent_signature_date }
               ]}
@@ -629,7 +629,7 @@ export default async function AdminApplicationDetailPage({
         >
           <div className="space-y-8">
             <div>
-              <SubHeading>Student</SubHeading>
+              <SubHeading>Learner</SubHeading>
               <div className="grid gap-4 sm:grid-cols-2">
                 <TextField label="First name" name="first_name" defaultValue={str(data.first_name)} />
                 <TextField label="Middle name" name="middle_name" defaultValue={str(data.middle_name)} />
@@ -742,9 +742,9 @@ export default async function AdminApplicationDetailPage({
             <div className="border-t border-slate-100 pt-6">
               <SubHeading>Signatures</SubHeading>
               <div className="grid gap-4 sm:grid-cols-2">
-                <TextField label="Student signature" name="student_signature_name" defaultValue={str(data.student_signature_name)} />
+                <TextField label="Learner signature" name="student_signature_name" defaultValue={str(data.student_signature_name)} />
                 <TextField
-                  label="Student signature date"
+                  label="Learner signature date"
                   name="student_signature_date"
                   type="date"
                   defaultValue={str(data.student_signature_date)}

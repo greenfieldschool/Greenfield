@@ -123,9 +123,9 @@ export default async function PaymentPlansPage() {
                 return (
                   <li key={m.instalment_id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:px-6">
                     <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
-                      <input type="checkbox" name="instalment_id" value={m.instalment_id} className="mt-1" aria-label={`Charge default fee for ${pupil.get(m.student_id ?? "") ?? "this pupil"}, payment ${m.seq}`} />
+                      <input type="checkbox" name="instalment_id" value={m.instalment_id} className="mt-1" aria-label={`Charge default fee for ${pupil.get(m.student_id ?? "") ?? "this learner"}, payment ${m.seq}`} />
                       <span className="min-w-0 text-sm">
-                        <span className="font-semibold text-slate-900">{pupil.get(m.student_id ?? "") ?? "Pupil"}</span>{" "}
+                        <span className="font-semibold text-slate-900">{pupil.get(m.student_id ?? "") ?? "Learner"}</span>{" "}
                         <span className="text-slate-500">
                           · {g?.full_name ?? "Parent"}
                           {g?.phone ? ` · ${g.phone}` : ""}
@@ -185,7 +185,7 @@ export default async function PaymentPlansPage() {
             {plans.map((p) => (
               <li key={p.id} className="flex flex-col gap-1 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <span>
-                  <span className="font-semibold text-slate-900">{pupil.get(p.finance_invoices?.student_id ?? "") ?? "Pupil"}</span>{" "}
+                  <span className="font-semibold text-slate-900">{pupil.get(p.finance_invoices?.student_id ?? "") ?? "Learner"}</span>{" "}
                   <span className="text-slate-500">· {p.instalments} payments of {fmtMoney(p.plan_total)}</span>
                 </span>
                 <span className="flex flex-wrap items-center gap-2">

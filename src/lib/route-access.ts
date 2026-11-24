@@ -41,7 +41,10 @@ export const resultsPrefixes = [
   "/admin/academics/audit",
   "/admin/academics/config",
   "/admin/academics/assessments",
-  "/admin/academics/publications"
+  "/admin/academics/publications",
+  // Exam questions and answers: admins and the subject's teachers (20261124b). Front desk and the nurse run exam
+  // rooms from Sessions and /conductor but don't see questions.
+  "/admin/exams/tests"
 ];
 
 // Pages each area serves to everyone (sign-in, sign-out, "not allowed").

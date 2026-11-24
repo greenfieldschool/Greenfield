@@ -40,11 +40,11 @@ async function savePupil(formData: FormData) {
   const studentId = String(formData.get("student_id") ?? "");
   const params = { class_id: classId, term_id: termId, student_id: studentId };
   const supabase = getSupabaseServerClient();
-  if (!supabase || !classId || !termId || !studentId) back(params, "Choose a class, term and pupil first", "error");
+  if (!supabase || !classId || !termId || !studentId) back(params, "Choose a class, term and learner first", "error");
 
   // In the class that term (class history), not only now.
   const { data: inClass } = await classPupilsInTerm(supabase, classId, termId);
-  if (!inClass.some((p) => p.id === studentId)) back(params, "That pupil was not in this class that term", "error");
+  if (!inClass.some((p) => p.id === studentId)) back(params, "That learner was not in this class that term", "error");
 
   const { data: colData, error: colError } = await supabase
     .from("academic_assessments")
@@ -211,12 +211,12 @@ export default async function PupilResultsPage({
       <PageHeader
         learn={LEARN.results}
         eyebrow="Result management"
-        title="Single pupil results"
-        description="Enter or check one pupil's scores for every subject in a term. Only the boxes you change are saved. To enter a whole class at once, use the class result sheet."
+        title="Single learner results"
+        description="Enter or check one learner's scores for every subject in a term. Only the boxes you change are saved. To enter a whole class at once, use the class result sheet."
       />
 
       <Card>
-        <CardHeader title="Choose a pupil" />
+        <CardHeader title="Choose a learner" />
         <CardBody>
           <form action={PATH} className="grid gap-4 sm:grid-cols-[1fr_1fr_1fr_auto]">
             <div>
@@ -246,10 +246,10 @@ export default async function PupilResultsPage({
             </div>
             <div>
               <label className="gf-label" htmlFor="p-pupil">
-                Pupil
+                Learner
               </label>
               <select id="p-pupil" name="student_id" defaultValue={pupil?.id ?? ""} className="gf-select" disabled={!pupils.length}>
-                <option value="">{classId ? (pupils.length ? "Select pupil" : "No pupils in this class") : "Choose a class first"}</option>
+                <option value="">{classId ? (pupils.length ? "Select learner" : "No learners in this class") : "Choose a class first"}</option>
                 {pupils.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.last_name} {p.first_name}
@@ -260,7 +260,7 @@ export default async function PupilResultsPage({
             </div>
             <div className="flex items-end">
               <button type="submit" className={buttonClasses({ variant: "primary", className: "w-full sm:w-auto" })}>
-                {classId && !pupil ? "Show pupils" : "Open"}
+                {classId && !pupil ? "Show learners" : "Open"}
               </button>
             </div>
           </form>
@@ -269,7 +269,7 @@ export default async function PupilResultsPage({
 
       {!cls || !pupil ? (
         <Card>
-          <EmptyState icon={UserRound} title="No pupil chosen" description="Choose a class and term, then pick the pupil." />
+          <EmptyState icon={UserRound} title="No learner chosen" description="Choose a class and term, then pick the learner." />
         </Card>
       ) : loadError ? (
         <Alert

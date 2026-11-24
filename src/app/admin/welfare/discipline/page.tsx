@@ -122,7 +122,7 @@ export default async function AdminWelfareDisciplinePage({
   const studentById = new Map(students.map((s) => [s.id, s]));
   const name = (id: string) => {
     const s = studentById.get(id);
-    return s ? `${s.first_name} ${s.last_name}` : "Pupil";
+    return s ? `${s.first_name} ${s.last_name}` : "Learner";
   };
   const shown = classFilter ? recent.filter((r) => studentById.get(r.student_id)?.class_id === classFilter) : recent;
   const pickable = classFilter ? students.filter((s) => s.class_id === classFilter) : students;
@@ -150,7 +150,7 @@ export default async function AdminWelfareDisciplinePage({
         learn={LEARN.disciplineLadder}
         eyebrow="Welfare"
         title="Discipline"
-        description="Record a case against a school rule. The app counts which time it is for that pupil and rule, and offers the correction the policy sets."
+        description="Record a case against a school rule. The app counts which time it is for that learner and rule, and offers the correction the policy sets."
         actions={
           <>
             {isAdmin ? (
@@ -177,7 +177,7 @@ export default async function AdminWelfareDisciplinePage({
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Cases" value={recent.length} hint={pupil ? "This pupil" : "Most recent 200"} icon={ShieldAlert} tone="slate" />
+        <StatCard label="Cases" value={recent.length} hint={pupil ? "This learner" : "Most recent 200"} icon={ShieldAlert} tone="slate" />
         <StatCard label="This month" value={monthCount} hint="Happened this calendar month" icon={CalendarDays} tone="blue" />
         <StatCard label="Waiting for the committee" value={waiting.length} hint="4th time or more" icon={Gavel} tone={waiting.length ? "rose" : "slate"} />
       </div>
@@ -202,7 +202,7 @@ export default async function AdminWelfareDisciplinePage({
                   </span>
                   <p className="mt-1 text-slate-700">{r.description}</p>
                   <Link href={pageUrl({ student_id: r.student_id })} className="gf-link mt-1 inline-block">
-                    See {studentById.get(r.student_id)?.first_name ?? "the pupil"}&apos;s ladder
+                    See {studentById.get(r.student_id)?.first_name ?? "the learner"}&apos;s ladder
                   </Link>
                 </div>
                 {isAdmin ? (
@@ -215,10 +215,10 @@ export default async function AdminWelfareDisciplinePage({
                       <input type="hidden" name="record_id" value={r.id} />
                       <div>
                         <label className="gf-label" htmlFor={`said-${r.id}`}>
-                          What the pupil said when the committee heard them
+                          What the learner said when the committee heard them
                         </label>
                         <textarea id={`said-${r.id}`} name="pupil_explanation" rows={2} maxLength={2000} required minLength={5} className="gf-input" />
-                        <p className="gf-hint">The policy asks the committee to hear the pupil before deciding.</p>
+                        <p className="gf-hint">The policy asks the committee to hear the learner before deciding.</p>
                       </div>
                       <fieldset>
                         <legend className="gf-label">What the committee decided</legend>
@@ -266,14 +266,14 @@ export default async function AdminWelfareDisciplinePage({
       ) : null}
 
       <Card>
-        <CardHeader title="A pupil's ladder" description="Every rule the pupil has broken, how many times, and what the next time would be." />
+        <CardHeader title="A learner's ladder" description="Every rule the learner has broken, how many times, and what the next time would be." />
         <form method="get" action="/admin/welfare/discipline" className="flex flex-col gap-3 px-5 pb-4 sm:flex-row sm:items-end sm:px-6">
           <div className="min-w-0 flex-1">
             <label className="gf-label" htmlFor="ladder-pupil">
-              Pupil
+              Learner
             </label>
             <select id="ladder-pupil" name="student_id" className="gf-select" defaultValue={pupilFilter}>
-              <option value="">Choose a pupil</option>
+              <option value="">Choose a learner</option>
               {students.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.first_name} {s.last_name}
@@ -350,7 +350,7 @@ export default async function AdminWelfareDisciplinePage({
                     {r.committee_note ? ` ${r.committee_note}` : ""}
                   </p>
                 ) : null}
-                {r.pupil_explanation ? <p className="text-slate-600">The pupil said: {r.pupil_explanation}</p> : null}
+                {r.pupil_explanation ? <p className="text-slate-600">The learner said: {r.pupil_explanation}</p> : null}
                 {!r.rule_id ? <p className="text-slate-500">Recorded before the ladder: doesn&apos;t count towards it.</p> : null}
                 <p className="text-xs text-slate-500">Recorded by {r.reported_by_name ?? "staff"}</p>
 
@@ -374,7 +374,7 @@ export default async function AdminWelfareDisciplinePage({
                         required
                         minLength={10}
                         maxLength={4000}
-                        placeholder="Why it happened, and how the pupil will change"
+                        placeholder="Why it happened, and how the learner will change"
                       />
                       <SubmitButton variant="secondary" size="sm" pendingText="Saving…">
                         Save statement
@@ -423,7 +423,7 @@ export default async function AdminWelfareDisciplinePage({
             ))}
           </ul>
         ) : (
-          <EmptyState icon={ShieldAlert} title="No discipline cases" description={pupil ? "Nothing recorded for this pupil." : "Cases you record below appear here."} />
+          <EmptyState icon={ShieldAlert} title="No discipline cases" description={pupil ? "Nothing recorded for this learner." : "Cases you record below appear here."} />
         )}
       </Card>
 
@@ -432,7 +432,7 @@ export default async function AdminWelfareDisciplinePage({
           title="Record a case"
           description={
             rules.some((r) => r.active)
-              ? "Pick the pupil and the rule first: the form then shows which time it is and the corrections the policy allows."
+              ? "Pick the learner and the rule first: the form then shows which time it is and the corrections the policy allows."
               : undefined
           }
         />

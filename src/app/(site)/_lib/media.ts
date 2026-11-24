@@ -2,13 +2,13 @@
 const media = "https://sxujllqkkrwkqslmbgpc.supabase.co/storage/v1/object/public/media";
 
 export const schoolPhotos = {
-  culture: { src: `${media}/20230524-FulaniCulture-2.jpg`, alt: "Students celebrating culture at Greenfield School" },
+  culture: { src: `${media}/20230524-FulaniCulture-2.jpg`, alt: "Learners celebrating culture at Greenfield School" },
   entrance: {
     src: `${media}/Entrace%20International%20Anti-Corruption%20Day%202017-2.JPG`,
     alt: "School entrance during an event"
   },
-  campus: { src: `${media}/IMG_20211127_114635_936-2.jpg`, alt: "Students and staff on campus" },
-  art: { src: `${media}/Mr%20Teslim%20Explaining%20the%20wall%20Paintings1-2.JPG`, alt: "Teacher explaining student artwork" }
+  campus: { src: `${media}/IMG_20211127_114635_936-2.jpg`, alt: "Learners and staff on campus" },
+  art: { src: `${media}/Mr%20Teslim%20Explaining%20the%20wall%20Paintings1-2.JPG`, alt: "Teacher explaining learner artwork" }
 } as const;
 
 export type SchoolPhoto = { src: string; alt: string };

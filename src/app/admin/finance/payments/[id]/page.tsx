@@ -176,7 +176,7 @@ export default async function AdminPaymentPage({ params }: { params: Promise<{ i
               <Link href="/admin/finance/payments/import" className="gf-link">
                 bank inbox
               </Link>{" "}
-              to match to the right pupil.
+              to match to the right learner.
             </p>
           ) : payment.direction === "inflow" && payment.void_reason !== "duplicate" && payment.void_reason !== "not_received" && payment.void_reason !== "bank_reversed" ? (
             <div className="mt-3">
@@ -204,7 +204,7 @@ export default async function AdminPaymentPage({ params }: { params: Promise<{ i
           <CardHeader title="What was recorded" description="Fixed once recorded. To change any of these, reverse the payment and enter it again." />
           <CardBody>
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
-              <dt className="text-slate-500">Pupil</dt>
+              <dt className="text-slate-500">Learner</dt>
               <dd className="font-medium text-slate-900">
                 {student ? (
                   <Link href={`/admin/students/${student.id}`} className="gf-link">
@@ -276,7 +276,7 @@ export default async function AdminPaymentPage({ params }: { params: Promise<{ i
                 <SubmitButton variant="secondary" pendingText="Moving…">
                   Move payment
                 </SubmitButton>
-                <p className="gf-hint">The invoice is paid up to what it still owes. Anything over is kept as paid in advance. To put it on another pupil, reverse it and enter it again.</p>
+                <p className="gf-hint">The invoice is paid up to what it still owes. Anything over is kept as paid in advance. To put it on another learner, reverse it and enter it again.</p>
               </form>
             ) : null}
           </CardBody>

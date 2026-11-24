@@ -175,8 +175,8 @@ export default async function AdminStudentsPage({
       <PageHeader
         learn={LEARN.studentAccounts}
         eyebrow="Admin"
-        title="Students"
-        description={`${totalStudents} student${totalStudents !== 1 ? "s" : ""} total · ${activeCount + enrolledCount} active/enrolled`}
+        title="Learners"
+        description={`${totalStudents} learner${totalStudents !== 1 ? "s" : ""} total · ${activeCount + enrolledCount} active/enrolled`}
         actions={
           <>
             {isAdmin ? (
@@ -203,14 +203,14 @@ export default async function AdminStudentsPage({
             </ButtonLink>
             <ButtonLink href="/admin/students/new">
               <Plus className="h-4 w-4" aria-hidden="true" />
-              Add a pupil
+              Add a learner
             </ButtonLink>
           </>
         }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total" value={totalStudents} hint="All enrolled students" icon={Users} tone="slate" />
+        <StatCard label="Total" value={totalStudents} hint="All enrolled learners" icon={Users} tone="slate" />
         <StatCard
           label="Active"
           value={activeCount}
@@ -320,7 +320,7 @@ export default async function AdminStudentsPage({
 
       <Card>
         <CardHeader
-          title="Student list"
+          title="Learner list"
           description={
             isFiltered ? (
               <>
@@ -333,7 +333,7 @@ export default async function AdminStudentsPage({
                 ) : null}
               </>
             ) : (
-              `Showing ${students.length} of ${totalStudents} student${totalStudents !== 1 ? "s" : ""}`
+              `Showing ${students.length} of ${totalStudents} learner${totalStudents !== 1 ? "s" : ""}`
             )
           }
         />
@@ -343,7 +343,7 @@ export default async function AdminStudentsPage({
             <table className="gf-table min-w-[720px]">
               <thead>
                 <tr>
-                  <th>Student</th>
+                  <th>Learner</th>
                   <th>Adm. no</th>
                   <th>Level</th>
                   <th>Class</th>
@@ -406,7 +406,7 @@ export default async function AdminStudentsPage({
         ) : (
           <EmptyState
             icon={Users}
-            title={isFiltered ? "No students match your filters" : "No students yet"}
+            title={isFiltered ? "No learners match your filters" : "No learners yet"}
             description={isFiltered ? "Try clearing filters or adjusting your search." : "Create a new application to get started."}
             action={
               isFiltered ? (

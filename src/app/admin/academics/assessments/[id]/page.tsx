@@ -85,7 +85,7 @@ export default async function AdminAssessmentDetailPage({ params }: { params: Pr
     const score = Number(scoreRaw || "0");
 
     const base = `/admin/academics/assessments/${id}`;
-    if (!studentId) redirect(`${base}?toast=${encodeURIComponent("Missing student")}&toast_type=error`);
+    if (!studentId) redirect(`${base}?toast=${encodeURIComponent("Missing learner")}&toast_type=error`);
     if (!Number.isFinite(score) || score < 0) {
       redirect(`${base}?toast=${encodeURIComponent("Enter a score of 0 or more")}&toast_type=error`);
     }
@@ -129,7 +129,7 @@ export default async function AdminAssessmentDetailPage({ params }: { params: Pr
         <StatCard
           label="Scores entered"
           value={`${scoredCount}/${students.length}`}
-          hint="Students with a saved score"
+          hint="Learners with a saved score"
           icon={ClipboardCheck}
           tone="green"
         />
@@ -152,7 +152,7 @@ export default async function AdminAssessmentDetailPage({ params }: { params: Pr
                     scope="col"
                     className="sticky left-0 top-0 z-30 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold text-slate-600 sm:pl-6"
                   >
-                    Student
+                    Learner
                   </th>
                   <th
                     scope="col"
@@ -218,7 +218,7 @@ export default async function AdminAssessmentDetailPage({ params }: { params: Pr
             </table>
           </div>
         ) : (
-          <EmptyState icon={Users} title="No students found" description="No students found for this class." />
+          <EmptyState icon={Users} title="No learners found" description="No learners found for this class." />
         )}
       </Card>
     </div>

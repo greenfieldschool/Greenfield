@@ -53,7 +53,7 @@ export default function PortalLoginPage({
         <ChoiceCard
           href={`/portal/login/student${qs}`}
           icon={GraduationCap}
-          title="I'm a student"
+          title="I'm a learner"
           description="Sign in with your admission number"
           tone="bg-brand-gold-50 text-brand-gold-700"
         />

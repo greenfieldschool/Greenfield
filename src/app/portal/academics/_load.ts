@@ -158,7 +158,7 @@ export async function loadPortalReport(
   // Read with the person's own login: a parent only gets a row for their own child, a pupil only their own.
   const { data: studentData } = await supabase.from("students").select("id, first_name, last_name, class_id").eq("id", studentId).maybeSingle();
   const student = studentData as { id: string; first_name: string; last_name: string; class_id: string | null } | null;
-  if (!student) return { kind: "empty", message: "This pupil's record couldn't be found — please contact the school office." };
+  if (!student) return { kind: "empty", message: "This learner's record couldn't be found — please contact the school office." };
   const classId = student.class_id;
 
   // Class averages, highest scores and positions need the whole class, which parents can't read directly, so

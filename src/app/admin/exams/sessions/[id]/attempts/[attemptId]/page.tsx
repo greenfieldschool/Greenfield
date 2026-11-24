@@ -142,7 +142,7 @@ export default async function AdminExamAttemptMarkingPage({
         title="Manual marking"
         description={
           <>
-            {student ? `${student.first_name} ${student.last_name}` : "Student"}
+            {student ? `${student.first_name} ${student.last_name}` : "Learner"}
             {student?.admission_number ? ` • ${student.admission_number}` : ""}
           </>
         }
@@ -193,7 +193,7 @@ export default async function AdminExamAttemptMarkingPage({
                   </div>
 
                   <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
-                    <div className="text-xs font-semibold text-slate-500">Student answer</div>
+                    <div className="text-xs font-semibold text-slate-500">Learner answer</div>
                     <div className="mt-1.5 whitespace-pre-wrap text-sm text-slate-900">{asValue(a.answer) || "—"}</div>
                   </div>
 

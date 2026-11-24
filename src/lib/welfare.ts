@@ -7,7 +7,7 @@ import { round2 } from "@/lib/results";
 export type WelfareSource = "rating" | "attendance" | "punctuality" | "uniform" | "conduct";
 
 export const welfareSources: Array<{ value: WelfareSource; label: string; help: string }> = [
-  { value: "rating", label: "Teacher rating (1–5)", help: "The class teacher rates each pupil from 1 to 5 every week on the welfare score sheet." },
+  { value: "rating", label: "Teacher rating (1–5)", help: "The class teacher rates each learner from 1 to 5 every week on the welfare score sheet." },
   { value: "attendance", label: "Attendance", help: "Days present (or late) out of the days attendance was taken that week." },
   { value: "punctuality", label: "Punctuality", help: "Days on time out of the days present, from the “late” attendance marks." },
   { value: "uniform", label: "Uniform checks", help: "Uniform checks passed out of the checks recorded that week." },

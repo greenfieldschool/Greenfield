@@ -60,5 +60,5 @@ export function sessionVisibility(s: SessionVisibilityInput, now = new Date()): 
   if (s.status !== "active") return { visible: false, reason: `Status is ${s.status}` };
   if (s.starts_at && new Date(s.starts_at) > now) return { visible: false, reason: `Opens ${formatLagosDate(s.starts_at)}` };
   if (s.ends_at && new Date(s.ends_at) < now) return { visible: false, reason: `Ended ${formatLagosDate(s.ends_at)}` };
-  return { visible: true, reason: "Open to students now" };
+  return { visible: true, reason: "Open to learners now" };
 }

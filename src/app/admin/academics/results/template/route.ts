@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   };
   const lines = [
-    ["Admission no", "Pupil name", ...columns.map((c) => `${c.title ?? "Score"} (/${Number(c.max_score)})`)],
+    ["Admission no", "Learner name", ...columns.map((c) => `${c.title ?? "Score"} (/${Number(c.max_score)})`)],
     ...students.map((s) => [
       s.admission_number ?? "",
       `${s.last_name} ${s.first_name}`,

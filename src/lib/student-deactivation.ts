@@ -9,9 +9,9 @@ export const DEACTIVATION_REASONS: Array<{ value: DeactivationReason; label: str
     label: "Duplicate record",
     hint: "The same child was registered twice. Choose the record to keep; the parents linked here are also linked there."
   },
-  { value: "test_record", label: "Test or dummy record", hint: "Made while trying the portal out. Not a real pupil." },
-  { value: "left_school", label: "Left the school", hint: "The pupil has left. Their records are kept." },
-  { value: "transferred", label: "Moved to another school", hint: "The pupil has transferred out. Their records are kept." },
+  { value: "test_record", label: "Test or dummy record", hint: "Made while trying the portal out. Not a real learner." },
+  { value: "left_school", label: "Left the school", hint: "The learner has left. Their records are kept." },
+  { value: "transferred", label: "Moved to another school", hint: "The learner has transferred out. Their records are kept." },
   { value: "graduated", label: "Graduated", hint: "Finished their final year." },
   { value: "other", label: "Other (type the reason)", hint: "Only use this when none of the above fits." }
 ];

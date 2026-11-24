@@ -111,7 +111,7 @@ export default async function AdminNewInvoicePage() {
               </select>
             </Field>
 
-            <Field label="Student (optional)" htmlFor="student_id">
+            <Field label="Learner (optional)" htmlFor="student_id">
               <select id="student_id" className="gf-select" name="student_id" defaultValue="">
                 <option value="">—</option>
                 {studentRows.map((s) => (

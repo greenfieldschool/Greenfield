@@ -44,7 +44,7 @@ const PATH = "/admin/finance/payments/import";
 const MIGRATION_MISSING =
   "The bank inbox is not set up in the database yet. Run docs/migrations/20261101_payment_ids_bank_inbox.sql in Supabase.";
 const SELECT =
-  "id, source, txn_date, amount, narration, bank_reference, status, match_level, match_note, match_student_id, match_invoice_id, recorded_at, payment_transaction_id, student:students!match_student_id(first_name, last_name, admission_number), invoice:finance_invoices!match_invoice_id(invoice_no)";
+  "id, source, txn_date, amount, narration, bank_reference, status, match_level, match_note, match_student_id, match_invoice_id, recorded_at, payment_transaction_id, learner:learners!match_student_id(first_name, last_name, admission_number), invoice:finance_invoices!match_invoice_id(invoice_no)";
 
 function money(n: number) {
   return Number(n ?? 0).toLocaleString("en-NG", { maximumFractionDigits: 2 });

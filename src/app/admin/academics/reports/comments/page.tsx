@@ -115,11 +115,11 @@ async function fillSuggestions(formData: FormData) {
       updated_by: user?.id ?? null,
       updated_at: new Date().toISOString()
     }));
-  if (!rows.length) reportsBack(PATH, params, "Every pupil with scores already has a comment", "error");
+  if (!rows.length) reportsBack(PATH, params, "Every learner with scores already has a comment", "error");
   const { error } = await supabase.from("report_card_comments").upsert(rows, { onConflict: "student_id,academic_term_id" });
   if (error) reportsBack(PATH, params, error.message, "error");
   revalidateComments();
-  reportsBack(PATH, params, `Added suggested comments for ${rows.length} pupil(s). Read through and personalise them.`);
+  reportsBack(PATH, params, `Added suggested comments for ${rows.length} learner(s). Read through and personalise them.`);
 }
 
 export default async function ReportCommentsPage({
@@ -154,7 +154,7 @@ export default async function ReportCommentsPage({
         learn={LEARN.reportCards}
         eyebrow="Report cards"
         title="Comments"
-        description="The class teacher writes a comment for every pupil; the head teacher (admin) adds theirs. Only comments you change are saved."
+        description="The class teacher writes a comment for every learner; the head teacher (admin) adds theirs. Only comments you change are saved."
         back={{ href: `/admin/academics/reports?class_id=${classId}&term_id=${termId}`, label: "Report cards" }}
       />
 
@@ -184,7 +184,7 @@ export default async function ReportCommentsPage({
               action={
                 <ConfirmActionButton
                   formAction={fillSuggestions}
-                  confirmMessage="Write a suggested comment (based on the term total) for every pupil who has no class teacher comment yet? You can edit them afterwards."
+                  confirmMessage="Write a suggested comment (based on the term total) for every learner who has no class teacher comment yet? You can edit them afterwards."
                   className={buttonClasses({ variant: "secondary", size: "sm" })}
                 >
                   <Wand2 className="h-4 w-4" aria-hidden="true" />
@@ -237,7 +237,7 @@ export default async function ReportCommentsPage({
                 })}
               </ul>
             ) : (
-              <EmptyState icon={MessageSquareText} title="No pupils in this class" />
+              <EmptyState icon={MessageSquareText} title="No learners in this class" />
             )}
             {report.students.length ? (
               <div className="sticky bottom-0 flex justify-end rounded-b-2xl border-t border-slate-200 bg-white/95 px-5 py-3 backdrop-blur sm:px-6">

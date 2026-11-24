@@ -28,7 +28,7 @@ const media = "https://sxujllqkkrwkqslmbgpc.supabase.co/storage/v1/object/public
 const heroImages = [
   {
     src: `${media}/20230524-FulaniCulture-2.jpg`,
-    alt: "Students celebrating culture at Greenfield School"
+    alt: "Learners celebrating culture at Greenfield School"
   },
   {
     src: `${media}/Entrace%20International%20Anti-Corruption%20Day%202017-2.JPG`,
@@ -36,16 +36,16 @@ const heroImages = [
   },
   {
     src: `${media}/IMG_20211127_114635_936-2.jpg`,
-    alt: "Students and staff on campus"
+    alt: "Learners and staff on campus"
   },
   {
     src: `${media}/Mr%20Teslim%20Explaining%20the%20wall%20Paintings1-2.JPG`,
-    alt: "Teacher explaining student artwork"
+    alt: "Teacher explaining learner artwork"
   }
 ];
 
 const facts = [
-  { value: "12:1", label: "Student–teacher ratio" },
+  { value: "12:1", label: "Learner–teacher ratio" },
   { value: "30+", label: "Clubs & societies" },
   { value: "10+", label: "Sports & athletics" },
   { value: "3", label: "Stages, creche to secondary" }

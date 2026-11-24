@@ -49,7 +49,7 @@ function NotLinked({ email }: { email: string }) {
     <Card>
       <EmptyState
         icon={UserX}
-        title="Your account isn't linked to a student record yet"
+        title="Your account isn't linked to a learner record yet"
         description={`Please contact the school office to finish setting up your portal. Signed in as ${email}.`}
       />
     </Card>

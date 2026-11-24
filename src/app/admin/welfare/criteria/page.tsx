@@ -85,7 +85,7 @@ async function deleteCriterion(formData: FormData) {
   if (!supabase || !id) back(level, "Database is not configured", "error");
   const { count } = await supabase.from("welfare_ratings").select("id", { count: "exact", head: true }).eq("criterion_id", id);
   if ((count ?? 0) > 0) {
-    back(level, `Pupils already have ${count} rating(s) for this criterion. Untick "Active" to stop using it instead, so past report cards stay the same.`, "error");
+    back(level, `Learners already have ${count} rating(s) for this criterion. Untick "Active" to stop using it instead, so past report cards stay the same.`, "error");
   }
   const { error } = await supabase.from("welfare_criteria").delete().eq("id", id);
   if (error) back(level, error.message, "error");
@@ -196,7 +196,7 @@ export default async function WelfareCriteriaPage({
           <div className="min-w-0 flex-1">
             <div className="font-semibold text-slate-900">Scoring a class? Use the welfare score sheet</div>
             <p className="mt-0.5 text-sm text-slate-600">
-              Pick the class and the week (Week 1, Week 2 … to the end of term). Every pupil is listed with these criteria across
+              Pick the class and the week (Week 1, Week 2 … to the end of term). Every learner is listed with these criteria across
               the row; rate them all and save the whole class at once. This page only sets what is scored for each level.
             </p>
           </div>

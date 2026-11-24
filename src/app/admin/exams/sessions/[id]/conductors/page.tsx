@@ -129,7 +129,7 @@ export default async function AdminExamSessionConductorsPage({
       <form action={updateAssignments}>
         <FormSection
           title="Conductors"
-          description="Only assigned conductors can unlock students in this session."
+          description="Conductors assigned here can unlock learners and add time in this session. Staff can too."
           footer={
             <SubmitButton variant="primary" pendingText="Saving…" disabled={!conductors.length}>
               Save assignments

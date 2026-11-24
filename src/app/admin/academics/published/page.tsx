@@ -211,7 +211,7 @@ export default async function PublishedResultsPage({
             </form>
           }
         >
-          They were published before copies were kept, so they&apos;re worked out from today&apos;s records: a pupil who has since changed class
+          They were published before copies were kept, so they&apos;re worked out from today&apos;s records: a learner who has since changed class
           won&apos;t be listed. Saving a copy keeps them as they are today. Results published from now on are saved automatically.
         </Alert>
       ) : null}
@@ -240,7 +240,7 @@ export default async function PublishedResultsPage({
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Class results" value={filtered.length} hint={anyFilter ? `of ${entries.length} published` : "published so far"} icon={Archive} />
-            <StatCard label="Pupils" value={knownPupils} hint={filtered.some((e) => e.pupilCount === null) ? "in classes with a saved copy" : "across these results"} icon={Users} tone="blue" />
+            <StatCard label="Learners" value={knownPupils} hint={filtered.some((e) => e.pupilCount === null) ? "in classes with a saved copy" : "across these results"} icon={Users} tone="blue" />
             <StatCard
               label="Average final score"
               value={averages.length ? `${round2(averages.reduce((a, b) => a + b, 0) / averages.length)}` : "—"}
@@ -251,7 +251,7 @@ export default async function PublishedResultsPage({
           </div>
 
           <Card>
-            <CardHeader title="Find results" description="Narrow the list, or search for one pupil by name or admission number." />
+            <CardHeader title="Find results" description="Narrow the list, or search for one learner by name or admission number." />
             <CardBody>
               <form action={PATH} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-[1fr_1fr_1fr_1fr_1.4fr_auto]">
                 <div>
@@ -308,7 +308,7 @@ export default async function PublishedResultsPage({
                 </div>
                 <div className="sm:col-span-2 lg:col-span-3 2xl:col-span-1">
                   <label htmlFor="f-q" className="gf-label">
-                    Pupil
+                    Learner
                   </label>
                   <input id="f-q" name="q" defaultValue={q} className="gf-input" placeholder="Name or admission no." type="search" />
                 </div>
@@ -331,7 +331,7 @@ export default async function PublishedResultsPage({
           {q ? (
             <Card>
               <CardHeader
-                title={`Pupils matching “${q}”`}
+                title={`Learners matching “${q}”`}
                 description={`${pupilMatches.length} result${pupilMatches.length === 1 ? "" : "s"}${
                   unsearched ? ` · ${unsearched} class result${unsearched === 1 ? "" : "s"} without a saved copy can't be searched` : ""
                 }`}
@@ -373,7 +373,7 @@ export default async function PublishedResultsPage({
                   ))}
                 </ul>
               ) : (
-                <EmptyState icon={Search} title="No pupils found" description="Check the spelling, or clear the other filters to search every published result." />
+                <EmptyState icon={Search} title="No learners found" description="Check the spelling, or clear the other filters to search every published result." />
               )}
             </Card>
           ) : null}
@@ -399,7 +399,7 @@ export default async function PublishedResultsPage({
                             {e.classId ? "" : " · class since removed"}
                           </span>
                           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
-                            {e.pupilCount !== null ? <span>{e.pupilCount} pupil{e.pupilCount === 1 ? "" : "s"}</span> : null}
+                            {e.pupilCount !== null ? <span>{e.pupilCount} learner{e.pupilCount === 1 ? "" : "s"}</span> : null}
                             {e.finalAverage !== null ? (
                               <span>
                                 Class average <span className="font-semibold tabular-nums text-slate-900">{e.finalAverage}</span>/100

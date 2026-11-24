@@ -38,7 +38,7 @@ export function ItemForm({
       <input type="hidden" name="return_to" value={returnTo} />
       <FormSection
         title={isNew ? "New item" : "Item details"}
-        description="One line per kind of item in one place, e.g. “Pupils’ chairs” in Year 2. Count how many are in each condition."
+        description="One line per kind of item in one place, e.g. “Learners’ chairs” in Year 2. Count how many are in each condition."
         footer={
           <div className="flex flex-wrap justify-end gap-2">
             {isNew ? (

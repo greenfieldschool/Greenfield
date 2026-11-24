@@ -110,7 +110,7 @@ async function saveRegister(formData: FormData) {
   revalidatePath("/admin/welfare/scores");
   redirect(
     attendanceUrl(filters, {
-      message: rows.length ? `Register saved: ${rows.length} pupil${rows.length === 1 ? "" : "s"} updated` : "Nothing had changed",
+      message: rows.length ? `Register saved: ${rows.length} learner${rows.length === 1 ? "" : "s"} updated` : "Nothing had changed",
       type: "success"
     })
   );
@@ -277,7 +277,7 @@ export default async function AdminWelfareAttendancePage({
       {/* Metrics */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Students in class"
+          label="Learners in class"
           value={totalClassStudents}
           hint={`${totalClassStudents - attendanceRows.length} not yet marked on ${selectedDate}`}
           icon={Users}
@@ -313,7 +313,7 @@ export default async function AdminWelfareAttendancePage({
             <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <div>
                 <label htmlFor="att-q" className="gf-label">
-                  Student name
+                  Learner name
                 </label>
                 <div className="relative">
                   <Search
@@ -441,7 +441,7 @@ export default async function AdminWelfareAttendancePage({
       <Card>
         <CardHeader
           title="Register"
-          description={`${dateLabel ? `${dateLabel}. ` : ""}Everyone starts as Present: change the pupils who were absent, late or excused, then save the register once.`}
+          description={`${dateLabel ? `${dateLabel}. ` : ""}Everyone starts as Present: change the learners who were absent, late or excused, then save the register once.`}
           action={
             students.length ? (
               <Badge tone={markedCount === students.length ? "green" : markedCount ? "gold" : "slate"} dot>
@@ -502,7 +502,7 @@ export default async function AdminWelfareAttendancePage({
               })}
             </ul>
             <div className="sticky bottom-0 z-10 flex flex-col gap-2 rounded-b-2xl border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
-              <p className="text-xs text-slate-500">Saves every pupil above for {dateLabel || "this day"}. Pupils already saved keep their mark unless you change it.</p>
+              <p className="text-xs text-slate-500">Saves every learner above for {dateLabel || "this day"}. Learners already saved keep their mark unless you change it.</p>
               <SubmitButton variant="primary" pendingText="Saving…">
                 <span className="inline-flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
@@ -514,8 +514,8 @@ export default async function AdminWelfareAttendancePage({
         ) : (
           <EmptyState
             icon={CalendarCheck}
-            title="No students found"
-            description="No students found matching your parameters."
+            title="No learners found"
+            description="No learners found matching your parameters."
           />
         )}
       </Card>

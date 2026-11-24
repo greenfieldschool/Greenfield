@@ -15,6 +15,7 @@ export const LEARN = {
   tests: "exam-tests",
   sessions: "exam-sessions",
   marking: "exam-marking",
+  examRoom: "exam-room",
   subjects: "subjects",
   duplicateSubjects: "duplicate-subjects",
   classSubjects: "class-subjects",

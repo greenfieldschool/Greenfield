@@ -173,7 +173,7 @@ export default async function LessonNotesPage({
         learn={LEARN.lessonNotes}
         eyebrow="Academics"
         title="Lesson notes"
-        description="Prepare lesson notes by class, subject, term, week and topic. Type them or upload a PDF, Word or PowerPoint file. Save as a draft, then publish: pupils and parents of the class can then read and download them on the portal."
+        description="Prepare lesson notes by class, subject, term, week and topic. Type them or upload a PDF, Word or PowerPoint file. Save as a draft, then publish: learners and parents of the class can then read and download them on the portal."
         actions={
           classId && canWrite ? (
             <ButtonLink href="#new" size="sm">
@@ -241,7 +241,7 @@ export default async function LessonNotesPage({
 
           {!tableError ? (
             <div className="grid gap-4 sm:grid-cols-3">
-              <StatCard label="Published" value={published} hint="pupils and parents can read these" icon={BookOpenText} />
+              <StatCard label="Published" value={published} hint="learners and parents can read these" icon={BookOpenText} />
               <StatCard label="Drafts" value={drafts} hint={drafts ? "only staff can see these" : "nothing waiting"} tone={drafts ? "gold" : "slate"} />
               <StatCard
                 label="Weeks with notes"

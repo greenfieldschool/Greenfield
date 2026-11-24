@@ -33,7 +33,7 @@ export default async function PortalPoliciesPage() {
     <div className="space-y-6">
       <PortalPageHeader
         title="School policy"
-        description={role === "student" ? "The rules and routines every pupil follows." : "School times, rules, fees, payment plans and rewards."}
+        description={role === "student" ? "The rules and routines every learner follows." : "School times, rules, fees, payment plans and rewards."}
         help={HELP.policies}
         actions={<PrintButton label="Print" variant="secondary" />}
       />

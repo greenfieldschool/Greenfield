@@ -259,7 +259,7 @@ export async function InvoicePlanCards({
               </div>
               <label className="flex items-start gap-2 text-sm text-slate-700">
                 <input type="checkbox" name="signed" value="yes" required className="mt-1" />
-                The parent signed the School Fees Payment Agreement for this plan. Keep the paper copy in the pupil&apos;s file.
+                The parent signed the School Fees Payment Agreement for this plan. Keep the paper copy in the learner&apos;s file.
               </label>
               <SubmitButton pendingText="Saving…">Save payment plan</SubmitButton>
               <p className="gf-hint">Parents can also choose a plan themselves on the portal, up to the first day of term.</p>

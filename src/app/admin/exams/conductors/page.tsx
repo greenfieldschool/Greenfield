@@ -185,7 +185,7 @@ export default async function AdminExamConductorsPage() {
         <FormSection
           id="new-conductor"
           title="New conductor"
-          description="Conductors supervise exam sessions and can unlock students who get locked out."
+          description="Conductors supervise exams in the hall: they unlock learners who get locked out and add time."
           footer={
             <SubmitButton variant="primary" pendingText="Creating…">
               Create conductor

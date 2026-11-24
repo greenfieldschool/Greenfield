@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { AlertCircle, Check, CheckCircle2, CloudUpload, FileQuestion } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { QuestionImage } from "@/components/question-image";
@@ -124,18 +124,21 @@ function parseMcqOptions(options: unknown): McqOption[] {
   return [];
 }
 
-type SaveState = "idle" | "saving" | "error";
+type SaveState = "idle" | "saving" | "error" | "timeup";
 
 export default function ExamAnswersClient({
   attemptId,
   questions,
   initialAnswers,
-  readOnly
+  readOnly,
+  timer
 }: {
   attemptId: string;
   questions: QuestionRow[];
   initialAnswers: InitialAnswer[];
   readOnly?: boolean;
+  /** Time left and the "you left the page" warning (ExamGuardClient), shown in the pinned bar. */
+  timer?: ReactNode;
 }) {
   const initialMap = useMemo(() => {
     const m = new Map<string, unknown>();
@@ -169,7 +172,8 @@ export default function ExamAnswersClient({
         });
 
         if (!res.ok) {
-          setSaveState("error");
+          const body = (await res.json().catch(() => null)) as { error?: string } | null;
+          setSaveState(/time is up/i.test(body?.error ?? "") ? "timeup" : "error");
           return;
         }
 
@@ -197,6 +201,7 @@ export default function ExamAnswersClient({
     <div className="space-y-5">
       {!readOnly ? (
         <div className="sticky top-16 z-20 -mx-1 rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-3 shadow-card backdrop-blur sm:px-5">
+          {timer}
           <div className="flex items-center justify-between gap-4">
             <div className="text-sm font-semibold text-slate-900" aria-live="polite">
               {answeredCount} of {total} answered
@@ -204,7 +209,7 @@ export default function ExamAnswersClient({
             <div
               className={cn(
                 "inline-flex items-center gap-1.5 text-xs font-medium",
-                saveState === "error" ? "text-red-600" : saveState === "saving" ? "text-slate-500" : "text-brand-green-700"
+                saveState === "error" || saveState === "timeup" ? "text-red-600" : saveState === "saving" ? "text-slate-500" : "text-brand-green-700"
               )}
               role="status"
               aria-live="polite"
@@ -213,6 +218,11 @@ export default function ExamAnswersClient({
                 <>
                   <CloudUpload className="h-4 w-4 animate-pulse" aria-hidden="true" />
                   Saving…
+                </>
+              ) : saveState === "timeup" ? (
+                <>
+                  <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                  Time is up. Your answers are being handed in.
                 </>
               ) : saveState === "error" ? (
                 <>

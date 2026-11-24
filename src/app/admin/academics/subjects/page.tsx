@@ -267,7 +267,7 @@ export default async function AdminSubjectsPage({
         <Card className="!border-brand-gold-200">
           <CardHeader
             title={`Possible duplicates (${duplicateGroups.length})`}
-            description="These subjects have the same name once capital letters, spaces and dots are ignored. Merging moves all results, CBT tests and class assignments onto the subject you keep, then deletes the duplicate. If both have a score for the same student and column, the kept subject's score is used."
+            description="These subjects have the same name once capital letters, spaces and dots are ignored. Merging moves all results, CBT tests and class assignments onto the subject you keep, then deletes the duplicate. If both have a score for the same learner and column, the kept subject's score is used."
             action={
               <Badge tone="gold" dot>
                 Needs review

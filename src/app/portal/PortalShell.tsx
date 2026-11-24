@@ -142,7 +142,7 @@ export default function PortalShell({
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 backdrop-blur-md print:hidden">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/portal" aria-label="Portal home">
-            <Logo subtitle={role === "student" ? "Student portal" : "Parent portal"} />
+            <Logo subtitle={role === "student" ? "Learner portal" : "Parent portal"} />
           </Link>
 
           <div className="flex items-center gap-1">
@@ -172,7 +172,7 @@ export default function PortalShell({
               </span>
               <span className="hidden text-left sm:block">
                 <span className="block max-w-[180px] truncate text-sm font-semibold text-slate-900">{displayName}</span>
-                <span className="block text-xs text-slate-500">{role === "student" ? "Student" : "Parent / guardian"}</span>
+                <span className="block text-xs text-slate-500">{role === "student" ? "Learner" : "Parent / guardian"}</span>
               </span>
               <ChevronDown className="h-4 w-4 text-slate-400" aria-hidden="true" />
             </button>

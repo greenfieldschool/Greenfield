@@ -86,7 +86,7 @@ export default async function PublishedClassPage({
         learn={LEARN.publishedResults}
         eyebrow={`Published results · ${LEVELS[report.cls.level] ?? report.cls.level}`}
         title={`${report.cls.name} · ${report.term.name}`}
-        description={`${report.year?.name ? `${report.year.name} session. ` : ""}Published ${formatLagosDate(publishedAt)}. Pupils are ranked on the final score.`}
+        description={`${report.year?.name ? `${report.year.name} session. ` : ""}Published ${formatLagosDate(publishedAt)}. Learners are ranked on the final score.`}
         actions={
           <div className="flex flex-wrap gap-2 print:hidden">
             <ButtonLink href={url(`${LIST}/print`, params)} size="sm">
@@ -104,17 +104,17 @@ export default async function PublishedClassPage({
 
       {source === "live" ? (
         <Alert tone="info" title="No saved copy yet" className="print:hidden">
-          These results were published before copies were kept, so they are worked out from today&apos;s records. A pupil who has changed class
+          These results were published before copies were kept, so they are worked out from today&apos;s records. A learner who has changed class
           since won&apos;t be listed.{isAdmin ? " Save a copy from the Published results list to keep them as they are." : ""}
         </Alert>
       ) : (
         <p className="text-sm text-slate-500 print:hidden">
-          Saved copy from {formatLagosDate(savedAt)}: these are the results exactly as published, even if pupils have since moved class.
+          Saved copy from {formatLagosDate(savedAt)}: these are the results exactly as published, even if learners have since moved class.
         </p>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 print:hidden">
-        <StatCard label="Pupils" value={rows.length} hint={ready < rows.length ? `${ready} with a final score` : "all with a final score"} icon={Users} />
+        <StatCard label="Learners" value={rows.length} hint={ready < rows.length ? `${ready} with a final score` : "all with a final score"} icon={Users} />
         <StatCard label="Class average" value={average !== null ? `${average}` : "—"} hint="final score, /100" tone="blue" />
         <StatCard
           label="Top of the class"
@@ -140,7 +140,7 @@ export default async function PublishedClassPage({
                     Pos.
                   </th>
                   <th scope="col" className={sticky}>
-                    Pupil
+                    Learner
                   </th>
                   <th scope="col" className="text-right">
                     Final /100
@@ -207,7 +207,7 @@ export default async function PublishedClassPage({
             </table>
           </div>
         ) : (
-          <EmptyState icon={Users} title="No pupils in this result" description="The class had no pupils when these results were published." />
+          <EmptyState icon={Users} title="No learners in this result" description="The class had no learners when these results were published." />
         )}
         <p className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500 sm:px-6">
           Subject score = the sheet&apos;s scores out of 100. Academic = average of the subject scores. Welfare = average of the weekly welfare

@@ -54,7 +54,7 @@ export type NewPupilState = {
 
 export async function createPupilAction(_prev: NewPupilState, formData: FormData): Promise<NewPupilState> {
   const ctx = await staffClient();
-  if (!ctx) return { error: "Only admins and the front desk can add pupils.", duplicates: [] };
+  if (!ctx) return { error: "Only admins and the front desk can add learners.", duplicates: [] };
   const { supabase } = ctx;
   const s = (k: string) => String(formData.get(k) ?? "").trim();
 
@@ -73,8 +73,8 @@ export async function createPupilAction(_prev: NewPupilState, formData: FormData
   const relationship = s("relationship");
   const confirmedDifferent = formData.get("confirm_different") === "on";
 
-  if (!first) return { error: "Type the pupil's first name.", duplicates: [], field: "first_name" };
-  if (!last) return { error: "Type the pupil's surname.", duplicates: [], field: "last_name" };
+  if (!first) return { error: "Type the learner's first name.", duplicates: [], field: "first_name" };
+  if (!last) return { error: "Type the learner's surname.", duplicates: [], field: "last_name" };
   if (dob && !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return { error: "Check the date of birth.", duplicates: [], field: "date_of_birth" };
   if (numberMode === "keep" && !existingNumber) {
     return { error: "Type the admission number from the other portal, or choose 'Give the next number'.", duplicates: [], field: "admission_number" };
@@ -121,8 +121,8 @@ export async function createPupilAction(_prev: NewPupilState, formData: FormData
 
   if (error || !created?.id) {
     const msg = error?.message ?? "";
-    if (/already used by/i.test(msg)) return { error: msg.replace(/\.$/, "") + ". Choose another number, or open that pupil's record.", duplicates: [], field: "admission_number" };
-    return { error: `The pupil couldn't be added${msg ? `: ${msg}` : "."}`, duplicates: [] };
+    if (/already used by/i.test(msg)) return { error: msg.replace(/\.$/, "") + ". Choose another number, or open that learner's record.", duplicates: [], field: "admission_number" };
+    return { error: `The learner couldn't be added${msg ? `: ${msg}` : "."}`, duplicates: [] };
   }
 
   const parent = await linkOrCreateGuardian(supabase, created.id as string, {

@@ -59,10 +59,10 @@ export default async function DeactivationLogPage() {
     <div className="space-y-6">
       <PageHeader
         learn={LEARN.deactivatePupils}
-        back={{ href: "/admin/students", label: "Back to students" }}
-        eyebrow="Students"
+        back={{ href: "/admin/students", label: "Back to learners" }}
+        eyebrow="Learners"
         title="Deactivation log"
-        description="Every pupil record that was deactivated, brought back, asked to be deleted or deleted by the developers, with the reason and who did it."
+        description="Every learner record that was deactivated, brought back, asked to be deleted or deleted by the developers, with the reason and who did it."
       />
       {missing ? (
         <Alert tone="warning" title="Not set up yet">
@@ -70,7 +70,7 @@ export default async function DeactivationLogPage() {
         </Alert>
       ) : null}
       {rows.length === 0 ? (
-        <EmptyState title="Nothing yet" description="When an admin deactivates a pupil, it is listed here." />
+        <EmptyState title="Nothing yet" description="When an admin deactivates a learner, it is listed here." />
       ) : (
         <Card>
           <CardBody className="p-0">
@@ -79,7 +79,7 @@ export default async function DeactivationLogPage() {
                 <thead>
                   <tr>
                     <th>Date</th>
-                    <th>Pupil</th>
+                    <th>Learner</th>
                     <th>What happened</th>
                     <th>Reason</th>
                     <th>By</th>

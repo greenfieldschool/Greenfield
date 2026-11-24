@@ -28,7 +28,7 @@ export default function StudentLifePage() {
   return (
     <div>
       <PublicPageHero
-        eyebrow="Student life"
+        eyebrow="Learner life"
         title="Culture, creativity and community."
         description="A caring environment for Creche, a vibrant experience for Primary, and a purposeful community for Secondary — with clubs, sports, arts, and leadership."
       >

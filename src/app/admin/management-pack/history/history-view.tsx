@@ -22,7 +22,7 @@ const COLUMNS: Array<{ id: string; label: string; format: MiFormat; monthOnly?: 
   { id: "enquiries", label: "Enquiries", format: "count" },
   { id: "incidents", label: "Incidents", format: "count" },
   { id: "handedIn", label: "Work handed in", format: "count" },
-  { id: "onRoll", label: "Pupils on roll", format: "count" },
+  { id: "onRoll", label: "Learners on roll", format: "count" },
   { id: "teachersActive", label: "Teachers active", format: "count" },
   { id: "starVideosRate", label: "Star videos", format: "percent" },
   { id: "headActions", label: "Head actions", format: "count" },
@@ -209,7 +209,7 @@ export function HistoryView({
             </Card>
           </div>
           <p className="text-xs text-slate-500">
-            Pupils on roll and fees still owed are counted on the day the pack was saved. The other figures cover the whole {word}.
+            Learners on roll and fees still owed are counted on the day the pack was saved. The other figures cover the whole {word}.
           </p>
         </>
       )}

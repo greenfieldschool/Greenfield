@@ -139,7 +139,7 @@ export default function StudentPhotoUploader({ studentId, initialUrl, saveAction
         {previewUrl ? (
           <Image
             src={previewUrl}
-            alt="Student photo"
+            alt="Learner photo"
             width={96}
             height={96}
             unoptimized
@@ -152,7 +152,7 @@ export default function StudentPhotoUploader({ studentId, initialUrl, saveAction
         )}
 
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-slate-900">Student photo</div>
+          <div className="text-sm font-semibold text-slate-900">Learner photo</div>
           <div className="mt-0.5 text-xs text-slate-500">
             {previewUrl ? "Drag & drop a new image, or click to choose." : "No photo uploaded yet. Drag & drop an image, or click to choose."}
           </div>
@@ -187,7 +187,7 @@ export default function StudentPhotoUploader({ studentId, initialUrl, saveAction
           type="file"
           accept="image/png,image/jpeg,image/webp"
           className="hidden"
-          aria-label="Upload student photo"
+          aria-label="Upload learner photo"
           onChange={onFileChange}
         />
       </div>

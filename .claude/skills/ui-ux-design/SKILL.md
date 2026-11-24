@@ -25,7 +25,7 @@ people do it at once", the parent who forgets the password) and build it, then s
 - **Front desk**: interrupted constantly; a parent is standing at the desk. Forms must survive being left half done.
 - **Parents**: on phones, not technical, often in a second language, sometimes sharing one phone between children.
   They want "how is my child doing" and "what do I do next".
-- **Pupils**: young, impatient, on a parent's phone or a lab computer; they type admission numbers in any case.
+- **Learners**: young, impatient, on a parent's phone or a lab computer; they type admission numbers in any case.
 - Everyone reads plain English. No developer words (RLS, null, upsert, UUID, migration, hash, auth) on screen.
 
 ## 1. The review: ask these before writing code
@@ -158,8 +158,9 @@ people do it at once", the parent who forgets the password) and build it, then s
 - **3D scene** (`src/components/three/`): see motion-and-3d.md.
 
 ## Glossary (use these words)
-- **Admission number**: the pupil's school number, e.g. GRE/2026/007. Also their portal username.
-- **Portal account**: the sign-in for the parent or pupil portal. "Account", not "user" or "auth".
+- **Learner**: every child at the school, crèche to secondary. Never "pupil" or "student" on screen (school-writing).
+- **Admission number**: the learner's school number, e.g. GRE/2026/007. Also their portal username.
+- **Portal account**: the sign-in for the parent or learner portal. "Account", not "user" or "auth".
 - **Temporary password**: one an admin set; the person should change it.
 - **Welfare score**: out of 100, scored weekly; the term's welfare is the average of the weeks.
 - **Academic average**: average of the subject scores.

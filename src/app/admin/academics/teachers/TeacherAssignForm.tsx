@@ -84,7 +84,7 @@ export default function TeacherAssignForm({
               <span>
                 <span className="font-semibold text-slate-900">Class teacher</span>
                 <span className="block text-xs text-slate-500">
-                  The whole class: its students, attendance, and every subject the class takes.
+                  The whole class: its learners, attendance, and every subject the class takes.
                 </span>
               </span>
             </label>

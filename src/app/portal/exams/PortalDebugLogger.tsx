@@ -52,7 +52,7 @@ export default function PortalDebugLogger({ enabled }: { enabled: boolean }) {
         const role = (profile as { role?: string } | null)?.role ?? null;
         if (role !== "student") {
           // eslint-disable-next-line no-console
-          console.warn("[portal-debug] Role is not student", { role });
+          console.warn("[portal-debug] Role is not learner", { role });
           return;
         }
 

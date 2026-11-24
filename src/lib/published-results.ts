@@ -164,7 +164,7 @@ export async function loadPublishedEntries(supabase: SupabaseClient, scope: Publ
     supabase
       .from("published_results")
       .select(
-        "id, class_id, class_name, class_level, academic_term_id, academic_year_id, term_name, year_name, published_at, saved_at, pupils, pupil_count, final_average"
+        "id, class_id, class_name, class_level, academic_term_id, academic_year_id, term_name, year_name, published_at, saved_at, learners, pupil_count, final_average"
       )
       .not("publication_id", "is", null),
     supabase

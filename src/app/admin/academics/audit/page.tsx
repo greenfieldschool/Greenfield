@@ -212,9 +212,9 @@ export default async function ResultAuditPage({
           </form>
           {studentId ? (
             <p className="mt-3 text-sm text-slate-600">
-              Showing one pupil only.{" "}
+              Showing one learner only.{" "}
               <Link className="gf-link" href={pageUrl(1).replace(/student_id=[^&]*&?/, "")}>
-                Show all pupils
+                Show all learners
               </Link>
             </p>
           ) : null}
@@ -235,7 +235,7 @@ export default async function ResultAuditPage({
                     <th>Who</th>
                     <th>What</th>
                     <th>Class · subject · term</th>
-                    <th>Pupil</th>
+                    <th>Learner</th>
                     <th>Column / criterion</th>
                     <th className="text-right">Change</th>
                     <th>Reason / note</th>

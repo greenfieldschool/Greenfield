@@ -217,7 +217,7 @@ export default async function AdminTeacherAssignmentsPage() {
         <ul className="mt-1 list-disc space-y-1 pl-5">
           <li>
             <strong className="font-semibold">Class teacher</strong>: tick one or many classes (e.g. Creche, Playgroup and
-            Preparatory for one person). They get the class&apos;s students, attendance and every subject the class takes.
+            Preparatory for one person). They get the class&apos;s learners, attendance and every subject the class takes.
           </li>
           <li>
             <strong className="font-semibold">Subject teacher</strong>: tick the classes and the subjects (e.g. Year 2 to 4

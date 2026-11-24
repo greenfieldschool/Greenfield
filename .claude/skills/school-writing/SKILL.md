@@ -24,6 +24,12 @@ Every change with words on screen, in an email or alert, or in a document for th
   "failed". A success toast names what was saved.
 - **The same thing has the same name everywhere** (glossary). Don't call it a "learner" on one page and a "pupil"
   on the next.
+- **"Learner" for every child at the school, in every section** (crèche, primary and secondary): "learner",
+  "learners", "learner portal", "learner's". Never "pupil" or "student" in anything people read (decided by the
+  school, 24 Nov 2026). Code and database names (`students` table, `student` role, `student_id`, `kind: "pupil"`,
+  routes like `/portal/login/student`) stay as they are: only words on screen, in emails, in help and in database
+  error messages change. To change many at once, edit only JSX text and string literals that contain a space, never
+  single-word literals or `.select("…students(…)…")` embeds.
 - **Kind and neutral about children.** State facts ("Not handed in"), never blame; parents read these.
 - **Fixed reasons, not free text,** for decisions people record (decline, deactivate, cancel); Other is the only
   free text.
@@ -33,7 +39,7 @@ Every change with words on screen, in an email or alert, or in a document for th
   sources for facts, and open questions as a list.
 
 ## Expert review
-Before calling the work done, read every new word as a school communications editor with 30+ years would.
+Before calling the work done, read every new word as a school communications editor with 30+ years would. Where an answer needs a decision the school hasn't made, ask.
 - **Would a parent reading this on a phone, in a hurry, know what happened and what to do?**
 - **Is anything vague, technical, blaming or longer than it needs to be?** Cut it.
 - **Do the button, the toast, the email and the help page use the same words for the same thing?**

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { CheckCircle2, Clock, EyeOff, FileQuestion, Hourglass, Lock, PlayCircle, Save, Wifi } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import LockOnBlurClient from "./LockOnBlurClient";
+import ExamGuardClient from "./ExamGuardClient";
+import { LiveRefresh } from "@/components/chat/client";
 import ExamAnswersClient from "./ExamAnswersClient";
 import SubmitExamButton from "./SubmitExamButton";
 import { firstOrNull } from "@/lib/relations";
@@ -156,9 +157,20 @@ export default async function PortalExamRunnerPage({
   const canRenderExam =
     !!attemptId && (!session.requires_secret_code || attempt?.secret_code_verified === true);
 
-  const isSubmitted = !!attempt?.submitted_at || attempt?.status === "submitted" || attempt?.status === "graded";
+  // Check in on every load: this notices a power cut or lost connection (the exam then locks and the clock stops at
+  // the last check-in), restarts the clock after an unlock, and hands the answers in if time has run out.
+  // Before the 24 Nov 2026 database update the call fails and the attempt row is used as it is.
+  type CheckIn = { seconds_left: number | null; locked: boolean; submitted: boolean; locked_reason: string | null };
+  let check: CheckIn | null = null;
+  if (canRenderExam && attemptId && !attempt?.submitted_at) {
+    const { data } = await supabase.rpc("exam_checkin", { p_attempt: attemptId, p_event: "load", p_hidden_seconds: null });
+    check = ((Array.isArray(data) ? data[0] : data) as CheckIn | null) ?? null;
+  }
 
-  const isLocked = !!attempt?.locked_at || attempt?.status === "locked";
+  const isSubmitted = check?.submitted || !!attempt?.submitted_at || attempt?.status === "submitted" || attempt?.status === "graded";
+
+  const isLocked = !isSubmitted && (check ? check.locked : !!attempt?.locked_at || attempt?.status === "locked");
+  const lockedReason = check?.locked_reason ?? null;
 
   const { data: answersData } = canRenderExam
     ? await supabase.from("exam_attempt_answers").select("question_id, answer").eq("attempt_id", attemptId)
@@ -204,10 +216,16 @@ export default async function PortalExamRunnerPage({
             <span className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-red-600">
               <Lock className="h-8 w-8" aria-hidden="true" />
             </span>
+            <LiveRefresh intervalMs={10000} />
             <h2 className="mt-4 font-display text-2xl font-semibold text-slate-900">Your exam is locked</h2>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-600">
-              You left the exam page, so it was locked to keep things fair. Please raise your hand and ask the exam
-              supervisor to unlock it.
+              {lockedReason === "interrupted"
+                ? "Your exam was cut off (for example by a power cut or lost connection), so it was locked to keep things fair."
+                : "You were away from the exam page for 10 seconds or more, so it was locked to keep things fair."}{" "}
+              Please raise your hand and ask the exam supervisor to unlock it.
+            </p>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-600">
+              Your answers are saved and your clock is paused. This page opens again by itself once you are unlocked.
             </p>
             <p className="mt-3 text-xs text-slate-400">Times locked: {attempt?.lock_count ?? 0}</p>
           </div>
@@ -226,14 +244,17 @@ export default async function PortalExamRunnerPage({
                 </span>
                 <span className="pt-2">
                   <span className="font-semibold text-slate-900">Stay on this page.</span> Switching apps, tabs or
-                  windows locks your exam straight away.
+                  windows for 10 seconds or more locks your exam until the supervisor unlocks it.
                 </span>
               </li>
               <li className="flex gap-3">
                 <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-green-50 text-brand-green-600">
                   <Save className="h-5 w-5" aria-hidden="true" />
                 </span>
-                <span className="pt-2">Your answers save automatically as you go.</span>
+                <span className="pt-2">
+                  Your answers save automatically as you go. The clock starts when you press Start and pauses if you are locked or
+                  cut off; your answers are handed in when time runs out.
+                </span>
               </li>
               <li className="flex gap-3">
                 <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
@@ -297,13 +318,20 @@ export default async function PortalExamRunnerPage({
         </div>
       ) : (
         <>
-          {attemptId ? <LockOnBlurClient attemptId={attemptId} /> : null}
 
           <Alert tone="warning">
-            <span className="font-semibold">Stay on this page</span> until you submit. Leaving it will lock your exam.
+            <span className="font-semibold">Stay on this page</span> until you submit. Leaving it for 10 seconds or more locks your exam. Your
+            answers are handed in automatically when time runs out.
           </Alert>
 
-          {attemptId ? <ExamAnswersClient attemptId={attemptId} questions={questions} initialAnswers={initialAnswers} /> : null}
+          {attemptId ? (
+            <ExamAnswersClient
+              attemptId={attemptId}
+              questions={questions}
+              initialAnswers={initialAnswers}
+              timer={<ExamGuardClient attemptId={attemptId} initialSecondsLeft={check?.seconds_left ?? null} />}
+            />
+          ) : null}
 
           <Card className="border-brand-green-200">
             <form action={submitAttempt}>

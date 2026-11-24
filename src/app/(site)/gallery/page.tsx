@@ -33,7 +33,7 @@ const tiles: Tile[] = [
 export default function GalleryPage() {
   return (
     <div>
-      <PublicPageHero eyebrow="Gallery" title="Gallery" description="A preview of student life and campus experiences." />
+      <PublicPageHero eyebrow="Gallery" title="Gallery" description="A preview of learner life and campus experiences." />
 
       <PublicSection>
         <PhotoRing

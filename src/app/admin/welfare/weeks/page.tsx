@@ -103,7 +103,7 @@ export default async function CompulsoryWeeksPage({
         learn={LEARN.welfare}
         eyebrow="Welfare"
         title="Compulsory weeks"
-        description="Choose the weeks class teachers must fill on the welfare score sheet each term, for example every school week except the mid-term break. Report cards can't be published for a class until every pupil has been scored for every compulsory week."
+        description="Choose the weeks class teachers must fill on the welfare score sheet each term, for example every school week except the mid-term break. Report cards can't be published for a class until every learner has been scored for every compulsory week."
         actions={
           <ButtonLink href="/admin/welfare/scores" variant="secondary">
             <ClipboardList className="h-4 w-4" aria-hidden="true" />

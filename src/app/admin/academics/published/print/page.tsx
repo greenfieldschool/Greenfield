@@ -78,7 +78,7 @@ export default async function PrintPublishedReportCardsPage({
           ))}
         </div>
       ) : (
-        <Alert tone="info">{studentId ? "That pupil isn't in these published results." : "No pupils to show."}</Alert>
+        <Alert tone="info">{studentId ? "That learner isn't in these published results." : "No learners to show."}</Alert>
       )}
     </div>
   );

@@ -4,7 +4,7 @@ import { sign } from "./secret";
 // The school's email: one simple layout for every kind (works in Gmail, Outlook and phone mail apps: tables, inline
 // styles, no images to download), plus a plain-text version.
 
-export type EmailCategory = "notification" | "message" | "announcement" | "test" | "spending";
+export type EmailCategory = "notification" | "message" | "announcement" | "test" | "spending" | "exam";
 
 export type OutboxRow = {
   id: string;
@@ -23,7 +23,8 @@ const WHY: Record<EmailCategory, string> = {
   message: "You get these because you have message emails on for your Greenfield School portal account.",
   announcement: "You get these because school announcement emails are on for your Greenfield School portal account.",
   test: "This is a test email sent by a Greenfield School admin.",
-  spending: "You get these because you take part in spending requests on the Greenfield School staff dashboard."
+  spending: "You get these because you take part in spending requests on the Greenfield School staff dashboard.",
+  exam: "You get these because you set exam questions on the Greenfield School staff dashboard."
 };
 
 const BUTTON: Record<EmailCategory, string> = {
@@ -31,7 +32,8 @@ const BUTTON: Record<EmailCategory, string> = {
   message: "Read and reply",
   announcement: "Read on the portal",
   test: "Open the portal",
-  spending: "Open the request"
+  spending: "Open the request",
+  exam: "Open the test"
 };
 
 function esc(s: string) {
@@ -79,7 +81,7 @@ export function renderEmail(row: OutboxRow) {
 <td style="padding-right:12px;vertical-align:middle;"><img src="${SITE_URL}/app-icon/192" width="44" height="44" alt="Greenfield crest" style="display:block;border:0;border-radius:10px;"></td>
 <td style="vertical-align:middle;">
 <span style="color:#ffffff;font-size:18px;font-weight:bold;letter-spacing:.2px;">Greenfield School</span>
-<span style="color:#EDC54C;font-size:12px;display:block;margin-top:2px;text-transform:uppercase;letter-spacing:1px;">${row.category === "announcement" ? "School announcement" : row.category === "message" ? "New message" : row.category === "spending" ? "Staff dashboard" : "Parent portal"}</span>
+<span style="color:#EDC54C;font-size:12px;display:block;margin-top:2px;text-transform:uppercase;letter-spacing:1px;">${row.category === "announcement" ? "School announcement" : row.category === "message" ? "New message" : row.category === "spending" || row.category === "exam" ? "Staff dashboard" : "Parent portal"}</span>
 </td></tr></table>
 </td></tr>
 <tr><td style="padding:24px;">

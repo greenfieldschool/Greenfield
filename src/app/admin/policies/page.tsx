@@ -40,7 +40,7 @@ export default async function AdminPoliciesPage({
   const tab: Tab = raw === "families" ? "families" : raw === "suggestions" && isAdmin ? "suggestions" : "staff";
   const tabs = [
     { key: "staff", label: "Staff policy", href: "/admin/policies?doc=staff" },
-    { key: "families", label: "Parents and pupils", href: "/admin/policies?doc=families" },
+    { key: "families", label: "Parents and learners", href: "/admin/policies?doc=families" },
     ...(isAdmin
       ? [{ key: "suggestions", label: "Suggested changes", href: "/admin/policies?doc=suggestions", count: POLICY_SUGGESTIONS.length }]
       : [])
@@ -60,7 +60,7 @@ export default async function AdminPoliciesPage({
 
       {doc && !isApproved(doc) ? (
         <Alert tone="warning" title="This is a draft" className="print:hidden">
-          It brings the school&apos;s policy documents together into one, with the differences between them settled. Parents and pupils will see it
+          It brings the school&apos;s policy documents together into one, with the differences between them settled. Parents and learners will see it
           on the portal once the Proprietress approves it.
         </Alert>
       ) : null}

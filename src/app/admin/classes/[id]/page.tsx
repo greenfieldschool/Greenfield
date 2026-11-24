@@ -132,7 +132,7 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
       ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
       : { data: null };
     if (me?.role !== "super_admin" && me?.role !== "admin") {
-      redirect(`/admin/classes/${id}?toast=${encodeURIComponent("Only admins can edit student details")}&toast_type=error`);
+      redirect(`/admin/classes/${id}?toast=${encodeURIComponent("Only admins can edit learner details")}&toast_type=error`);
     }
 
     const studentId = String(formData.get("student_id") ?? "").trim();
@@ -183,7 +183,7 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
 
   const field = "gf-input px-2.5 py-1.5";
   const selectField = "gf-select py-1.5 pl-2.5";
-  const title = isUnassigned ? "Students without a class" : `${cls!.level} - ${cls!.name}`;
+  const title = isUnassigned ? "Learners without a class" : `${cls!.level} - ${cls!.name}`;
 
   return (
     <div className="space-y-6">
@@ -196,14 +196,14 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
         description={
           canEdit
             ? "Fix a wrongly registered child by editing the row and pressing Save. Change the class to move them."
-            : "Only admins can edit student details."
+            : "Only admins can edit learner details."
         }
         actions={
           !isUnassigned ? (
             <>
               <ButtonLink href={`/admin/students?class_id=${id}`} variant="secondary" size="sm">
                 <Users className="h-4 w-4" aria-hidden="true" />
-                Open in Students list
+                Open in Learners list
               </ButtonLink>
               <ButtonLink href={`/admin/finance/debtors?class_id=${id}`} variant="secondary" size="sm">
                 <Wallet className="h-4 w-4" aria-hidden="true" />
@@ -216,7 +216,7 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Current students"
+          label="Current learners"
           value={currentCount}
           hint="Active or enrolled"
           icon={GraduationCap}
@@ -233,8 +233,8 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
 
       <Card>
         <CardHeader
-          title="Students"
-          description={`${currentCount} current student${currentCount === 1 ? "" : "s"}${
+          title="Learners"
+          description={`${currentCount} current learner${currentCount === 1 ? "" : "s"}${
             students.length > currentCount ? ` · ${students.length - currentCount} past/other` : ""
           }.`}
         />
@@ -328,7 +328,7 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
                           aria-label="Status"
                           defaultValue={s.status}
                           disabled={!canEdit}
-                          title={(editableStatuses as readonly string[]).includes(s.status) ? undefined : "Use Reactivate on the pupil's page to change this"}
+                          title={(editableStatuses as readonly string[]).includes(s.status) ? undefined : "Use Reactivate on the learner's page to change this"}
                         >
                           {((editableStatuses as readonly string[]).includes(s.status) ? editableStatuses : [s.status]).map((st) => (
                             <option key={st} value={st}>
@@ -359,7 +359,7 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
             </table>
           </div>
         ) : (
-          <EmptyState icon={Users} title="No students in this class yet." />
+          <EmptyState icon={Users} title="No learners in this class yet." />
         )}
       </Card>
 
@@ -375,7 +375,7 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
             ) : usage ? (
               <>
                 <p className="text-sm text-slate-600">
-                  Used by: {usage.students} student{usage.students === 1 ? "" : "s"} · {usage.fee_schedules} fee schedule
+                  Used by: {usage.students} learner{usage.students === 1 ? "" : "s"} · {usage.fee_schedules} fee schedule
                   {usage.fee_schedules === 1 ? "" : "s"} · {usage.assessments} result column{usage.assessments === 1 ? "" : "s"} ·{" "}
                   {usage.attendance} attendance record{usage.attendance === 1 ? "" : "s"} · {usage.exam_sessions} exam session
                   {usage.exam_sessions === 1 ? "" : "s"} · {usage.publications} result publication{usage.publications === 1 ? "" : "s"}
@@ -395,7 +395,7 @@ export default async function AdminClassDetailPage({ params }: { params: Promise
                     <Field
                       label="Merge into"
                       htmlFor="merge-target"
-                      hint={`Everything in ${cls.name} (students, results, attendance, fees, exams, subjects and teachers) moves to the class you pick, then ${cls.name} is deleted.`}
+                      hint={`Everything in ${cls.name} (learners, results, attendance, fees, exams, subjects and teachers) moves to the class you pick, then ${cls.name} is deleted.`}
                     >
                       <select
                         id="merge-target"

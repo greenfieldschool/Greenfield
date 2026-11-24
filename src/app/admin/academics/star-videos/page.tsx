@@ -53,7 +53,7 @@ async function saveStarVideo(formData: FormData) {
   const reason = String(formData.get("reason") ?? "").trim().replace(/\s+/g, " ").slice(0, 500);
   if (!classId || !subjectId) back(classId, week, "Choose a class and subject first", "error");
   if (week > mondayOf(lagosToday())) back(classId, week, "You can't post for a week that hasn't started", "error");
-  if (!studentId) back(classId, week, "Choose the pupil in the video", "error");
+  if (!studentId) back(classId, week, "Choose the learner in the video", "error");
   if (!url) back(classId, week, "Paste the full video link (it starts with https://)", "error");
 
   const supabase = getSupabaseServerClient();
@@ -81,7 +81,7 @@ async function saveStarVideo(formData: FormData) {
   if (error) back(classId, week, starVideoErrorMessage(error.message), "error");
   revalidatePath(PATH);
   revalidatePath("/portal/star-videos");
-  back(classId, week, "Saved. The pupil and their parents can watch it on the portal.");
+  back(classId, week, "Saved. The learner and their parents can watch it on the portal.");
 }
 
 async function removeStarVideo(formData: FormData) {
@@ -151,7 +151,7 @@ export default async function StarVideosPage({
   const pupils = (pupilData ?? []) as Pupil[];
   const pupilName = (id: string) => {
     const p = pupils.find((x) => x.id === id);
-    return p ? `${p.first_name} ${p.last_name}` : "A pupil";
+    return p ? `${p.first_name} ${p.last_name}` : "A learner";
   };
 
   const href = (c: string, w: string) => `${PATH}?${c ? `class_id=${c}&` : ""}week=${w}`;
@@ -164,7 +164,7 @@ export default async function StarVideosPage({
         learn={LEARN.starVideos}
         eyebrow="Academics"
         title="Star of the week videos"
-        description="Each week, share a short video of a pupil who did well in each of the class's two major subjects. Leadership sees them in the management pack, and the pupil's family can watch on the portal."
+        description="Each week, share a short video of a learner who did well in each of the class's two major subjects. Leadership sees them in the management pack, and the learner's family can watch on the portal."
         actions={
           !access.isTeacher ? (
             <ButtonLink href={classId ? `/admin/academics/class-subjects?class_id=${classId}` : "/admin/academics/class-subjects"} variant="secondary">
@@ -300,12 +300,12 @@ export default async function StarVideosPage({
                             ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-slate-500">No {m.name} work was marked this week, so there&apos;s no suggestion. Choose the pupil yourself.</p>
+                          <p className="text-sm text-slate-500">No {m.name} work was marked this week, so there&apos;s no suggestion. Choose the learner yourself.</p>
                         )}
                         <div className="grid gap-4 sm:grid-cols-2">
-                          <Field label="Pupil in the video" htmlFor={`pupil-${m.id}`}>
+                          <Field label="Learner in the video" htmlFor={`pupil-${m.id}`}>
                             <select id={`pupil-${m.id}`} name="student_id" className="gf-select" required defaultValue={v?.student_id ?? ""}>
-                              <option value="">Choose a pupil</option>
+                              <option value="">Choose a learner</option>
                               {ordered.map((p) => (
                                 <option key={p.id} value={p.id}>
                                   {p.first_name} {p.last_name}

@@ -57,7 +57,7 @@ export function starVideoErrorMessage(message: string): string {
     return "Star videos need a database update first: 20261112_star_videos.sql.";
   if (/duplicate key/i.test(message)) return "This subject already has a video for that week. Change it instead.";
   if (/row-level security|permission/i.test(message))
-    return "You can only post videos for subjects you teach, for a pupil in the class, and only for the class's major subjects.";
+    return "You can only post videos for subjects you teach, for a learner in the class, and only for the class's major subjects.";
   if (/video_url/i.test(message)) return "Paste the full video link (it starts with https://).";
   return message;
 }

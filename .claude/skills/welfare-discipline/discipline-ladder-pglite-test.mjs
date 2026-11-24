@@ -79,7 +79,7 @@ const cd = (rec, outcome, days, meet, note, said = "'I was helping my mum at the
   `select record_committee_decision('${rec}', ${outcome}, ${days}, ${meet}, ${note}, ${said})`;
 await refused(TEACHER, cd(r4.record_id, "'environment_team'", 5, "current_date+3", "null"), "teacher can't record committee", /admins/);
 await refused(ADMIN, cd(r3.record_id, "'environment_team'", 5, "current_date+3", "null"), "not on step 3", /4th time/);
-await refused(ADMIN, cd(r4.record_id, "'environment_team'", 5, "current_date+3", "null", "''"), "pupil must be heard", /pupil said/);
+await refused(ADMIN, cd(r4.record_id, "'environment_team'", 5, "current_date+3", "null", "''"), "pupil must be heard", /learner said/);
 await refused(ADMIN, cd(r4.record_id, "'environment_team'", "null", "current_date+3", "null"), "days required", /days/);
 await refused(ADMIN, cd(r4.record_id, "'environment_team'", 11, "current_date+3", "null"), "more than 10 days refused", /1 to 10/);
 await refused(ADMIN, cd(r4.record_id, "'referral'", "null", "current_date+3", "'x'"), "correctional referral no longer allowed", /committee decided/);

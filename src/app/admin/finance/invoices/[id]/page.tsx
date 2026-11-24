@@ -564,7 +564,7 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
           <form action={generateItemsFromSchedule}>
             <FormSection
               title="Generate from fee schedule"
-              description="Create invoice items using the configured fee schedule for the student’s class."
+              description="Create invoice items using the configured fee schedule for the learner’s class."
               footer={
                 <SubmitButton
                   variant="primary"
@@ -578,7 +578,7 @@ export default async function AdminInvoiceDetailPage({ params }: { params: Promi
               <Field
                 label="Fee schedule"
                 htmlFor="fee_schedule_id"
-                hint={!classId ? "No class is assigned to this student yet." : undefined}
+                hint={!classId ? "No class is assigned to this learner yet." : undefined}
               >
                 <select
                   id="fee_schedule_id"

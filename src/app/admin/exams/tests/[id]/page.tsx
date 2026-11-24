@@ -25,6 +25,7 @@ import {
 import UrlToast from "@/components/url-toast";
 import QuestionImageField from "../../_components/QuestionImageField";
 import { LEARN } from "@/lib/learn-guides";
+import { ApprovalPanel } from "./approval-panel";
 
 type TestRow = {
   id: string;
@@ -163,7 +164,7 @@ function failTo(testId: string, message: string): never {
   redirect(`/admin/exams/tests/${testId}?toast=${encodeURIComponent(message)}&toast_type=error`);
 }
 
-const FROZEN_MESSAGE = "Students have already sat this test, so its questions are locked.";
+const FROZEN_MESSAGE = "Learners have already sat this test, so its questions are locked.";
 const NO_DB_MESSAGE = "Database is not configured.";
 
 async function checkTestFrozen(supabase: ReturnType<typeof getSupabaseServerClient>, testId: string): Promise<boolean> {
@@ -199,7 +200,8 @@ export default async function AdminExamTestDetailPage({
   const isFrozen = await checkTestFrozen(supabase, id);
 
   const [{ data: testData }, { data: questionsData }] = await Promise.all([
-    supabase.from("exam_tests").select("id, name, description, duration_minutes, subject_id, created_by").eq("id", id).maybeSingle(),
+    // "*" so the page still loads before the 24 Nov 2026 approval columns exist.
+    supabase.from("exam_tests").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("exam_questions")
       // "*" so the page still loads before the image_url column migration has been run.
@@ -212,7 +214,16 @@ export default async function AdminExamTestDetailPage({
   if (!test) return null;
 
   // A teacher can only open the tests of subjects they teach (the database blocks the questions anyway).
-  if (!canManageTest(await getTeacherAccess(supabase), test)) {
+  const teacherAccess = await getTeacherAccess(supabase);
+  const { data: viewerProfile } = teacherAccess.userId
+    ? await supabase.from("profiles").select("role").eq("id", teacherAccess.userId).maybeSingle()
+    : { data: null };
+  const viewerRole = (viewerProfile as { role?: string } | null)?.role ?? "";
+  const isAdmin = viewerRole === "admin" || viewerRole === "super_admin";
+  if (!isAdmin && !teacherAccess.isTeacher) {
+    redirect(`/admin?toast=${encodeURIComponent("Only admins and the subject's teachers can open exam questions.")}&toast_type=error`);
+  }
+  if (!canManageTest(teacherAccess, test)) {
     redirect(`/admin/exams/tests?toast=${encodeURIComponent("You are not assigned to this test's subject")}&toast_type=error`);
   }
 
@@ -332,10 +343,11 @@ export default async function AdminExamTestDetailPage({
     const supabase = getSupabaseServerClient();
     if (!supabase) failTo(id, NO_DB_MESSAGE);
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("exam_tests")
       .update({ name, duration_minutes: Math.round(durationMinutes) })
       .eq("id", id);
+    if (updateError) failTo(id, updateError.message);
 
     revalidatePath(`/admin/exams/tests/${id}`);
     revalidatePath("/admin/exams/tests");
@@ -466,7 +478,7 @@ export default async function AdminExamTestDetailPage({
       failTo(id, questionError.message.includes("image_url") ? IMAGE_COLUMN_MISSING : `Could not save the question: ${questionError.message}`);
     }
 
-    await supabase
+    const { error: solutionError } = await supabase
       .from("exam_question_solutions")
       .upsert(
         {
@@ -476,6 +488,7 @@ export default async function AdminExamTestDetailPage({
         },
         { onConflict: "question_id" }
       );
+    if (solutionError) failTo(id, `Could not save the answer: ${solutionError.message}`);
 
     revalidatePath(`/admin/exams/tests/${id}`);
   }
@@ -494,7 +507,8 @@ export default async function AdminExamTestDetailPage({
     if (!questionId) failTo(id, "Question not found.");
 
     // Delete question cascades to Solutions automatically
-    await supabase.from("exam_questions").delete().eq("id", questionId).eq("test_id", id);
+    const { error: deleteError } = await supabase.from("exam_questions").delete().eq("id", questionId).eq("test_id", id);
+    if (deleteError) failTo(id, deleteError.message);
 
     revalidatePath(`/admin/exams/tests/${id}`);
   }
@@ -577,19 +591,28 @@ export default async function AdminExamTestDetailPage({
       />
 
       {isFrozen && (
-        <Alert tone="warning" title="Exam record frozen">
-          This exam has already been administered to classes and has recorded student attempts. Questions have been locked to
-          preserve the absolute integrity of historical exam records and grades.
+        <Alert tone="warning" title="Questions locked">
+          Learners have already sat this test, so its questions can&apos;t be changed: their answers and marks depend on them. To set a
+          new paper, use Duplicate on the Tests page.
         </Alert>
       )}
 
       {error === "cannot_delete_taken_question" ? (
         <Alert tone="danger" title="Cannot delete question">
-          Students have already taken this exam and submitted answers for this question. Deleting it would corrupt their grades.
+          Learners have already taken this exam and submitted answers for this question. Deleting it would corrupt their grades.
           If you no longer want this question to be active, uncheck the <strong className="font-semibold">&quot;Active&quot;</strong>{" "}
           checkbox and save instead.
         </Alert>
       ) : null}
+
+      <ApprovalPanel
+        supabase={supabase}
+        test={test as unknown as Parameters<typeof ApprovalPanel>[0]["test"]}
+        questions={questions.map((q) => ({ id: q.id, prompt: q.prompt, question_type: q.question_type, active: q.active }))}
+        answeredIds={new Set(solutions.filter((x) => x.correct_answer !== null && x.correct_answer !== undefined).map((x) => x.question_id))}
+        isAdmin={isAdmin}
+        canSend
+      />
 
       {/* Test details */}
       <Card>

@@ -227,7 +227,7 @@ export default async function AccountsPage({
       createdLabel: p.account_created_at ? formatLagosDate(p.account_created_at) : null,
       warning:
         p.account_count > 1
-          ? `${p.account_count} sign-ins are linked to this pupil.`
+          ? `${p.account_count} sign-ins are linked to this learner.`
           : p.user_id && p.login_matches_number === false
             ? "This account signs in with an old number. Reset the password to see it, or ask the developer."
             : null,
@@ -270,7 +270,7 @@ export default async function AccountsPage({
 
   const base = { q: sp.q, class_id: classFilter || undefined, show: show || undefined };
   const tabs = [
-    { key: "pupils", label: "Pupils", href: href({ tab: "pupils" }), count: onRoll.length },
+    { key: "pupils", label: "Learners", href: href({ tab: "pupils" }), count: onRoll.length },
     { key: "parents", label: "Parents", href: href({ tab: "parents" }), count: parents.length },
     { key: "unlinked", label: "No owner", href: href({ tab: "unlinked" }), count: unlinked.length },
     { key: "format", label: "Number format", href: href({ tab: "format" }) },
@@ -300,11 +300,11 @@ export default async function AccountsPage({
         learn={LEARN.accounts}
         eyebrow="Admin"
         title="Accounts and admission numbers"
-        description="Every pupil's admission number and portal sign-in, and every parent's, in one place. Create missing accounts, give new temporary passwords and print login slips."
+        description="Every learner's admission number and portal sign-in, and every parent's, in one place. Create missing accounts, give new temporary passwords and print login slips."
         className="print:hidden"
         actions={
           <ButtonLink href="/admin/students/new" variant="secondary">
-            Add a pupil
+            Add a learner
           </ButtonLink>
         }
       />
@@ -324,7 +324,7 @@ export default async function AccountsPage({
       </Alert>
 
       {clashes.length ? (
-        <Alert tone="danger" title={`${clashes.length} admission number${clashes.length === 1 ? " is" : "s are"} shared by more than one pupil`} className="print:hidden">
+        <Alert tone="danger" title={`${clashes.length} admission number${clashes.length === 1 ? " is" : "s are"} shared by more than one learner`} className="print:hidden">
           <ul className="mt-1 space-y-1">
             {clashes.map((c) => (
               <li key={c.admission_key}>
@@ -348,7 +348,7 @@ export default async function AccountsPage({
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 print:hidden">
         <StatCard
-          label="Pupils with an account"
+          label="Learners with an account"
           value={`${pupilsWithAccount} of ${onRoll.length}`}
           hint={`${pupilsNeverSignedIn} never signed in`}
           icon={Users}
@@ -363,7 +363,7 @@ export default async function AccountsPage({
           href={href({ tab: "parents", show: "no_account" })}
         />
         <StatCard
-          label="Pupils without a number"
+          label="Learners without a number"
           value={pupilsNoNumber}
           hint={nextNumber ? `Next number: ${nextNumber}` : "Set the format first"}
           icon={Hash}
@@ -373,7 +373,7 @@ export default async function AccountsPage({
         <StatCard
           label="Accounts with no owner"
           value={unlinked.length}
-          hint="Not linked to a pupil or parent"
+          hint="Not linked to a learner or parent"
           icon={UserX}
           tone={unlinked.length ? "rose" : "slate"}
           href={href({ tab: "unlinked" })}
@@ -437,7 +437,7 @@ export default async function AccountsPage({
               <form action={assignNumbersAction} className="flex flex-col gap-3 rounded-xl bg-brand-gold-50 px-4 py-3 text-sm ring-1 ring-brand-gold-200 sm:flex-row sm:items-center print:hidden">
                 <Hash className="hidden h-4 w-4 shrink-0 text-brand-gold-700 sm:block" aria-hidden="true" />
                 <span className="flex-1 text-slate-800">
-                  {pupilsNoNumber} pupil{pupilsNoNumber === 1 ? " has" : "s have"} no admission number, so they can&apos;t
+                  {pupilsNoNumber} learner{pupilsNoNumber === 1 ? " has" : "s have"} no admission number, so they can&apos;t
                   have a portal account yet.{nextNumber ? ` Numbers start from ${nextNumber}, oldest record first.` : ""}
                 </span>
                 <SubmitButton size="sm" pendingText="Giving numbers…">
@@ -448,7 +448,7 @@ export default async function AccountsPage({
 
             {tab === "pupils" && loginMismatch.length ? (
               <Alert tone="warning" className="print:hidden">
-                {loginMismatch.length} pupil account{loginMismatch.length === 1 ? " still signs" : "s still sign"} in with an
+                {loginMismatch.length} learner account{loginMismatch.length === 1 ? " still signs" : "s still sign"} in with an
                 older number (made before numbers moved with the sign-in). They&apos;re marked below.
               </Alert>
             ) : null}
@@ -457,7 +457,7 @@ export default async function AccountsPage({
               <EmptyState
                 icon={Users}
                 title="Nobody matches"
-                description={q || show || classFilter ? "Try another search or filter." : tab === "pupils" ? "No pupils on roll yet." : "No parent records yet."}
+                description={q || show || classFilter ? "Try another search or filter." : tab === "pupils" ? "No learners on roll yet." : "No parent records yet."}
                 action={
                   q || show || classFilter ? (
                     <ButtonLink href={href({ tab })} variant="secondary" size="sm">
@@ -477,7 +477,7 @@ export default async function AccountsPage({
             )}
             {tab === "pupils" ? (
               <p className="text-xs text-slate-500 print:hidden">
-                Pupils sign in with their admission number. If you change a pupil&apos;s number on their page, their
+                Learners sign in with their admission number. If you change a learner&apos;s number on their page, their
                 sign-in changes with it and their password stays the same.
               </p>
             ) : (
@@ -493,7 +493,7 @@ export default async function AccountsPage({
         <Card>
           <CardHeader
             title="Accounts with no owner"
-            description="Parent and pupil sign-ins not linked to any record. Link each one to the right person, or leave it: it can't see anything until it is linked."
+            description="Parent and learner sign-ins not linked to any record. Link each one to the right person, or leave it: it can't see anything until it is linked."
           />
           <CardBody>
             {unlinked.length === 0 ? (
@@ -506,7 +506,7 @@ export default async function AccountsPage({
                       <div className="font-medium text-slate-900">{u.full_name || "No name"}</div>
                       <div className="break-all font-mono text-xs text-slate-600">{u.email}</div>
                       <div className="text-xs text-slate-500">
-                        {isAdmissionLoginEmail(u.email) ? "Pupil sign-in" : u.role === "student" ? "Pupil" : "Parent"} · made{" "}
+                        {isAdmissionLoginEmail(u.email) ? "Learner sign-in" : u.role === "student" ? "Learner" : "Parent"} · made{" "}
                         {formatLagosDate(u.created_at)} · {signInLabel(u.last_sign_in_at)}
                       </div>
                     </div>
@@ -540,7 +540,7 @@ export default async function AccountsPage({
           <Card>
             <CardHeader
               title="Admission number format"
-              description="New pupils get the next number in this format when they are enrolled. Only the developers can change it: admins can ask below."
+              description="New learners get the next number in this format when they are enrolled. Only the developers can change it: admins can ask below."
             />
             <CardBody>
               {!settings ? (
@@ -558,8 +558,8 @@ export default async function AccountsPage({
                     <dt className="text-slate-500">Year</dt>
                     <dd className="text-slate-900">
                       {settings.year_basis === "session"
-                        ? `The year the school session started (session starts in ${MONTHS[settings.session_start_month - 1]}): a pupil joining in January for that session gets the earlier year`
-                        : "The calendar year the pupil is enrolled"}
+                        ? `The year the school session started (session starts in ${MONTHS[settings.session_start_month - 1]}): a learner joining in January for that session gets the earlier year`
+                        : "The calendar year the learner is enrolled"}
                     </dd>
                     <dt className="text-slate-500">Running number</dt>
                     <dd className="text-slate-900">
@@ -574,7 +574,7 @@ export default async function AccountsPage({
                       </>
                     ) : null}
                     <dt className="text-slate-500">Given</dt>
-                    <dd className="text-slate-900">{settings.auto_assign ? "Automatically when a pupil is enrolled" : "Typed in by hand"}</dd>
+                    <dd className="text-slate-900">{settings.auto_assign ? "Automatically when a learner is enrolled" : "Typed in by hand"}</dd>
                     <dt className="text-slate-500">Last changed</dt>
                     <dd className="text-slate-900">{formatLagosDate(settings.updated_at)}</dd>
                   </dl>
@@ -629,7 +629,7 @@ export default async function AccountsPage({
             <Card>
               <CardHeader
                 title="Ask the developers for a change"
-                description="Changing the format affects every new pupil from then on, so a developer checks it first. Existing numbers never change."
+                description="Changing the format affects every new learner from then on, so a developer checks it first. Existing numbers never change."
               />
               <CardBody>
                 <details className="group" open={sp.ask === "1" || undefined}>
@@ -694,7 +694,7 @@ export default async function AccountsPage({
                     <label className="flex items-start gap-3 text-sm text-slate-700">
                       <input type="checkbox" name="auto_assign" defaultChecked={settings.auto_assign} className="mt-0.5 h-5 w-5 rounded border-slate-300 text-brand-green focus:ring-brand-green" />
                       <span>
-                        <strong>Give numbers automatically</strong> when a pupil is enrolled.
+                        <strong>Give numbers automatically</strong> when a learner is enrolled.
                       </span>
                     </label>
                     <Field label="Why should it change?" htmlFor="fmt-reason" hint="The developers read this before deciding. Your name is recorded with the request.">
