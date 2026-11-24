@@ -1,4 +1,5 @@
 import { Sparkles, Star } from "lucide-react";
+import { HELP } from "@/lib/portal-help";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { firstOrNull } from "@/lib/relations";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -189,6 +190,7 @@ export default async function PortalActivitiesPage({
   return (
     <div className="space-y-6">
       <PortalPageHeader
+        help={HELP.activities}
         title="Clubs & activities"
         description={
           childName

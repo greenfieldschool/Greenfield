@@ -139,7 +139,7 @@ export default async function AdminFinanceDebtorsPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        learn={LEARN.recordingPayments}
+        learn={LEARN.financeOverview}
         back={{ href: "/admin/finance", label: "Back to finance" }}
         eyebrow="Finance"
         title="Debtors"

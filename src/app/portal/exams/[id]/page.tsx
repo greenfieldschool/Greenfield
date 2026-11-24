@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { HELP } from "@/lib/portal-help";
 import { CheckCircle2, Clock, EyeOff, FileQuestion, Hourglass, Lock, PlayCircle, Save, Wifi } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import ExamGuardClient from "./ExamGuardClient";
@@ -193,6 +194,7 @@ export default async function PortalExamRunnerPage({
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PortalPageHeader
+        help={HELP.exams}
         back={{ href: "/portal/exams", label: "Exams" }}
         title={test?.name ?? "Exam"}
         description={

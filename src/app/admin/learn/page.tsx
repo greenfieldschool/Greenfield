@@ -39,6 +39,42 @@ export default function AdminLearnCentrePage() {
       tone: "blue",
       guides: [
         {
+          id: LEARN.gettingStarted,
+          name: "Getting Around the Staff Dashboard",
+          page: { href: "/admin", label: "Dashboard" },
+          steps: [
+            "The Dashboard (the first page after you sign in) shows today at a glance: current learners and classes, applications to review, exams open now, today's attendance, and for admins the money collected this month and fees outstanding. The buttons at the top go straight to the most common jobs.",
+            "The menu on the left (the ☰ button on a phone) groups the pages by area. You only see the pages your role can open; admins see everything. The line at the top of each page shows where you are and takes you back up a level.",
+            "Most pages have a 'How this works' link under the title. It opens the matching guide here. Every page that applies a school rule has a 'School policy' link that opens that part of the policy.",
+            "After you save, a short message at the top right says what happened, or what to fix. Nothing you type is lost when something needs fixing.",
+            "Search this Learn Centre with the box at the top. Guides marked 'Admins' are for admins only.",
+            "Sign out from the menu under your name (top right) when you use a shared computer."
+          ]
+        },
+        {
+          id: LEARN.profile,
+          name: "Your Profile, Password and Signature",
+          page: { href: "/admin/profile", label: "My profile" },
+          steps: [
+            "Open My profile from the menu under your name. Add a profile photo (drag it in or upload) and check your name: it appears on messages, records you change and the histories other staff see.",
+            "Draw your signature once under 'Your signature'. Class teachers' signatures go on their own classes' certificates. An admin chooses whose signature goes on the head teacher's line under Settings.",
+            "To change your password, open Change password from the same menu. Choose one you don't use anywhere else. If you've forgotten it, ask an admin: on Staff & users they can make a one-time sign-in link for you. Sign in with it, then choose a new password here. Nobody can see your password.",
+            "Turn emails about messages, spending requests or exam questions on or off with the 'Stop these emails' link in any of those emails, or in Messages → Settings for message emails."
+          ]
+        },
+        {
+          id: LEARN.careers,
+          name: "Job Posts and Job Applications",
+          page: { href: "/admin/careers", label: "Job posts" },
+          adminOnly: true,
+          steps: [
+            "Careers → Job posts lists the jobs on the website's Careers page. 'New job' opens a form: title, summary, location, employment type, who it reports to and pay (optional), responsibilities and requirements (one per line), and how to apply (email, link or WhatsApp).",
+            "The web address of a job comes from its Slug (for example 'class-teacher-primary'). Keep it short; changing it later breaks links people have shared.",
+            "A job shows on the website only once it is published. Unpublish it when the post is filled; it stays here for next time.",
+            "Careers → Job applications lists everyone who applied on the website, newest first. Open one to read it and download the CV. Applications hold personal details: don't forward them outside the school."
+          ]
+        },
+        {
           id: LEARN.policies,
           name: "School Policies (reading them, where they show, changing them)",
           page: { href: "/admin/policies", label: "School policies" },
@@ -241,6 +277,19 @@ export default function AdminLearnCentrePage() {
             "To give more time: tick 'Add time' on the learners who need it (or choose 'Everyone who hasn't handed in'), pick how many minutes (5 to 30 at a time, up to 2 hours in all) and why: started late, an interruption, agreed extra time for a learner's needs, or another reason with a note. Every unlock and every minute added is recorded with your name and reason.",
             "At the end of the exam: 'Hand in everyone' hands in all learners still writing, with the answers they saved. If nobody presses it, the school does it 2 hours after the session's end date (so an end date set too early can still be moved first).",
             "A hand-in by the school is not final: 'Let back in' on the learner's row (with a reason) lets them carry on with their answers and the time they had, as long as the session is still open (move its end date first if needed). A learner who pressed Submit themselves, or whose time ran out, stays handed in."
+          ]
+        },
+        {
+          id: LEARN.conductors,
+          name: "Exam Conductors (the invigilators)",
+          page: { href: "/admin/exams/conductors", label: "Conductors" },
+          steps: [
+            "A conductor is the person who supervises an exam in the hall: they unlock learners whose exam locked, add time and hand everyone in at the end. Staff can do all of this already; conductors are for anyone else, or for giving a member of staff a simple room-only view.",
+            "Open Exams → Conductors and add the conductor's name, and their email and phone if you have them.",
+            "Link the conductor to the sign-in account they will use: choose it from the list next to their name. They need an account first; an admin can create one under Staff & users. A conductor who is not linked can't sign in to the exam room.",
+            "Assign conductors to each session: open the session, then 'Conductors', and tick who is supervising. A conductor only sees the sessions they are assigned to.",
+            "Conductors sign in at /conductor/login and open their session. There they see who is writing, who is locked and why, and each learner's time left, and can unlock, add time with a reason, hand everyone in, or let back in a learner the school handed in too early. Every action is recorded with their name.",
+            "Conductors never see the questions or the answers, and can't change marks."
           ]
         },
         {
@@ -468,6 +517,19 @@ export default function AdminLearnCentrePage() {
       icon: Wallet,
       tone: "gold",
       guides: [
+        {
+          id: LEARN.financeOverview,
+          name: "Finance at a Glance: Overview and Debtors",
+          page: { href: "/admin/finance/debtors", label: "Debtors" },
+          adminOnly: true,
+          steps: [
+            "Finance → Overview shows the totals invoiced, paid and outstanding, recent payments and expenses, with links to each area.",
+            "Finance → Debtors answers 'who owes what': the total outstanding, invoiced and paid, and how many learners owe. 'By class' lists each class's invoiced, paid and outstanding amounts; open a class to list its debtors with their parent or guardian.",
+            "Use the debtors list to follow up: the parent's name and phone are shown, with a WhatsApp link that opens a ready-written reminder. Before calling, check Payments for anything paid but not yet matched (bank statements and payment IDs).",
+            "A learner on a payment plan is not overdue while they keep to the plan's dates. Missed plan payments are listed under Finance → Payment plans, where the default fee is added or waived.",
+            "Learners who still owe when report cards are published see their report card held on the portal until fees are paid (Report cards and unpaid fees)."
+          ]
+        },
         {
           id: LEARN.feeSetup,
           name: "Setting Up Fees (fee types, components and schedules)",
@@ -733,6 +795,19 @@ export default function AdminLearnCentrePage() {
           ]
         },
         {
+          id: LEARN.familyAlerts,
+          name: "What Families Are Told Automatically",
+          page: { href: "/admin/announcements", label: "Announcements" },
+          steps: [
+            "Parents and learners get a notice on the portal (the bell), on their phone if they turned alerts on, and parents also by email. Learners never get email.",
+            "Learners and their parents are told when: work is set and when it is marked (assignments and classwork); a lesson note is published; an online class is scheduled, moved, cancelled or back on; a learner is chosen as star of the week.",
+            "Parents only are told when: a discipline case is recorded or the disciplinary committee decides (the notice only says 'A note from school about …', so nothing private shows on a phone's lock screen); a payment plan is set up on paper; a default fee is added for a missed plan payment.",
+            "By email: a new private message or class announcement (at most one per conversation every two hours, and not if already read), a reply from the school office, and school announcements sent from Announcements.",
+            "Staff are emailed about spending requests waiting for them and about their exam questions being approved or sent back. Staff get no bell notices; the Messages badge shows unread messages.",
+            "Everyone can turn emails off with the link in each email; parents choose under Notifications on the portal."
+          ]
+        },
+        {
           id: LEARN.email,
           name: "Email to Parents (Gmail)",
           page: { href: "/admin/settings#email", label: "Settings → Email" },
@@ -742,7 +817,8 @@ export default function AdminLearnCentrePage() {
             "Message alerts go to whoever receives the message, staff too: at most one per conversation every two hours, never if it's already been read, and they say who wrote, not what. The class parents' chat never sends emails.",
             "Setting up is done once by whoever looks after the website (docs/email-setup.md). Then, in Settings → Email (Gmail), click 'Connect Gmail', sign in as the school account and allow sending. The website can only send; it can't read the mailbox.",
             "Settings → Email shows how many were sent in the last 24 hours (of the daily limit), how many are waiting and how many couldn't be sent. 'Send me a test email' checks it works; 'Reconnect' fixes an expired connection; 'Disconnect' stops all emails (they wait until it's connected again).",
-            "Every parent chooses their emails on the portal (Notifications → Email me about) and every email has a 'Stop these emails' link. Staff switch message emails on or off in Messages → Settings."
+            "Every parent chooses their emails on the portal (Notifications → Email me about) and every email has a 'Stop these emails' link. Staff switch message emails on or off in Messages → Settings.",
+            "Staff also get emails about spending requests and about their exam questions (approved or sent back). Until 24 November 2026 message emails were not being sent at all because of a fault; they now are, so staff and parents may notice them for the first time."
           ]
         },
         {

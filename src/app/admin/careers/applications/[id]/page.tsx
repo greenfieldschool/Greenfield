@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { LEARN } from "@/lib/learn-guides";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import SubmitButton from "@/components/submit-button";
@@ -50,7 +51,8 @@ export default async function AdminCareerApplicationDetailPage({ params }: { par
   if (!supabase) {
     return (
       <div className="space-y-6">
-        <PageHeader back={{ href: "/admin/careers/applications", label: "Back" }} eyebrow="Careers" title="Career application" />
+        <PageHeader
+        learn={LEARN.careers} back={{ href: "/admin/careers/applications", label: "Back" }} eyebrow="Careers" title="Career application" />
         <Alert tone="warning">Supabase is not configured.</Alert>
       </div>
     );

@@ -1,5 +1,6 @@
 "use client";
 
+import { LEARN } from "@/lib/learn-guides";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -116,7 +117,8 @@ export default function AdminChangePasswordPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow={roleLabel} title="Change password" description="Update the password for your staff account." />
+      <PageHeader
+        learn={LEARN.profile} eyebrow={roleLabel} title="Change password" description="Update the password for your staff account." />
 
       <form onSubmit={onSubmit} className="max-w-2xl">
         <FormSection

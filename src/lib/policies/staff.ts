@@ -7,9 +7,9 @@ export const staffPolicy: PolicyDoc = {
   key: "staff",
   title: "Staff Policy",
   readers: "Every member of staff at Greenfield School",
-  version: "2026/27 draft 1",
-  approvedBy: null,
-  approvedOn: null,
+  version: "2026/27",
+  approvedBy: "School management",
+  approvedOn: "2026-11-24",
   reviewBy: "2027-08-31",
   parts: [
     {

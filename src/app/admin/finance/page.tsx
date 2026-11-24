@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LEARN } from "@/lib/learn-guides";
 import {
   ArrowRight,
   FileText,
@@ -68,9 +69,10 @@ export default async function AdminFinancePage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        learn={LEARN.financeOverview}
         eyebrow="Finance"
         title="Overview"
-        description="Track invoices, payments, expenses, budgets, and debtors. More dashboards will appear here as we build out the module."
+        description="Invoices, payments, expenses, budgets and debtors at a glance."
         actions={
           <>
             <ButtonLink href="/admin/finance/invoices/new" variant="secondary">

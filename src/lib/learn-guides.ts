@@ -50,6 +50,12 @@ export const LEARN = {
   announcements: "announcements",
   email: "email",
   managementPack: "management-pack",
+  gettingStarted: "getting-started",
+  profile: "your-profile",
+  careers: "careers",
+  conductors: "exam-conductors",
+  financeOverview: "finance-overview",
+  familyAlerts: "family-alerts",
   starVideos: "star-videos",
   policies: "school-policies",
   paymentPlans: "payment-plans"

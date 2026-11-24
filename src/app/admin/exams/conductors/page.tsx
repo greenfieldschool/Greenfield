@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { LEARN } from "@/lib/learn-guides";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { Link2, UserPlus, UsersRound } from "lucide-react";
 import SubmitButton from "@/components/submit-button";
@@ -88,10 +89,11 @@ export default async function AdminExamConductorsPage() {
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.conductors}
         back={{ href: "/admin/exams", label: "Back to exams" }}
         eyebrow="Exams"
         title="Conductors"
-        description="Create conductors and link them to auth user accounts."
+        description="The invigilators who run exam rooms. Add each one and link them to the account they sign in with."
         actions={
           <a href="#new-conductor" className={buttonClasses({ variant: "primary" })}>
             <UserPlus className="h-4 w-4" aria-hidden="true" />

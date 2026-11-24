@@ -45,11 +45,6 @@ export const POLICY_SUGGESTIONS: PolicySuggestion[] = [
     proposal: "Have a lawyer check the list. Until then show it as policy, and record each case with the staff member's reply, but don't deduct automatically."
   },
   {
-    title: "New sections to check (added 23 Nov 2026)",
-    why: "The policy had nothing on safeguarding, bullying, personal data, refunds, phones or using the portal. Draft sections are now in both policies, with these choices still to confirm.",
-    proposal: "Check: the Head Teacher as safeguarding lead; reports looked into within 2 school days; phones handed in at the front desk; teachers reply to messages within 2 school days; records other than admission, report cards and results deleted 6 years after a learner leaves; refunds within 30 days, none once a term has started, caution fee returned less damage. Add a deadline for parents' appeals to the Proprietress if wanted."
-  },
-  {
     title: "Pre-school examinations",
     why: "The Procedures Act leaves the number of questions for Reception and Nursery blank.",
     proposal: "Set the format for Reception and Nursery, or say they are assessed by practical tasks like the crèche."

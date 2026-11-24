@@ -140,6 +140,19 @@ export default async function PortalHelpPage() {
           )
         },
         {
+          id: HELP.refunds,
+          q: "Can I get a refund?",
+          for: "parent",
+          a: (
+            <p>
+              Fees are for a whole term, so a term that has started isn&apos;t refunded. Money paid for a term that hasn&apos;t started, or paid twice by
+              mistake, is refunded (or kept for next term if you prefer); the caution fee is returned when your child leaves, less any damage. Ask in
+              writing at the office or by message to the school office on the portal; the school pays within 30 days to the account that paid. The full
+              rules are in the <A href="/portal/policies#refunds">school policy</A>.
+            </p>
+          )
+        },
+        {
           id: HELP.paidNotShowing,
           q: "I have paid, but it still shows that I owe",
           a: (
@@ -479,6 +492,24 @@ export default async function PortalHelpPage() {
       ]
     },
     {
+      id: HELP.activities,
+      title: "Clubs and activities",
+      icon: Star,
+      questions: [
+        {
+          id: "clubs",
+          q: audience === "parent" ? "What does Clubs & activities show?" : "Which clubs am I in?",
+          a: (
+            <p>
+              <A href="/portal/activities">Clubs &amp; activities</A> lists the clubs and activities {audience === "parent" ? "your child is" : "you are"} signed up
+              for, such as quiz, debate and career clubs. To join or leave one, speak to the class teacher or the school office. The school policy explains
+              the <A href="/portal/policies#clubs">clubs</A>.
+            </p>
+          )
+        }
+      ]
+    },
+    {
       id: HELP.starVideos,
       title: "Star videos",
       icon: Star,
@@ -572,6 +603,17 @@ export default async function PortalHelpPage() {
               answers are saved and your clock stops while you are locked. Raise your hand: the supervisor unlocks you and the page opens again by
               itself. If you were signed out, sign in again with your own details. The clock shows the time you have left, and your answers are
               handed in automatically when it reaches zero.
+            </p>
+          )
+        },
+        {
+          id: "exam-handed-in",
+          q: "My answers were handed in before I finished",
+          a: (
+            <p>
+              Answers are handed in when your time runs out, or by the school at the end of the exam or after the exam&apos;s last day. Everything you saved
+              counts. If the school handed you in too early, the supervisor can let you back in to carry on with the time you had left, as long as the exam
+              is still open. If you pressed Submit yourself, your answers are final.
             </p>
           )
         },

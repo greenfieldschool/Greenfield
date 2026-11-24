@@ -1,4 +1,5 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { LEARN } from "@/lib/learn-guides";
 import { revalidatePath } from "next/cache";
 import StaffPhotoUploader from "./StaffPhotoUploader";
 import UrlToast from "@/components/url-toast";
@@ -75,7 +76,8 @@ export default async function AdminProfilePage() {
   return (
     <div className="space-y-6">
       <UrlToast />
-      <PageHeader eyebrow={roleLabel} title="Profile" description="Manage your staff profile details." />
+      <PageHeader
+        learn={LEARN.profile} eyebrow={roleLabel} title="Profile" description="Manage your staff profile details." />
 
       {userId ? (
         <div className="grid gap-6 lg:grid-cols-3">

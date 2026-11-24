@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LEARN, learnHref } from "@/lib/learn-guides";
 import {
   ArrowRight,
   CalendarCheck,
@@ -83,7 +84,12 @@ export default function DashboardView({ data }: { data: DashboardData }) {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
           {greeting()}, {data.greetingName} <span aria-hidden="true">👋</span>
         </h1>
-        <p className="text-sm text-slate-600">Here&apos;s what&apos;s happening at Greenfield today.</p>
+        <p className="text-sm text-slate-600">
+          Here&apos;s what&apos;s happening at Greenfield today.{" "}
+          <a href={learnHref(LEARN.gettingStarted)} className="gf-link">
+            How the dashboard works
+          </a>
+        </p>
       </div>
 
       {/* Key numbers */}

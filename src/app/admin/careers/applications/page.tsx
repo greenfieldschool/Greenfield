@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LEARN } from "@/lib/learn-guides";
 import { ExternalLink, FileCheck2, Inbox } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/page-header";
@@ -40,7 +41,8 @@ export default async function AdminCareerApplicationsPage() {
   if (!supabase) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="Careers" title="Career applications" />
+        <PageHeader
+        learn={LEARN.careers} eyebrow="Careers" title="Career applications" />
         <Alert tone="warning">Supabase is not configured.</Alert>
       </div>
     );

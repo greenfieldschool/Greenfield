@@ -20,6 +20,8 @@ export const HELP = {
   lessonNotes: "lesson-notes",
   onlineClasses: "online-classes",
   starVideos: "star-videos",
+  activities: "activities",
+  refunds: "refunds",
   notifications: "notifications",
   policies: "school-policy",
   paymentPlans: "payment-plans"

@@ -29,6 +29,11 @@ description: Use when a change touches anything the school's policies decide (sc
   Proprietress" files are the newest; "Procedures Act" (2016) is older but the only source for duties, subject
   categories, exam format and staff penalties.
 
+## Approval
+Both policies are version "2026/27", approved by School management on 24 Nov 2026 (the user chose that wording).
+Families see them on the portal and the "School policy" links show there. A change to the text needs a new version
+and approval again (Steps below).
+
 ## Decisions already made (22 Nov 2026, by the user)
 | Topic | Decision |
 |---|---|
@@ -52,8 +57,7 @@ description: Use when a change touches anything the school's policies decide (sc
 
 Open questions for the school are `POLICY_SUGGESTIONS` (shown to admins). Remove one once it's decided.
 
-Draft sections added 23 Nov 2026 at the user's request, not yet confirmed by the Proprietress (listed in the
-"New sections to check" suggestion): families `safeguarding`, `anti-bullying`, `phones-devices`,
+Sections added 23 Nov 2026 at the user's request and approved with the rest on 24 Nov 2026: families `safeguarding`, `anti-bullying`, `phones-devices`,
 `using-the-portal`, `personal-data` (part "Safety and wellbeing") and `refunds` (fees); staff `staff-safeguarding`,
 `staff-data`, `staff-devices` (part "Safeguarding, personal data and devices"). The numbers in them (2 school days,
 30 days, 6 years, 72 hours from the NDPA) must match any feature built on them.

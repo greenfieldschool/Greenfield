@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import { LEARN } from "@/lib/learn-guides";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
@@ -17,7 +18,8 @@ export default async function AdminCareerJobEditPage({ params }: Props) {
   if (!supabase) {
     return (
       <div className="space-y-6">
-        <PageHeader back={{ href: "/admin/careers", label: "Back" }} eyebrow="Careers" title="Careers" />
+        <PageHeader
+        learn={LEARN.careers} back={{ href: "/admin/careers", label: "Back" }} eyebrow="Careers" title="Careers" />
         <Alert tone="warning">Supabase is not configured.</Alert>
       </div>
     );

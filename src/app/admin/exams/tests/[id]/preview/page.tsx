@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LEARN } from "@/lib/learn-guides";
 import { canManageTest, getTeacherAccess } from "@/lib/teacher-access";
 import { redirect } from "next/navigation";
 import { Clock, ListChecks } from "lucide-react";
@@ -101,6 +102,7 @@ export default async function AdminExamTestPreviewPage({ params }: { params: Pro
   return (
     <div className="space-y-6">
       <PageHeader
+        learn={LEARN.tests}
         back={{ href: `/admin/exams/tests/${id}`, label: "Back to editor" }}
         eyebrow="Exams"
         title={`Preview: ${test.name}`}

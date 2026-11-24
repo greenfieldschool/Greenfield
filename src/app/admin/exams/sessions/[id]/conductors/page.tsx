@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LEARN } from "@/lib/learn-guides";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -107,6 +108,7 @@ export default async function AdminExamSessionConductorsPage({
     <div className="space-y-6">
       <UrlToast />
       <PageHeader
+        learn={LEARN.conductors}
         back={{ href: "/admin/exams/sessions", label: "Back to sessions" }}
         eyebrow="Exams"
         title="Assign conductors"

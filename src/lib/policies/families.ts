@@ -7,9 +7,9 @@ export const familiesPolicy: PolicyDoc = {
   key: "families",
   title: "School Policy for Parents and Learners",
   readers: "Parents, guardians and learners of Greenfield School",
-  version: "2026/27 draft 1",
-  approvedBy: null,
-  approvedOn: null,
+  version: "2026/27",
+  approvedBy: "School management",
+  approvedOn: "2026-11-24",
   reviewBy: "2027-08-31",
   parts: [
     {
