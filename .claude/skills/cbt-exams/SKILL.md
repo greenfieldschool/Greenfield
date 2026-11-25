@@ -104,6 +104,24 @@ security-and-privacy (who can see questions and answers).
 - A cut-off still locks and needs the conductor's (or staff's) unlock: the user asked to keep that step
   (25 Nov 2026) rather than resume automatically.
 
+## Every session has a class (20261125e_exam_session_class_required.sql, 25 Nov 2026)
+- A session with no class used to mean "every class", so papers scheduled without one were open to the whole school
+  (10 were on 25 Nov). Now trigger `exam_sessions_need_class` refuses a new session, or taking the class off one,
+  without a class ("Choose the class that sits this exam."). A trigger, not a check constraint, so the school's own
+  functions can still release/close old class-less sessions.
+- Every learner check needs `s.class_id = st.class_id` (`can_student_view_session(_results)`,
+  `can_student_access_session`, `portal_student_exam_sessions`, `learner_sees_test`, `learner_sees_session`).
+  Decided by the user: old sessions with no class are hidden from learners until an admin picks the class.
+  A paper for several classes needs one session per class.
+- Screens: Class is required on both session forms. Staff and conductors still see class-less sessions, flagged, never
+  hidden (the user, 25 Nov): the sessions list and the conductor's list mark "No class: learners can't see it"
+  (use `s.class_id`, not the joined class: teachers can only read their own classes), the list filters
+  `?class_id=none`, `sessionVisibility` says "No class chosen", the Exams overview warns with a count, and the exam
+  room (`ExamRoom`, admin and conductor) shows a red notice.
+- Test: [`exam-session-class-pglite-test.mjs`](exam-session-class-pglite-test.mjs) (19 checks).
+- Speed (20261125d): the "who is asking" part of the exam read rules is `(select public.exam_viewer_kind())`, worked
+  out once per request, and the learner checks are `learner_sees_test` / `learner_sees_session`.
+
 ## Expert review
 Before calling the work done, answer these as an examinations officer with 30+ years (WAEC/NECO-style CBT) would. Where an answer needs a decision the school hasn't made, ask.
 - **Fair to the candidate:** can an interruption that isn't the pupil's fault cost them time or marks?

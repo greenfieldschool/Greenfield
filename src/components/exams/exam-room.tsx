@@ -78,7 +78,7 @@ function TickForTime({ attemptId, name }: { attemptId: string; name: string }) {
 }
 
 export async function ExamRoom({ supabase, sessionId, back }: { supabase: Supabase; sessionId: string; back: string }) {
-  const [{ data: list }, { data: clocks, error }, { data: info }] = await Promise.all([
+  const [{ data: list }, { data: clocks, error }, { data: info }, { data: sessionRow }] = await Promise.all([
     supabase
       .from("exam_attempt_list_v")
       .select("attempt_id, admission_number, first_name, last_name")
@@ -89,8 +89,11 @@ export async function ExamRoom({ supabase, sessionId, back }: { supabase: Supaba
       .from("exam_attempts")
       .select("id, status, locked_at, locked_reason, lock_count, submitted_at, used_seconds, clock_started_at, extra_seconds, unlocked_at, unlock_reason")
       .eq("session_id", sessionId),
-    supabase.rpc("exam_room_info", { p_session: sessionId })
+    supabase.rpc("exam_room_info", { p_session: sessionId }),
+    supabase.from("exam_test_sessions").select("class_id").eq("id", sessionId).maybeSingle()
   ]);
+  // A session with no class is hidden from every learner; staff and conductors must see why.
+  const noClass = !!sessionRow && !(sessionRow as { class_id: string | null }).class_id;
   const duration = ((Array.isArray(info) ? info[0] : info) as { duration_minutes: number | null } | null)?.duration_minutes ?? null;
   const clockById = new Map(((clocks ?? []) as ClockRow[]).map((c) => [c.id, c]));
   const rows = ((list ?? []) as ListRow[]).map((l) => ({ ...l, c: clockById.get(l.attempt_id) ?? null }));
@@ -132,6 +135,12 @@ export async function ExamRoom({ supabase, sessionId, back }: { supabase: Supaba
     <div className="space-y-6">
       <LiveRefresh intervalMs={10000} />
       {error ? <Alert tone="warning">{examRoomError(error.message)}</Alert> : null}
+      {noClass ? (
+        <Alert tone="danger" title="No class chosen: learners can't see or start this exam">
+          An admin or the paper&apos;s teacher must open the session settings and choose the class that sits it. Learners
+          who already started can carry on as soon as the class is set.
+        </Alert>
+      ) : null}
 
       <p className="text-sm text-slate-600" role="status">
         <span className="font-semibold text-slate-900">{writing.length} writing</span> ·{" "}

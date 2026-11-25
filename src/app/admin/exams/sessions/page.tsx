@@ -185,7 +185,7 @@ export default async function AdminExamSessionsPage({
     }
 
     if (classFilter.length > 0) {
-      sessionsQuery = sessionsQuery.eq("class_id", classFilter);
+      sessionsQuery = classFilter === "none" ? sessionsQuery.is("class_id", null) : sessionsQuery.eq("class_id", classFilter);
     }
 
     if (statusFilter.length > 0) {
@@ -238,6 +238,7 @@ export default async function AdminExamSessionsPage({
     const secretCode = String(formData.get("secret_code") ?? "").trim();
 
     if (!testId) failWithToast("/admin/exams/sessions", "Select a test.");
+    if (!classIdRaw) failWithToast("/admin/exams/sessions", "Choose the class that sits this exam.");
     if (startDate && endDate && endDate < startDate) {
       redirect(`/admin/exams/sessions?toast=${encodeURIComponent("End date cannot be before the start date")}&toast_type=error`);
     }
@@ -247,7 +248,7 @@ export default async function AdminExamSessionsPage({
 
     const { error: insertError } = await supabase.from("exam_test_sessions").insert({
       test_id: testId,
-      class_id: classIdRaw.length ? classIdRaw : null,
+      class_id: classIdRaw,
       academic_year_id: yearIdRaw.length ? yearIdRaw : null,
       academic_term_id: termIdRaw.length ? termIdRaw : null,
       starts_at: startDate.length ? lagosStartOfDayIso(startDate) : null,
@@ -331,6 +332,7 @@ export default async function AdminExamSessionsPage({
               <Field label="Class" htmlFor="filter-class">
                 <select id="filter-class" className="gf-select" name="class_id" defaultValue={classFilter}>
                   <option value="">All classes</option>
+                  <option value="none">No class (hidden from learners)</option>
                   {classRows.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.level} - {c.name}
@@ -395,9 +397,11 @@ export default async function AdminExamSessionsPage({
               </select>
               <p className="gf-hint">You can set it open now: learners see it as soon as an admin approves the test.</p>
             </Field>
-            <Field label="Class (optional)" htmlFor="new-class">
-              <select id="new-class" className="gf-select" name="class_id" defaultValue="">
-                <option value="">—</option>
+            <Field label="Class" htmlFor="new-class" required>
+              <select id="new-class" className="gf-select" name="class_id" defaultValue="" required>
+                <option value="" disabled>
+                  Choose the class
+                </option>
                 {classRows.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.level} - {c.name}
@@ -492,7 +496,15 @@ export default async function AdminExamSessionsPage({
                           {test?.name ?? s.test_id}
                         </Link>
                       </td>
-                      <td>{cls ? `${cls.level} - ${cls.name}` : "—"}</td>
+                      <td>
+                        {!s.class_id ? (
+                          <Badge tone="red">No class: learners can&apos;t see it</Badge>
+                        ) : cls ? (
+                          `${cls.level} - ${cls.name}`
+                        ) : (
+                          "Another class"
+                        )}
+                      </td>
                       <td>
                         <div className="text-slate-700">{windowLabel}</div>
                         <div

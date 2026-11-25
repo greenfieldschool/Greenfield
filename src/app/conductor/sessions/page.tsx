@@ -5,11 +5,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonClasses } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { SessionStatusBadge } from "../_components/status-badges";
 
 type SessionRow = {
   id: string;
   test_id: string;
+  class_id: string | null;
   starts_at: string | null;
   ends_at: string | null;
   status: string;
@@ -70,7 +72,7 @@ export default async function ConductorSessionsPage() {
   const { data } = await supabase
     .from("exam_session_conductors")
     .select(
-      "session_id, exam_test_sessions(id, test_id, starts_at, ends_at, status, exam_tests(id, name), classes(id, level, name))"
+      "session_id, exam_test_sessions(id, test_id, class_id, starts_at, ends_at, status, exam_tests(id, name), classes(id, level, name))"
     )
     .eq("conductor_id", link.conductor_id)
     .order("created_at", { ascending: false })
@@ -114,7 +116,15 @@ export default async function ConductorSessionsPage() {
                           {test?.name ?? s.test_id}
                         </Link>
                       </td>
-                      <td>{cls ? `${cls.level} - ${cls.name}` : "—"}</td>
+                      <td>
+                        {!s.class_id ? (
+                          <Badge tone="red">No class: learners can&apos;t see it. Tell an admin</Badge>
+                        ) : cls ? (
+                          `${cls.level} - ${cls.name}`
+                        ) : (
+                          "—"
+                        )}
+                      </td>
                       <td>
                         <SessionStatusBadge status={s.status} />
                       </td>

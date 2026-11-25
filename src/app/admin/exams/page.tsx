@@ -3,6 +3,7 @@ import { ArrowRight, CalendarClock, Clock, FileText, Lock, PlayCircle, UserCheck
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard, toneStyles, type Tone } from "@/components/ui/stat-card";
+import { Alert } from "@/components/ui/alert";
 import { LEARN } from "@/lib/learn-guides";
 import { cn } from "@/lib/cn";
 
@@ -40,6 +41,7 @@ export default async function AdminExamsPage() {
   let waiting: number | null = null;
   let openNow = 0;
   let locked = 0;
+  let noClass = 0;
   if (supabase) {
     const {
       data: { user }
@@ -47,20 +49,28 @@ export default async function AdminExamsPage() {
     const { data: profile } = user ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle() : { data: null };
     role = (profile as { role?: string } | null)?.role ?? "";
     const nowIso = new Date().toISOString();
-    const [w, o, l] = await Promise.all([
+    const [w, o, l, n] = await Promise.all([
       supabase.from("exam_tests").select("id", { count: "exact", head: true }).eq("approval_status", "submitted"),
       supabase
         .from("exam_test_sessions")
         .select("id", { count: "exact", head: true })
         .eq("status", "active")
         .eq("active", true)
+        .not("class_id", "is", null)
         .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
         .or(`ends_at.is.null,ends_at.gte.${nowIso}`),
-      supabase.from("exam_attempts").select("id", { count: "exact", head: true }).not("locked_at", "is", null).is("submitted_at", null)
+      supabase.from("exam_attempts").select("id", { count: "exact", head: true }).not("locked_at", "is", null).is("submitted_at", null),
+      supabase
+        .from("exam_test_sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("active", true)
+        .is("class_id", null)
+        .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
     ]);
     waiting = w.error ? null : (w.count ?? 0);
     openNow = o.count ?? 0;
     locked = l.count ?? 0;
+    noClass = n.count ?? 0;
   }
   const teachesOrAdmin = role === "teacher" || role === "admin" || role === "super_admin";
 
@@ -72,6 +82,20 @@ export default async function AdminExamsPage() {
         title="Exams"
         description="Set and approve tests, open them to classes in sessions, run the exam room, and release results."
       />
+
+      {noClass > 0 ? (
+        <Alert
+          tone="warning"
+          title={`${noClass} ${noClass === 1 ? "session has" : "sessions have"} no class`}
+          action={
+            <Link href="/admin/exams/sessions?class_id=none" className="gf-link text-sm font-semibold">
+              Choose the classes
+            </Link>
+          }
+        >
+          Learners can&apos;t see a session until it has a class. Open each one and pick the class that sits it.
+        </Alert>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-3">
         {teachesOrAdmin && waiting !== null ? (

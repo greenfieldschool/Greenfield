@@ -227,6 +227,7 @@ export default async function AdminExamSessionEditPage({
     const secretCode = asString(formData.get("secret_code")).trim();
 
     if (!testId) failWithToast(`/admin/exams/sessions/${id}`, "Select a test.");
+    if (!classIdRaw) failWithToast(`/admin/exams/sessions/${id}`, "Choose the class that sits this exam.");
     if (startDate && endDate && endDate < startDate) {
       redirect(`/admin/exams/sessions/${id}?toast=${encodeURIComponent("End date cannot be before the start date")}&toast_type=error`);
     }
@@ -238,7 +239,7 @@ export default async function AdminExamSessionEditPage({
       .from("exam_test_sessions")
       .update({
         test_id: testId,
-        class_id: classIdRaw.length ? classIdRaw : null,
+        class_id: classIdRaw,
         academic_year_id: yearIdRaw.length ? yearIdRaw : null,
         academic_term_id: termIdRaw.length ? termIdRaw : null,
         starts_at: startDate.length ? lagosStartOfDayIso(startDate) : null,
@@ -291,7 +292,7 @@ export default async function AdminExamSessionEditPage({
 
       <Alert tone={visibility.visible ? "success" : "warning"} title={<>Learners: {visibility.reason}</>}>
         {visibility.visible
-          ? "Only learners in the selected class, or every class if none is selected."
+          ? "Only learners in the selected class can see it."
           : "Learners can't see this session right now."}
       </Alert>
 
@@ -319,9 +320,11 @@ export default async function AdminExamSessionEditPage({
               <p className="gf-hint">You can set it open now: learners see it as soon as an admin approves the test.</p>
             </Field>
 
-            <Field label="Class (optional)" htmlFor="session-class">
-              <select id="session-class" className="gf-select" name="class_id" defaultValue={session.class_id ?? ""}>
-                <option value="">—</option>
+            <Field label="Class" htmlFor="session-class" required>
+              <select id="session-class" className="gf-select" name="class_id" defaultValue={session.class_id ?? ""} required>
+                <option value="" disabled>
+                  Choose the class
+                </option>
                 {classRows.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.level} - {c.name}

@@ -52,11 +52,14 @@ export type SessionVisibilityInput = {
   ends_at: string | null;
   /** The test's approval: false keeps the session hidden from learners until an admin approves (null = unknown). */
   approved?: boolean | null;
+  /** The class that sits it; a session with no class is hidden from every learner until one is chosen. */
+  class_id?: string | null;
 };
 
 /** Why students can or cannot see a session right now (mirrors the database access rule). */
 export function sessionVisibility(s: SessionVisibilityInput, now = new Date()): { visible: boolean; reason: string } {
   if (!s.active) return { visible: false, reason: "Turned off (not active)" };
+  if ("class_id" in s && !s.class_id) return { visible: false, reason: "No class chosen: pick the class that sits it" };
   if (s.status === "draft") return { visible: false, reason: "Draft — set status to active" };
   if (s.status === "closed") return { visible: false, reason: "Closed" };
   if (s.status !== "active") return { visible: false, reason: `Status is ${s.status}` };
