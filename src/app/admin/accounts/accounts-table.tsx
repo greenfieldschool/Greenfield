@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { CheckCircle2, Copy, Eye, KeyRound, Loader2, Printer, UserPlus, X } from "lucide-react";
+import { CheckCircle2, Copy, Eye, KeyRound, Loader2, Printer, UserPlus, X, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { buttonClasses } from "@/components/ui/button";
@@ -326,7 +326,11 @@ function OneTimePasswords({
       aria-labelledby="otp-title"
     >
       <div className="flex flex-wrap items-start gap-3 border-b border-slate-100 px-5 py-4 print:hidden">
-        <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand-green" aria-hidden="true" />
+        {result.ok ? (
+          <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand-green" aria-hidden="true" />
+        ) : (
+          <XCircle className="mt-0.5 h-5 w-5 text-red-600" aria-hidden="true" />
+        )}
         <div className="min-w-0 flex-1">
           <h2 id="otp-title" className="font-semibold text-slate-900">
             {result.message}

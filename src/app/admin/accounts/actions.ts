@@ -105,10 +105,17 @@ export async function createAccountsAction(kind: AccountKind, idsIn: string[]): 
   const until = await termEnd(supabase);
 
   if (kind === "pupil") {
-    const [{ data: students }, { data: links }] = await Promise.all([
+    const [{ data: students, error: studentsError }, { data: links, error: linksError }] = await Promise.all([
       supabase.from("students").select("id, first_name, last_name, admission_number, status, classes(name)").in("id", ids),
       supabase.from("student_user_links").select("student_id").in("student_id", ids)
     ]);
+    // Never report "0 created" when the records couldn't even be read: say why (issues found 25 Nov 2026).
+    if (studentsError || linksError) {
+      return { ok: false, message: `The learner records couldn't be read, so no accounts were made: ${(studentsError ?? linksError)?.message}`, rows: [], remaining: 0 };
+    }
+    if (!(students ?? []).length && ids.length) {
+      return { ok: false, message: "That learner wasn't found, so no account was made. Refresh the page and try again.", rows: [], remaining: 0 };
+    }
     const linked = new Set((links ?? []).map((l: { student_id: string }) => l.student_id));
     for (const s of (students ?? []) as unknown as Array<{
       id: string;
@@ -156,10 +163,13 @@ export async function createAccountsAction(kind: AccountKind, idsIn: string[]): 
       rows.push({ ...base, password, until: kept ?? until, status: "created", note: kept ? null : "The school's copy couldn't be kept: print the slip now" });
     }
   } else {
-    const [{ data: guardians }, { data: links }] = await Promise.all([
+    const [{ data: guardians, error: guardiansError }, { data: links, error: glinksError }] = await Promise.all([
       supabase.from("guardians").select("id, full_name, email").in("id", ids),
       supabase.from("guardian_user_links").select("guardian_id").in("guardian_id", ids)
     ]);
+    if (guardiansError || glinksError) {
+      return { ok: false, message: `The parent records couldn't be read, so no accounts were made: ${(guardiansError ?? glinksError)?.message}`, rows: [], remaining: 0 };
+    }
     const linked = new Set((links ?? []).map((l: { guardian_id: string }) => l.guardian_id));
     for (const g of (guardians ?? []) as Array<{ id: string; full_name: string; email: string | null }>) {
       const email = (g.email ?? "").trim().toLowerCase();
