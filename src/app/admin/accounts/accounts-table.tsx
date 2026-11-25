@@ -1,5 +1,7 @@
 "use client";
 
+import { untilLabel } from "@/lib/account-dates";
+
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { CheckCircle2, Copy, Eye, KeyRound, Loader2, Printer, UserPlus, X, XCircle } from "lucide-react";
@@ -251,17 +253,6 @@ export function AccountsTable({
       </div>
     </div>
   );
-}
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** The last day a temporary password works, e.g. "14 Dec 2026" (it runs out at midnight after, Lagos time). */
-export function untilLabel(iso: string | null | undefined) {
-  if (!iso) return "";
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", day: "numeric", month: "numeric", year: "numeric" })
-    .formatToParts(new Date(new Date(iso).getTime() - 1000));
-  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
-  return `${get("day")} ${MONTHS[get("month") - 1]} ${get("year")}`;
 }
 
 function AccountBadge({ row }: { row: AccountRow }) {

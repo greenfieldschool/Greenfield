@@ -19,7 +19,8 @@ import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { LEARN } from "@/lib/learn-guides";
 import { formatLagosDate } from "@/lib/lagos-dates";
 import { lockTemporaryPassword } from "@/lib/temp-password-crypto";
-import { AccountQuickActions, untilLabel } from "../../accounts/accounts-table";
+import { AccountQuickActions } from "../../accounts/accounts-table";
+import { untilLabel } from "@/lib/account-dates";
 
 type GuardianRow = {
   id: string;
