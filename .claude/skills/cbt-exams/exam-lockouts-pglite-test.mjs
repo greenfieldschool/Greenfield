@@ -18,7 +18,7 @@ insert into classes(id, level, name, active) values ('${C}','primary','Primary 4
 insert into students(id, first_name, last_name, level, class_id, status) values ('${ST}','Kemi','Ade','primary','${C}','active'),('${ST2}','Tobi','Ola','primary','${C}','active');
 insert into student_user_links(student_id, user_id) values ('${ST}','${PUPIL}'),('${ST2}','${PUPIL2}');
 insert into subjects(id, name, level) values ('${SUBJ}','Maths','primary');
-insert into exam_tests(id, subject_id, name, duration_minutes) values ('${T}','${SUBJ}','Maths CA',30);
+insert into exam_tests(id, subject_id, name, duration_minutes, approval_status) values ('${T}','${SUBJ}','Maths CA',30,'approved');
 insert into exam_questions(id, test_id, question_type, prompt, options, marks) values ('${U(50)}','${T}','mcq_single','2+2?','["3","4"]',1);
 insert into exam_question_solutions(question_id, correct_answer) values ('${U(50)}','{"value":"4"}');
 insert into exam_test_sessions(id, test_id, class_id, status, active, starts_at, ends_at) values ('${S}','${T}','${C}','active',true, now()-interval '1 hour', now()+interval '5 hours');
@@ -52,13 +52,12 @@ await as(PUPIL, () => q(`select lock_exam_attempt('${A}', 'blur', '{}')`));
 ok((await row(A)).locked_at === null, "old lock call no longer locks at once");
 await checkin(PUPIL, A, "back", 2);
 
-// 3. Away 10+ seconds locks; time away isn't counted
-await age(A, 60); // 60 seconds of exam time pass
-await checkin(PUPIL, A, "heartbeat"); // within 45 s? last_seen moved back 60 s -> counts as cut off
+// 3. A cut-off locks; a conductor lets them back in; time away isn't counted
+await age(A, 60); // 60 seconds of silence (power cut)
 r = await checkin(PUPIL, A, "load");
 ok(r.locked && r.locked_reason === "interrupted", "a 60-second silence (power cut) locks as interrupted: " + r.locked_reason);
 const usedAfterCut = (await row(A)).used_seconds;
-ok(usedAfterCut <= 5, "the cut-off time isn't counted against the pupil: " + usedAfterCut);
+ok(usedAfterCut <= 5, "the cut-off time isn't counted against the learner: " + usedAfterCut);
 await refused(PUPIL, `insert into exam_attempt_answers(attempt_id, question_id, answer) values ('${A}','${U(50)}','{"value":"4"}')`, "locked pupil can't answer");
 
 // 4. Conductor unlocks with a reason; clock resumes on the next check-in

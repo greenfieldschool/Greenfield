@@ -50,6 +50,8 @@ export type SessionVisibilityInput = {
   status: string;
   starts_at: string | null;
   ends_at: string | null;
+  /** The test's approval: false keeps the session hidden from learners until an admin approves (null = unknown). */
+  approved?: boolean | null;
 };
 
 /** Why students can or cannot see a session right now (mirrors the database access rule). */
@@ -60,5 +62,6 @@ export function sessionVisibility(s: SessionVisibilityInput, now = new Date()): 
   if (s.status !== "active") return { visible: false, reason: `Status is ${s.status}` };
   if (s.starts_at && new Date(s.starts_at) > now) return { visible: false, reason: `Opens ${formatLagosDate(s.starts_at)}` };
   if (s.ends_at && new Date(s.ends_at) < now) return { visible: false, reason: `Ended ${formatLagosDate(s.ends_at)}` };
+  if (s.approved === false) return { visible: false, reason: "Waiting for the test's approval: it opens to learners as soon as an admin approves it" };
   return { visible: true, reason: "Open to learners now" };
 }

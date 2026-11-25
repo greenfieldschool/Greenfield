@@ -32,6 +32,7 @@ import { fetchAllRows } from "@/lib/fetch-all";
 import { failWithToast, NO_DB_MESSAGE } from "../_components/feedback";
 import { LEARN } from "@/lib/learn-guides";
 import { APPROVAL, approvalOf } from "@/lib/exam-approval";
+import { reviewTestAction } from "./[id]/approval-actions";
 
 type SubjectRow = { id: string; name: string };
 
@@ -620,6 +621,29 @@ export default async function AdminExamTestsPage({
                         <div className="flex flex-col items-start gap-1">
                           {t.approval_status !== undefined ? (
                             <Badge tone={APPROVAL[approvalOf(t.approval_status)].tone}>{APPROVAL[approvalOf(t.approval_status)].label}</Badge>
+                          ) : null}
+                          {!access.isTeacher && t.approval_status === "submitted" ? (
+                            <details className="mt-1">
+                              <summary className="inline-flex min-h-[32px] cursor-pointer list-none items-center gap-1 rounded-lg bg-brand-green px-2.5 text-xs font-semibold text-white">
+                                <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                                Approve
+                              </summary>
+                              <form action={reviewTestAction} className="mt-2 w-64 space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-card">
+                                <input type="hidden" name="test_id" value={t.id} />
+                                <input type="hidden" name="decision" value="approve" />
+                                <input type="hidden" name="back" value={`/admin/exams/tests?approval=${approvalFilter || "submitted"}`} />
+                                <label className="flex items-start gap-2 text-slate-700">
+                                  <input type="checkbox" name="split_checked" value="yes" required className="mt-0.5 h-4 w-4" />
+                                  <span>I checked the questions are about 20% past work and 80% this term.</span>
+                                </label>
+                                <SubmitButton variant="primary" size="sm" pendingText="Approving…">
+                                  Approve
+                                </SubmitButton>
+                                <a href={`/admin/exams/tests/${t.id}#approval`} className="gf-link block">
+                                  Open the checks or send it back
+                                </a>
+                              </form>
+                            </details>
                           ) : null}
                           {!t.active ? (
                             <Badge tone="slate" dot>

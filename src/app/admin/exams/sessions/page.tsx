@@ -393,7 +393,7 @@ export default async function AdminExamSessionsPage({
                   </option>
                 ))}
               </select>
-              <p className="gf-hint">Only approved tests can be opened to learners. Until the test is approved, save the session as draft.</p>
+              <p className="gf-hint">You can set it open now: learners see it as soon as an admin approves the test.</p>
             </Field>
             <Field label="Class (optional)" htmlFor="new-class">
               <select id="new-class" className="gf-select" name="class_id" defaultValue="">
@@ -481,7 +481,10 @@ export default async function AdminExamSessionsPage({
                     s.starts_at || s.ends_at
                       ? `${s.starts_at ? formatLagosDate(s.starts_at) : "Any time"} → ${s.ends_at ? formatLagosDate(s.ends_at) : "no end"}`
                       : "No date limit";
-                  const visibility = sessionVisibility(s);
+                  const visibility = sessionVisibility({
+                    ...s,
+                    approved: test?.approval_status === undefined || test?.approval_status === null ? null : test.approval_status === "approved"
+                  });
                   return (
                     <tr key={s.id}>
                       <td>

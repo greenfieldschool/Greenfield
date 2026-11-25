@@ -126,19 +126,18 @@ export function teacherSubjectIds(access: TeacherAccess): string[] | "all" {
   return Array.from(ids);
 }
 
-/** PostgREST `or` filter limiting exam_tests to the ones a teacher may work on; null when there is no limit. */
+/**
+ * PostgREST `or` filter limiting exam_tests to the ones a teacher may work on; null when there is no limit.
+ * Each teacher's papers are private (issues12, 25 Nov 2026): a teacher sees only the tests they created, even in a
+ * subject they share with a colleague. Admins see all. The database enforces the same (can_manage_test).
+ */
 export function teacherTestFilter(access: TeacherAccess): string | null {
   if (!access.isTeacher) return null;
-  const ids = teacherSubjectIds(access);
-  if (ids === "all") return null;
-  const parts: string[] = [];
-  if (ids.length) parts.push(`subject_id.in.(${ids.join(",")})`);
-  if (access.userId) parts.push(`created_by.eq.${access.userId}`);
-  return parts.length ? parts.join(",") : "id.is.null";
+  return access.userId ? `created_by.eq.${access.userId}` : "id.is.null";
 }
 
-/** May this person edit the test? Teachers: tests of subjects they teach, or tests they created. */
+/** May this person edit the test? Admins: any. Teachers: only tests they created. */
 export function canManageTest(access: TeacherAccess, test: { subject_id: string | null; created_by?: string | null }): boolean {
   if (!access.isTeacher) return true;
-  return teachesSubject(access, test.subject_id) || (!!access.userId && test.created_by === access.userId);
+  return !!access.userId && test.created_by === access.userId;
 }

@@ -211,7 +211,9 @@ export default async function AdminExamTestDetailPage({
   ]);
 
   const test = (testData ?? null) as TestRow | null;
-  if (!test) return null;
+  if (!test) {
+    redirect(`/admin/exams/tests?toast=${encodeURIComponent("That test wasn't found, or it belongs to another teacher. Each teacher's papers are private; admins can see them all.")}&toast_type=error`);
+  }
 
   // A teacher can only open the tests of subjects they teach (the database blocks the questions anyway).
   const teacherAccess = await getTeacherAccess(supabase);
@@ -224,7 +226,7 @@ export default async function AdminExamTestDetailPage({
     redirect(`/admin?toast=${encodeURIComponent("Only admins and the subject's teachers can open exam questions.")}&toast_type=error`);
   }
   if (!canManageTest(teacherAccess, test)) {
-    redirect(`/admin/exams/tests?toast=${encodeURIComponent("You are not assigned to this test's subject")}&toast_type=error`);
+    redirect(`/admin/exams/tests?toast=${encodeURIComponent("That paper belongs to another teacher. Each teacher's papers are private; admins can see them all.")}&toast_type=error`);
   }
 
   const questions = (questionsData ?? []) as QuestionRow[];
@@ -608,7 +610,7 @@ export default async function AdminExamTestDetailPage({
       <ApprovalPanel
         supabase={supabase}
         test={test as unknown as Parameters<typeof ApprovalPanel>[0]["test"]}
-        questions={questions.map((q) => ({ id: q.id, prompt: q.prompt, question_type: q.question_type, active: q.active }))}
+        questions={questions.map((q, index) => ({ id: q.id, prompt: q.prompt, question_type: q.question_type, active: q.active, number: questions.length - index }))}
         answeredIds={new Set(solutions.filter((x) => x.correct_answer !== null && x.correct_answer !== undefined).map((x) => x.question_id))}
         isAdmin={isAdmin}
         canSend

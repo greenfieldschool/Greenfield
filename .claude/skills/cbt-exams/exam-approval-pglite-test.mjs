@@ -3,23 +3,24 @@
 // @electric-sql/pglite@0.2.17, then: node <this file>
 import { load, U } from "./pglite-full-schema.mjs";
 const MIG = "/Users/user/Documents/Business/greenfieldSchool/docs/migrations/20261124b_exam_hand_in_access_approval.sql";
-const db = await load([MIG, MIG]); // run twice
+const MIG2 = "/Users/user/Documents/Business/greenfieldSchool/docs/migrations/20261125_exam_private_papers_auto_open.sql";
+const db = await load([MIG, MIG2, MIG, MIG2]); // both, twice
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log("FAIL", m); } };
 async function as(uid, fn) { await db.exec(`reset role; set test.uid='${uid}'; set role authenticated;`); try { return await fn(); } finally { await db.exec("reset role;"); } }
 async function refused(uid, sql, m, re) { try { await as(uid, () => db.query(sql)); ok(false, m + " (was allowed)"); } catch (e) { ok(!re || re.test(e.message), m + " wrong error: " + e.message); } }
 const q = async (sql) => (await db.query(sql)).rows;
 const rowsAs = async (uid, sql) => { try { return await as(uid, () => q(sql)); } catch (e) { return []; } };
-const ADMIN = U(1), TEACHER = U(2), OTHER_T = U(3), FRONT = U(4), NURSE = U(5), PUPIL = U(6);
+const ADMIN = U(1), TEACHER = U(2), OTHER_T = U(3), FRONT = U(4), NURSE = U(5), PUPIL = U(6), CO_T = U(7);
 const C1 = U(30), C2 = U(31), SUBJ = U(40), SUBJ2 = U(41), Y = U(50), TERM = U(51), ST = U(60);
 const OLD_T = U(70), OLD_S = U(71);
 await db.exec(`set session_replication_role = replica;
-insert into auth.users(id,email) values ('${ADMIN}','a@x'),('${TEACHER}','t@x'),('${OTHER_T}','o@x'),('${FRONT}','f@x'),('${NURSE}','n@x'),('${PUPIL}','s@x');
-insert into profiles(id, role, full_name) values ('${ADMIN}','admin','Ada Admin'),('${TEACHER}','teacher','Tom Teacher'),('${OTHER_T}','teacher','Ola Other'),('${FRONT}','front_desk','Fola Front'),('${NURSE}','nurse','Nia Nurse'),('${PUPIL}','student','Kemi');
+insert into auth.users(id,email) values ('${CO_T}','c@x'),('${ADMIN}','a@x'),('${TEACHER}','t@x'),('${OTHER_T}','o@x'),('${FRONT}','f@x'),('${NURSE}','n@x'),('${PUPIL}','s@x');
+insert into profiles(id, role, full_name) values ('${CO_T}','teacher','Chi Colleague'),('${ADMIN}','admin','Ada Admin'),('${TEACHER}','teacher','Tom Teacher'),('${OTHER_T}','teacher','Ola Other'),('${FRONT}','front_desk','Fola Front'),('${NURSE}','nurse','Nia Nurse'),('${PUPIL}','student','Kemi');
 insert into classes(id, level, name, active) values ('${C1}','primary','Primary 4',true),('${C2}','primary','Primary 5',true);
 insert into subjects(id, name, level) values ('${SUBJ}','Maths','primary'),('${SUBJ2}','French','primary');
 insert into class_subjects(class_id, subject_id) values ('${C1}','${SUBJ}'),('${C2}','${SUBJ}');
-insert into teacher_subject_assignments(teacher_id, class_id, subject_id, active) values ('${TEACHER}','${C1}','${SUBJ}',true),('${OTHER_T}','${C1}','${SUBJ2}',true);
+insert into teacher_subject_assignments(teacher_id, class_id, subject_id, active) values ('${TEACHER}','${C1}','${SUBJ}',true),('${OTHER_T}','${C1}','${SUBJ2}',true),('${CO_T}','${C2}','${SUBJ}',true);
 insert into academic_years(id, name) values ('${Y}','2026/27');
 insert into academic_terms(id, academic_year_id, name, starts_on, ends_on) values ('${TERM}','${Y}','First','2026-09-14','2026-12-18');
 insert into students(id, first_name, last_name, level, class_id, status) values ('${ST}','Kemi','Ade','primary','${C1}','active');
@@ -38,11 +39,17 @@ await as(TEACHER, () => q(`insert into exam_question_solutions(question_id, corr
 ok((await rowsAs(FRONT, `select * from exam_questions where test_id='${T.id}'`)).length === 0, "front desk can't read questions");
 ok((await rowsAs(NURSE, `select * from exam_question_solutions`)).length === 0, "nurse can't read answers");
 ok((await rowsAs(OTHER_T, `select * from exam_questions where test_id='${T.id}'`)).length === 0, "another subject's teacher can't read them");
+ok((await rowsAs(PUPIL, `select id from exam_tests where id='${T.id}'`)).length === 0, "a learner can't see a test before it is open to them");
 ok((await rowsAs(ADMIN, `select * from exam_questions where test_id='${T.id}'`)).length === 1, "admin reads them");
 await refused(TEACHER, `update exam_tests set approval_status='approved' where id='${T.id}'`, "teacher can't approve by editing", /Send for approval/);
 
 // 2. Sessions need an approved test, and the right class
-await refused(TEACHER, `insert into exam_test_sessions(test_id, class_id, status, active) values ('${T.id}','${C1}','active',true)`, "can't open a session for a draft test", /approved/);
+// Private papers: another teacher of the same subject can't see or change it
+ok((await rowsAs(CO_T, `select id from exam_tests where id='${T.id}'`)).length === 0, "a co-teacher of Maths can't see another teacher's paper");
+ok((await rowsAs(CO_T, `select id from exam_questions where test_id='${T.id}'`)).length === 0, "nor its questions");
+ok((await rowsAs(CO_T, `update exam_tests set name='mine now' where id='${T.id}' returning id`)).length === 0, "nor change it");
+await refused(CO_T, `select exam_submit_test('${T.id}', null)`, "nor send it", /subject/);
+ok((await as(CO_T, () => q(`insert into exam_tests(subject_id, name) values ('${SUBJ}','Chi Maths') returning id`))).length === 1, "the co-teacher sets their own paper");
 const S = (await as(TEACHER, () => q(`insert into exam_test_sessions(test_id, class_id, status, active, academic_term_id, starts_at, ends_at) values ('${T.id}','${C1}','draft',true,'${TERM}', now() - interval '2 hours', now() + interval '2 hours') returning id`)))[0].id;
 ok(!!S, "teacher saves a draft session for their class");
 await refused(TEACHER, `insert into exam_test_sessions(test_id, class_id, status, active) values ('${T.id}','${C2}','draft',true)`, "teacher can't schedule a class they don't teach");
@@ -68,10 +75,10 @@ ok((await q(`select approval_status from exam_tests where id='${T.id}'`))[0].app
 
 // 4. Open the session; editing is refused while it's open; editing later sends it back to draft
 await as(TEACHER, () => q(`update exam_test_sessions set status='active' where id='${S}'`));
-ok((await q(`select status from exam_test_sessions where id='${S}'`))[0].status === "active", "session opens once approved");
+ok((await q(`select status from exam_test_sessions where id='${S}'`))[0].status === "active", "session set open");
 ok((await rowsAs(PUPIL, `select id from exam_questions`)).length === 1, "pupil sees the questions in the open session");
-await refused(TEACHER, `update exam_questions set prompt='changed' where id='${U(80)}'`, "can't change questions while the session is open", /open to learners/);
-await refused(TEACHER, `update exam_tests set duration_minutes=45 where id='${T.id}'`, "can't change the time while open", /open to learners/);
+await refused(TEACHER, `update exam_questions set prompt='changed' where id='${U(80)}'`, "can't change questions while the session is open", /Learners can see/);
+await refused(TEACHER, `update exam_tests set duration_minutes=45 where id='${T.id}'`, "can't change the time while open", /Learners can see/);
 await as(TEACHER, () => q(`update exam_tests set name='Maths exam (First term)' where id='${T.id}'`));
 ok((await q(`select approval_status from exam_tests where id='${T.id}'`))[0].approval_status === "approved", "renaming keeps approval");
 
@@ -108,7 +115,12 @@ ok((await as(FRONT, () => q(`select exam_hand_in_open('${S}', 'End of exam') n`)
 await db.exec(`update exam_test_sessions set status='draft' where id='${S}'`);
 await as(TEACHER, () => q(`update exam_questions set marks=2 where id='${U(80)}'`));
 ok((await q(`select approval_status from exam_tests where id='${T.id}'`))[0].approval_status === "draft", "changing questions after approval puts it back to draft");
-await refused(TEACHER, `update exam_test_sessions set status='active' where id='${S}'`, "and the session can't open again until re-approved", /approved/);
+await as(TEACHER, () => q(`update exam_test_sessions set status='active' where id='${S}'`));
+ok((await rowsAs(PUPIL, `select id from exam_questions`)).length === 0 && (await rowsAs(PUPIL, `select id from exam_test_sessions where id='${S}'`)).length === 0, "an open session for a test back in draft stays hidden from learners");
+await as(TEACHER, () => q(`select exam_submit_test('${T.id}', null)`));
+await as(ADMIN, () => q(`select exam_review_test('${T.id}', 'approve', null, true)`));
+ok((await rowsAs(PUPIL, `select id from exam_questions`)).length === 1, "approval opens it to learners with no second step");
+ok((await as(PUPIL, () => q(`select * from portal_student_exam_sessions()`))).length === 1, "and it is in the learner's exam list");
 ok((await q(`select count(*)::int n from exam_test_events where test_id='${T.id}'`))[0].n >= 5, "every step logged");
 ok((await q(`select exam_questions_due('${TERM}') d`))[0].d.toISOString().slice(0, 10) === "2026-09-25", "due Friday of week 2 (term starts Mon 14 Sep)");
 

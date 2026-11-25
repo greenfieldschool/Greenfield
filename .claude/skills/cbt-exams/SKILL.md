@@ -78,7 +78,23 @@ security-and-privacy (who can see questions and answers).
   set, repeats via `normalisePrompt`; send; approve/send back; history), actions `approval-actions.ts`, words in
   `src/lib/exam-approval.ts`. Tests list: approval badge, filter `?approval=`, term on create, counts. Session
   forms mark "(not approved yet)". Exams overview: waiting for approval, sessions open now, pupils locked.
-- Test: [`exam-approval-pglite-test.mjs`](exam-approval-pglite-test.mjs) (45 checks).
+- Test: [`exam-approval-pglite-test.mjs`](exam-approval-pglite-test.mjs) (52 checks; loads 20261124b and 20261125).
+
+## Private papers and auto-open (20261125_exam_private_papers_auto_open.sql, issues12, 25 Nov 2026)
+- `can_manage_test` = admin or the teacher who created the test (`created_by`); co-teachers of a subject can't see
+  each other's papers (the school asked for strict isolation). `exam_can_see_test` limits reading test names:
+  owner, admins, non-teaching staff, the session's conductors, learners who can see a session for it. App filters
+  match (`teacherTestFilter`, `canManageTest` in teacher-access.ts). Admins hand a paper over with "Teacher who owns
+  this paper" (`setTestOwnerAction`). Old tests with no `created_by` are admin-only until handed over.
+- The session trigger `exam_sessions_need_approval` is gone: a session can be "Open to learners" before approval;
+  every learner path checks `exam_test_approved(test)` (`can_student_view_session`, `can_student_access_session`,
+  session and question read rules, `portal_student_exam_sessions`), so approval opens it with no second step.
+  `sessionVisibility(..., approved)` says "Waiting for the test's approval". Changing a test is refused only while
+  `exam_open_to_learners(test)` (approved and open); a submitted test just goes back to draft.
+- Checks list question numbers (`number` = position on the test page, Q1 first) and, for repeats, the number in
+  the other paper; teachers only compare with their own papers.
+- A cut-off still locks and needs the conductor's (or staff's) unlock: the user asked to keep that step
+  (25 Nov 2026) rather than resume automatically.
 
 ## Expert review
 Before calling the work done, answer these as an examinations officer with 30+ years (WAEC/NECO-style CBT) would. Where an answer needs a decision the school hasn't made, ask.

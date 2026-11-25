@@ -166,10 +166,10 @@ export default async function AdminExamSessionEditPage({
   // Number of questions planned for the session's test (stored as the test's targets), next to how
   // many are already set, so it can be changed for sessions that were created before targets existed.
   const [{ data: sessionTestData }, { data: sessionQuestionsData }] = await Promise.all([
-    supabase.from("exam_tests").select("id, name, description").eq("id", session.test_id).maybeSingle(),
+    supabase.from("exam_tests").select("*").eq("id", session.test_id).maybeSingle(),
     supabase.from("exam_questions").select("question_type").eq("test_id", session.test_id)
   ]);
-  const sessionTest = sessionTestData as { id: string; name: string; description: string | null } | null;
+  const sessionTest = sessionTestData as { id: string; name: string; description: string | null; approval_status?: string | null } | null;
   const { targets } = parseDescriptionAndTargets(sessionTest?.description ?? null);
   const setCounts = countByType(((sessionQuestionsData ?? []) as Array<{ question_type: string }>).map((q) => q.question_type));
   const setGroups = groupCounts(setCounts);
@@ -261,7 +261,10 @@ export default async function AdminExamSessionEditPage({
     redirect(`/admin/exams/sessions/${id}?toast=${encodeURIComponent("Session saved")}&toast_type=success`);
   }
 
-  const visibility = sessionVisibility(session);
+  const visibility = sessionVisibility({
+    ...session,
+    approved: sessionTest?.approval_status === undefined || sessionTest?.approval_status === null ? null : sessionTest.approval_status === "approved"
+  });
 
   return (
     <div className="space-y-6">
@@ -313,7 +316,7 @@ export default async function AdminExamSessionEditPage({
                   </option>
                 ))}
               </select>
-              <p className="gf-hint">Only approved tests can be opened to learners. Until the test is approved, save the session as draft.</p>
+              <p className="gf-hint">You can set it open now: learners see it as soon as an admin approves the test.</p>
             </Field>
 
             <Field label="Class (optional)" htmlFor="session-class">
