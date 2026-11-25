@@ -5,7 +5,8 @@ import { load, U } from "./pglite-full-schema.mjs";
 const MIG = "/Users/user/Documents/Business/greenfieldSchool/docs/migrations/20261124b_exam_hand_in_access_approval.sql";
 const MIG2 = "/Users/user/Documents/Business/greenfieldSchool/docs/migrations/20261125_exam_private_papers_auto_open.sql";
 const MIG3 = "/Users/user/Documents/Business/greenfieldSchool/docs/migrations/20261125c_exam_questions_fast_learner_check.sql";
-const db = await load([MIG, MIG2, MIG3, MIG, MIG2, MIG3]); // all, twice
+const MIG4 = "/Users/user/Documents/Business/greenfieldSchool/docs/migrations/20261125d_exam_rules_speed.sql";
+const db = await load([MIG, MIG2, MIG3, MIG4, MIG, MIG2, MIG3, MIG4]); // all, twice
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log("FAIL", m); } };
 async function as(uid, fn) { await db.exec(`reset role; set test.uid='${uid}'; set role authenticated;`); try { return await fn(); } finally { await db.exec("reset role;"); } }
