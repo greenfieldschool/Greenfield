@@ -3,7 +3,7 @@ import { HELP } from "@/lib/portal-help";
 import { CheckCircle2, Clock, EyeOff, FileQuestion, Hourglass, Lock, PlayCircle, Save, Wifi } from "lucide-react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import ExamGuardClient from "./ExamGuardClient";
-import { LiveRefresh } from "@/components/chat/client";
+import LockedWatcher from "./LockedWatcher";
 import ExamAnswersClient from "./ExamAnswersClient";
 import SubmitExamButton from "./SubmitExamButton";
 import { firstOrNull } from "@/lib/relations";
@@ -136,7 +136,7 @@ export default async function PortalExamRunnerPage({
     redirect(`/portal/exams/${id}`);
   }
 
-  const { data: questionsData } = await supabase
+  const { data: questionsData, error: questionsError } = await supabase
     .from("exam_questions")
     // "*" so exams still load before the image_url column migration has been run.
     .select("*")
@@ -212,13 +212,19 @@ export default async function PortalExamRunnerPage({
         }
       />
 
+      {questionsError ? (
+        <Alert tone="danger" title="The questions couldn't be loaded">
+          Please tell the exam supervisor. ({questionsError.message})
+        </Alert>
+      ) : null}
+
       {isLocked ? (
         <Card className="border-red-200">
           <div className="flex flex-col items-center px-6 py-10 text-center">
             <span className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-red-600">
               <Lock className="h-8 w-8" aria-hidden="true" />
             </span>
-            <LiveRefresh intervalMs={10000} />
+            {attemptId ? <LockedWatcher attemptId={attemptId} /> : null}
             <h2 className="mt-4 font-display text-2xl font-semibold text-slate-900">Your exam is locked</h2>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-600">
               {lockedReason === "interrupted"

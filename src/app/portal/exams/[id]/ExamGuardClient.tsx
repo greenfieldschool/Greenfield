@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Clock, EyeOff } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -18,7 +17,6 @@ function clock(seconds: number) {
 }
 
 export default function ExamGuardClient({ attemptId, initialSecondsLeft }: { attemptId: string; initialSecondsLeft: number | null }) {
-  const router = useRouter();
   const [left, setLeft] = useState<number | null>(initialSecondsLeft);
   const [warning, setWarning] = useState<string | null>(null);
   const away = useRef(false);
@@ -37,7 +35,9 @@ export default function ExamGuardClient({ attemptId, initialSecondsLeft }: { att
         const data = (await res.json().catch(() => null)) as { ok: boolean; secondsLeft: number | null; locked: boolean; submitted: boolean } | null;
         if (!data?.ok) return;
         if (data.locked || data.submitted) {
-          router.refresh();
+          // A full reload, not router.refresh(): on this slow page the soft refresh didn't redraw, so a locked
+          // learner kept seeing the exam (found in the live walk-through, 25 Nov 2026).
+          window.location.reload();
           return;
         }
         if (event !== "away") setLeft(data.secondsLeft);
@@ -45,7 +45,7 @@ export default function ExamGuardClient({ attemptId, initialSecondsLeft }: { att
         // Offline: the next check-in tells the school how long the page was cut off.
       }
     },
-    [attemptId, router]
+    [attemptId]
   );
 
   useEffect(() => {
@@ -90,9 +90,9 @@ export default function ExamGuardClient({ attemptId, initialSecondsLeft }: { att
   useEffect(() => {
     if (left !== null && left <= 0 && !finishing.current) {
       finishing.current = true;
-      void send("heartbeat").finally(() => router.refresh());
+      void send("heartbeat").finally(() => window.location.reload());
     }
-  }, [left, send, router]);
+  }, [left, send]);
 
   useEffect(() => {
     if (!warning) return;
