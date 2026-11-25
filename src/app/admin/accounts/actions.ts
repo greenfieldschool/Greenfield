@@ -106,7 +106,8 @@ export async function createAccountsAction(kind: AccountKind, idsIn: string[]): 
 
   if (kind === "pupil") {
     const [{ data: students, error: studentsError }, { data: links, error: linksError }] = await Promise.all([
-      supabase.from("students").select("id, first_name, last_name, admission_number, status, classes(name)").in("id", ids),
+      // The class name is looked up separately, so this never depends on the students → classes link.
+      supabase.from("students").select("id, first_name, last_name, admission_number, status, class_id").in("id", ids),
       supabase.from("student_user_links").select("student_id").in("student_id", ids)
     ]);
     // Never report "0 created" when the records couldn't even be read: say why (issues found 25 Nov 2026).
@@ -117,16 +118,19 @@ export async function createAccountsAction(kind: AccountKind, idsIn: string[]): 
       return { ok: false, message: "That learner wasn't found, so no account was made. Refresh the page and try again.", rows: [], remaining: 0 };
     }
     const linked = new Set((links ?? []).map((l: { student_id: string }) => l.student_id));
+    const classIds = Array.from(new Set(((students ?? []) as Array<{ class_id: string | null }>).map((x) => x.class_id).filter((v): v is string => !!v)));
+    const { data: classRows } = classIds.length ? await supabase.from("classes").select("id, name").in("id", classIds) : { data: [] };
+    const className = new Map(((classRows ?? []) as Array<{ id: string; name: string }>).map((c) => [c.id, c.name]));
     for (const s of (students ?? []) as unknown as Array<{
       id: string;
       first_name: string;
       last_name: string;
       admission_number: string | null;
       status: string;
-      classes: { name: string } | Array<{ name: string }> | null;
+      class_id: string | null;
     }>) {
       const name = `${s.first_name} ${s.last_name}`.trim();
-      const cls = Array.isArray(s.classes) ? s.classes[0]?.name ?? null : s.classes?.name ?? null;
+      const cls = s.class_id ? className.get(s.class_id) ?? null : null;
       const base = { id: s.id, name, username: s.admission_number, className: cls, password: null, until: null };
       if (linked.has(s.id)) {
         rows.push({ ...base, status: "skipped", note: "Already has an account" });

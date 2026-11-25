@@ -63,6 +63,13 @@ file in order so the newest version of each function/policy wins. `const db = aw
 looks wrong, check the original migration and pass it as an extra file before concluding.
 
 ## Pitfalls we hit
+- **The live database can differ from `docs/schema.sql`.** On 25 Nov 2026 the live database had no
+  `students_class_id_fkey`, although schema.sql had it, so every `students … classes(…)` embed failed with
+  PGRST200 ("Could not find a relationship") and account creation silently made nobody. Check a link from outside
+  with the anon key: `GET /rest/v1/<table>?select=id,<other>(id)&limit=0` returns `[]` (200) when the link exists
+  and PGRST200 when it doesn't, without reading any rows. Always read `error` on Supabase queries; an ignored error
+  looks like "no rows". Fixed by `20261125b_students_class_link.sql` (added NOT VALID, so no data is checked or
+  changed).
 - Don't use temporary tables in a migration. The Supabase SQL editor sees `create temporary table` as a table
   without RLS and offers "enable Row Level Security"; that appends an `alter table … enable row level security`
   after the script, which fails once the temp table is dropped ("relation … does not exist") and rolls the whole
