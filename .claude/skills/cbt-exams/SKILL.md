@@ -40,6 +40,14 @@ security-and-privacy (who can see questions and answers).
   `supabase-migration/exam-conductor-pglite-test.mjs`.
 
 ## Pitfalls we hit
+- **Learners saw "0 of 0 answered" (the school's long-standing complaint): the question read rule timed out.** It
+  joined sessions, sign-in links and learners inside the rule, each with its own read rules and per-row permission
+  functions, so the check ran past the site's statement limit; the page ignored the error. Fixed by
+  `learner_sees_test(test, released_only)` (security definer, indexed lookups) in
+  `20261125c_exam_questions_fast_learner_check.sql`. Never put joins across RLS tables inside a read rule that runs
+  per row; call one definer function. The SQL editor has no time limit, so a check there can pass while the site
+  times out: test as the learner on the site.
+- Pages must show query errors (`error`), never treat them as "no rows". Found twice on 25 Nov 2026.
 - Before 20261123b, unlocking cleared `locked_at` but left `status = 'locked'`, and the pupil page treats either as
   locked, so unlocked pupils stayed locked; non-staff conductors couldn't get in at all. Pupils reported "can't see
   the questions".
