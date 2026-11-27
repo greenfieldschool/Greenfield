@@ -55,6 +55,28 @@ export async function reviewTestAction(fd: FormData) {
   go(testId, decision === "approve" ? "Approved. It can now be opened to learners in a session." : "Sent back. The teacher has been emailed your comments.", "success", back);
 }
 
+// Admins take approval back (exam_unapprove_test checks admin, the reason and that nobody is still writing).
+export async function unapproveTestAction(fd: FormData) {
+  const testId = String(fd.get("test_id") ?? "");
+  const reason = String(fd.get("reason") ?? "");
+  const supabase = getSupabaseServerClient();
+  if (!supabase) go(testId, "The school system is not available.", "error");
+  if (!reason) go(testId, "Choose why you are unapproving this paper.", "error");
+  const { error } = await supabase!.rpc("exam_unapprove_test", {
+    p_test: testId,
+    p_reason: reason,
+    p_note: reason === "other" ? String(fd.get("note") ?? "").trim() || null : null
+  });
+  if (error) {
+    const m = /could not find the function|schema cache/i.test(error.message)
+      ? "Unapprove needs the 27 November 2026 database update. Ask an admin to run it."
+      : plain(error.message);
+    go(testId, m, "error");
+  }
+  refresh(testId);
+  go(testId, "Unapproved and sent back. Learners can't open it until it is approved again. The teacher has been emailed the reason.");
+}
+
 // Admins hand a paper to another teacher (papers are private to the teacher who owns them).
 export async function setTestOwnerAction(fd: FormData) {
   const testId = String(fd.get("test_id") ?? "");

@@ -64,3 +64,22 @@ export function normalisePrompt(p: string) {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/** Why an admin takes approval back (same codes and words as exam_unapprove_reason_label() in 20261127_exam_unapprove.sql). */
+export const UNAPPROVE_REASONS = [
+  { value: "wrong_answer", label: "A correct answer is wrong or missing" },
+  { value: "question_error", label: "A question or its options have a mistake" },
+  { value: "format", label: "The paper doesn't follow the policy format" },
+  { value: "repeated", label: "Questions repeat an earlier examination" },
+  { value: "syllabus", label: "Not 20% past work and 80% this term's syllabus" },
+  { value: "wrong_details", label: "Wrong subject, term or time allowed" },
+  { value: "other", label: "Other" }
+] as const;
+
+export const APPROVAL_EVENT_LABEL: Record<string, string> = {
+  submitted: "Sent for approval",
+  approved: "Approved",
+  returned: "Sent back",
+  back_to_draft: "Back to draft",
+  unapproved: "Approval taken back"
+};

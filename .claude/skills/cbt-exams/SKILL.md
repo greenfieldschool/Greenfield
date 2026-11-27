@@ -104,6 +104,27 @@ security-and-privacy (who can see questions and answers).
 - A cut-off still locks and needs the conductor's (or staff's) unlock: the user asked to keep that step
   (25 Nov 2026) rather than resume automatically.
 
+## Unapprove (20261127_exam_unapprove.sql, 27 Nov 2026)
+- `exam_unapprove_test(test, reason, note)`: admins only; the test must be `approved`. Reasons (same codes/words in
+  `exam_unapprove_reason_label()` and `UNAPPROVE_REASONS` in `src/lib/exam-approval.ts`): wrong_answer,
+  question_error, format, repeated, syllabus, wrong_details, other (only Other takes text, 5+ characters; the note is
+  dropped for the others). Sets `returned` ("Sent back"), `review_note` = "Approval taken back: …", logs
+  `exam_test_events.action = 'unapproved'` with detail `{reason, reason_label, learners_sat, sessions_waiting,
+  results_released}`, emails `submitted_by`/`created_by` (category `exam`).
+- Refused while any attempt in an active session for the paper has no `submitted_at` (writing or locked): nobody's
+  work is cut off. Sessions are left as they are and open by themselves after re-approval (learner checks use
+  `exam_test_approved`). Released results stay visible (they don't depend on approval).
+- Decided by the user (27 Nov 2026): a paper already sat can be unapproved; answers, marks and released results are
+  kept. The page freezes questions once anyone sat it (`checkTestFrozen`), so the fix for a sat paper is Duplicate.
+- Trigger `exam_questions_keep_answered`: a question with learners' answers can't be deleted (the FK cascade used to
+  delete their answers). Untick Active instead.
+- Screen: "Found a mistake? Unapprove this paper" (`#unapprove`, a `<details>` under Approval, admins, approved only),
+  `unapprove-form.tsx` (reason select, Other field, confirm), `unapproveTestAction`. History labels:
+  `APPROVAL_EVENT_LABEL`. Learn Centre: `LEARN.tests`.
+- Open question for the school: resending after a send-back or unapprove updates `submitted_at`, so a paper first
+  sent on time can show "Sent late" (policy: late = holiday salary forfeited).
+- Test: [`exam-unapprove-pglite-test.mjs`](exam-unapprove-pglite-test.mjs) (33 checks).
+
 ## Every session has a class (20261125e_exam_session_class_required.sql, 25 Nov 2026)
 - A session with no class used to mean "every class", so papers scheduled without one were open to the whole school
   (10 were on 25 Nov). Now trigger `exam_sessions_need_class` refuses a new session, or taking the class off one,
@@ -128,4 +149,6 @@ Before calling the work done, answer these as an examinations officer with 30+ y
 - **Secure:** can a pupil see questions before the session opens, answers after time, or other pupils' work?
 - **Recorded:** is every lock, unlock, extra minute and hand-in in `exam_malpractice_events` with who did it?
 - **Workable in a hall:** can one conductor recover a whole room after a power cut in under a minute?
+- **Taking approval back** never cuts off a pupil who is writing, and never changes or deletes answers, marks or
+  released results.
 - **Approved questions only** reach pupils: a session can't open for an unapproved test, and changes send it back to draft.

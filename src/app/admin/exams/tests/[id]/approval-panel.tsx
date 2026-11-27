@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { formatLagosDate, formatLagosDateTime } from "@/lib/lagos-dates";
 import { OBJECTIVE_TYPES, THEORY_TYPES } from "@/lib/exam-targets";
-import { APPROVAL, approvalOf, deadlineState, formatCheck, normalisePrompt, questionsDue } from "@/lib/exam-approval";
+import { APPROVAL, APPROVAL_EVENT_LABEL, approvalOf, deadlineState, formatCheck, normalisePrompt, questionsDue } from "@/lib/exam-approval";
 import { reviewTestAction, setTestOwnerAction, setTestTermAction, submitTestAction } from "./approval-actions";
+import UnapproveForm from "./unapprove-form";
 
 // The approval step for one test, at the top of its page: status, term and deadline, the checks the policy asks
 // for (format, answers set, repeats from earlier papers), then Send for approval (teacher) or Approve / Send back
@@ -108,8 +109,34 @@ export async function ApprovalPanel({
     .filter((r): r is { q: Q; from: { test: string; number: number } } => !!r.from)
     .sort((a, b) => a.q.number - b.q.number);
 
+  // For Unapprove: who is still writing, who has sat it, and sessions still to come (admins only).
+  let writing = 0;
+  let sat = 0;
+  let waiting = 0;
+  if (isAdmin && status === "approved") {
+    const { data: sessions } = await supabase
+      .from("exam_test_sessions")
+      .select("id, ends_at, results_released_at")
+      .eq("test_id", test.id)
+      .eq("active", true);
+    const rows = (sessions ?? []) as Array<{ id: string; ends_at: string | null; results_released_at: string | null }>;
+    const now = Date.now();
+    waiting = rows.filter((r) => !r.results_released_at && (!r.ends_at || new Date(r.ends_at).getTime() >= now)).length;
+    if (rows.length) {
+      const { data: attempts } = await supabase
+        .from("exam_attempts")
+        .select("submitted_at")
+        .in("session_id", rows.map((r) => r.id))
+        .limit(5000);
+      for (const a of (attempts ?? []) as Array<{ submitted_at: string | null }>) {
+        if (a.submitted_at) sat++;
+        else writing++;
+      }
+    }
+  }
+
   const ev = (events ?? []) as Array<{ id: string; action: string; note: string | null; done_at: string; done_by_name: string | null }>;
-  const returnedBy = ev.find((e) => e.action === "returned");
+  const returnedBy = ev.find((e) => e.action === "returned" || e.action === "unapproved");
   const approvedBy = ev.find((e) => e.action === "approved");
 
   const check = (ok: boolean, text: string, key: string) => (
@@ -266,6 +293,32 @@ export async function ApprovalPanel({
           </form>
         ) : null}
 
+        {isAdmin && status === "approved" ? (
+          <details id="unapprove" className="group scroll-mt-24 border-t border-slate-100 pt-3 text-sm">
+            <summary className="flex min-h-[40px] cursor-pointer items-center gap-2 font-semibold text-slate-900">
+              Found a mistake? Unapprove this paper
+            </summary>
+            <div className="mt-2 space-y-3">
+              <p className="text-slate-700">
+                It goes back to the teacher as &ldquo;Sent back&rdquo; with your reason, and learners can&apos;t open it in any session until it is approved again.
+                {waiting ? ` ${waiting} session${waiting === 1 ? " is" : "s are"} still to come; ${waiting === 1 ? "it opens" : "they open"} by ${waiting === 1 ? "itself" : "themselves"} once the paper is approved again.` : ""}
+              </p>
+              {writing > 0 ? (
+                <Alert tone="warning" title={`${writing} learner${writing === 1 ? " is" : "s are"} still writing this paper`}>
+                  Wait until they finish, or use Hand in everyone in the exam room, then unapprove it. Their work is never cut off.
+                </Alert>
+              ) : null}
+              {sat > 0 && writing === 0 ? (
+                <Alert tone="info" title={`${sat} learner${sat === 1 ? " has" : "s have"} already sat this paper`}>
+                  Their answers, marks and any released results stay as they are. The questions stay locked, so the teacher fixes it with Duplicate
+                  and sends the copy for approval.
+                </Alert>
+              ) : null}
+              <UnapproveForm testId={test.id} writing={writing} sat={sat} />
+            </div>
+          </details>
+        ) : null}
+
         {isAdmin ? (
           <form action={setTestOwnerAction} className="flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-end">
             <input type="hidden" name="test_id" value={test.id} />
@@ -300,7 +353,7 @@ export async function ApprovalPanel({
             <ol className="mt-1 space-y-1 text-slate-600">
               {ev.map((e) => (
                 <li key={e.id}>
-                  {formatLagosDateTime(e.done_at)}: {e.action === "submitted" ? "Sent for approval" : e.action === "approved" ? "Approved" : e.action === "returned" ? "Sent back" : "Back to draft"}
+                  {formatLagosDateTime(e.done_at)}: {APPROVAL_EVENT_LABEL[e.action] ?? "Changed"}
                   {e.done_by_name ? ` by ${e.done_by_name}` : ""}
                   {e.note ? ` (${e.note})` : ""}
                 </li>
