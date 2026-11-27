@@ -254,6 +254,8 @@ export default async function AdminExamSessionEditPage({
     const isActive = asString(formData.get("active")).trim() === "on";
     const requiresSecretCode = asString(formData.get("requires_secret_code")).trim() === "on";
     const secretCode = asString(formData.get("secret_code")).trim();
+    // A code that is required but empty locks every learner out (nothing they type can match).
+    if (requiresSecretCode && !secretCode) failWithToast(`/admin/exams/sessions/${id}`, "Type the secret code learners will use, or untick 'Require secret code to start'.");
 
     if (!testId) failWithToast(`/admin/exams/sessions/${id}`, "Select a test.");
     if (!classIdRaw) failWithToast(`/admin/exams/sessions/${id}`, "Choose the class that sits this exam.");
@@ -324,6 +326,12 @@ export default async function AdminExamSessionEditPage({
           ? "Only learners in the selected class can see it."
           : "Learners can't see this session right now."}
       </Alert>
+
+      {session.requires_secret_code && !session.secret_code && canChange ? (
+        <Alert tone="danger" title="No secret code set: learners can't start this exam">
+          Type the code learners will use in &lsquo;Secret code&rsquo; below, or untick &lsquo;Require secret code to start&rsquo;, then save.
+        </Alert>
+      ) : null}
 
       {!canChange ? (
         <Alert tone="info" title="You can look but not change this session">

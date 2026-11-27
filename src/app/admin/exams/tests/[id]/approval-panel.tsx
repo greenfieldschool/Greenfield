@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, CircleAlert, History, Send, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleAlert, History, Send, ShieldCheck, Undo2 } from "lucide-react";
 import type { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -38,7 +38,8 @@ export async function ApprovalPanel({
   questions,
   answeredIds,
   isAdmin,
-  canSend
+  canSend,
+  openUnapprove = false
 }: {
   supabase: Supabase;
   test: TestLike;
@@ -46,6 +47,8 @@ export async function ApprovalPanel({
   answeredIds: Set<string>;
   isAdmin: boolean;
   canSend: boolean;
+  /** Opened from the Tests list's Unapprove link. */
+  openUnapprove?: boolean;
 }) {
   if (test.approval_status === undefined) {
     return (
@@ -294,9 +297,13 @@ export async function ApprovalPanel({
         ) : null}
 
         {isAdmin && status === "approved" ? (
-          <details id="unapprove" className="group scroll-mt-24 border-t border-slate-100 pt-3 text-sm">
-            <summary className="flex min-h-[40px] cursor-pointer items-center gap-2 font-semibold text-slate-900">
-              Found a mistake? Unapprove this paper
+          <details id="unapprove" open={openUnapprove} className="group scroll-mt-24 border-t border-slate-100 pt-4 text-sm">
+            <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 [&::-webkit-details-marker]:hidden">
+              <span className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-red-200 bg-white px-4 font-semibold text-red-700 hover:bg-red-50 group-open:bg-red-50">
+                <Undo2 className="h-4 w-4" aria-hidden="true" />
+                Unapprove this paper
+              </span>
+              <span className="text-slate-600">Found a mistake? Take approval back and send it to the teacher to fix.</span>
             </summary>
             <div className="mt-2 space-y-3">
               <p className="text-slate-700">

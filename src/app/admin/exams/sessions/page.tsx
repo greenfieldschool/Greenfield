@@ -53,6 +53,8 @@ type SessionDetail = {
   secret_code: string | null;
   can_change: boolean;
   approved: boolean | null;
+  /** From 20261127c; undefined before it is run. */
+  code_set?: boolean;
 };
 
 type SessionRow = {
@@ -266,6 +268,8 @@ export default async function AdminExamSessionsPage({
 
     if (!testId) failWithToast("/admin/exams/sessions", "Select a test.");
     if (!classIdRaw) failWithToast("/admin/exams/sessions", "Choose the class that sits this exam.");
+    // A code that is required but empty locks every learner out (nothing they type can match).
+    if (requiresSecretCode && !secretCode) failWithToast("/admin/exams/sessions", "Type the secret code learners will use, or untick 'Require secret code to start'.");
     if (startDate && endDate && endDate < startDate) {
       redirect(`/admin/exams/sessions?toast=${encodeURIComponent("End date cannot be before the start date")}&toast_type=error`);
     }
@@ -515,6 +519,8 @@ export default async function AdminExamSessionsPage({
                       : null;
                   const testName = d?.test_name ?? test?.name ?? null;
                   const canChange = detailsLoaded ? !!d?.can_change : true;
+                  // Required but never set: nothing a learner types can match, so nobody can start.
+                  const codeMissing = s.requires_secret_code && !!d && !d.secret_code && (d.code_set === false || (d.code_set === undefined && d.can_change));
                   const windowLabel =
                     s.starts_at || s.ends_at
                       ? `${s.starts_at ? formatLagosDate(s.starts_at) : "Any time"} → ${s.ends_at ? formatLagosDate(s.ends_at) : "no end"}`
@@ -562,7 +568,12 @@ export default async function AdminExamSessionsPage({
                         <div className="flex flex-wrap items-center gap-1.5">
                           <SessionStatusBadge status={s.status} />
                           {s.requires_secret_code ? (
-                            d?.secret_code ? (
+                            codeMissing ? (
+                              <Badge tone="red">
+                                <KeyRound className="h-3 w-3" aria-hidden="true" />
+                                No code set: learners can&apos;t start
+                              </Badge>
+                            ) : d?.secret_code ? (
                               <Badge tone="violet">
                                 <KeyRound className="h-3 w-3" aria-hidden="true" />
                                 Code: <span className="font-mono tracking-wider">{d.secret_code}</span>

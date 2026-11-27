@@ -18586,3 +18586,84 @@ begin
   execute format('grant select (%s) on public.exam_test_sessions to authenticated', v_cols);
 end;
 $$;
+
+
+-- ===== From migrations/20261127c_exam_session_code_required.sql =====
+-- A session that needs a secret code must have one (see docs/migrations/20261127c_exam_session_code_required.sql)
+
+create or replace function public.exam_sessions_need_code()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if coalesce(new.requires_secret_code, false) and nullif(btrim(coalesce(new.secret_code, '')), '') is null then
+    raise exception 'Type the secret code learners will use, or untick ''Require secret code to start''.'
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists exam_sessions_need_code on public.exam_test_sessions;
+create trigger exam_sessions_need_code
+  before insert or update of requires_secret_code, secret_code on public.exam_test_sessions
+  for each row execute function public.exam_sessions_need_code();
+
+drop function if exists public.exam_session_details(uuid[]);
+create or replace function public.exam_session_details(p_sessions uuid[])
+returns table (
+  session_id uuid,
+  test_name text,
+  subject_name text,
+  class_level text,
+  class_name text,
+  secret_code text,
+  can_change boolean,
+  approved boolean,
+  code_set boolean
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_kind text := public.exam_viewer_kind();
+  v_admin boolean := coalesce(public.is_admin(), false);
+begin
+  if p_sessions is null or cardinality(p_sessions) = 0 then
+    return;
+  end if;
+  if cardinality(p_sessions) > 500 then
+    raise exception 'Ask for 500 sessions or fewer at a time.';
+  end if;
+  return query
+  select s.id,
+         t.name,
+         sub.name,
+         c.level::text,
+         c.name,
+         case
+           when v_admin or t.created_by = auth.uid() or coalesce(public.can_conduct_session(s.id), false) then s.secret_code
+         end,
+         v_admin or (v_kind = 'teacher' and coalesce(public.can_schedule_test(s.test_id, s.class_id), false)),
+         t.approval_status = 'approved',
+         nullif(btrim(coalesce(s.secret_code, '')), '') is not null
+  from public.exam_test_sessions s
+  join public.exam_tests t on t.id = s.test_id
+  left join public.subjects sub on sub.id = t.subject_id
+  left join public.classes c on c.id = s.class_id
+  where s.id = any(p_sessions)
+    and case v_kind
+          when 'admin' then true
+          when 'staff' then true
+          when 'teacher' then public.teacher_sees_session(s.id)
+          when 'conductor' then coalesce(public.can_conduct_session(s.id), false)
+          else false
+        end;
+end;
+$$;
+revoke all on function public.exam_session_details(uuid[]) from public, anon;
+grant execute on function public.exam_session_details(uuid[]) to authenticated;
+

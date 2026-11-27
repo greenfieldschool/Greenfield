@@ -3,7 +3,7 @@ import { getTeacherAccess, teachesSubject, teacherSubjectIds, teacherTestFilter 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { Ban, CircleCheck, Clock, Copy, FileText, Info, Plus, Search, Trash2, X } from "lucide-react";
+import { Ban, CircleCheck, Clock, Copy, FileText, Info, Plus, Search, Trash2, Undo2, X } from "lucide-react";
 import SubmitButton from "@/components/submit-button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -644,6 +644,16 @@ export default async function AdminExamTestsPage({
                                 </a>
                               </form>
                             </details>
+                          ) : null}
+                          {/* Only admins and teachers open this page; teachers never get Unapprove. */}
+                          {!access.isTeacher && t.approval_status === "approved" ? (
+                            <Link
+                              href={`/admin/exams/tests/${t.id}?unapprove=1#unapprove`}
+                              className="mt-1 inline-flex min-h-[32px] items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                            >
+                              <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              Unapprove
+                            </Link>
                           ) : null}
                           {!t.active ? (
                             <Badge tone="slate" dot>

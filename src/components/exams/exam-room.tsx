@@ -95,7 +95,9 @@ export async function ExamRoom({ supabase, sessionId, back }: { supabase: Supaba
     supabase.rpc("exam_session_details", { p_sessions: [sessionId] })
   ]);
   const needsCode = !!(sessionRow as { requires_secret_code?: boolean } | null)?.requires_secret_code;
-  const secretCode = detailError ? null : (((detail ?? []) as Array<{ secret_code: string | null }>)[0]?.secret_code ?? null);
+  const det = detailError ? null : (((detail ?? []) as Array<{ secret_code: string | null; can_change: boolean; code_set?: boolean }>)[0] ?? null);
+  const secretCode = det?.secret_code ?? null;
+  const codeMissing = needsCode && !!det && !secretCode && (det.code_set === false || (det.code_set === undefined && det.can_change));
   // A session with no class is hidden from every learner; staff and conductors must see why.
   const noClass = !!sessionRow && !(sessionRow as { class_id: string | null }).class_id;
   const duration = ((Array.isArray(info) ? info[0] : info) as { duration_minutes: number | null } | null)?.duration_minutes ?? null;
@@ -146,7 +148,12 @@ export async function ExamRoom({ supabase, sessionId, back }: { supabase: Supaba
         </Alert>
       ) : null}
 
-      {needsCode && !detailError ? (
+      {codeMissing ? (
+        <Alert tone="danger" title="No secret code set: learners can't start this exam">
+          This session needs a code but none was saved, so every code a learner types is refused. An admin or the
+          paper&apos;s teacher must open the session settings and type a code, or untick &lsquo;Require secret code to start&rsquo;.
+        </Alert>
+      ) : needsCode && !detailError ? (
         secretCode ? (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
             <KeyRound className="h-5 w-5 text-violet-700" aria-hidden="true" />

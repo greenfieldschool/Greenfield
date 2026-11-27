@@ -118,7 +118,7 @@ security-and-privacy (who can see questions and answers).
   kept. The page freezes questions once anyone sat it (`checkTestFrozen`), so the fix for a sat paper is Duplicate.
 - Trigger `exam_questions_keep_answered`: a question with learners' answers can't be deleted (the FK cascade used to
   delete their answers). Untick Active instead.
-- Screen: "Found a mistake? Unapprove this paper" (`#unapprove`, a `<details>` under Approval, admins, approved only),
+- Screen: red-outlined "Unapprove this paper" button (`#unapprove`, a `<details>` under Approval, admins, approved only; the school missed it as plain text), opened by `?unapprove=1` from the red "Unapprove" link on approved rows of the Tests list,
   `unapprove-form.tsx` (reason select, Other field, confirm), `unapproveTestAction`. History labels:
   `APPROVAL_EVENT_LABEL`. Learn Centre: `LEARN.tests`.
 - Open question for the school: resending after a send-back or unapprove updates `submitted_at`, so a paper first
@@ -142,7 +142,12 @@ security-and-privacy (who can see questions and answers).
   `grant select (col) … to authenticated`**. Writing the code still works (update/insert grants unchanged).
   Changers (`can_schedule_test` = admin or owner) always get the code, so saving the form never wipes it.
 - Deploy order: code first, then the SQL (old pages selected `secret_code` and would fail after it).
-- Test: [`exam-session-codes-pglite-test.mjs`](exam-session-codes-pglite-test.mjs) (32 checks).
+- **Required code with none set** (20261127c): `start_exam_attempt` compares with `coalesce(secret_code, '')`, so
+  `requires_secret_code` with an empty code locks every learner out. 9 live sessions were like that on 27 Nov 2026
+  (found once admins could see codes). The forms refuse it, trigger `exam_sessions_need_code` (on insert or update of
+  the two code columns; old rows stay until edited) refuses it, `exam_session_details` returns `code_set`, and the
+  list, session page and exam room show "No code set: learners can't start". The SQL file ends with a query listing them.
+- Test: [`exam-session-codes-pglite-test.mjs`](exam-session-codes-pglite-test.mjs) (39 checks, with 20261127c).
 
 ## Every session has a class (20261125e_exam_session_class_required.sql, 25 Nov 2026)
 - A session with no class used to mean "every class", so papers scheduled without one were open to the whole school

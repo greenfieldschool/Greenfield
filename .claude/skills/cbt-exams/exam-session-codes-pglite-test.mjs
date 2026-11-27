@@ -1,9 +1,12 @@
 // PGlite test for docs/migrations/20261127b_exam_session_list_and_codes.sql (issue13: session list names and codes).
 // Copy next to pglite-full-schema.mjs and pglite-split.mjs (supabase-migration skill), npm install
 // @electric-sql/pglite@0.2.17, then: node <this file> [path to docs/schema.sql]
+import fs from "node:fs";
 import { load, U } from "./pglite-full-schema.mjs";
 const D = "/Users/user/Documents/Business/greenfieldSchool/docs/migrations/";
 const MIG = D + "20261127b_exam_session_list_and_codes.sql";
+const MIG_C = D + "20261127c_exam_session_code_required.sql";
+// The bad session (code required, none set) is seeded before 20261127c, as on the live site.
 const db = await load([D + "20261125d_exam_rules_speed.sql", D + "20261125e_exam_session_class_required.sql", MIG, MIG]); // new file twice
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log("FAIL", m); } };
@@ -83,6 +86,20 @@ ok((await q(`select secret_code from exam_test_sessions where id='${S2}'`))[0].s
 await refused(PUPIL, `select start_exam_attempt('${S1}', 'MATH44')`, "the old code no longer works", /code/i);
 ok((await as(PUPIL, () => q(`select start_exam_attempt('${S1}', 'NEW44') as id`)))[0].id, "the new code lets the learner start");
 ok((await as(OWNER, () => q(`insert into exam_test_sessions(test_id, class_id, status, active, requires_secret_code, secret_code) values ('${T1}','${C2}','draft',true,true,'X1')`))) !== null, "teachers can still create sessions with a code");
+
+// 5. A required code must be set (20261127c). An old session without one is flagged, not hidden.
+const S4 = U(83);
+await db.exec(`set session_replication_role = replica; insert into exam_test_sessions(id, test_id, class_id, status, active, requires_secret_code, secret_code) values ('${S4}','${T1}','${C1}','active',true,true,null); set session_replication_role = origin;`);
+for (const f of [MIG_C, MIG_C]) await db.exec(fs.readFileSync(f, "utf8"));
+const flag = async (uid) => (await as(uid, () => q(`select session_id, code_set, secret_code from exam_session_details(array['${S1}','${S4}']::uuid[])`)));
+const ff = Object.fromEntries((await flag(CLASS_T)).map((x) => [x.session_id, x]));
+ok(ff[S4]?.code_set === false && ff[S1]?.code_set === true && ff[S1]?.secret_code == null, "everyone who sees it can tell 'no code set' from 'code hidden'");
+await refused(PUPIL, `select start_exam_attempt('${S4}', 'anything')`, "a learner can't start a session with no code set (why it is flagged)", /code/i);
+await refused(OWNER, `insert into exam_test_sessions(test_id, class_id, status, active, requires_secret_code, secret_code) values ('${T1}','${C1}','draft',true,true,'  ')`, "a new session needing a code must have one", /Type the secret code/);
+await refused(OWNER, `update exam_test_sessions set secret_code=null where id='${S1}'`, "can't clear the code while it is required", /Type the secret code/);
+ok((await rowsAs(OWNER, `update exam_test_sessions set secret_code='P4FIX' where id='${S4}' returning id`)).length === 1, "setting a code fixes it");
+ok((await rowsAs(OWNER, `update exam_test_sessions set requires_secret_code=false, secret_code=null where id='${S1}' returning id`)).length === 1, "unticking 'require code' works");
+ok((await rowsAs(OWNER, `update exam_test_sessions set status='draft' where id='${S4}' returning id`)).length === 1, "other changes still save");
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -189,10 +189,10 @@ export default async function AdminExamTestDetailPage({
   searchParams
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; unapprove?: string }>;
 }) {
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, unapprove } = await searchParams;
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
 
@@ -614,6 +614,7 @@ export default async function AdminExamTestDetailPage({
         answeredIds={new Set(solutions.filter((x) => x.correct_answer !== null && x.correct_answer !== undefined).map((x) => x.question_id))}
         isAdmin={isAdmin}
         canSend
+        openUnapprove={unapprove === "1"}
       />
 
       {/* Test details */}
