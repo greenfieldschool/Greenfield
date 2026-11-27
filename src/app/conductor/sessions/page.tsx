@@ -80,6 +80,16 @@ export default async function ConductorSessionsPage() {
 
   const rows = (data ?? []) as unknown as SessionConductorRow[];
   const sessions = rows.map((r) => firstOrNull(r.exam_test_sessions)).filter(Boolean) as SessionRow[];
+  // Names and classes for every room (a teacher who conducts can't read other teachers' papers directly).
+  const names = new Map<string, { test_name: string | null; class_level: string | null; class_name: string | null }>();
+  if (sessions.length) {
+    const { data: det, error: detError } = await supabase.rpc("exam_session_details", { p_sessions: sessions.map((s) => s.id) });
+    if (!detError) {
+      for (const d of (det ?? []) as Array<{ session_id: string; test_name: string | null; class_level: string | null; class_name: string | null }>) {
+        names.set(d.session_id, d);
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -108,12 +118,13 @@ export default async function ConductorSessionsPage() {
               <tbody>
                 {sessions.map((s) => {
                   const test = firstOrNull(s.exam_tests);
-                  const cls = firstOrNull(s.classes);
+                  const d = names.get(s.id);
+                  const cls = d?.class_name ? { level: d.class_level ?? "", name: d.class_name } : firstOrNull(s.classes);
                   return (
                     <tr key={s.id}>
                       <td>
                         <Link href={`/conductor/sessions/${s.id}`} className="font-semibold text-slate-900 hover:text-brand-green hover:underline">
-                          {test?.name ?? s.test_id}
+                          {d?.test_name ?? test?.name ?? "Exam"}
                         </Link>
                       </td>
                       <td>

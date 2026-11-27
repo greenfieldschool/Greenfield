@@ -261,7 +261,8 @@ export default function AdminLearnCentrePage() {
             "Status 'Open to learners' shows the exam to the class between the dates; 'Draft' hides it. The sessions list shows whether learners can see each session now, or why not.",
             "Every session needs a class: only learners in that class can open it. A paper for two or more classes needs one session for each class. A session with no class is hidden from all learners and marked 'No class' in the list until you choose one.",
             "Two hours after the session's end date, anyone still writing (or who closed the browser and never came back) is handed in automatically with the answers they saved, and marked. Staff can let them back in if that was too early.",
-            "Enable 'Requires secret code' only if learners must type a code given in the exam hall.",
+            "Enable 'Requires secret code' only if learners must type a code given in the exam hall. The code shows in the sessions list and at the top of the exam room, but only for admins, the teacher who set the paper and that room's conductors. Anyone else sees 'Code: ask the paper's teacher'. If another member of staff will give out the code, add them as a conductor for that session.",
+            "Teachers see the sessions of their own papers, of their class (class teachers), of the subjects they teach in a class, and of rooms they conduct, each with the paper's name and class. Only admins and the teacher who set a paper can change its sessions; others see 'View' instead of 'Edit'. Other staff see every session.",
             "To change how many objective and theory questions a session's test should have, open the session and use 'Number of questions'. The numbers are saved on the test, so every session using that test shows them.",
             "Learners access scheduled exams via the learner portal (/portal/login/student)."
           ]

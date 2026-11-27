@@ -1,4 +1,4 @@
-import { Clock, Lock, LockOpen, RotateCcw, Timer } from "lucide-react";
+import { Clock, KeyRound, Lock, LockOpen, RotateCcw, Timer } from "lucide-react";
 import type { getSupabaseServerClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/submit-button";
 import ConfirmSubmitButton from "@/components/confirm-submit-button";
@@ -78,7 +78,7 @@ function TickForTime({ attemptId, name }: { attemptId: string; name: string }) {
 }
 
 export async function ExamRoom({ supabase, sessionId, back }: { supabase: Supabase; sessionId: string; back: string }) {
-  const [{ data: list }, { data: clocks, error }, { data: info }, { data: sessionRow }] = await Promise.all([
+  const [{ data: list }, { data: clocks, error }, { data: info }, { data: sessionRow }, { data: detail, error: detailError }] = await Promise.all([
     supabase
       .from("exam_attempt_list_v")
       .select("attempt_id, admission_number, first_name, last_name")
@@ -90,8 +90,12 @@ export async function ExamRoom({ supabase, sessionId, back }: { supabase: Supaba
       .select("id, status, locked_at, locked_reason, lock_count, submitted_at, used_seconds, clock_started_at, extra_seconds, unlocked_at, unlock_reason")
       .eq("session_id", sessionId),
     supabase.rpc("exam_room_info", { p_session: sessionId }),
-    supabase.from("exam_test_sessions").select("class_id").eq("id", sessionId).maybeSingle()
+    supabase.from("exam_test_sessions").select("class_id, requires_secret_code").eq("id", sessionId).maybeSingle(),
+    // Secret code: only for admins, the paper's teacher and this room's conductors (20261127b).
+    supabase.rpc("exam_session_details", { p_sessions: [sessionId] })
   ]);
+  const needsCode = !!(sessionRow as { requires_secret_code?: boolean } | null)?.requires_secret_code;
+  const secretCode = detailError ? null : (((detail ?? []) as Array<{ secret_code: string | null }>)[0]?.secret_code ?? null);
   // A session with no class is hidden from every learner; staff and conductors must see why.
   const noClass = !!sessionRow && !(sessionRow as { class_id: string | null }).class_id;
   const duration = ((Array.isArray(info) ? info[0] : info) as { duration_minutes: number | null } | null)?.duration_minutes ?? null;
@@ -140,6 +144,22 @@ export async function ExamRoom({ supabase, sessionId, back }: { supabase: Supaba
           An admin or the paper&apos;s teacher must open the session settings and choose the class that sits it. Learners
           who already started can carry on as soon as the class is set.
         </Alert>
+      ) : null}
+
+      {needsCode && !detailError ? (
+        secretCode ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
+            <KeyRound className="h-5 w-5 text-violet-700" aria-hidden="true" />
+            <span className="text-sm text-violet-900">Secret code for learners:</span>
+            <span className="font-mono text-xl font-bold tracking-widest text-violet-950">{secretCode}</span>
+            <span className="text-xs text-violet-800">Give it out in the room when the exam starts.</span>
+          </div>
+        ) : (
+          <Alert tone="info" title="Learners need a secret code to start">
+            Only admins, the teacher who set this paper and this room&apos;s conductors can see it. Ask one of them, or ask an
+            admin to add you as a conductor for this session.
+          </Alert>
+        )
       ) : null}
 
       <p className="text-sm text-slate-600" role="status">

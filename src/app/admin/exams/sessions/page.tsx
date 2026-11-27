@@ -41,6 +41,20 @@ type ClassRow = { id: string; level: string; name: string };
 type YearRow = { id: string; name: string };
 type TermRow = { id: string; name: string };
 
+// From exam_session_details(): the paper's name and class for every session the viewer can see (teachers can't
+// read other teachers' papers or classes directly), and the secret code only for admins, the paper's teacher and
+// the room's conductors (20261127b).
+type SessionDetail = {
+  session_id: string;
+  test_name: string | null;
+  subject_name: string | null;
+  class_level: string | null;
+  class_name: string | null;
+  secret_code: string | null;
+  can_change: boolean;
+  approved: boolean | null;
+};
+
 type SessionRow = {
   id: string;
   test_id: string;
@@ -87,6 +101,8 @@ export default async function AdminExamSessionsPage({
   let classRows: ClassRow[] = [];
   let yearRows: YearRow[] = [];
   let termRows: TermRow[] = [];
+  const details = new Map<string, SessionDetail>();
+  let detailsLoaded = false;
 
   // Compute metrics (all sessions count)
   let totalSessionsCount = 0;
@@ -206,6 +222,17 @@ export default async function AdminExamSessionsPage({
     }
     sessionRows = ((sessionsData ?? []) as unknown as SessionRow[]) ?? [];
     totalCount = count ?? 0;
+
+    if (sessionRows.length) {
+      const { data: detailRows, error: detailsError } = await supabase.rpc("exam_session_details", {
+        p_sessions: sessionRows.map((s) => s.id)
+      });
+      // Before the 27 Nov 2026 database update the function doesn't exist: fall back to the names we can read.
+      if (!detailsError) {
+        detailsLoaded = true;
+        for (const d of (detailRows ?? []) as SessionDetail[]) details.set(d.session_id, d);
+      }
+    }
 
   } catch (e) {
     if (!loadErrorMsg) {
@@ -480,21 +507,32 @@ export default async function AdminExamSessionsPage({
               <tbody>
                 {sessionRows.map((s) => {
                   const test = testsById.get(s.test_id) ?? null;
-                  const cls = s.class_id ? (classesById.get(s.class_id) ?? null) : null;
+                  const d = details.get(s.id) ?? null;
+                  const cls = d?.class_name
+                    ? { level: d.class_level ?? "", name: d.class_name }
+                    : s.class_id
+                      ? (classesById.get(s.class_id) ?? null)
+                      : null;
+                  const testName = d?.test_name ?? test?.name ?? null;
+                  const canChange = detailsLoaded ? !!d?.can_change : true;
                   const windowLabel =
                     s.starts_at || s.ends_at
                       ? `${s.starts_at ? formatLagosDate(s.starts_at) : "Any time"} → ${s.ends_at ? formatLagosDate(s.ends_at) : "no end"}`
                       : "No date limit";
                   const visibility = sessionVisibility({
                     ...s,
-                    approved: test?.approval_status === undefined || test?.approval_status === null ? null : test.approval_status === "approved"
+                    approved:
+                      test?.approval_status === undefined || test?.approval_status === null
+                        ? (d?.approved ?? null)
+                        : test.approval_status === "approved"
                   });
                   return (
                     <tr key={s.id}>
                       <td>
                         <Link href={`/admin/exams/sessions/${s.id}`} className="font-semibold text-slate-900 hover:text-brand-green hover:underline">
-                          {test?.name ?? s.test_id}
+                          {testName ?? "Paper you can't open"}
                         </Link>
+                        {d?.subject_name ? <div className="text-xs text-slate-500">{d.subject_name}</div> : null}
                       </td>
                       <td>
                         {!s.class_id ? (
@@ -524,18 +562,27 @@ export default async function AdminExamSessionsPage({
                         <div className="flex flex-wrap items-center gap-1.5">
                           <SessionStatusBadge status={s.status} />
                           {s.requires_secret_code ? (
-                            <Badge tone="violet">
-                              <KeyRound className="h-3 w-3" aria-hidden="true" />
-                              code
-                            </Badge>
+                            d?.secret_code ? (
+                              <Badge tone="violet">
+                                <KeyRound className="h-3 w-3" aria-hidden="true" />
+                                Code: <span className="font-mono tracking-wider">{d.secret_code}</span>
+                              </Badge>
+                            ) : (
+                              <span title="Admins, the paper's teacher and this room's conductors can see the code.">
+                                <Badge tone="slate">
+                                  <KeyRound className="h-3 w-3" aria-hidden="true" />
+                                  {detailsLoaded ? "Code: ask the paper's teacher" : "Needs a code"}
+                                </Badge>
+                              </span>
+                            )
                           ) : null}
                         </div>
                       </td>
                       <td>
                         <div className="flex flex-wrap justify-end gap-1">
                           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={`/admin/exams/sessions/${s.id}`}>
-                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                            Edit
+                            {canChange ? <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> : <Eye className="h-3.5 w-3.5" aria-hidden="true" />}
+                            {canChange ? "Edit" : "View"}
                           </Link>
                           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={`/admin/exams/sessions/${s.id}/attempts`}>
                             <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />

@@ -32,7 +32,9 @@ ok((await rowsAs(P2, `select * from portal_student_exam_sessions()`)).length ===
 ok((await rowsAs(P2, `select id from exam_questions where test_id='${T}'`)).length === 0, "nor its questions");
 ok((await as(P2, () => q(`select can_student_access_session('${OLD}') a`)))[0].a === false, "can't start it");
 ok((await rowsAs(ADMIN, `select id from exam_test_sessions where id='${OLD}' and class_id is null`)).length === 1, "admin still sees it, with no class");
-ok((await rowsAs(TEACHER, `select id from exam_test_sessions where id='${OLD}' and class_id is null`)).length === 1, "teachers still see it, with no class");
+// Since 20261127b a teacher sees only sessions of their own papers, classes, subjects or rooms; this paper has no owner.
+ok((await rowsAs(TEACHER, `select id from exam_test_sessions where id='${OLD}' and class_id is null`)).length === 0, "a teacher with no link to it doesn't see it (20261127b)");
+ok((await rowsAs(FRONT, `select id from exam_test_sessions where id='${OLD}' and class_id is null`)).length === 1, "other staff still see it, with no class");
 ok((await rowsAs(FRONT, `select id from exam_test_sessions where id='${OLD}' and class_id is null`)).length === 1, "staff running rooms still see it, with no class");
 
 // 2. The school's own changes to an old session still work (release, close)

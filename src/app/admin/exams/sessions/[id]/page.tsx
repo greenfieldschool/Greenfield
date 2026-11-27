@@ -83,7 +83,7 @@ export default async function AdminExamSessionEditPage({
         supabase
           .from("exam_test_sessions")
           .select(
-            "id, test_id, class_id, academic_year_id, academic_term_id, starts_at, ends_at, status, requires_secret_code, secret_code, active"
+            "id, test_id, class_id, academic_year_id, academic_term_id, starts_at, ends_at, status, requires_secret_code, active"
           )
           .eq("id", id)
           .maybeSingle(),
@@ -120,6 +120,29 @@ export default async function AdminExamSessionEditPage({
   }
 
   const session = (sessionData ?? null) as unknown as SessionRow | null;
+  // The secret code can't be read from the table (20261127b): it comes from exam_session_details, only for admins,
+  // the paper's teacher and the room's conductors. Before that update, read it the old way.
+  let canChange = true;
+  let detailName: { test: string | null; level: string | null; cls: string | null } | null = null;
+  if (session) {
+    session.secret_code = null;
+    const { data: det, error: detError } = await supabase.rpc("exam_session_details", { p_sessions: [session.id] });
+    if (!detError) {
+      const d = ((det ?? []) as Array<{
+        secret_code: string | null;
+        can_change: boolean;
+        test_name: string | null;
+        class_level: string | null;
+        class_name: string | null;
+      }>)[0];
+      session.secret_code = d?.secret_code ?? null;
+      canChange = !!d?.can_change;
+      if (d) detailName = { test: d.test_name, level: d.class_level, cls: d.class_name };
+    } else {
+      const { data: old } = await supabase.from("exam_test_sessions").select("secret_code").eq("id", session.id).maybeSingle();
+      session.secret_code = (old as { secret_code: string | null } | null)?.secret_code ?? null;
+    }
+  }
   if (!session) {
     return (
       <div className="space-y-6">
@@ -147,14 +170,20 @@ export default async function AdminExamSessionEditPage({
     const { data: currentTest } = await supabase.from("exam_tests").select("id, name").eq("id", session.test_id).maybeSingle();
     testRows.unshift({
       id: session.test_id,
-      name: (currentTest as TestRow | null)?.name ?? "Current test",
-      inactive: true
+      name: (currentTest as TestRow | null)?.name ?? detailName?.test ?? "Current test",
+      // Another teacher's paper isn't "inactive", the viewer just can't open it.
+      inactive: !detailName?.test || !!(currentTest as TestRow | null)
     });
   }
   if (session.class_id && !classRows.some((c) => c.id === session.class_id)) {
     const { data: currentClass } = await supabase.from("classes").select("id, level, name").eq("id", session.class_id).maybeSingle();
     const cls = currentClass as ClassRow | null;
-    classRows.unshift({ id: session.class_id, level: cls?.level ?? "", name: cls?.name ?? "Current class", inactive: true });
+    classRows.unshift({
+      id: session.class_id,
+      level: cls?.level ?? detailName?.level ?? "",
+      name: cls?.name ?? detailName?.cls ?? "Current class",
+      inactive: !detailName?.cls || !!cls
+    });
   }
   if (session.academic_year_id && !yearRows.some((y) => y.id === session.academic_year_id)) {
     yearRows.unshift({ id: session.academic_year_id, name: "Current year" });
@@ -274,8 +303,8 @@ export default async function AdminExamSessionEditPage({
         learn={LEARN.sessions}
         back={{ href: "/admin/exams/sessions", label: "Back to sessions" }}
         eyebrow="Exams"
-        title="Edit session"
-        description="Update the class, dates, and access settings for this session."
+        title={canChange ? "Edit session" : "Session"}
+        description={canChange ? "Update the class, dates, and access settings for this session." : "The class, dates and access settings for this session."}
         actions={
           <>
             <Link className={buttonClasses({ variant: "secondary" })} href={`/admin/exams/sessions/${id}/attempts`}>
@@ -296,14 +325,22 @@ export default async function AdminExamSessionEditPage({
           : "Learners can't see this session right now."}
       </Alert>
 
+      {!canChange ? (
+        <Alert tone="info" title="You can look but not change this session">
+          Only admins and the teacher who set this paper can change it. The secret code is shown to them and to this room&apos;s conductors.
+        </Alert>
+      ) : null}
+
       <form action={updateSession}>
         <FormSection
           title="Session settings"
           description="Which test, who sits it, and when."
           footer={
-            <SubmitButton variant="primary" pendingText="Saving…">
-              Save changes
-            </SubmitButton>
+            canChange ? (
+              <SubmitButton variant="primary" pendingText="Saving…">
+                Save changes
+              </SubmitButton>
+            ) : null
           }
         >
           <div className="grid gap-4 sm:grid-cols-2">
@@ -391,8 +428,9 @@ export default async function AdminExamSessionEditPage({
                 id="session-secret"
                 className="gf-input"
                 name="secret_code"
-                placeholder="Only if required"
+                placeholder={!canChange && session.requires_secret_code ? "Hidden" : "Only if required"}
                 defaultValue={session.secret_code ?? ""}
+                disabled={!canChange}
               />
               <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
                 <input
@@ -408,6 +446,7 @@ export default async function AdminExamSessionEditPage({
         </FormSection>
       </form>
 
+      {canChange ? (
       <form action={updateQuestionNumbers}>
         <FormSection
           title="Number of questions"
@@ -479,6 +518,7 @@ export default async function AdminExamSessionEditPage({
           </div>
         </FormSection>
       </form>
+      ) : null}
     </div>
   );
 }

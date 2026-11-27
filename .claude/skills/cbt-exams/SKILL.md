@@ -125,6 +125,25 @@ security-and-privacy (who can see questions and answers).
   sent on time can show "Sent late" (policy: late = holiday salary forfeited).
 - Test: [`exam-unapprove-pglite-test.mjs`](exam-unapprove-pglite-test.mjs) (33 checks).
 
+## Session list names and secret codes (20261127b_exam_session_list_and_codes.sql, issue13, 27 Nov 2026)
+- The school saw a teacher's Sessions list full of ID codes and "Another class": every staff member could read every
+  session, but since 20261125 teachers can only read their own papers' names and their classes.
+- Teachers now read only sessions where `teacher_sees_session(s)`: own paper, class teacher (`teacher_has_class`),
+  subject teacher of that subject in that class (`teacher_teaches`), or conductor of the room. Admins and other staff
+  see all. A class-less session of nobody's paper is visible to admins and other staff only.
+- `exam_session_details(sessions[])` (definer, max 500): test name, subject, class, `approved`, `can_change`
+  (`can_schedule_test`) for sessions the caller can see, and `secret_code` only for admins, the paper's owner and the
+  room's conductors. Used by the Sessions list (names, "Code: …" or "Code: ask the paper's teacher", Edit/View), the
+  session page (code, read-only for non-changers), `ExamRoom` (code banner) and the conductor's list. Every caller
+  falls back quietly when the function is missing (before the SQL is run).
+- **`secret_code` can't be read directly** by `authenticated`/`anon` (column grants: select on every other column).
+  Learners used to be able to read the code of their own open session. Consequences: never `select("*")` on
+  `exam_test_sessions` (permission denied), and **a new column on `exam_test_sessions` needs its own
+  `grant select (col) … to authenticated`**. Writing the code still works (update/insert grants unchanged).
+  Changers (`can_schedule_test` = admin or owner) always get the code, so saving the form never wipes it.
+- Deploy order: code first, then the SQL (old pages selected `secret_code` and would fail after it).
+- Test: [`exam-session-codes-pglite-test.mjs`](exam-session-codes-pglite-test.mjs) (32 checks).
+
 ## Every session has a class (20261125e_exam_session_class_required.sql, 25 Nov 2026)
 - A session with no class used to mean "every class", so papers scheduled without one were open to the whole school
   (10 were on 25 Nov). Now trigger `exam_sessions_need_class` refuses a new session, or taking the class off one,
